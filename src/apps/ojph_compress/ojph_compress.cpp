@@ -1,0 +1,738 @@
+/****************************************************************************/
+// This software is released under the 2-Clause BSD license, included
+// below.
+//
+// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2019, The University of New South Wales, Australia
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+// 
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+// 
+// 2. Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/****************************************************************************/
+// This file is part of the OpenJPH software implementation.
+// File: ojph_compress.cpp
+// Author: Aous Naman
+// Date: 28 August 2019
+/****************************************************************************/
+
+
+#include <ctime>
+#include <iostream>
+
+#include "ojph_arg.h"
+#include "ojph_mem.h"
+#include "ojph_img_io.h"
+#include "ojph_file.h"
+#include "ojph_codestream.h"
+#include "ojph_params.h"
+
+/////////////////////////////////////////////////////////////////////////////
+struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  size_list_interpreter(const int max_num_elements, int& num_elements,
+                        ojph::size* list)
+  : max_num_eles(max_num_elements), sizelist(list), num_eles(num_elements)
+  {}
+
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    num_eles = 0;
+    do
+    {
+      if (num_eles)
+      {
+        if (*next_char != ',') //separate sizes by a comma
+          throw "sizes in a sizes list must be separated by a comma";
+        next_char++;
+      }
+
+      if (*next_char != '{')
+        throw "size must start with {";
+      next_char++;
+      char *endptr;
+      sizelist[num_eles].w = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "size number is improperly formated";
+      next_char = endptr;
+      if (*next_char != ',')
+        throw "size must have a "","" between the two numbers";
+      next_char++;
+      sizelist[num_eles].h = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "number is improperly formated";
+      next_char = endptr;
+      if (*next_char != '}')
+        throw "size must end with }";
+      next_char++;
+
+      ++num_eles;
+    }
+    while (*next_char == ',' && num_eles + 1 < max_num_eles);
+    if (num_eles + 1 < max_num_eles)
+    {
+      if (*next_char)
+        throw "size elements must separated by a "",""";
+    }
+    else if (*next_char)
+        throw "there are too many elements in the size list";
+  }
+
+  const int max_num_eles;
+  ojph::size* sizelist;
+  int& num_eles;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  point_list_interpreter(const int max_num_elements, int& num_elements,
+                         ojph::point* list)
+  : max_num_eles(max_num_elements), pointlist(list), num_eles(num_elements)
+  { }
+
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    num_eles = 0;
+    do
+    {
+      if (num_eles)
+      {
+        if (*next_char != ',') //separate sizes by a comma
+          throw "sizes in a sizes list must be separated by a comma";
+        next_char++;
+      }
+
+      if (*next_char != '{')
+        throw "size must start with {";
+      next_char++;
+      char *endptr;
+      pointlist[num_eles].x = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "point number is improperly formated";
+      next_char = endptr;
+      if (*next_char != ',')
+        throw "point must have a "","" between the two numbers";
+      next_char++;
+      pointlist[num_eles].y = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "number is improperly formated";
+      next_char = endptr;
+      if (*next_char != '}')
+        throw "point must end with }";
+      next_char++;
+
+      ++num_eles;
+    }
+    while (*next_char == ',' && num_eles + 1 < max_num_eles);
+    if (num_eles + 1 < max_num_eles)
+    {
+      if (*next_char)
+        throw "size elements must separated by a "",""";
+    }
+    else if (*next_char)
+        throw "there are too many elements in the size list";
+  }
+
+  const int max_num_eles;
+  ojph::point* pointlist;
+  int& num_eles;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+struct size_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  size_interpreter(ojph::size& val) : val(val) {}
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    if (*next_char != '{')
+      throw "size must start with {";
+    next_char++;
+    char *endptr;
+    val.w = (int)strtol(next_char, &endptr, 10);
+    if (endptr == next_char)
+      throw "size number is improperly formated";
+    next_char = endptr;
+    if (*next_char != ',')
+      throw "size must have a "","" between the two numbers";
+    next_char++;
+    val.h = (int)strtol(next_char, &endptr, 10);
+    if (endptr == next_char)
+      throw "number is improperly formated";
+    next_char = endptr;
+    if (*next_char != '}')
+      throw "size must end with }";
+    next_char++;
+    if (*next_char != '\0') //must be end of string
+      throw "size has extra characters";
+  }
+  ojph::size& val;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+struct point_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  point_interpreter(ojph::point& val) : val(val) {}
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    if (*next_char != '{')
+      throw "size must start with {";
+    next_char++;
+    char *endptr;
+    val.x = (int)strtol(next_char, &endptr, 10);
+    if (endptr == next_char)
+      throw "size number is improperly formated";
+    next_char = endptr;
+    if (*next_char != ',')
+      throw "size must have a "","" between the two numbers";
+    next_char++;
+    val.y = (int)strtol(next_char, &endptr, 10);
+    if (endptr == next_char)
+      throw "number is improperly formated";
+    next_char = endptr;
+    if (*next_char != '}')
+      throw "size must end with }";
+    next_char++;
+    if (*next_char != '\0') //must be end of string
+      throw "size has extra characters";
+  }
+  ojph::point& val;
+};
+
+
+/////////////////////////////////////////////////////////////////////////////
+struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  si32_list_interpreter(const int max_num_elements, int& num_elements,
+                        ojph::si32* list)
+  : max_num_eles(max_num_elements), si32list(list), num_eles(num_elements)
+  {}
+
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    num_eles = 0;
+    do
+    {
+      if (num_eles)
+      {
+        if (*next_char != ',') //separate sizes by a comma
+          throw "sizes in a sizes list must be separated by a comma";
+        next_char++;
+      }
+      char *endptr;
+      si32list[num_eles] = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "size number is improperly formated";
+      next_char = endptr;
+      ++num_eles;
+    }
+    while (*next_char == ',' && num_eles + 1 < max_num_eles);
+    if (num_eles + 1 < max_num_eles)
+    {
+      if (*next_char)
+        throw "size elements must separated by a "",""";
+    }
+    else if (*next_char)
+        throw "there are too many elements in the size list";
+  }
+
+  const int max_num_eles;
+  ojph::si32* si32list;
+  int& num_eles;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+struct si32_to_bool_list_interpreter
+: public ojph::cli_interpreter::arg_inter_base
+{
+  si32_to_bool_list_interpreter(const int max_num_elements, int& num_elements,
+                                ojph::si32* list)
+  : max_num_eles(max_num_elements), boollist(list), num_eles(num_elements) {}
+
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    num_eles = 0;
+    do
+    {
+      if (num_eles)
+      {
+        if (*next_char != ',') //separate sizes by a comma
+          throw "sizes in a sizes list must be separated by a comma";
+        next_char++;
+      }
+      if (strncmp(next_char, "true", 4) == 0)
+      {
+        boollist[num_eles] = 1;
+        next_char += 4;
+      }
+      else if (strncmp(next_char, "false", 5) == 0)
+      {
+        boollist[num_eles] = 0;
+        next_char += 5;
+      }
+      else
+        throw "unknown bool value";
+      ++num_eles;
+    }
+    while (*next_char == ',' && num_eles + 1 < max_num_eles);
+    if (num_eles + 1 < max_num_eles)
+    {
+      if (*next_char)
+        throw "size elements must separated by a "",""";
+    }
+    else if (*next_char)
+        throw "there are too many elements in the size list";
+  }
+
+  int get_num_elements() { return num_eles; }
+
+  int max_num_eles;
+  ojph::si32* boollist;
+  int& num_eles;
+};
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+bool get_arguments(int argc, char *argv[], char *&input_filename,
+                   char *&output_filename,
+                   char *&progression_order, int &num_decompositions,
+                   float &quantization_step, bool &reversible,
+                   int &employ_color_transform,
+                   const int max_num_precincts, int &num_precincts,
+                   ojph::size *precinct_size, ojph::size& block_size,
+                   ojph::size& dims, ojph::point& image_offset,
+                   ojph::size& tile_size, ojph::point& tile_offset,
+                   int& max_num_comps, int& num_comps,
+                   int& num_comp_downsamps, ojph::point*& comp_downsamp,
+                   int& num_bit_depths, ojph::si32*& bit_depth,
+                   int& num_is_signed, int*& is_signed)
+{
+  ojph::cli_interpreter interpreter;
+  interpreter.init(argc, argv);
+
+  interpreter.reinterpret("-i", input_filename);
+  interpreter.reinterpret("-o", output_filename);
+  interpreter.reinterpret("-prog_order", progression_order);
+  interpreter.reinterpret("-num_decomps", num_decompositions);
+  interpreter.reinterpret("-qstep", quantization_step);
+  interpreter.reinterpret("-reversible", reversible);
+  interpreter.reinterpret_to_bool("-colour_trans", employ_color_transform);
+  interpreter.reinterpret("-num_comps", num_comps);
+
+  size_interpreter block_interpreter(block_size);
+  size_interpreter dims_interpreter(dims);
+  size_list_interpreter sizelist(max_num_precincts, num_precincts,
+                                 precinct_size);
+
+  if (num_comps > 255)
+    throw "more than 255 components is not supported";
+  if (num_comps > max_num_comps)
+  {
+    max_num_comps = num_comps;
+    comp_downsamp = new ojph::point[num_comps];
+    bit_depth = new ojph::si32[num_comps];
+    is_signed = new int[num_comps];
+    for (int i = 0; i < num_comps; ++i)
+    {
+      comp_downsamp[i] = ojph::point(-1, -1);
+      bit_depth[i] = -1;
+      is_signed[i] = -1;
+    }
+  }
+
+  point_list_interpreter pointlist(max_num_comps, num_comp_downsamps,
+                                   comp_downsamp);
+  si32_list_interpreter ilist(max_num_comps, num_bit_depths, bit_depth);
+  si32_to_bool_list_interpreter blist(max_num_comps, num_is_signed, is_signed);
+  point_interpreter img_off_interpreter(image_offset);
+  size_interpreter tile_size_interpreter(tile_size);
+  point_interpreter tile_off_interpreter(tile_offset);
+
+  try
+  {
+    interpreter.reinterpret("-block_size", &block_interpreter);
+    interpreter.reinterpret("-dims", &dims_interpreter);
+    interpreter.reinterpret("-image_offset", &img_off_interpreter);
+    interpreter.reinterpret("-tile_size", &tile_size_interpreter);
+    interpreter.reinterpret("-tile_offset", &tile_off_interpreter);
+    interpreter.reinterpret("-precincts", &sizelist);
+    interpreter.reinterpret("-downsamp", &pointlist);
+    interpreter.reinterpret("-bit_depth", &ilist);
+    interpreter.reinterpret("-signed", &blist);
+  }
+  catch (const char *s)
+  {
+    printf("%s\n",s);
+    return false;
+  }
+
+  if (interpreter.is_exhausted() == false) {
+    printf("The following arguments were not interpreted:\n");
+    ojph::argument t = interpreter.get_argument_zero();
+    t = interpreter.get_next_avail_argument(t);
+    while (t.is_valid()) {
+      printf("%s\n", t.arg);
+      t = interpreter.get_next_avail_argument(t);
+    }
+    return false;
+  }
+  return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+const char *get_file_extension(const char *filename)
+{
+  size_t len = strlen(filename);
+  return filename + ojph_max(0, len - 4);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// main
+//////////////////////////////////////////////////////////////////////////////
+
+int main(int argc, char * argv[]) {
+  char *input_filename = NULL;
+  char *output_filename = NULL;
+  char prog_order_store[] = "RPCL";
+  char *prog_order = prog_order_store;
+  int num_decompositions = 5;
+  float quantization_step = -1.0;
+  bool reversible = false;
+  int employ_color_transform = -1;
+
+  const int max_precinct_sizes = 33; //maximum number of decompositions is 32
+  ojph::size precinct_size[max_precinct_sizes];
+  int num_precints = -1;
+
+  ojph::size block_size(64,64);
+  ojph::size dims(-1, -1);
+  ojph::size tile_size(0, 0);
+  ojph::point tile_offset(0, 0);
+  ojph::point image_offset(0, 0);
+  const int initial_num_comps = 4;
+  int max_num_comps = initial_num_comps;
+  int num_components = -1;
+  int num_is_signed = 0;
+  int is_signed_store[initial_num_comps] = {-1, -1, -1, -1};
+  int *is_signed = is_signed_store;
+  int num_bit_depths = 0;
+  ojph::si32 bit_depth_store[initial_num_comps] = {-1, -1, -1, -1};
+  ojph::si32 *bit_depth = bit_depth_store;
+  int num_comp_downsamps = 0;
+  ojph::point downsampling_store[initial_num_comps] = { ojph::point(0,0),
+    ojph::point(0,0), ojph::point(0,0), ojph::point(0,0) };
+  ojph::point *comp_downsampling = downsampling_store;
+
+  if (argc <= 1) {
+    std::cout <<
+    "\nThe following arguments are necessary:\n"
+    " -i input file name\n"
+    " -o output file name\n\n"
+
+    "The following option has a default value (optional):\n"
+    " -num_decomps  (5) number of decompositions\n"
+    " -qstep        (1.0/255,0) quantization step size; all quantization\n"
+    "               step sizes are derived from this.\n"
+    " -reversible   (false) for irreversible adnd true for reversible\n"
+    " -colour_trans (true) if there are three color components that are\n"
+    "               downsampled by the same amount then the color transform\n"
+    "               is optional. This option is also available if there are\n"
+    "               more than three colour components, where it is applied\n"
+    "               to the first three colour components\n"
+    " -prog_order   (RPCL) is the progression order, and can be one of:\n"
+    "               LRCP, RLCP, RPCL, PCRL, CPRL\n"
+    " -block_size   {x,y} (64,64) where x and y are the height and width of\n"
+    "               a codeblock. In unix-like environment, { and } must be\n"
+    "               proceeded by a ""\\""\n"
+    " -precincts    {x,y},{x,y},...,{x,y} where {x,y} is the precinct size\n"
+    "               starting from the coarest resolution; the last precinct\n"
+    "               is repeated for all finer resolutions\n"
+    " -tile_offset  {x,y} tile offset. \n"
+    " -tile_size    {x,y} tile width and height. \n"
+    " -image_offset {x,y} image offset from origin. \n"
+    "\n"
+
+    "When the input file is a YUV file, these arguments need to be \n"
+    " supplied: \n"
+    " -dims      {x,y} x is image width, y is height\n"
+    " -num_comps number of components\n"
+    " -signed    a list of true or false parameters, one for each component\n"
+    " -bit_depth a list of bit depth values, one per component\n"
+    " -downsamp  {x,y},{x,y},...,{x,y} a list of x,y points, one for each\n"
+    "            component\n\n"
+    ;
+    return -1;
+  }
+  if (!get_arguments(argc, argv, input_filename, output_filename,
+                     prog_order, num_decompositions,
+                     quantization_step, reversible, employ_color_transform,
+                     max_precinct_sizes, num_precints, precinct_size,
+                     block_size, dims, image_offset, tile_size, tile_offset,
+                     max_num_comps, num_components,
+                     num_comp_downsamps, comp_downsampling,
+                     num_bit_depths, bit_depth, num_is_signed, is_signed))
+  {
+    return -1;
+  }
+
+  clock_t begin = clock();
+
+  try
+  {
+    ojph::codestream codestream;
+
+    ojph::ppm_in ppm;
+    ojph::yuv_in yuv;
+    ojph::image_in_base *base = NULL;
+    const char *v = get_file_extension(input_filename);
+
+    if (v)
+    {
+      if (strncmp(".pgm", v, 4) == 0)
+      {
+        ppm.open(input_filename);
+        ojph::param_siz_t siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
+          image_offset.y + ppm.get_size().h));
+        int num_comps = ppm.get_num_components();
+        assert(num_comps == 1);
+        siz.set_num_components(num_comps);
+        for (int c = 0; c < num_comps; ++c)
+          siz.set_component(c, ppm.get_comp_subsampling(c),
+            ppm.get_bit_depth(c), ppm.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod_t cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims((ojph::ui8)block_size.w, (ojph::ui8)block_size.h);
+        if (num_precints != -1)
+          cod.set_precinct_size(num_precints, precinct_size);
+        cod.set_progression_order(prog_order);
+        cod.set_color_transform(false);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+
+        if (employ_color_transform != -1)
+          printf("-colour_trans option is not needed and was not used\n");
+        if (dims.w != -1 || dims.h != -1)
+          printf("-dims option is not needed and was not used\n");
+        if (num_components != -1 )
+          printf("-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          printf("-signed is not needed and was not used\n");
+        if (bit_depth[0] != -1)
+          printf("-bit_depth is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          printf("-downsamp is not needed and was not used\n");
+
+        base = &ppm;
+      }
+      else if (strncmp(".ppm", v, 4) == 0)
+      {
+        ppm.open(input_filename);
+        ojph::param_siz_t siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
+          image_offset.y + ppm.get_size().h));
+        int num_comps = ppm.get_num_components();
+        assert(num_comps == 3);
+        siz.set_num_components(num_comps);
+        for (int c = 0; c < num_comps; ++c)
+          siz.set_component(c, ppm.get_comp_subsampling(c),
+            ppm.get_bit_depth(c), ppm.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod_t cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precints != -1)
+          cod.set_precinct_size(num_precints, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(false);
+
+        if (dims.w != -1 || dims.h != -1)
+          printf("-dims option is not needed and was not used\n");
+        if (num_components != -1)
+          printf("-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          printf("-signed is not needed and was not used\n");
+        if (bit_depth[0] != -1)
+          printf("-bit_depth is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          printf("-downsamp is not needed and was not used\n");
+
+        base = &ppm;
+      }
+      else if (strncmp(".yuv", v, 4) == 0)
+      {
+        ojph::param_siz_t siz = codestream.access_siz();
+        if (dims.w < 0 || dims.h < 0)
+          printf("-dims option is missing, and need to be provided\n");
+        siz.set_image_extent(ojph::point(image_offset.x + dims.w,
+          image_offset.y + dims.h));
+        if (num_components <= 0)
+          printf("-num_comps option is missing and must be provided\n");
+        if (num_is_signed <= 0)
+          printf("-signed option is missing and must be provided\n");
+        if (num_bit_depths <= 0)
+          printf("-bit_depth option is missing and must be provided\n");
+        if (num_comp_downsamps <= 0)
+          printf("-downsamp option is missing and must be provided\n");
+
+        yuv.set_img_props(dims, num_components, num_comp_downsamps,
+          comp_downsampling);
+        yuv.set_bit_depth(num_bit_depths, bit_depth);
+
+        int last_signed_idx = 0, last_bit_depth_idx = 0, last_downsamp_idx = 0;
+        siz.set_num_components(num_components);
+        for (int c = 0; c < num_components; ++c)
+        {
+          ojph::point cp_ds = comp_downsampling
+              [c < num_comp_downsamps ? c : last_downsamp_idx];
+          last_downsamp_idx += last_downsamp_idx+1 < num_comp_downsamps ? 1:0;
+          int bd = bit_depth[c < num_bit_depths ? c : last_bit_depth_idx];
+          last_bit_depth_idx += last_bit_depth_idx + 1 < num_bit_depths ? 1:0;
+          int is = is_signed[c < num_is_signed ? c : last_signed_idx];
+          last_signed_idx += last_signed_idx + 1 < num_is_signed ? 1 : 0;
+          siz.set_component(c, cp_ds, bd, is == 1);
+        }
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod_t cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims((ojph::ui8)block_size.w, (ojph::ui8)block_size.h);
+        if (num_precints != -1)
+          cod.set_precinct_size(num_precints, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1)
+          cod.set_color_transform(false);
+        else
+          throw "we currently do not support color transform on yuv files."
+          " In any case, this not a normal usage scenario.  The OpenJPH "
+          "library however does support that, but ojph_compress.cpp must be "
+          "modifed to send all lines from one component before moving to "
+          "the next component;  this requires buffering components outside of "
+          "the OpenJPH library";
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(true);
+
+        yuv.open(input_filename);
+        base = &yuv;
+      }
+      else
+      {
+        printf("unknown input file extension; only (pgm, ppm, and yuv) are"
+          " suppoted\n");
+        exit(-1);
+      }
+
+    }
+    else
+    {
+      printf("Please supply a proper input filename with a proper three-letter"
+        " extension\n");
+      exit(-1);
+    }
+
+    ojph::j2c_outfile j2c_file;
+    j2c_file.open(output_filename);
+    codestream.write_headers(&j2c_file);
+
+    int next_comp;
+    ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);
+    if (codestream.is_planar())
+    {
+      ojph::param_siz_t siz = codestream.access_siz();
+      for (int c = 0; c < siz.get_num_components(); ++c)
+      {
+        ojph::point p = siz.get_downsampling(c);
+        int height = ojph_div_ceil(siz.get_image_extent().y, p.y)
+                   - ojph_div_ceil(siz.get_image_offset().y, p.y);
+        for (int i = height; i > 0; --i)
+        {
+          assert(c == next_comp);
+          base->read(cur_line, next_comp);
+          cur_line = codestream.exchange(cur_line, next_comp);
+        }
+      }
+    }
+    else
+    {
+      ojph::param_siz_t siz = codestream.access_siz();
+      int height = siz.get_image_extent().y - siz.get_image_offset().y;
+      for (int i = 0; i < height; ++i)
+      {
+        for (int c = 0; c < siz.get_num_components(); ++c)
+        {
+          assert(c == next_comp);
+          base->read(cur_line, next_comp);
+          cur_line = codestream.exchange(cur_line, next_comp);
+        }
+      }
+    }
+
+    codestream.flush();
+    codestream.close();
+    base->close();
+
+    if (max_num_comps != initial_num_comps)
+    {
+      delete[] comp_downsampling;
+      delete[] bit_depth;
+      delete[] is_signed;
+    }
+  }
+  catch (const char *e)
+  {
+    printf("%s\n", e);
+    exit (-1);
+  }
+
+  clock_t end = clock();
+  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+  printf("Elapsed time = %f\n", elapsed_secs);
+
+  return 0;
+
+}

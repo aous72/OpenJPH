@@ -932,17 +932,19 @@ namespace ojph {
       terminate_mel_vlc(&mel, &vlc);
       ms_terminate(&ms);
 
-      // put in the interface locator word
-      int num_bytes = mel.pos + vlc.pos;
-      vlc.buf[0] = (ui8)(num_bytes >> 4);
-      vlc.buf[-1] = (vlc.buf[-1] & 0xF0) | (ui8)(num_bytes & 0xF);
-
       //copy to elastic
       lengths[0] = mel.pos + vlc.pos + ms.pos;
       elastic->get_buffer(mel.pos + vlc.pos + ms.pos, coded);
       memcpy(coded->buf, ms.buf, ms.pos);
       memcpy(coded->buf + ms.pos, mel.buf, mel.pos);
       memcpy(coded->buf + ms.pos + mel.pos, vlc.buf - vlc.pos + 1, vlc.pos);
+
+      // put in the interface locator word
+      int num_bytes = mel.pos + vlc.pos;
+      coded->buf[lengths[0]-1] = (ui8)(num_bytes >> 4);
+      coded->buf[lengths[0]-2] = coded->buf[lengths[0]-2] & 0xF0;
+      coded->buf[lengths[0]-2] |= (ui8)(num_bytes & 0xF);
+
       coded->avail_size -= lengths[0];
     }
   }

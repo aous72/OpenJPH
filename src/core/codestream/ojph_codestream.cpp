@@ -237,7 +237,7 @@ namespace ojph {
           tile_rect.org.x += index.x * sz.get_tile_size().w;
           t = tile_rect.org.x + sz.get_tile_size().w; //end of tile
           //restrict tile
-          tile_rect.org.x =ojph_max(tile_rect.org.x,sz.get_image_offset().x);
+          tile_rect.org.x = ojph_max(tile_rect.org.x,sz.get_image_offset().x);
           tile_rect.siz.w = ojph_min(t, sz.get_image_extent().x);
           tile_rect.siz.w -= tile_rect.org.x;
 
@@ -376,7 +376,7 @@ namespace ojph {
       if (!qcd.write(file))
         throw "Error writing to file";
 
-      char buf[] = "    OpenJPH Ver 0.1.0";
+      char buf[] = "    OpenJPH Ver 0.1.1";
       size_t len = strlen(buf);
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
@@ -795,8 +795,7 @@ namespace ojph {
         comp_rects[i].siz.w = tcx1 - tcx0;
         comp_rects[i].siz.h = tcy1 - tcy0;
 
-        comps[i].finalize_alloc(codestream, this, i, comp_rects[i],
-                                tile_rect);
+        comps[i].finalize_alloc(codestream, this, i, comp_rects[i]);
         width = ojph_max(width, comp_rects[i].siz.w);
 
         num_bits[i] = sz.get_bit_depth(i);
@@ -1239,8 +1238,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void tile_comp::finalize_alloc(codestream *codestream, tile *parent,
-                                  int comp_num, const rect& comp_rect,
-                                  const rect& tile_rect)
+                                  int comp_num, const rect& comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -1256,7 +1254,7 @@ namespace ojph {
       this->comp_num = comp_num;
       res = allocator->post_alloc_obj<resolution>(1);
       res->finalize_alloc(codestream, comp_rect, num_decomps, comp_downsamp,
-                          this, NULL, tile_rect);
+                          this, NULL);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1489,8 +1487,7 @@ namespace ojph {
                                     const rect& res_rect, int res_num,
                                     point comp_downsamp,
                                     tile_comp *parent_tile,
-                                    resolution *parent_res,
-                                    const rect& tile_rect)
+                                    resolution *parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
@@ -1501,7 +1498,6 @@ namespace ojph {
       this->parent = parent_tile;
       this->parent_res = parent_res;
       this->res_rect = res_rect;
-      this->tile_rect = tile_rect;
       this->res_num = res_num;
       //finalize next resolution
       if (res_num > 0)
@@ -1519,8 +1515,7 @@ namespace ojph {
         next_res_rect.siz.h = try1 - try0;
 
         child_res->finalize_alloc(codestream, next_res_rect, res_num - 1,
-                                  comp_downsamp, parent_tile, this,
-                                  tile_rect);
+                                  comp_downsamp, parent_tile, this);
       }
       else
         child_res = NULL;
@@ -1555,7 +1550,7 @@ namespace ojph {
       }
 
       //finalize precincts
-      size log_PP = cd.get_log_precinct_size(res_num);
+      log_PP = cd.get_log_precinct_size(res_num);
       num_precincts.w = (trx1 + (1<<log_PP.w) - 1) >> log_PP.w;
       num_precincts.w -= trx0 >> log_PP.w;
       num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
@@ -1564,7 +1559,9 @@ namespace ojph {
       memset(precincts, 0, sizeof(precinct) * num_precincts.area());
 
       int x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
-      int y_lower_bound = (try0 >> log_PP.w) << log_PP.w;
+      int y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
+      bool test_x = x_lower_bound != trx0;
+      bool test_y = y_lower_bound != try0;
 
       point proj_factor;
       proj_factor.x = comp_downsamp.x * (1<<(num_decomps - res_num));
@@ -1578,6 +1575,8 @@ namespace ojph {
           int ppx0 = x_lower_bound + (x << log_PP.w);
           pp->img_point.x = proj_factor.x * ppx0;
           pp->img_point.y = proj_factor.y * ppy0;
+          pp->special_x = test_x && x == 0;
+          pp->special_y = test_y && y == 0;
           pp->num_bands = num_bands;
           pp->bands = bands;
         }
@@ -2054,7 +2053,9 @@ namespace ojph {
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       if (idx < (int)num_precincts.area())
       {
-        top_left = precincts[idx].img_point;
+        point t = precincts[idx].img_point;
+        top_left.x = precincts[idx].special_x ? 0 : t.x;
+        top_left.y = precincts[idx].special_y ? 0 : t.y;
         return true;
       }
       return false;
@@ -2902,42 +2903,47 @@ namespace ojph {
       num_blocks.h = (tby1 + (1 << ycb_prime) - 1) >> ycb_prime;
       num_blocks.h -= tby0 >> ycb_prime;
 
-      blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
-      //allocate codeblock headers
-      coded_cb_header *cp = coded_cbs =
-        allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
-      memset(coded_cbs, 0, sizeof(coded_cb_header) * num_blocks.area());
-      for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
-        cp->Kmax = K_max;
-
-      int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
-      int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
-
-      size cb_size;
-      cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
-      cur_cb_height = cb_size.h;
-      int line_offset = 0;
-      for (int i = 0; i < num_blocks.w; ++i)
+      if (num_blocks.area())
       {
-        int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-        int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
-        cb_size.w = cbx1 - cbx0;
-        blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
-                                 coded_cbs + i, K_max, line_offset);
-        line_offset += cb_size.w;
-      }
+        blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
+        //allocate codeblock headers
+        coded_cb_header *cp = coded_cbs =
+          allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
+        memset(coded_cbs, 0, sizeof(coded_cb_header) * num_blocks.area());
+        for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
+          cp->Kmax = K_max;
 
-      //allocate lines
-      lines = allocator->post_alloc_obj<line_buf>(1);
-      //allocate line_buf
-      int width = band_rect.siz.w + 1;
-      lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
+        int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
+        int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
+
+        size cb_size;
+        cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
+        cur_cb_height = cb_size.h;
+        int line_offset = 0;
+        for (int i = 0; i < num_blocks.w; ++i)
+        {
+          int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+          int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+          cb_size.w = cbx1 - cbx0;
+          blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
+                                   coded_cbs + i, K_max, line_offset);
+          line_offset += cb_size.w;
+        }
+
+        //allocate lines
+        lines = allocator->post_alloc_obj<line_buf>(1);
+        //allocate line_buf
+        int width = band_rect.siz.w + 1;
+        lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
     void subband::get_cb_indices(const size& num_precincts,
                                  precinct *precincts)
     {
+      if (num_precincts.area() == 0)
+        return;
       rect res_rect = parent->get_rect();
       int trx0 = res_rect.org.x;
       int try0 = res_rect.org.y;

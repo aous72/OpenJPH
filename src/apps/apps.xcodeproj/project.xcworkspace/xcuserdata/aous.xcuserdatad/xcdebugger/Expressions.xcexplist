@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "ojph::local::ojph_decode_codeblock(unsigned char*, int*, int, int, int, int, int, int, int):ojph_block_decoder.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "sigma1[0]">
+            </PersistentString>
+            <PersistentString
+               value = "mbr1[0]">
+            </PersistentString>
+            <PersistentString
+               value = "sigma2[0]">
+            </PersistentString>
+            <PersistentString
+               value = "mbr2[0]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>

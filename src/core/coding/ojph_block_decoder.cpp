@@ -956,6 +956,7 @@ namespace ojph {
       for (int y = 2; y < height; /*done at the end of loop*/)
       {
         sip_shift ^= 0x2;
+        sip_shift &= 0xFFFFFFEF;
         ui32 *sip = y & 0x4 ? sigma2 : sigma1;
 
         lsp = line_state;
@@ -1274,7 +1275,7 @@ namespace ojph {
             for (int i = 0; i < width; i += 8, mbr++, sig++)
             {
               mbr[0] = sig[0];
-              mbr[0] |= prev >> 28;        //for first column, left neighbors
+              mbr[0] |= prev >> 28;    //for first column, left neighbors
               mbr[0] |= sig[0] << 4;   //left neighbors
               mbr[0] |= sig[0] >> 4;   //left neighbors
               mbr[0] |= sig[1] << 28;  //for last column, right neighbors

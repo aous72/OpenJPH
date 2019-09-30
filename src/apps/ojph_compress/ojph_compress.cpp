@@ -532,7 +532,7 @@ int main(int argc, char * argv[]) {
 
         ojph::param_cod_t cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
-        cod.set_block_dims((ojph::ui8)block_size.w, (ojph::ui8)block_size.h);
+        cod.set_block_dims(block_size.w, block_size.h);
         if (num_precints != -1)
           cod.set_precinct_size(num_precints, precinct_size);
         cod.set_progression_order(prog_order);
@@ -639,7 +639,7 @@ int main(int argc, char * argv[]) {
 
         ojph::param_cod_t cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
-        cod.set_block_dims((ojph::ui8)block_size.w, (ojph::ui8)block_size.h);
+        cod.set_block_dims(block_size.w, block_size.h);
         if (num_precints != -1)
           cod.set_precinct_size(num_precints, precinct_size);
         cod.set_progression_order(prog_order);

@@ -158,9 +158,9 @@ namespace ojph {
 
       void check_validity()
       {
-        if (XTsiz == 0 || YTsiz == 0)
-        { XTsiz = Xsiz; YTsiz = Ysiz; }
-        if (Xsiz < 0 || Ysiz < 0 || XTsiz < 0 || YTsiz < 0 ||
+        if (XTsiz == 0 && YTsiz == 0)
+        { XTsiz = Xsiz - XOsiz; YTsiz = Ysiz - YOsiz; }
+        if (Xsiz <= 0 || Ysiz <= 0 || XTsiz <= 0 || YTsiz <= 0 ||
             XOsiz < 0 || YOsiz < 0 || XTOsiz < 0 || YTOsiz < 0)
           throw "image extent, offset, and tile size and offset cannot be "
             "negative";

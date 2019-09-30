@@ -27,8 +27,6 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
-      <Testables>
-      </Testables>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
@@ -38,8 +36,8 @@
             ReferencedContainer = "container:apps.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
-      <AdditionalOptions>
-      </AdditionalOptions>
+      <Testables>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -47,7 +45,7 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "/Users/aous/Google Drive/OpenJPH/test"
+      customWorkingDirectory = "/Users/aous/Google Drive/OpenJPH/mytest"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
@@ -64,8 +62,32 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm"
+            argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{1024,2\} -prog_order CPRL -colour_trans true -tile_size \{343,121\} -image_offset \{37,21\} -tile_offset \{2,11\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\}"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i t5-334.pgm -o test.j2c -num_decomps 2 -block_size \{64,64\} -precincts \{1024,2\} -prog_order CPRL -image_offset \{1717,374\} -tile_offset \{1717,374\} -tile_size \{343,121\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i t5-334.pgm -o test.j2c -num_decomps 2 -block_size \{64,64\} -precincts \{1024,2\} -prog_order CPRL -image_offset \{1717,374\} -tile_offset \{1717,374\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i lena.pgm -o test.j2c -num_decomps 1 -block_size \{8,8\} -prog_order CPRL -image_offset \{37,21\} -precincts \{16,16\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i lena.pgm -o test.j2c -num_decomps 1 -block_size \{8,8\} -prog_order CPRL -image_offset \{37,21\} -precincts \{16,16\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i VQEG_CrowdRun_3840x2160p_50_10b_bt709_422_07111.yuv"
@@ -145,11 +167,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-o test.j2c"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-num_decomps 5"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-num_decomps 2"
@@ -173,7 +195,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-prog_order RPCL"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-prog_order PCRL"
@@ -185,7 +207,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-block_size \{4,1024\}"
-            isEnabled = "YES">
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-block_size \{64,64\}"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-block_size \{1024,4\}"
@@ -236,8 +262,6 @@
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
-      <AdditionalOptions>
-      </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

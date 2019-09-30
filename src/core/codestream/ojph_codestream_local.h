@@ -169,8 +169,7 @@ namespace ojph {
       static void pre_alloc(codestream *codestream, int comp_num,
                             const rect& comp_rect);
       void finalize_alloc(codestream *codestream, tile *parent,
-                           int comp_num, const rect& comp_rect,
-                           const rect& tile_rect);
+                           int comp_num, const rect& comp_rect);
 
       int get_num_resolutions() { return num_decomps + 1; }
       int get_num_decompositions() { return num_decomps; }
@@ -205,8 +204,7 @@ namespace ojph {
       void finalize_alloc(codestream *codestream, const rect& res_rect,
                           int res_num, point comp_downsamp,
                           tile_comp *parent_tile,
-                          resolution *parent_res,
-                          const rect& tile_rect);
+                          resolution *parent_res);
 
       line_buf* get_line() { return lines + 0; }
       void push_line();
@@ -225,7 +223,7 @@ namespace ojph {
       bool reversible;
       int num_lines, num_bands, res_num, num_decomps;
       point comp_downsamp;
-      rect res_rect, tile_rect;
+      rect res_rect;
       line_buf *lines;
       subband *bands;
       tile_comp *parent;
@@ -233,6 +231,7 @@ namespace ojph {
       //precincts stuff
       precinct *precincts;
       size num_precincts;
+      size log_PP;
       int max_num_levels;
       int tag_tree_size;
       si32 level_index[20]; //more than enough
@@ -260,6 +259,7 @@ namespace ojph {
       subband *bands;  //the subbands
       coded_lists* coded;
       int num_bands;
+      bool special_x, special_y;
     };
 
     //////////////////////////////////////////////////////////////////////////

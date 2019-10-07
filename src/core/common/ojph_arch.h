@@ -154,10 +154,21 @@ namespace ojph {
     return reinterpret_cast<T *>(p);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  //                         OS detection definitions
+  ////////////////////////////////////////////////////////////////////////////
+#if (defined WIN32) || (defined _WIN32) || (defined _WIN64)
+  #define OJPH_OS_WINDOWS
+#elif (defined __APPLE__)
+  #define OJPH_OS_APPLE
+#elif (defined __linux)
+  #define OJPH_OS_LINUX
+#endif
+
   /////////////////////////////////////////////////////////////////////////////
   // defines for dll
   /////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_COMPILER_MSVC
+#ifdef OJPH_OS_WINDOWS
   #define OJPH_EXPORT __declspec(dllexport)
 #else
   #define OJPH_EXPORT

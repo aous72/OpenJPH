@@ -45,6 +45,7 @@
 #include "ojph_file.h"
 #include "ojph_codestream.h"
 #include "ojph_params.h"
+#include "ojph_message.h"
 
 /////////////////////////////////////////////////////////////////////////////
 struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
@@ -727,6 +728,13 @@ int main(int argc, char * argv[]) {
   {
     printf("%s\n", e);
     exit (-1);
+  }
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+    exit(-1);
   }
 
   clock_t end = clock();

@@ -36,13 +36,15 @@
 /****************************************************************************/
 
 #include <cstdio>
+#include <cstdarg>
+#include <stdexcept>
 
 #include "ojph_message.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  FILE *output_stream = stdout;
+  FILE *warning_stream = stdout;
   FILE *error_stream = stderr;
 
   ////////////////////////////////////////////////////////////////////////////
@@ -52,21 +54,36 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void set_output_stream(FILE *s)
+  void set_warning_stream(FILE *s)
   {
-    output_stream = s;
+    warning_stream = s;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void error(int error_code, const char* file_name, int line_num)
+  void error(int error_code, const char* file_name, int line_num,
+             const char *fmt, ...)
   {
-    fprintf(error_stream, "cuda error: %d %s at %s:%d\n",
-      error_code, " ", file_name, line_num);
+    fprintf(error_stream, "ojph error %d at %s:%d\n",
+      error_code, file_name, line_num);
+    va_list args;
+    va_start(args, fmt);
+    fprintf(error_stream, fmt, args);
+    va_end(args);
 
-    throw;
+    throw std::runtime_error("ojph error");
   }
 
-
+  ////////////////////////////////////////////////////////////////////////////
+  void warn(int warn_code, const char* file_name, int line_num,
+            const char *fmt, ...)
+  {
+    fprintf(warning_stream, "ojph warning %d at %s:%d\n",
+      warn_code, file_name, line_num);
+    va_list args;
+    va_start(args, fmt);
+    fprintf(warning_stream, fmt, args);
+    va_end(args);
+  }
 
 
 }

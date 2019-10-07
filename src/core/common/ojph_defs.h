@@ -56,6 +56,14 @@ typedef uint64_t ui64;
 typedef int64_t si64;
 
 /////////////////////////////////////////////////////////////////////////////
+#define OJPH_CORE_VER_MAJOR    0
+#define OJPH_CORE_VER_MINOR    2
+#define OJPH_CORE_VER_SUBMINOR 0
+
+/////////////////////////////////////////////////////////////////////////////
+#define OJPH_INT_TO_STRING(I) #I
+
+/////////////////////////////////////////////////////////////////////////////
 // number of fractional bits for 16 bit representation
 // for 32 bits, it is NUM_FRAC_BITS + 16
 // All numbers are in the range of [-0.5, 0.5)

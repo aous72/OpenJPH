@@ -376,7 +376,10 @@ namespace ojph {
       if (!qcd.write(file))
         throw "Error writing to file";
 
-      char buf[] = "    OpenJPH Ver 0.1.1";
+      char buf[] = "    OpenJPH Ver "
+        OJPH_INT_TO_STRING(OJPH_CORE_VER_MAJOR) "."
+        OJPH_INT_TO_STRING(OJPH_CORE_VER_MINOR) "."
+        OJPH_INT_TO_STRING(OJPH_CORE_VER_SUBMINOR) ".";
       size_t len = strlen(buf);
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));

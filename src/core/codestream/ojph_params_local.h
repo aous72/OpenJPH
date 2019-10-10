@@ -44,6 +44,7 @@
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
+#include "ojph_message.h"
 
 namespace ojph {
 
@@ -162,12 +163,15 @@ namespace ojph {
         { XTsiz = Xsiz - XOsiz; YTsiz = Ysiz - YOsiz; }
         if (Xsiz <= 0 || Ysiz <= 0 || XTsiz <= 0 || YTsiz <= 0 ||
             XOsiz < 0 || YOsiz < 0 || XTOsiz < 0 || YTOsiz < 0)
-          throw "image extent, offset, and tile size and offset cannot be "
-            "negative";
+          OJPH_ERROR(0x00040001,
+            "image extent and offset, and tile size and offset cannot be "
+            "negative");
         if (XTOsiz > XOsiz || YTOsiz > XOsiz)
-          throw "tile offset has to be smaller than image offset";
+          OJPH_ERROR(0x00040002,
+            "tile offset has to be smaller than image offset");
         if (XTsiz + XTOsiz <= XOsiz || YTsiz + YTOsiz <= YOsiz)
-          throw "the top left tile must intersect with the image";
+          OJPH_ERROR(0x00040003,
+            "the top left tile must intersect with the image");
       }
 
       ui16 get_num_components() const { return Csiz; }
@@ -274,8 +278,9 @@ namespace ojph {
         // downsampling
         int num_comps = siz.get_num_components();
         if (SGCod.mc_trans == 1 && num_comps < 3)
-          throw "color transform can only be employed when the image has 3 or "
-          "more color components";
+          OJPH_ERROR(0x00040011,
+            "color transform can only be employed when the image has 3 or "
+            "more color components");
 
         if (SGCod.mc_trans == 1)
         {
@@ -287,8 +292,9 @@ namespace ojph {
             test = test || (p.x != p1.x || p.y != p1.y);
           }
           if (test)
-            throw "when color transform is used, the first 3 colour "
-            "components must have the same downsampling.";
+            OJPH_ERROR(0x00040012,
+              "when color transform is used, the first 3 colour "
+              "components must have the same downsampling.");
         }
 
         //check the progression order matches downsampling
@@ -299,8 +305,8 @@ namespace ojph {
           {
             point r = siz.get_downsampling(i);
             if (r.x & (r.x - 1) || r.y & (r.y - 1))
-              throw "For RPCL and PCRL progression orders, component "
-                "downsampling factors have to be powers of 2";
+              OJPH_ERROR(0x00040013, "For RPCL and PCRL progression orders,"
+                "component downsampling factors have to be powers of 2");
           }
         }
       }

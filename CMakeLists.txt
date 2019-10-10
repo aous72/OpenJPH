@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 
-project (openjph VERSION 0.1.0 DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 # set(CMAKE_CXX_STANDARD 11)
 if (MSVC)
 	set(CMAKE_CXX_FLAGS "/EHsc")

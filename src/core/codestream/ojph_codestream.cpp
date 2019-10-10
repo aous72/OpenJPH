@@ -214,7 +214,7 @@ namespace ojph {
       num_tiles.h = sz.get_image_extent().y - sz.get_tile_offset().y;
       num_tiles.h = ojph_div_ceil(num_tiles.h, sz.get_tile_size().h);
       if (num_tiles.area() > 65535)
-        throw "number of tiles cannot exceed 65535";
+        OJPH_ERROR(0x00030011, "number of tiles cannot exceed 65535");
 
       //allocate tiles
       allocator->pre_alloc_obj<tile>(num_tiles.area());
@@ -349,8 +349,9 @@ namespace ojph {
       else if (planar == 1) //plannar is chosen
       {
         if (cod.is_employing_color_transform() == true)
-          throw "the planar interface option cannot be used when colour "
-            "transform is employed";
+          OJPH_ERROR(0x00030021,
+            "the planar interface option cannot be used when colour "
+            "transform is employed");
       }
       else
         assert(0);
@@ -362,19 +363,19 @@ namespace ojph {
 
       ui16 t = swap_byte(JP2K_MARKER::SOC);
       if (file->write(&t, 2) != 2)
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030022, "Error writing to file");
 
       if (!siz.write(file))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030023, "Error writing to file");
 
       if (!cap.write(file))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030024, "Error writing to file");
 
       if (!cod.write(file))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030025, "Error writing to file");
 
       if (!qcd.write(file))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030026, "Error writing to file");
 
       char buf[] = "    OpenJPH Ver "
         OJPH_INT_TO_STRING(OJPH_CORE_VER_MAJOR) "."
@@ -384,7 +385,7 @@ namespace ojph {
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
       if (file->write(buf, len) != len)
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030027, "Error writing to file");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -396,13 +397,13 @@ namespace ojph {
         ui8 new_char;
         size_t num_bytes = f->read(&new_char, 1);
         if (num_bytes != 1)
-          throw "Error finding marker\n";
+          OJPH_ERROR(0x00030031, "Error finding marker\n");
         if (new_char == 0xFF)
         {
           size_t num_bytes = f->read(&new_char, 1);
 
           if (num_bytes != 1)
-            throw "Error finding marker after 0xFF\n";
+            OJPH_ERROR(0x00030032, "Error finding marker after 0xFF\n");
 
           for (int i = 0; i < list_len; ++i)
             if (new_char == (char_list[i] & 0xFF))
@@ -419,11 +420,11 @@ namespace ojph {
     {
       ui16 com_len;
       if (file->read(&com_len, 2) != 2)
-        throw "error reading marker";
+        OJPH_ERROR(0x00030041, "error reading marker");
       com_len = swap_byte(com_len);
       file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
       if (warning_msg)
-        printf("%s\n", warning_msg);
+        OJPH_WARN(0x00030001, "%s\n", warning_msg);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -470,11 +471,11 @@ namespace ojph {
         else if (marker_idx == 14)
           break;
         else
-          throw "unknown marker";
+          OJPH_ERROR(0x00030051, "unknown marker");
       }
 
       if (received_markers != 3)
-        throw "markers error, COD and QCD are required";
+        OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");
 
       this->infile = file;
       planar = cod.is_employing_color_transform() ? 0 : 1;
@@ -492,14 +493,15 @@ namespace ojph {
         sot.read(infile);
 
         if (sot.get_tile_index() > (int)num_tiles.area())
-          throw "wrong tile index";
+          OJPH_ERROR(0x00030061, "wrong tile index");
 
         if (sot.get_tile_part_index())
         { //tile part
           if (sot.get_num_tile_parts() &&
               sot.get_tile_part_index() >= sot.get_num_tile_parts())
-            throw "error in tile part number, should be smaller than total"
-              " number of tile parts";
+            OJPH_ERROR(0x00030062,
+              "error in tile part number, should be smaller than total"
+              " number of tile parts");
 
           ui16 other_tile_part_markers[6] = { SOT, POC, PPT, PLT, COM, SOD };
           while (true)
@@ -517,7 +519,7 @@ namespace ojph {
             else if (marker_idx == 4)
               break;
             else
-              throw "unknown marker in a tile header";
+              OJPH_ERROR(0x00030063, "unknown marker in a tile header");
           }
           tiles[sot.get_tile_index()].parse_tile_header(sot, infile);
         }
@@ -550,7 +552,7 @@ namespace ojph {
             else if (marker_idx == 9)
               break;
             else
-              throw "unknown marker in a tile header";
+              OJPH_ERROR(0x00030064, "unknown marker in a tile header");
           }
           tiles[sot.get_tile_index()].parse_tile_header(sot, infile);
         }
@@ -560,7 +562,7 @@ namespace ojph {
         int marker_idx = find_marker(infile, next_markers, 2);
         if (marker_idx == -1)
         {
-          throw "file termianted early";
+          OJPH_ERROR(0x00030065, "file termianted early");
           break;
         }
         else if (marker_idx == 0)
@@ -584,7 +586,7 @@ namespace ojph {
         tiles[i].flush(outfile);
       ui16 t = swap_byte(JP2K_MARKER::EOC);
       if (!outfile->write(&t, 2))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030071, "Error writing to file");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1003,12 +1005,12 @@ namespace ojph {
 
       //write tile header
       if (!sot.write(file, used_bytes))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030081, "Error writing to file");
 
       //write start of data
       ui16 t = swap_byte(JP2K_MARKER::SOD);
       if (!file->write(&t, 2))
-        throw "Error writing to file";
+        OJPH_ERROR(0x00030082, "Error writing to file");
 
       //sequence the writing of precincts according to preogression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
@@ -1105,7 +1107,7 @@ namespace ojph {
     void tile::parse_tile_header(const param_sot_t &sot, infile_base *file)
     {
       if (this->sot.get_tile_part_index() != next_tile_part)
-        throw "wrong tile part index";
+        OJPH_ERROR(0x00030091, "wrong tile part index");
       this->sot.append(sot.get_length());
       ++next_tile_part;
 
@@ -1212,7 +1214,7 @@ namespace ojph {
       }
       catch (const char *error)
       {
-        printf("%s\n", error);
+        OJPH_WARN(0x00030011, "%s\n", error);
       }
       file->seek(tile_end_location, infile_base::OJPH_SEEK_SET);
     }

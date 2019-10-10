@@ -43,6 +43,7 @@
 #include "ojph_mem.h"
 #include "ojph_arch.h"
 #include "ojph_block_encoder.h"
+#include "ojph_message.h"
 
 namespace ojph {
   namespace local {
@@ -258,7 +259,7 @@ namespace ojph {
       if (melp->remaining_bits == 0)
       {
         if (melp->pos >= melp->buf_size)
-          throw "mel encoder's buffer is full";
+          OJPH_ERROR(0x00020001, "mel encoder's buffer is full");
 
         melp->buf[melp->pos++] = (ui8)melp->tmp;
         melp->remaining_bits = (melp->tmp == 0xFF ? 7 : 8);
@@ -331,7 +332,7 @@ namespace ojph {
       while (cwd_len > 0)
       {
         if (vlcp->pos >= vlcp->buf_size)
-          throw "vlc encoder's buffer is full";
+          OJPH_ERROR(0x00020002, "vlc encoder's buffer is full");
 
         int avail_bits = 8 - vlcp->last_greater_than_8F - vlcp->used_bits;
         int t = ojph_min(avail_bits, cwd_len);
@@ -372,7 +373,7 @@ namespace ojph {
         return;  //last mel byte cannot be 0xFF, since then
                  //melp->remaining_bits would be < 8
       if (melp->pos >= melp->buf_size)
-        throw "mel encoder's buffer is full";
+        OJPH_ERROR(0x00020003, "mel encoder's buffer is full");
       int fuse = melp->tmp | vlcp->tmp;
       if ( ( ((fuse ^ melp->tmp) & mel_mask)
            | ((fuse ^ vlcp->tmp) & vlc_mask) ) == 0
@@ -383,7 +384,7 @@ namespace ojph {
       else
       {
         if (vlcp->pos >= vlcp->buf_size)
-          throw "vlc encoder's buffer is full";
+          OJPH_ERROR(0x00020004, "vlc encoder's buffer is full");
         melp->buf[melp->pos++] = melp->tmp; // melp->tmp cannot be 0xFF here
         vlcp->buf[-vlcp->pos] = vlcp->tmp;
         vlcp->pos++;
@@ -423,7 +424,7 @@ namespace ojph {
       while (cwd_len > 0)
       {
         if (msp->pos >= msp->buf_size)
-          throw "magnitude sign encoder's buffer is full";
+          OJPH_ERROR(0x00020005, "magnitude sign encoder's buffer is full");
         int t = ojph_min(msp->max_bits - msp->used_bits, cwd_len);
         msp->tmp |= (cwd & ((1 << t) - 1)) << msp->used_bits;
         msp->used_bits += t;
@@ -451,7 +452,7 @@ namespace ojph {
         if (msp->tmp != 0xFF)
         {
           if (msp->pos >= msp->buf_size)
-            throw "magnitude sign encoder's buffer is full";
+            OJPH_ERROR(0x00020006, "magnitude sign encoder's buffer is full");
           msp->buf[msp->pos++] = msp->tmp;
         }
       }

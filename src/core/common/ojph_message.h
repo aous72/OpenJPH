@@ -38,29 +38,59 @@
 #ifndef OJPH_MESSAGE_H
 #define OJPH_MESSAGE_H
 
+#include <cstring>
+
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  void set_error_stream(FILE *s);
+  class message_base {
+  public:
+    virtual void operator() (int warn_code, const char* file_name,
+      int line_num, const char *fmt, ...) = 0;
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class message_error : public message_base
+  {
+    public:
+      virtual void operator() (int warn_code, const char* file_name,
+        int line_num, const char *fmt, ...);
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class message_warning : public message_base
+  {
+    public:
+      virtual void operator() (int warn_code, const char* file_name,
+        int line_num, const char *fmt, ...);
+  };
+
+//  ////////////////////////////////////////////////////////////////////////////
+//  void warn(int warn_code, const char* file_name, int line_num,
+//            const char *fmt, ...)
+//  #ifdef OJPH_COMPILER_GNUC
+//    __attribute__((format(printf, 4, 5)))
+//  #endif
+//    ;
+//
+//  ////////////////////////////////////////////////////////////////////////////
+//  void error(int error_code, const char* file_name, int line_num,
+//             const char *fmt, ...)
+//  #ifdef OJPH_COMPILER_GNUC
+//    __attribute__((format(printf, 4, 5)))
+//  #endif
+//    ;
 
   ////////////////////////////////////////////////////////////////////////////
   void set_warning_stream(FILE *s);
+  void configure_warning(message_warning* warn);
+  extern message_warning warn;
 
   ////////////////////////////////////////////////////////////////////////////
-  void warn(int warn_code, const char* file_name, int line_num,
-            const char *fmt, ...)
-  #ifdef OJPH_COMPILER_GNUC
-    __attribute__((format(printf, 4, 5)))
-  #endif
-    ;
+  void set_error_stream(FILE *s);
+  void configure_error(message_error* error);
+  extern message_error error;
 
-  ////////////////////////////////////////////////////////////////////////////
-  void error(int error_code, const char* file_name, int line_num,
-             const char *fmt, ...)
-  #ifdef OJPH_COMPILER_GNUC
-    __attribute__((format(printf, 4, 5)))
-  #endif
-    ;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -71,6 +101,7 @@ namespace ojph {
   #define __OJPHFILE__ \
     (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #endif
+
 //////////////////////////////////////////////////////////////////////////////
 #define OJPH_WARN(t, ...) ojph::warn(t, __OJPHFILE__, __LINE__, __VA_ARGS__);
 //////////////////////////////////////////////////////////////////////////////

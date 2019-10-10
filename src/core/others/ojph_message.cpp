@@ -45,12 +45,15 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   FILE *warning_stream = stdout;
-  FILE *error_stream = stderr;
 
   ////////////////////////////////////////////////////////////////////////////
-  void set_error_stream(FILE *s)
+  message_warning warn;
+  message_warning& local_warn = warn;
+
+  ////////////////////////////////////////////////////////////////////////////
+  void configure_warning(message_warning* warn)
   {
-    error_stream = s;
+    local_warn = *warn;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -60,10 +63,41 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void error(int error_code, const char* file_name, int line_num,
-             const char *fmt, ...)
+  void message_warning::operator()(int warn_code, const char* file_name,
+    int line_num, const char *fmt, ...)
   {
-    fprintf(error_stream, "ojph error %d at %s:%d\n",
+    fprintf(warning_stream, "ojph warning 0x%08X at %s:%d\n",
+      warn_code, file_name, line_num);
+    va_list args;
+    va_start(args, fmt);
+    fprintf(warning_stream, fmt, args);
+    va_end(args);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  FILE *error_stream = stderr;
+
+  ////////////////////////////////////////////////////////////////////////////
+  message_error error;
+  message_error& local_error = error;
+
+  ////////////////////////////////////////////////////////////////////////////
+  void configure_error(message_error* error)
+  {
+    local_error = *error;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void set_error_stream(FILE *s)
+  {
+    error_stream = s;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void message_error::operator()(int error_code, const char* file_name,
+    int line_num, const char *fmt, ...)
+  {
+    fprintf(error_stream, "ojph error 0x%08X at %s:%d\n",
       error_code, file_name, line_num);
     va_list args;
     va_start(args, fmt);
@@ -73,17 +107,31 @@ namespace ojph {
     throw std::runtime_error("ojph error");
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  void warn(int warn_code, const char* file_name, int line_num,
-            const char *fmt, ...)
-  {
-    fprintf(warning_stream, "ojph warning %d at %s:%d\n",
-      warn_code, file_name, line_num);
-    va_list args;
-    va_start(args, fmt);
-    fprintf(warning_stream, fmt, args);
-    va_end(args);
-  }
+//  ////////////////////////////////////////////////////////////////////////////
+//  void error(int error_code, const char* file_name, int line_num,
+//             const char *fmt, ...)
+//  {
+//    fprintf(error_stream, "ojph error 0x%08X at %s:%d\n",
+//      error_code, file_name, line_num);
+//    va_list args;
+//    va_start(args, fmt);
+//    fprintf(error_stream, fmt, args);
+//    va_end(args);
+//
+//    throw std::runtime_error("ojph error");
+//  }
+//
+//  ////////////////////////////////////////////////////////////////////////////
+//  void warn(int warn_code, const char* file_name, int line_num,
+//            const char *fmt, ...)
+//  {
+//    fprintf(warning_stream, "ojph warning 0x%08X at %s:%d\n",
+//      warn_code, file_name, line_num);
+//    va_list args;
+//    va_start(args, fmt);
+//    fprintf(warning_stream, fmt, args);
+//    va_end(args);
+//  }
 
 
 }

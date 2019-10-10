@@ -80,6 +80,7 @@ namespace ojph {
     ppm_in(mem_fixed_allocator *p = NULL)
     {
       fh = 0;
+      fname = NULL;
       alloc_p = p;
       temp_buf = NULL;
       width = height = num_comps = max_val = max_val_num_bits = 0;
@@ -104,7 +105,7 @@ namespace ojph {
     void open(const char* filename);
     void finalize_alloc();
     virtual int read(const line_buf* line, int comp_num);
-    void close() { if(fh) { fclose(fh); fh = NULL; } }
+    void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
     void set_plannar(bool planar) { this->planar = planar; }
 
     size get_size() { assert(fh); return size(width, height); }
@@ -119,6 +120,7 @@ namespace ojph {
 
   private:
     FILE *fh;
+    const char *fname;
     mem_fixed_allocator *alloc_p;
     void *temp_buf;
     int width, height, num_comps, max_val, max_val_num_bits;
@@ -146,6 +148,7 @@ namespace ojph {
     yuv_in()
     {
       fh = NULL;
+      fname = NULL;
       temp_buf = NULL;
       for (int i = 0; i < 3; ++i)
       {
@@ -170,7 +173,7 @@ namespace ojph {
 
     void open(const char* filename);
     virtual int read(const line_buf* line, int comp_num);
-    void close() { if(fh) { fclose(fh); fh = NULL; } }
+    void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
     void set_bit_depth(int num_bit_depths, int* bit_depth);
     void set_img_props(const size& s, int num_components,
@@ -185,6 +188,7 @@ namespace ojph {
 
   private:
     FILE *fh;
+    const char *fname;
     void *temp_buf;
     int width[3], height[3], num_com;
     int bytes_per_sample[3];
@@ -225,6 +229,7 @@ namespace ojph {
     ppm_out()
     {
       fh = NULL;
+      fname = NULL;
       buffer = NULL;
       width = height = num_components = 0;
       bit_depth = bytes_per_sample = 0;
@@ -241,10 +246,11 @@ namespace ojph {
     void open(char* filename);
     void configure(int width, int height, int num_components, int bit_depth);
     virtual int write(const line_buf* line, int comp_num);
-    virtual void close() { if(fh) { fclose(fh); fh = NULL; } }
+    virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
   private:
     FILE *fh;
+    const char *fname;
     int width, height, num_components;
     int bit_depth, bytes_per_sample;
     ui8* buffer;
@@ -266,6 +272,7 @@ namespace ojph {
     yuv_out()
     {
       fh = NULL;
+      fname = NULL;
       width = num_components = 0;
       bit_depth = 0;
       downsampling = NULL;
@@ -279,10 +286,11 @@ namespace ojph {
     void configure(int image_x_extent, int image_x_offset,
                    int bit_depth, int num_components, point *downsampling);
     virtual int write(const line_buf* line, int comp_num);
-    virtual void close() { if(fh) { fclose(fh); fh = NULL; } }
+    virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
   private:
     FILE *fh;
+    const char *fname;
     int width, num_components;
     int bit_depth;
     point *downsampling;

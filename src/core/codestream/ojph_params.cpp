@@ -43,6 +43,7 @@
 #include "ojph_params.h"
 
 #include "ojph_params_local.h"
+#include "ojph_message.h"
 
 namespace ojph {
 
@@ -155,7 +156,8 @@ namespace ojph {
   void param_cod_t::set_num_decomposition(ui8 num_decompositions)
   {
     if (num_decompositions > 32)
-      throw "maximum number of decompositions cannot exceed 32";
+      OJPH_ERROR(0x00050001,
+        "maximum number of decompositions cannot exceed 32");
     state->SPcod.num_decomp = num_decompositions;
   }
 
@@ -168,7 +170,7 @@ namespace ojph {
       || height == 0 || height != (1<<log_height)
       || log_width < 2 || log_height < 2
       || log_width + log_height > 12)
-      throw "incorrect code block dimensions";
+      OJPH_ERROR(0x00050011, "incorrect code block dimensions");
     state->SPcod.block_width = log_width - 2;
     state->SPcod.block_height = log_height - 2;
   }
@@ -188,13 +190,14 @@ namespace ojph {
         int PPx = 31 - count_leading_zeros(t.w);
         int PPy = 31 - count_leading_zeros(t.h);
         if (t.w == 0 || t.h == 0)
-          throw "precinct width or height cannot be 0";
+          OJPH_ERROR(0x00050021, "precinct width or height cannot be 0");
         if (t.w != (1<<PPx) || t.h != (1<<PPy))
-          throw "precinct width and height should be a power of 2";
+          OJPH_ERROR(0x00050022,
+            "precinct width and height should be a power of 2");
         if (PPx > 15 || PPy > 15)
-          throw "precinct size is too large";
+          OJPH_ERROR(0x00050023, "precinct size is too large");
         if (i > 0 && (PPx == 0 || PPy == 0))
-          throw "precinct size is too small";
+          OJPH_ERROR(0x00050024, "precinct size is too small");
         state->SPcod.precinct_size[i] = (ui8)(PPx | (PPy << 4));
       }
     }
@@ -203,7 +206,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   void param_cod_t::set_progression_order(const char *name)
   {
-    int prog_order;
+    int prog_order = 0;
     size_t len = strlen(name);
     if (len == 4)
     {
@@ -218,10 +221,10 @@ namespace ojph {
       else if (strncmp(name, OJPH_PO_STRING_CPRL, 4) == 0)
         prog_order = OJPH_PO_CPRL;
       else
-        throw "unknown progression order";
+        OJPH_ERROR(0x00050031, "unknown progression order");
     }
     else
-      throw "improper progression order";
+      OJPH_ERROR(0x00050032, "improper progression order");
 
 
     state->SGCod.prog_order = prog_order;
@@ -390,34 +393,38 @@ namespace ojph {
     };
 
     //////////////////////////////////////////////////////////////////////////
-    const float sqrt_energy_gains::gain_9x7_l[34] = { 1.0000e+00f, 1.4021e+00f,
-      2.0304e+00f, 2.9012e+00f, 4.1153e+00f, 5.8245e+00f, 8.2388e+00f, 1.1652e+01f,
-      1.6479e+01f, 2.3304e+01f, 3.2957e+01f, 4.6609e+01f, 6.5915e+01f, 9.3217e+01f,
-      1.3183e+02f, 1.8643e+02f, 2.6366e+02f, 3.7287e+02f, 5.2732e+02f, 7.4574e+02f,
-      1.0546e+03f, 1.4915e+03f, 2.1093e+03f, 2.9830e+03f, 4.2185e+03f, 5.9659e+03f,
-      8.4371e+03f, 1.1932e+04f, 1.6874e+04f, 2.3864e+04f, 3.3748e+04f, 4.7727e+04f,
-      6.7496e+04f, 9.5454e+04f };
-    const float sqrt_energy_gains::gain_9x7_h[34] = { 1.4425e+00f, 1.9669e+00f,
-      2.8839e+00f, 4.1475e+00f, 5.8946e+00f, 8.3472e+00f, 1.1809e+01f, 1.6701e+01f,
-      2.3620e+01f, 3.3403e+01f, 4.7240e+01f, 6.6807e+01f, 9.4479e+01f, 1.3361e+02f,
-      1.8896e+02f, 2.6723e+02f, 3.7792e+02f, 5.3446e+02f, 7.5583e+02f, 1.0689e+03f,
-      1.5117e+03f, 2.1378e+03f, 3.0233e+03f, 4.2756e+03f, 6.0467e+03f, 8.5513e+03f,
-      1.2093e+04f, 1.7103e+04f, 2.4187e+04f, 3.4205e+04f, 4.8373e+04f, 6.8410e+04f,
-      9.6747e+04f, 1.3682e+05f };
-    const float sqrt_energy_gains::gain_5x3_l[34] = { 1.0000e+00f, 1.2247e+00f,
-      1.3229e+00f, 1.5411e+00f, 1.7139e+00f, 1.9605e+00f, 2.2044e+00f, 2.5047e+00f,
-      2.8277e+00f, 3.2049e+00f, 3.6238e+00f, 4.1033e+00f, 4.6423e+00f, 5.2548e+00f,
-      5.9462e+00f, 6.7299e+00f, 7.6159e+00f, 8.6193e+00f, 9.7544e+00f, 1.1039e+01f,
-      1.2493e+01f, 1.4139e+01f, 1.6001e+01f, 1.8108e+01f, 2.0493e+01f, 2.3192e+01f,
-      2.6246e+01f, 2.9702e+01f, 3.3614e+01f, 3.8041e+01f, 4.3051e+01f, 4.8721e+01f,
-      5.5138e+01f, 6.2399e+01f };
-    const float sqrt_energy_gains::gain_5x3_h[34] = { 1.0458e+00f, 1.3975e+00f,
-      1.4389e+00f, 1.7287e+00f, 1.8880e+00f, 2.1841e+00f, 2.4392e+00f, 2.7830e+00f,
-      3.1341e+00f, 3.5576e+00f, 4.0188e+00f, 4.5532e+00f, 5.1494e+00f, 5.8301e+00f,
-      6.5963e+00f, 7.4663e+00f, 8.4489e+00f, 9.5623e+00f, 1.0821e+01f, 1.2247e+01f,
-      1.3860e+01f, 1.5685e+01f, 1.7751e+01f, 2.0089e+01f, 2.2735e+01f, 2.5729e+01f,
-      2.9117e+01f, 3.2952e+01f, 3.7292e+01f, 4.2203e+01f, 4.7761e+01f, 5.4051e+01f,
-      6.1170e+01f, 6.9226e+01f };
+    const float sqrt_energy_gains::gain_9x7_l[34] = { 1.0000e+00f,
+      1.4021e+00f, 2.0304e+00f, 2.9012e+00f, 4.1153e+00f, 5.8245e+00f,
+      8.2388e+00f, 1.1652e+01f, 1.6479e+01f, 2.3304e+01f, 3.2957e+01f,
+      4.6609e+01f, 6.5915e+01f, 9.3217e+01f, 1.3183e+02f, 1.8643e+02f,
+      2.6366e+02f, 3.7287e+02f, 5.2732e+02f, 7.4574e+02f, 1.0546e+03f,
+      1.4915e+03f, 2.1093e+03f, 2.9830e+03f, 4.2185e+03f, 5.9659e+03f,
+      8.4371e+03f, 1.1932e+04f, 1.6874e+04f, 2.3864e+04f, 3.3748e+04f,
+      4.7727e+04f, 6.7496e+04f, 9.5454e+04f };
+    const float sqrt_energy_gains::gain_9x7_h[34] = { 1.4425e+00f,
+      1.9669e+00f, 2.8839e+00f, 4.1475e+00f, 5.8946e+00f, 8.3472e+00f,
+      1.1809e+01f, 1.6701e+01f, 2.3620e+01f, 3.3403e+01f, 4.7240e+01f,
+      6.6807e+01f, 9.4479e+01f, 1.3361e+02f, 1.8896e+02f, 2.6723e+02f,
+      3.7792e+02f, 5.3446e+02f, 7.5583e+02f, 1.0689e+03f, 1.5117e+03f,
+      2.1378e+03f, 3.0233e+03f, 4.2756e+03f, 6.0467e+03f, 8.5513e+03f,
+      1.2093e+04f, 1.7103e+04f, 2.4187e+04f, 3.4205e+04f, 4.8373e+04f,
+      6.8410e+04f, 9.6747e+04f, 1.3682e+05f };
+    const float sqrt_energy_gains::gain_5x3_l[34] = { 1.0000e+00f,
+      1.2247e+00f, 1.3229e+00f, 1.5411e+00f, 1.7139e+00f, 1.9605e+00f,
+      2.2044e+00f, 2.5047e+00f, 2.8277e+00f, 3.2049e+00f, 3.6238e+00f,
+      4.1033e+00f, 4.6423e+00f, 5.2548e+00f, 5.9462e+00f, 6.7299e+00f,
+      7.6159e+00f, 8.6193e+00f, 9.7544e+00f, 1.1039e+01f, 1.2493e+01f,
+      1.4139e+01f, 1.6001e+01f, 1.8108e+01f, 2.0493e+01f, 2.3192e+01f,
+      2.6246e+01f, 2.9702e+01f, 3.3614e+01f, 3.8041e+01f, 4.3051e+01f,
+      4.8721e+01f, 5.5138e+01f, 6.2399e+01f };
+    const float sqrt_energy_gains::gain_5x3_h[34] = { 1.0458e+00f,
+      1.3975e+00f, 1.4389e+00f, 1.7287e+00f, 1.8880e+00f, 2.1841e+00f,
+      2.4392e+00f, 2.7830e+00f, 3.1341e+00f, 3.5576e+00f, 4.0188e+00f,
+      4.5532e+00f, 5.1494e+00f, 5.8301e+00f, 6.5963e+00f, 7.4663e+00f,
+      8.4489e+00f, 9.5623e+00f, 1.0821e+01f, 1.2247e+01f, 1.3860e+01f,
+      1.5685e+01f, 1.7751e+01f, 2.0089e+01f, 2.2735e+01f, 2.5729e+01f,
+      2.9117e+01f, 3.2952e+01f, 3.7292e+01f, 4.2203e+01f, 4.7761e+01f,
+      5.4051e+01f, 6.1170e+01f, 6.9226e+01f };
 
     //////////////////////////////////////////////////////////////////////////
     //static
@@ -438,32 +445,36 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     const float bibo_gains::gain_9x7_l[34] = { 1.0000e+00f, 1.3803e+00f,
-      1.3328e+00f, 1.3067e+00f, 1.3028e+00f, 1.3001e+00f, 1.2993e+00f, 1.2992e+00f,
-      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
-      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
-      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
-      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
+      1.3328e+00f, 1.3067e+00f, 1.3028e+00f, 1.3001e+00f, 1.2993e+00f,
+      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
+      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
+      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
+      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
+      1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f, 1.2992e+00f,
       1.2992e+00f, 1.2992e+00f };
     const float bibo_gains::gain_9x7_h[34] = { 1.2976e+00f, 1.3126e+00f,
-      1.2757e+00f, 1.2352e+00f, 1.2312e+00f, 1.2285e+00f, 1.2280e+00f, 1.2278e+00f,
-      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
-      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
-      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
-      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
+      1.2757e+00f, 1.2352e+00f, 1.2312e+00f, 1.2285e+00f, 1.2280e+00f,
+      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
+      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
+      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
+      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
+      1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f, 1.2278e+00f,
       1.2278e+00f, 1.2278e+00f };
     const float bibo_gains::gain_5x3_l[34] = { 1.0000e+00f, 1.5000e+00f,
-      1.6250e+00f, 1.6875e+00f, 1.6963e+00f, 1.7067e+00f, 1.7116e+00f, 1.7129e+00f,
-      1.7141e+00f, 1.7145e+00f, 1.7151e+00f, 1.7152e+00f, 1.7155e+00f, 1.7155e+00f,
-      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
-      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
-      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
+      1.6250e+00f, 1.6875e+00f, 1.6963e+00f, 1.7067e+00f, 1.7116e+00f,
+      1.7129e+00f, 1.7141e+00f, 1.7145e+00f, 1.7151e+00f, 1.7152e+00f,
+      1.7155e+00f, 1.7155e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
+      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
+      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
+      1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f, 1.7156e+00f,
       1.7156e+00f, 1.7156e+00f };
     const float bibo_gains::gain_5x3_h[34] = { 2.0000e+00f, 2.5000e+00f,
-      2.7500e+00f, 2.8047e+00f, 2.8198e+00f, 2.8410e+00f, 2.8558e+00f, 2.8601e+00f,
-      2.8628e+00f, 2.8656e+00f, 2.8662e+00f, 2.8667e+00f, 2.8669e+00f, 2.8670e+00f,
-      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
-      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
-      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
+      2.7500e+00f, 2.8047e+00f, 2.8198e+00f, 2.8410e+00f, 2.8558e+00f,
+      2.8601e+00f, 2.8628e+00f, 2.8656e+00f, 2.8662e+00f, 2.8667e+00f,
+      2.8669e+00f, 2.8670e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
+      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
+      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
+      2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
       2.8671e+00f, 2.8671e+00f };
 
 
@@ -523,33 +534,48 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_siz_t::read(infile_base *file)
     {
-      if (file->read(&Lsiz, 2) != 2) throw "error reading SIZ marker";
+      if (file->read(&Lsiz, 2) != 2)
+        OJPH_ERROR(0x00050041, "error reading SIZ marker");
       Lsiz = swap_byte(Lsiz);
       int num_comps = (Lsiz - 38) / 3;
-      if (Lsiz != 38 + 3 * num_comps) throw "error in SIZ marker length";
-      if (file->read(&Rsiz, 2) != 2) throw "error reading SIZ marker";
+      if (Lsiz != 38 + 3 * num_comps)
+        OJPH_ERROR(0x00050042, "error in SIZ marker length");
+      if (file->read(&Rsiz, 2) != 2)
+        OJPH_ERROR(0x00050043, "error reading SIZ marker");
       Rsiz = swap_byte(Rsiz);
-      if ((Rsiz & 0x4000) == 0) throw "Rsiz bit 14 set (not a JPH file)";
-      if (Rsiz & 0xBFFF) printf("Rsiz in SIZ has unimplemented fields");
-      if (file->read(&Xsiz, 4) != 4) throw "error reading SIZ marker";
+      if ((Rsiz & 0x4000) == 0)
+        OJPH_ERROR(0x00050044, "Rsiz bit 14 set (not a JPH file)");
+      if (Rsiz & 0xBFFF)
+        OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
+      if (file->read(&Xsiz, 4) != 4)
+        OJPH_ERROR(0x00050045, "error reading SIZ marker");
       Xsiz = swap_byte(Xsiz);
-      if (file->read(&Ysiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&Ysiz, 4) != 4)
+        OJPH_ERROR(0x00050046, "error reading SIZ marker");
       Ysiz = swap_byte(Ysiz);
-      if (file->read(&XOsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&XOsiz, 4) != 4)
+        OJPH_ERROR(0x00050047, "error reading SIZ marker");
       XOsiz = swap_byte(XOsiz);
-      if (file->read(&YOsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&YOsiz, 4) != 4)
+        OJPH_ERROR(0x00050048, "error reading SIZ marker");
       YOsiz = swap_byte(YOsiz);
-      if (file->read(&XTsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&XTsiz, 4) != 4)
+        OJPH_ERROR(0x00050049, "error reading SIZ marker");
       XTsiz = swap_byte(XTsiz);
-      if (file->read(&YTsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&YTsiz, 4) != 4)
+        OJPH_ERROR(0x0005004A, "error reading SIZ marker");
       YTsiz = swap_byte(YTsiz);
-      if (file->read(&XTOsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&XTOsiz, 4) != 4)
+        OJPH_ERROR(0x0005004B, "error reading SIZ marker");
       XTOsiz = swap_byte(XTOsiz);
-      if (file->read(&YTOsiz, 4) != 4) throw "error reading SIZ marker";
+      if (file->read(&YTOsiz, 4) != 4)
+        OJPH_ERROR(0x0005004C, "error reading SIZ marker");
       YTOsiz = swap_byte(YTOsiz);
-      if (file->read(&Csiz, 2) != 2) throw "error reading SIZ marker";
+      if (file->read(&Csiz, 2) != 2)
+        OJPH_ERROR(0x0005004D, "error reading SIZ marker");
       Csiz = swap_byte(Csiz);
-      if (Csiz != num_comps) throw "Csiz does not match the SIZ marker size";
+      if (Csiz != num_comps)
+        OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
       if (Csiz > old_Csiz)
       {
         if (cptr != store)
@@ -560,11 +586,11 @@ namespace ojph {
       for (int c = 0; c < Csiz; ++c)
       {
         if (file->read(&cptr[c].SSiz, 1) != 1)
-          throw "error reading SIZ marker";
+          OJPH_ERROR(0x00050051, "error reading SIZ marker");
         if (file->read(&cptr[c].XRsiz, 1) != 1)
-          throw "error reading SIZ marker";
+          OJPH_ERROR(0x00050052, "error reading SIZ marker");
         if (file->read(&cptr[c].YRsiz, 1) != 1)
-          throw "error reading SIZ marker";
+          OJPH_ERROR(0x00050053, "error reading SIZ marker");
       }
     }
 
@@ -594,19 +620,24 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_cap_t::read(infile_base *file)
     {
-      if (file->read(&Lcap, 2) != 2) throw "error reading CAP marker";
+      if (file->read(&Lcap, 2) != 2)
+        OJPH_ERROR(0x00050061, "error reading CAP marker");
       Lcap = swap_byte(Lcap);
-      if (file->read(&Pcap, 4) != 4) throw "error reading CAP marker";
+      if (file->read(&Pcap, 4) != 4)
+        OJPH_ERROR(0x00050062, "error reading CAP marker");
       Pcap = swap_byte(Pcap);
       int count = population_count(Pcap);
       if (Pcap & 0xFFFDFFFF)
-        throw "error Pcap in CAP has options that are not supported";
+        OJPH_ERROR(0x00050063,
+          "error Pcap in CAP has options that are not supported");
       if (Pcap & 0x000200000)
-        throw "error Pcap does not have Pcap^15 set (not JPH)";
+        OJPH_ERROR(0x00050064,
+          "error Pcap does not have Pcap^15 set (not JPH)");
       for (int i = 0; i < count; ++i)
-        if (file->read(Ccap+i, 2) != 2) throw "error reading CAP marker";
+        if (file->read(Ccap+i, 2) != 2)
+          OJPH_ERROR(0x00050065, "error reading CAP marker");
       if (Lcap != 6 + 2 * count)
-        throw "error in CAP marker length";
+        OJPH_ERROR(0x00050066, "error in CAP marker length");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -652,31 +683,33 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_cod_t::read(infile_base *file)
     {
-      if (file->read(&Lcod, 2) != 2) throw "error reading COD marker";
+      if (file->read(&Lcod, 2) != 2)
+        OJPH_ERROR(0x00050071, "error reading COD marker");
       Lcod = swap_byte(Lcod);
-      if (file->read(&Scod, 1) != 1) throw "error reading COD marker";
+      if (file->read(&Scod, 1) != 1)
+        OJPH_ERROR(0x00050072, "error reading COD marker");
       if (file->read(&SGCod.prog_order, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050073, "error reading COD marker");
       if (file->read(&SGCod.num_layers, 2) != 2)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050074, "error reading COD marker");
       if (file->read(&SGCod.mc_trans, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050075, "error reading COD marker");
       if (file->read(&SPcod.num_decomp, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050076, "error reading COD marker");
       if (file->read(&SPcod.block_width, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050077, "error reading COD marker");
       if (file->read(&SPcod.block_height, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050078, "error reading COD marker");
       if (file->read(&SPcod.block_style, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x00050079, "error reading COD marker");
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
-        throw "error reading COD marker";
+        OJPH_ERROR(0x0005007A, "error reading COD marker");
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
-            throw "error reading COD marker";
+            OJPH_ERROR(0x0005007B, "error reading COD marker");
       if (Lcod != 12 + ((Scod & 1) ? 1 + SPcod.num_decomp : 0))
-        throw "error in COD marker length";
+        OJPH_ERROR(0x0005007C, "error in COD marker length");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -859,38 +892,40 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_qcd_t::read(infile_base *file)
     {
-      if (file->read(&Lqcd, 2) != 2) throw "error reading QCD marker";
+      if (file->read(&Lqcd, 2) != 2)
+        OJPH_ERROR(0x00050081, "error reading QCD marker");
       Lqcd = swap_byte(Lqcd);
-      if (file->read(&Sqcd, 1) != 1) throw "error reading QCD marker";
+      if (file->read(&Sqcd, 1) != 1)
+        OJPH_ERROR(0x00050082, "error reading QCD marker");
       if ((Sqcd & 0x1F) == 0)
       {
         num_decomps = (Lqcd - 4) / 3;
         if (Lqcd != 4 + 3 * num_decomps)
-          throw "wrong Lqcd value in QCD marker";
+          OJPH_ERROR(0x00050083, "wrong Lqcd value in QCD marker");
         for (int i = 0; i < 1 + 3 * num_decomps; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
-            throw "error reading QCD marker";
+            OJPH_ERROR(0x00050084, "error reading QCD marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
         num_decomps = -1;
         if (Lqcd != 5)
-          throw "wrong Lqcd value in QCD marker";
+          OJPH_ERROR(0x00050085, "wrong Lqcd value in QCD marker");
       }
       else if ((Sqcd & 0x1F) == 2)
       {
         num_decomps = (Lqcd - 4) / 6;
         if (Lqcd != 5 + 6 * num_decomps)
-          throw "wrong Lqcd value in QCD marker";
+          OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
         for (int i = 0; i < 1 + 3 * num_decomps; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
-            throw "error reading QCD marker";
+            OJPH_ERROR(0x00050087, "error reading QCD marker");
           u16_SPqcd[i] = swap_byte(u16_SPqcd[i]);
         }
       }
       else
-        throw "wrong Sqcd value in QCD marker";
+        OJPH_ERROR(0x00050088, "wrong Sqcd value in QCD marker");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -921,16 +956,23 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_sot_t::read(infile_base *file)
     {
-      if (file->read(&Lsot, 2) != 2) throw "error reading SOT marker";
+      if (file->read(&Lsot, 2) != 2)
+        OJPH_ERROR(0x00050091, "error reading SOT marker");
       Lsot = swap_byte(Lsot);
-      if (Lsot != 10) throw "error in SOT length";
-      if (file->read(&Isot, 2) != 2) throw "error reading SOT marker";
+      if (Lsot != 10)
+        OJPH_ERROR(0x00050092, "error in SOT length");
+      if (file->read(&Isot, 2) != 2)
+        OJPH_ERROR(0x00050093, "error reading SOT marker");
       Isot = swap_byte(Isot);
-      if (Isot == 0xFFFF) throw "tile index in SOT marker cannot be 0xFFFF";
-      if (file->read(&Psot, 4) != 4) throw "error reading SOT marker";
+      if (Isot == 0xFFFF)
+        OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
+      if (file->read(&Psot, 4) != 4)
+        OJPH_ERROR(0x00050095, "error reading SOT marker");
       Psot = swap_byte(Psot);
-      if (file->read(&TPsot, 1) != 1) throw "error reading SOT marker";
-      if (file->read(&TNsot, 1) != 1) throw "error reading SOT marker";
+      if (file->read(&TPsot, 1) != 1)
+        OJPH_ERROR(0x00050096, "error reading SOT marker");
+      if (file->read(&TNsot, 1) != 1)
+        OJPH_ERROR(0x00050097, "error reading SOT marker");
     }
   }
 

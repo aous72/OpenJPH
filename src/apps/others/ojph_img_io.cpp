@@ -41,6 +41,7 @@
 
 #include "ojph_img_io.h"
 #include "ojph_mem.h"
+#include "ojph_message.h"
 
 namespace ojph {
 
@@ -90,33 +91,34 @@ namespace ojph {
     assert(fh == 0);
     fh = fopen(filename, "rb");
     if (fh == 0)
-      throw "Unable to open file\n";
+      OJPH_ERROR(0x030000001, "Unable to open file %s", filename);
+    fname = filename;
 
     char t[2];
     if (fread(t, 1, 2, fh) != 2)
     {
       close();
-      throw "Error reading file";
+      OJPH_ERROR(0x030000002, "Error reading file %s", filename);
     }
 
     if (t[0] != 'P' || (t[1] != '5' && t[1] != '6'))
     {
       close();
-      throw "unknown file type";
+      OJPH_ERROR(0x030000003, "unknown file type for file %s", filename);
     }
 
     size_t len = strlen(filename);
     if (t[1] == '5' && strncmp(filename + len - 4, ".pgm", 4) != 0)
     {
       close();
-      throw "wrong file extension, a file with keyword P5 must have a .pgm "
-        "extension";
+      OJPH_ERROR(0x030000004, "wrong file extension, a file with "
+        "keyword P5 must have a .pgm extension for file %s", filename);
     }
     if (t[1] == '6' && strncmp(filename + len - 4, ".ppm", 4) != 0)
     {
       close();
-      throw "wrong file extension, a file with keyword P6 must have a .pgm "
-        "extension";
+      OJPH_ERROR(0x030000005, "wrong file extension, a file with keyword P6 "
+        "must have a .pgm extension fir file %s", filename);
     }
 
     num_comps = t[1] == '5' ? 1 : 3;
@@ -125,7 +127,7 @@ namespace ojph {
     if (fscanf(fh, "%d %d %d\n", &width, &height, &max_val) != 3)
     {
       close();
-      throw "error in file format";
+      OJPH_ERROR(0x030000006, "error in file format for file %s", filename);
     }
     num_ele_per_line = num_comps * width;
     bytes_per_sample = max_val > 255 ? 2 : 1;
@@ -177,7 +179,7 @@ namespace ojph {
       if (result != num_ele_per_line)
       {
         close();
-        throw "not enough data in file";
+        OJPH_ERROR(0x030000011, "not enough data in file %s", fname);
       }
       if (++cur_line >= height)
       {
@@ -224,17 +226,18 @@ namespace ojph {
         if (strncmp(".ppm", filename + len - 4, 4) == 0)
         {
           filename[len - 2] = 'g'; 
-          printf("file was renamed %s\n", filename);
+          OJPH_WARN(0x03000001, "file was renamed %s\n", filename);
         }
         if (strncmp(".PPM", filename + len - 4, 4) == 0)
         {
           filename[len - 2] = 'G';
-          printf("file was renamed %s\n", filename);
+          OJPH_WARN(0x03000002, "file was renamed %s\n", filename);
         }
       }
       fh = fopen(filename, "wb");
       if (fh == NULL)
-        throw "unable to open file for writing";
+        OJPH_ERROR(0x030000021,
+          "unable to open file %s for writing", filename);
 
       fprintf(fh, "P5 %d %d %d\n", width, height, (1 << bit_depth) - 1);
       buffer_size = width * bytes_per_sample;
@@ -248,24 +251,26 @@ namespace ojph {
         if (strncmp(".pgm", filename + len - 4, 4) == 0)
         {
           filename[len - 2] = 'p';
-          printf("file was renamed %s\n", filename);
+          OJPH_WARN(0x03000003, "file was renamed %s\n", filename);
         }
         if (strncmp(".PGM", filename + len - 4, 4) == 0)
         {
           filename[len - 2] = 'P';
-          printf("file was renamed %s\n", filename);
+          OJPH_WARN(0x03000004, "file was renamed %s\n", filename);
         }
       }
       fh = fopen(filename, "wb");
       if (fh == NULL)
-        throw "unable to open file for writing";
+        OJPH_ERROR(0x030000022,
+          "unable to open file %s for writing", filename);
       int result = //the number of written characters
         fprintf(fh, "P6 %d %d %d\n", width, height, (1 << bit_depth) - 1);
       if (result == 0)
-        throw "error writing to file";
+        OJPH_ERROR(0x030000023, "error writing to file %s", filename);
       buffer_size = width * num_components * bytes_per_sample;
       buffer = (ui8*)malloc(buffer_size);
     }
+    fname = filename;
     cur_line = 0;
   }
 
@@ -275,7 +280,8 @@ namespace ojph {
   {
     assert(fh == NULL); //configure before opening
     if (num_components != 1 && num_components != 3)
-      throw "ppm supports 3 colour components, while pgm supports 1";
+      OJPH_ERROR(0x030000031,
+        "ppm supports 3 colour components, while pgm supports 1");
     this->width = width;
     this->height = height;
     this->num_components = num_components;
@@ -320,7 +326,7 @@ namespace ojph {
         }
       }
       if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        throw "error writing to file";
+        OJPH_ERROR(0x030000041, "error writing to file %s", fname);
     }
     else
     {
@@ -357,7 +363,7 @@ namespace ojph {
         size_t result = fwrite(buffer,
                                bytes_per_sample, samples_per_line, fh);
         if (result != samples_per_line)
-          throw "error writing to file";
+          OJPH_ERROR(0x030000042, "error writing to file %s", fname);
       }
     }
     return 0;
@@ -377,7 +383,7 @@ namespace ojph {
     assert(fh == NULL);
     fh = fopen(filename, "rb");
     if (fh == 0)
-      throw "Unable to open file\n";
+      OJPH_ERROR(0x03000051, "Unable to open file %s", filename);
 
     //need to extact info from filename
 
@@ -393,6 +399,7 @@ namespace ojph {
       max_byte_width = ojph_max(max_byte_width, width[i]*bytes_per_sample[i]);
     }
     temp_buf = malloc(max_byte_width);
+    fname = filename;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -404,7 +411,7 @@ namespace ojph {
     if (result != width[comp_num])
     {
       close();
-      throw "not enough data in file";
+      OJPH_ERROR(0x03000061, "not enough data in file %s", fname);
     }
 
     if (bytes_per_sample[comp_num] == 1)
@@ -430,11 +437,11 @@ namespace ojph {
                              int num_downsamplings, const point *subsampling)
   {
     if (num_components != 1 && num_components !=3)
-      throw "yuv_in support 1 or 3 components";
+      OJPH_ERROR(0x03000071, "yuv_in support 1 or 3 components");
     this->num_com = num_components;
 
     if (num_downsamplings < 1)
-      throw "one or more downsampling must be provided";
+      OJPH_ERROR(0x03000072, "one or more downsampling must be provided");
 
     int last_downsamp_idx = 0;
     for (int i = 0; i < num_components; ++i)
@@ -456,7 +463,7 @@ namespace ojph {
   void yuv_in::set_bit_depth(int num_bit_depths, int* bit_depth)
   {
     if (num_bit_depths < 1)
-      throw "one or more bit_depths must be provided";
+      OJPH_ERROR(0x03000081, "one or more bit_depths must be provided");
     int last_bd_idx = 0;
     for (int i = 0; i < 3; ++i)
     {
@@ -510,7 +517,8 @@ namespace ojph {
     assert(fh == NULL && downsampling != NULL); //configure before open
     fh = fopen(filename, "wb");
     if (fh == 0)
-      throw "Unable to open file\n";
+      OJPH_ERROR(0x03000091, "Unable to open file %s", filename);
+    fname = filename;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -556,7 +564,7 @@ namespace ojph {
         *dp++ = (ui16)val;
       }
       if (fwrite(buffer, 2, w, fh) != w)
-        throw "unable to write to file";
+        OJPH_ERROR(0x030000A1, "unable to write to file %s", fname);
     }
     else
     {
@@ -570,7 +578,7 @@ namespace ojph {
         *dp++ = (ui8)val;
       }
       if (fwrite(buffer, 1, w, fh) != w)
-        throw "unable to write to file";
+        OJPH_ERROR(0x030000A2, "unable to write to file %s", fname);
     }
 
     return w;

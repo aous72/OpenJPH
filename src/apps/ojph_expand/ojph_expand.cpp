@@ -45,6 +45,7 @@
 #include "ojph_file.h"
 #include "ojph_codestream.h"
 #include "ojph_params.h"
+#include "ojph_message.h"
 
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[],
@@ -115,11 +116,9 @@ int main(int argc, char *argv[]) {
       {
 
         if (siz.get_num_components() != 1)
-        {
-          printf("The file has more than one color component, but .pgm can "
+          OJPH_ERROR(0x020000001,
+            "The file has more than one color component, but .pgm can "
             "contain only on color component\n");
-          exit(-1);
-        }
         ppm.configure(siz.get_image_extent().x - siz.get_image_offset().x,
                       siz.get_image_extent().y - siz.get_image_offset().y,
                       siz.get_num_components(), siz.get_bit_depth(0));
@@ -132,11 +131,9 @@ int main(int argc, char *argv[]) {
         ojph::param_siz_t siz = codestream.access_siz();
 
         if (siz.get_num_components() != 3)
-        {
-          printf("The file has %d color components; this cannot be saved to"
-                 " a .ppm file\n", siz.get_num_components());
-          exit(-1);
-        }
+          OJPH_ERROR(0x020000002,
+            "The file has %d color components; this cannot be saved to"
+            " a .ppm file\n", siz.get_num_components());
         bool all_same = true;
         ojph::point p = siz.get_downsampling(0);
         for (int i = 1; i < siz.get_num_components(); ++i)
@@ -145,11 +142,9 @@ int main(int argc, char *argv[]) {
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
         }
         if (!all_same)
-        {
-          printf("To save an image to ppm, all the components must have the "
-                 "downsampling ratio\n");
-          exit(-1);
-        }
+          OJPH_ERROR(0x020000003,
+            "To save an image to ppm, all the components must have the "
+            "downsampling ratio\n");
         ppm.configure(siz.get_image_extent().x - siz.get_image_offset().x,
                       siz.get_image_extent().y - siz.get_image_offset().y,
                       siz.get_num_components(), siz.get_bit_depth(0));
@@ -162,19 +157,15 @@ int main(int argc, char *argv[]) {
         ojph::param_siz_t siz = codestream.access_siz();
 
         if (siz.get_num_components() != 3 && siz.get_num_components() != 1)
-        {
-          printf("The file has %d color components; this cannot be saved to"
-                 " a .yuv file\n", siz.get_num_components());
-          exit(-1);
-        }
+          OJPH_ERROR(0x020000004,
+            "The file has %d color components; this cannot be saved to"
+             " a .yuv file\n", siz.get_num_components());
         ojph::param_cod_t cod = codestream.access_cod();
         if (cod.is_using_color_transform())
-        {
-          printf("The current implementation of yuv file object does not "
+          OJPH_ERROR(0x020000005,
+            "The current implementation of yuv file object does not "
             "support saving a file when conversion from yuv to rgb is needed; "
             "In any case, this is not the normal usage of a yuv file");
-          exit(-1);
-        }
         ojph::point points[3];
         int max_bit_depth = 0;
         for (int i = 0; i < siz.get_num_components(); ++i)
@@ -189,18 +180,14 @@ int main(int argc, char *argv[]) {
         base = &yuv;
       }
       else
-      {
-        printf("unknown output file extension; only (pgm, ppm, and yuv) are"
+        OJPH_ERROR(0x020000006,
+          "unknown output file extension; only (pgm, ppm, and yuv) are"
           " suppoted\n");
-        exit(-1);
-      }
     }
     else
-    {
-      printf("Please supply a proper output filename with a proper three-letter"
-      " extension\n");
-      exit(-1);
-    }
+      OJPH_ERROR(0x020000007,
+        "Please supply a proper output filename with a proper three-letter"
+        " extension\n");
 
     codestream.create();
 
@@ -240,12 +227,14 @@ int main(int argc, char *argv[]) {
     base->close();
     codestream.close();
   }
-  catch (const char *e)
+  catch (const std::exception& e)
   {
-    printf("%s\n", e);
-    exit (-1);
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+    exit(-1);
   }
-  
+
   clock_t end = clock();
   double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
   printf("Elapsed time = %f\n", elapsed_secs);

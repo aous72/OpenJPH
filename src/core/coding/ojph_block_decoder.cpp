@@ -40,6 +40,7 @@
 #include <cstring>
 #include "ojph_block_decoder.h"
 #include "ojph_arch.h"
+#include "ojph_message.h"
 
 namespace ojph {
   namespace local {
@@ -248,7 +249,7 @@ namespace ojph {
       //The mel code can in fact occupy zero length, if it has a small number
       // of bits and these bits overlap with the VLC code
       if (vlcp->size < -8) //8 is based on the fact that we may read 64 bits
-        throw "error";
+        OJPH_ERROR(0x00010001, "Error in reading VLC data");
     }
 
     /////////////////////////////////////////////////////////////////////////

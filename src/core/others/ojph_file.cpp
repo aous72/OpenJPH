@@ -39,6 +39,7 @@
 #include <cassert>
 
 #include "ojph_file.h"
+#include "ojph_message.h"
 
 namespace ojph {
 
@@ -56,7 +57,7 @@ namespace ojph {
     assert(fh == 0);
     fh = fopen(filename, "wb");
     if (fh == NULL)
-      throw "failed to open file for writing";
+      OJPH_ERROR(0x00060001, "failed to open %s for writing", filename);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -96,7 +97,7 @@ namespace ojph {
     assert(fh == NULL);
     fh = fopen(filename, "rb");
     if (fh == NULL)
-      throw "failed to open file for reading";
+      OJPH_ERROR(0x00060002, "failed to open %s for reading", filename);
   }
 
   ////////////////////////////////////////////////////////////////////////////

@@ -543,17 +543,23 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
 
         if (employ_color_transform != -1)
-          printf("-colour_trans option is not needed and was not used\n");
+          OJPH_WARN(0x01000001,
+            "-colour_trans option is not needed and was not used\n");
         if (dims.w != -1 || dims.h != -1)
-          printf("-dims option is not needed and was not used\n");
+          OJPH_WARN(0x01000002,
+            "-dims option is not needed and was not used\n");
         if (num_components != -1 )
-          printf("-num_comps is not needed and was not used\n");
+          OJPH_WARN(0x01000003,
+            "-num_comps is not needed and was not used\n");
         if (is_signed[0] != -1)
-          printf("-signed is not needed and was not used\n");
+          OJPH_WARN(0x01000004,
+            "-signed is not needed and was not used\n");
         if (bit_depth[0] != -1)
-          printf("-bit_depth is not needed and was not used\n");
+          OJPH_WARN(0x01000005,
+            "-bit_depth is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-          printf("-downsamp is not needed and was not used\n");
+          OJPH_WARN(0x01000006,
+            "-downsamp is not needed and was not used\n");
 
         base = &ppm;
       }
@@ -589,15 +595,20 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(false);
 
         if (dims.w != -1 || dims.h != -1)
-          printf("-dims option is not needed and was not used\n");
+          OJPH_WARN(0x01000011,
+            "-dims option is not needed and was not used\n");
         if (num_components != -1)
-          printf("-num_comps is not needed and was not used\n");
+          OJPH_WARN(0x01000012,
+            "-num_comps is not needed and was not used\n");
         if (is_signed[0] != -1)
-          printf("-signed is not needed and was not used\n");
+          OJPH_WARN(0x01000013,
+            "-signed is not needed and was not used\n");
         if (bit_depth[0] != -1)
-          printf("-bit_depth is not needed and was not used\n");
+          OJPH_WARN(0x01000014,
+            "-bit_depth is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-          printf("-downsamp is not needed and was not used\n");
+          OJPH_WARN(0x01000015,
+            "-downsamp is not needed and was not used\n");
 
         base = &ppm;
       }
@@ -605,17 +616,22 @@ int main(int argc, char * argv[]) {
       {
         ojph::param_siz_t siz = codestream.access_siz();
         if (dims.w < 0 || dims.h < 0)
-          printf("-dims option is missing, and need to be provided\n");
+          OJPH_ERROR(0x01000021,
+            "-dims option is missing, and need to be provided\n");
         siz.set_image_extent(ojph::point(image_offset.x + dims.w,
           image_offset.y + dims.h));
         if (num_components <= 0)
-          printf("-num_comps option is missing and must be provided\n");
+          OJPH_ERROR(0x01000022,
+            "-num_comps option is missing and must be provided\n");
         if (num_is_signed <= 0)
-          printf("-signed option is missing and must be provided\n");
+          OJPH_ERROR(0x01000023,
+            "-signed option is missing and must be provided\n");
         if (num_bit_depths <= 0)
-          printf("-bit_depth option is missing and must be provided\n");
+          OJPH_ERROR(0x01000024,
+            "-bit_depth option is missing and must be provided\n");
         if (num_comp_downsamps <= 0)
-          printf("-downsamp option is missing and must be provided\n");
+          OJPH_ERROR(0x01000025,
+            "-downsamp option is missing and must be provided\n");
 
         yuv.set_img_props(dims, num_components, num_comp_downsamps,
           comp_downsampling);
@@ -647,12 +663,13 @@ int main(int argc, char * argv[]) {
         if (employ_color_transform == -1)
           cod.set_color_transform(false);
         else
-          throw "we currently do not support color transform on yuv files."
-          " In any case, this not a normal usage scenario.  The OpenJPH "
-          "library however does support that, but ojph_compress.cpp must be "
-          "modifed to send all lines from one component before moving to "
-          "the next component;  this requires buffering components outside of "
-          "the OpenJPH library";
+          OJPH_ERROR(0x01000031,
+            "we currently do not support color transform on yuv files."
+            " In any case, this not a normal usage scenario.  The OpenJPH "
+            "library however does support that, but ojph_compress.cpp must be "
+            "modifed to send all lines from one component before moving to "
+            "the next component;  this requires buffering components outside"
+            " of the OpenJPH library");
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
@@ -662,19 +679,15 @@ int main(int argc, char * argv[]) {
         base = &yuv;
       }
       else
-      {
-        printf("unknown input file extension; only (pgm, ppm, and yuv) are"
+        OJPH_ERROR(0x01000041,
+          "unknown input file extension; only (pgm, ppm, and yuv) are"
           " suppoted\n");
-        exit(-1);
-      }
 
     }
     else
-    {
-      printf("Please supply a proper input filename with a proper three-letter"
-        " extension\n");
-      exit(-1);
-    }
+      OJPH_ERROR(0x01000051,
+        "Please supply a proper input filename with a proper three-letter "
+        "extension\n");
 
     ojph::j2c_outfile j2c_file;
     j2c_file.open(output_filename);
@@ -723,11 +736,6 @@ int main(int argc, char * argv[]) {
       delete[] bit_depth;
       delete[] is_signed;
     }
-  }
-  catch (const char *e)
-  {
-    printf("%s\n", e);
-    exit (-1);
   }
   catch (const std::exception& e)
   {

@@ -194,6 +194,8 @@ namespace ojph {
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
+
+      init_colour_transform_functions();
     }
 
     ////////////////////////////////////////////////////////////////////////////

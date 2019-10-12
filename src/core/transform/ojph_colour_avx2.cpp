@@ -30,54 +30,56 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /****************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_defs.h
+// File: ojph_colour_avx2.cpp
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 11 October 2019
 /****************************************************************************/
 
+#include <cmath>
 
-#ifndef OJPH_TYPES_H
-#define OJPH_TYPES_H
+#include "ojph_defs.h"
+#include "ojph_colour.h"
 
-#include <cstdint>
+#ifdef OJPH_COMPILER_MSVC
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 namespace ojph {
+  namespace local {
 
-/////////////////////////////////////////////////////////////////////////////
-//                               types
-/////////////////////////////////////////////////////////////////////////////
-typedef uint8_t ui8;
-typedef int8_t si8;
-typedef uint16_t ui16;
-typedef int16_t si16;
-typedef uint32_t ui32;
-typedef int32_t si32;
-typedef uint64_t ui64;
-typedef int64_t si64;
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
+                                       int width)
+    {
+      for (int i = width; i > 0; --i)
+        *dp++ = *sp++ + shift;
+    }
 
-/////////////////////////////////////////////////////////////////////////////
-#define OJPH_CORE_VER_MAJOR    0
-#define OJPH_CORE_VER_MINOR    3
-#define OJPH_CORE_VER_SUBMINOR 0
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
+                          si32 *y, si32 *cb, si32 *cr, int repeat)
+    {
+      for (int i = repeat; i > 0; --i)
+      {
+        *y++ = (*r + (*g << 1) + *b) >> 2;
+        *cb++ = (*b++ - *g);
+        *cr++ = (*r++ - *g++);
+      }
+    }
 
-/////////////////////////////////////////////////////////////////////////////
-#define OJPH_INT_TO_STRING(I) #I
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
+                           si32 *r, si32 *g, si32 *b, int repeat)
+    {
+      for (int i = repeat; i > 0; --i)
+      {
+        *g = *y++ - ((*cb + *cr)>>2);
+        *b++ = *cb++ + *g;
+        *r++ = *cr++ + *g++;
+      }
+    }
 
-/////////////////////////////////////////////////////////////////////////////
-// number of fractional bits for 16 bit representation
-// for 32 bits, it is NUM_FRAC_BITS + 16
-// All numbers are in the range of [-0.5, 0.5)
-const int NUM_FRAC_BITS = 13;
-
-/////////////////////////////////////////////////////////////////////////////
-#define ojph_div_ceil(a, b) (((a) + (b) - 1) / (b))
-
-/////////////////////////////////////////////////////////////////////////////
-#define ojph_max(a, b) (((a) > (b)) ? (a) : (b))
-
-/////////////////////////////////////////////////////////////////////////////
-#define ojph_min(a, b) (((a) < (b)) ? (a) : (b))
-
+  }
 }
-
-#endif // !OJPH_TYPES_H

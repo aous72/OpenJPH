@@ -30,7 +30,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /****************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: $(filename)
+// File: ojph_transform.cpp
 // Author: Aous Naman
 // Date: 28 August 2019
 /****************************************************************************/

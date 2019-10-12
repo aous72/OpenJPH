@@ -58,10 +58,11 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128 s = _mm_cvtepi32_ps(*(__m128i*)sp);
+        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
         s = _mm_sub_ps(s, shift);
-        *(__m128*)dp = s;
+        _mm_store_ps(dp, s);
       }
     }
 
@@ -72,9 +73,10 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128 s = _mm_cvtepi32_ps(*(__m128i*)sp);
+        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
-        *(__m128*)dp = s;
+        _mm_store_ps(dp, s);
       }
     }
 
@@ -88,7 +90,8 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4)
       {
-        __m128 s = _mm_add_ps(*(__m128*)sp, shift);
+        __m128 t = _mm_load_ps(sp);
+        __m128 s = _mm_add_ps(t, shift);
         s = _mm_mul_ps(s, m);
         *(__m64*)dp = _mm_cvtps_pi32(s); //the lower 2 floats
         dp += 2;
@@ -107,7 +110,8 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4)
       {
-        __m128 s = _mm_mul_ps(*(__m128*)sp, m);
+        __m128 t = _mm_load_ps(sp);
+        __m128 s = _mm_mul_ps(t, m);
         *(__m64*)dp = _mm_cvtps_pi32(s); //the lower 2 floats
         dp += 2;
         *(__m64*)dp = _mm_cvtps_pi32(_mm_movehl_ps(s,s)); //the upper 2 floats
@@ -127,14 +131,15 @@ namespace ojph {
       __m128 beta_crf = _mm_set1_ps(CT_CNST::BETA_CrF);
       for (int i = (repeat + 3) >> 2; i > 0; --i)
       {
-        __m128 mr = *(__m128*)r;
-        __m128 mb = *(__m128*)b;
+        __m128 mr = _mm_load_ps(r);
+        __m128 mb = _mm_load_ps(b);
         __m128 my = _mm_mul_ps(alpha_rf, mr);
-        my = _mm_add_ps(my, _mm_mul_ps(alpha_gf, *(__m128*)g));
+        my = _mm_add_ps(my, _mm_mul_ps(alpha_gf, _mm_load_ps(g)));
         my = _mm_add_ps(my, _mm_mul_ps(alpha_bf, mb));
-        *(__m128*)y = my;
-        *(__m128*)cb = _mm_mul_ps(beta_cbf, _mm_sub_ps(mb, my));
-        *(__m128*)cr = _mm_mul_ps(beta_crf, _mm_sub_ps(mr, my));
+        _mm_store_ps(y, my);
+        _mm_store_ps(cb, _mm_mul_ps(beta_cbf, _mm_sub_ps(mb, my)));
+        _mm_store_ps(cr, _mm_mul_ps(beta_crf, _mm_sub_ps(mr, my)));
+        
         r += 4; g += 4; b += 4;
         y += 4; cb += 4; cr += 4;
       }
@@ -150,13 +155,13 @@ namespace ojph {
       __m128 gamma_cb2b = _mm_set1_ps(CT_CNST::GAMMA_CB2B);
       for (int i = (repeat + 3) >> 2; i > 0; --i)
       {
-        __m128 my = *(__m128*)y;
-        __m128 mcr = *(__m128*)cr;
-        __m128 mcb = *(__m128*)cb;
+        __m128 my = _mm_load_ps(y);
+        __m128 mcr = _mm_load_ps(cr);
+        __m128 mcb = _mm_load_ps(cb);
         __m128 mg = _mm_sub_ps(my, _mm_mul_ps(gamma_cr2g, mcr));
-        *(__m128*)g = _mm_sub_ps(mg, _mm_mul_ps(gamma_cb2g, mcb));
-        *(__m128*)r = _mm_add_ps(my, _mm_mul_ps(gamma_cr2r, mcr));
-        *(__m128*)b = _mm_add_ps(my, _mm_mul_ps(gamma_cb2b, mcb));
+        _mm_store_ps(g, _mm_sub_ps(mg, _mm_mul_ps(gamma_cb2g, mcb)));
+        _mm_store_ps(r, _mm_add_ps(my, _mm_mul_ps(gamma_cr2r, mcr)));
+        _mm_store_ps(b, _mm_add_ps(my, _mm_mul_ps(gamma_cb2b, mcb)));
 
         y += 4; cb += 4; cr += 4;
         r += 4; g += 4; b += 4;

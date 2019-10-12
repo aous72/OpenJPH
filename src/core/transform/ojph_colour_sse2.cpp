@@ -59,9 +59,10 @@ namespace ojph {
     __m128 m = _mm_set1_ps(mul);
     for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
     {
-      __m128 s = _mm_add_ps(*(__m128*)sp, shift);
+      __m128 t = _mm_load_ps(sp);
+      __m128 s = _mm_add_ps(t, shift);
       s = _mm_mul_ps(s, m);
-      *(__m128*)dp = _mm_cvtps_epi32(s);
+      _mm_store_si128((__m128i*)dp, _mm_cvtps_epi32(s));
     }
     _MM_SET_ROUNDING_MODE(rounding_mode);
   }
@@ -75,8 +76,9 @@ namespace ojph {
     __m128 m = _mm_set1_ps(mul);
     for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
     {
-      __m128 s = _mm_mul_ps(*(__m128*)sp, m);
-      *(__m128*)dp = _mm_cvtps_epi32(s);
+      __m128 t = _mm_load_ps(sp);
+      __m128 s = _mm_mul_ps(t, m);
+      _mm_store_si128((__m128i*)dp, _mm_cvtps_epi32(s));
     }
     _MM_SET_ROUNDING_MODE(rounding_mode);
   }
@@ -86,19 +88,34 @@ namespace ojph {
     void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
                                        int width)
     {
-      for (int i = width; i > 0; --i)
-        *dp++ = *sp++ + shift;
+      __m128i sh = _mm_set1_epi32(shift);
+      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      {
+        __m128i s = _mm_load_si128((__m128i*)sp);
+        s = _mm_add_epi32(s, sh);
+        _mm_store_si128((__m128i*)dp, s);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
                           si32 *y, si32 *cb, si32 *cr, int repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (int i = (repeat + 3) >> 2; i > 0; --i)
       {
-        *y++ = (*r + (*g << 1) + *b) >> 2;
-        *cb++ = (*b++ - *g);
-        *cr++ = (*r++ - *g++);
+        __m128i mr = _mm_load_si128((__m128i*)r);
+        __m128i mg = _mm_load_si128((__m128i*)g);
+        __m128i mb = _mm_load_si128((__m128i*)b);
+        __m128i t = _mm_add_epi32(mr, mb);
+        t = _mm_add_epi32(t, _mm_slli_epi32(mg, 1));
+        _mm_store_si128((__m128i*)y, _mm_srai_epi32(t, 2));
+        t = _mm_sub_epi32(mb, mg);
+        _mm_store_si128((__m128i*)cb, t);
+        t = _mm_sub_epi32(mr, mg);
+        _mm_store_si128((__m128i*)cr, t);
+
+        r += 4; g += 4; b += 4;
+        y += 4; cb += 4; cr += 4;
       }
     }
 
@@ -106,11 +123,22 @@ namespace ojph {
     void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
                            si32 *r, si32 *g, si32 *b, int repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (int i = (repeat + 3) >> 2; i > 0; --i)
       {
-        *g = *y++ - ((*cb + *cr)>>2);
-        *b++ = *cb++ + *g;
-        *r++ = *cr++ + *g++;
+        __m128i my  = _mm_load_si128((__m128i*)y);
+        __m128i mcb = _mm_load_si128((__m128i*)cb);
+        __m128i mcr = _mm_load_si128((__m128i*)cr);
+
+        __m128i t = _mm_add_epi32(mcb, mcr);
+        t = _mm_sub_epi32(my, _mm_srai_epi32(t, 2));
+        _mm_store_si128((__m128i*)g, t);
+        __m128i u = _mm_add_epi32(mcb, t);
+        _mm_store_si128((__m128i*)b, u);
+        u = _mm_add_epi32(mcr, t);
+        _mm_store_si128((__m128i*)r, u);
+
+        y += 4; cb += 4; cr += 4;
+        r += 4; g += 4; b += 4;
       }
     }
 

@@ -143,7 +143,7 @@ namespace ojph {
         ict_backward = avx_ict_backward;
       }
 
-      if (level>=8)
+      if (level >= 8)
       {
         cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
         rct_forward = avx2_rct_forward;

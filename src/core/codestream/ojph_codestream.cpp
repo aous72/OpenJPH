@@ -3186,12 +3186,14 @@ namespace ojph {
     {
       const si32 *sp = line->i32 + line_offset;
       si32 *dp = buf + cur_line * cb_size.w;
+      int tmax = max_val; //this improves speed considerably
       for (si32 i = cb_size.w; i > 0; --i)
       {
         si32 t = *sp++;
-        max_val = ojph_max(max_val, 0x7FFFFFFF & t);
+        tmax = ojph_max(tmax, 0x7FFFFFFF & t);
         *dp++ = t;
       }
+      max_val = tmax;
       ++cur_line;
     }
 

@@ -42,183 +42,183 @@
 namespace ojph {
   namespace local {
 
-  struct CT_CNST
-  {
-    // for irreversible color transform
-    static const float ALPHA_RF;
-    static const float ALPHA_GF;
-    static const float ALPHA_BF;
-    static const float BETA_CbF;
-    static const float BETA_CrF;
-    static const float GAMMA_CR2R;
-    static const float GAMMA_CB2B;
-    static const float GAMMA_CR2G;
-    static const float GAMMA_CB2G;
-  };
+    struct CT_CNST
+    {
+      // for irreversible color transform
+      static const float ALPHA_RF;
+      static const float ALPHA_GF;
+      static const float ALPHA_BF;
+      static const float BETA_CbF;
+      static const float BETA_CrF;
+      static const float GAMMA_CR2R;
+      static const float GAMMA_CB2B;
+      static const float GAMMA_CR2G;
+      static const float GAMMA_CB2G;
+    };
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                           Generic Functions
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                           Generic Functions
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                    int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                     int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                               int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                     int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                               int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                       si32 *y, si32 *cb, si32 *cr, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                        si32 *r, si32 *g, si32 *b, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_ict_forward(const float *r, const float *g, const float *b,
-                       float *y, float *cb, float *cr, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void gen_ict_backward(const float *y, const float *cb, const float *cr,
-                        float *r, float *g, float *b, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                       SSE Functions (float)
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                     int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                               int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                     int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                               int width);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_ict_forward(const float *r, const float *g, const float *b,
-                       float *y, float *cb, float *cr, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse_ict_backward(const float *y, const float *cb, const float *cr,
-                        float *r, float *g, float *b, int repeat);
-
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                      SSE2 Functions (float)
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
-
-  ////////////////////////////////////////////////////////////////////////////
-  void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
                                       int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                int width);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
+                                       int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                       SSE2 Functions (integer)
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
+                                 int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                     int width);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                       int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                        si32 *y, si32 *cb, si32 *cr, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                 int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                         si32 *r, si32 *g, si32 *b, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rct_forward(const si32 *r, const si32 *g, const si32 *b,
+                         si32 *y, si32 *cb, si32 *cr, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                       AVX Functions (float)
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
+                          si32 *r, si32 *g, si32 *b, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                     int width);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_ict_forward(const float *r, const float *g, const float *b,
+                         float *y, float *cb, float *cr, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                               int width);
+    //////////////////////////////////////////////////////////////////////////
+    void gen_ict_backward(const float *y, const float *cb, const float *cr,
+                          float *r, float *g, float *b, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                     int width);
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                       SSE Functions (float)
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                               int width);
+    //////////////////////////////////////////////////////////////////////////
+    void sse_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
+                                       int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_ict_forward(const float *r, const float *g, const float *b,
-                       float *y, float *cb, float *cr, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    void sse_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
+                                 int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx_ict_backward(const float *y, const float *cb, const float *cr,
-                        float *r, float *g, float *b, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    void sse_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                       int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //                       AVX2 Functions (integer)
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    void sse_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                 int width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                     int width);
+    //////////////////////////////////////////////////////////////////////////
+    void sse_ict_forward(const float *r, const float *g, const float *b,
+                         float *y, float *cb, float *cr, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                        si32 *y, si32 *cb, si32 *cr, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    void sse_ict_backward(const float *y, const float *cb, const float *cr,
+                          float *r, float *g, float *b, int repeat);
 
-  ////////////////////////////////////////////////////////////////////////////
-  void avx2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                         si32 *r, si32 *g, si32 *b, int repeat);
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                      SSE2 Functions (float)
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                        int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                  int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                       SSE2 Functions (integer)
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
+                                       int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
+                          si32 *y, si32 *cb, si32 *cr, int repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
+                           si32 *r, si32 *g, si32 *b, int repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                       AVX Functions (float)
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
+                                       int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
+                                 int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                       int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                 int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_ict_forward(const float *r, const float *g, const float *b,
+                         float *y, float *cb, float *cr, int repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_ict_backward(const float *y, const float *cb, const float *cr,
+                          float *r, float *g, float *b, int repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                       AVX2 Functions (integer)
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
+                                       int width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
+                          si32 *y, si32 *cb, si32 *cr, int repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
+                           si32 *r, si32 *g, si32 *b, int repeat);
 
 
   }

@@ -196,6 +196,7 @@ namespace ojph {
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
 
       init_colour_transform_functions();
+      init_wavelet_transform_functions();
     }
 
     ////////////////////////////////////////////////////////////////////////////

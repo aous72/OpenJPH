@@ -37,19 +37,133 @@
 
 #include <cstdio>
 
+#include "ojph_arch.h"
 #include "ojph_transform.h"
+#include "ojph_transform_local.h"
 
 namespace ojph {
   namespace local {
 
-    //////////////////////////////////////////////////////////////////////////
-    struct LIFTING_FACTORS
-    {
-      static const float steps[8];
-      static const float K;
-      static const float K_inv;
-    };
+    /////////////////////////////////////////////////////////////////////////
+    // Reversible functions
+    /////////////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_vert_wvlt_fwd_predict)
+      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      = gen_rev_vert_wvlt_fwd_predict;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_vert_wvlt_fwd_update)
+      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      = gen_rev_vert_wvlt_fwd_update;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_horz_wvlt_fwd_tx)
+      (si32* src, si32 *ldst, si32 *hdst, int width, bool even)
+      = gen_rev_horz_wvlt_fwd_tx;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_vert_wvlt_bwd_predict)
+      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      = gen_rev_vert_wvlt_bwd_predict;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_vert_wvlt_bwd_update)
+      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      = gen_rev_vert_wvlt_bwd_update;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_horz_wvlt_bwd_tx)
+      (si32* dst, si32 *lsrc, si32 *hsrc, int width, bool even)
+      = gen_rev_horz_wvlt_bwd_tx;
+
+    /////////////////////////////////////////////////////////////////////////
+    // Irreversible functions
+    /////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irrev_vert_wvlt_step)
+      (const float* src1, const float* src2, float *dst, int step_num,
+       int repeat)
+      = gen_irrev_vert_wvlt_step;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irrev_vert_wvlt_K)
+      (const float *src, float *dst, bool L_analysis_or_H_synthesis,
+       int repeat)
+      = gen_irrev_vert_wvlt_K;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irrev_horz_wvlt_fwd_tx)
+      (float* src, float *ldst, float *hdst, int width, bool even)
+      = gen_irrev_horz_wvlt_fwd_tx;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irrev_horz_wvlt_bwd_tx)
+      (float* src, float *ldst, float *hdst, int width, bool even)
+      = gen_irrev_horz_wvlt_bwd_tx;
+
+    ////////////////////////////////////////////////////////////////////////////
+    static bool wavelet_transform_functions_initialized = false;
+
+    //////////////////////////////////////////////////////////////////////////
+    void init_wavelet_transform_functions()
+    {
+      if (wavelet_transform_functions_initialized)
+        return;
+
+      int level = cpu_ext_level();
+      rev_vert_wvlt_fwd_predict = gen_rev_vert_wvlt_fwd_predict;
+      rev_vert_wvlt_fwd_update = gen_rev_vert_wvlt_fwd_update;
+      rev_horz_wvlt_fwd_tx = gen_rev_horz_wvlt_fwd_tx;
+      rev_vert_wvlt_bwd_predict = gen_rev_vert_wvlt_bwd_predict;
+      rev_vert_wvlt_bwd_update = gen_rev_vert_wvlt_bwd_update;
+      rev_horz_wvlt_bwd_tx = gen_rev_horz_wvlt_bwd_tx;
+      irrev_vert_wvlt_step = gen_irrev_vert_wvlt_step;
+      irrev_vert_wvlt_K = gen_irrev_vert_wvlt_K;
+      irrev_horz_wvlt_fwd_tx = gen_irrev_horz_wvlt_fwd_tx;
+      irrev_horz_wvlt_bwd_tx = gen_irrev_horz_wvlt_bwd_tx;
+
+      if (level >= 2)
+      {
+        irrev_vert_wvlt_step = sse_irrev_vert_wvlt_step;
+        irrev_vert_wvlt_K = sse_irrev_vert_wvlt_K;
+        irrev_horz_wvlt_fwd_tx = sse_irrev_horz_wvlt_fwd_tx;
+        irrev_horz_wvlt_bwd_tx = sse_irrev_horz_wvlt_bwd_tx;
+      }
+
+      if (level >= 3)
+      {
+        rev_vert_wvlt_fwd_predict = sse2_rev_vert_wvlt_fwd_predict;
+        rev_vert_wvlt_fwd_update = sse2_rev_vert_wvlt_fwd_update;
+        rev_horz_wvlt_fwd_tx = sse2_rev_horz_wvlt_fwd_tx;
+        rev_vert_wvlt_bwd_predict = sse2_rev_vert_wvlt_bwd_predict;
+        rev_vert_wvlt_bwd_update = sse2_rev_vert_wvlt_bwd_update;
+        rev_horz_wvlt_bwd_tx = sse2_rev_horz_wvlt_bwd_tx;
+      }
+
+      if (level >= 7)
+      {
+        irrev_vert_wvlt_step = avx_irrev_vert_wvlt_step;
+        irrev_vert_wvlt_K = avx_irrev_vert_wvlt_K;
+        irrev_horz_wvlt_fwd_tx = avx_irrev_horz_wvlt_fwd_tx;
+        irrev_horz_wvlt_bwd_tx = avx_irrev_horz_wvlt_bwd_tx;
+      }
+
+      if (level >= 8)
+      {
+        rev_vert_wvlt_fwd_predict = avx2_rev_vert_wvlt_fwd_predict;
+        rev_vert_wvlt_fwd_update = avx2_rev_vert_wvlt_fwd_update;
+        rev_horz_wvlt_fwd_tx = avx2_rev_horz_wvlt_fwd_tx;
+        rev_vert_wvlt_bwd_predict = avx2_rev_vert_wvlt_bwd_predict;
+        rev_vert_wvlt_bwd_update = avx2_rev_vert_wvlt_bwd_update;
+        rev_horz_wvlt_bwd_tx = avx2_rev_horz_wvlt_bwd_tx;
+      }
+
+      wavelet_transform_functions_initialized = true;
+    }
+    
     //////////////////////////////////////////////////////////////////////////
     const float LIFTING_FACTORS::steps[8] =
     {
@@ -62,24 +176,24 @@ namespace ojph {
     const float LIFTING_FACTORS::K_inv  = (float)(1.0 / 1.230174104914001);
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                   si32 *dst, int repeat)
+    void gen_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
+                                       si32 *dst, int repeat)
     {
       for (int i = repeat; i > 0; --i)
         *dst++ -= (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                  si32 *dst, int repeat)
+    void gen_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
+                                      si32 *dst, int repeat)
     {
       for (int i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++ + 2) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                              int width, bool even)
+    void gen_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
+                                  int width, bool even)
     {
       if (width > 1)
       {
@@ -115,24 +229,24 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                   si32 *dst, int repeat)
+    void gen_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
+                                       si32 *dst, int repeat)
     {
       for (int i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                  si32 *dst, int repeat)
+    void gen_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
+                                      si32 *dst, int repeat)
     {
       for (int i = repeat; i > 0; --i)
         *dst++ -= (2 + *src1++ + *src2++) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                              int width, bool even)
+    void gen_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
+                                  int width, bool even)
     {
       if (width > 1)
       {
@@ -172,8 +286,8 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void irrev_vert_wvlt_step(const float* src1, const float* src2,
-                              float *dst, int step_num, int repeat)
+    void gen_irrev_vert_wvlt_step(const float* src1, const float* src2,
+                                  float *dst, int step_num, int repeat)
     {
       float factor = LIFTING_FACTORS::steps[step_num];
       for (int i = repeat; i > 0; --i)
@@ -181,8 +295,8 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void irrev_vert_wvlt_K(const float* src, float* dst,
-                           bool L_analysis_or_H_synthesis, int repeat)
+    void gen_irrev_vert_wvlt_K(const float* src, float* dst,
+                               bool L_analysis_or_H_synthesis, int repeat)
     {
       float factor = LIFTING_FACTORS::K_inv;
       factor = L_analysis_or_H_synthesis ? factor : LIFTING_FACTORS::K;
@@ -192,8 +306,8 @@ namespace ojph {
 
 
     /////////////////////////////////////////////////////////////////////////
-    void irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                int width, bool even)
+    void gen_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
+                                    int width, bool even)
     {
       if (width > 1)
       {
@@ -259,8 +373,8 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
-                                int width, bool even)
+    void gen_irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
+                                    int width, bool even)
     {
       if (width > 1)
       {
@@ -327,8 +441,5 @@ namespace ojph {
           dst[0] = hsrc[0];
       }
     }
-
-
-
   }
 }

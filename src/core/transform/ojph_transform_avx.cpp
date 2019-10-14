@@ -277,19 +277,29 @@ namespace ojph {
         spl = lsrc + (even ? 0 : -1);
         sph = hsrc;
         int width = L_width + (even ? 0 : 1);
-        for (int i = (width + 7) >> 3; i > 0; --i, spl+=8, sph+=8, dp+=16)
+        for (int i = (width + 7) >> 3; i > 0; --i, spl+=8, sph+=8)
         {
           __m256 s1 = _mm256_loadu_ps(spl);
           __m256 s2 = _mm256_loadu_ps(spl + 1);
           __m256 d = _mm256_load_ps(sph);
           s2 = _mm256_mul_ps(factor, _mm256_add_ps(s1, s2));
           d = _mm256_add_ps(d, s2);
-          s2 = _mm256_unpackhi_ps(s1, d);
-          s1 = _mm256_unpacklo_ps(s1, d);
-          d = _mm256_permute2f128_ps(s1, s2, (2 << 4) | 0);
-          _mm256_storeu_ps(dp, d);
-          d = _mm256_permute2f128_ps(s1, s2, (3 << 4) | 1);
-          _mm256_storeu_ps(dp + 1, d);
+
+          __m128 a0 = _mm256_extractf128_ps(s1, 0);
+          __m128 a1 = _mm256_extractf128_ps(s1, 1);
+          __m128 a2 = _mm256_extractf128_ps(d, 0);
+          __m128 a3 = _mm256_extractf128_ps(d, 1);
+          _mm_storeu_ps(dp, _mm_unpacklo_ps(a0, a2)); dp += 4;
+          _mm_storeu_ps(dp, _mm_unpackhi_ps(a0, a2)); dp += 4;
+          _mm_storeu_ps(dp, _mm_unpacklo_ps(a1, a3)); dp += 4;
+          _mm_storeu_ps(dp, _mm_unpackhi_ps(a1, a3)); dp += 4;
+
+//          s2 = _mm256_unpackhi_ps(s1, d);
+//          s1 = _mm256_unpacklo_ps(s1, d);
+//          d = _mm256_permute2f128_ps(s1, s2, (2 << 4) | 0);
+//          _mm256_storeu_ps(dp, d);
+//          d = _mm256_permute2f128_ps(s1, s2, (3 << 4) | 1);
+//          _mm256_storeu_ps(dp + 1, d);
         }
       }
       else

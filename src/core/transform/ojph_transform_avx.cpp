@@ -287,9 +287,9 @@ namespace ojph {
           s2 = _mm256_unpackhi_ps(s1, d);
           s1 = _mm256_unpacklo_ps(s1, d);
           d = _mm256_permute2f128_ps(s1, s2, (2 << 4) | 0);
-          _mm256_storeu_si256((__m256i*)dp, d);
+          _mm256_storeu_ps(dp, d);
           d = _mm256_permute2f128_ps(s1, s2, (3 << 4) | 1);
-          _mm256_storeu_si256((__m256i*)dp + 1, d);
+          _mm256_storeu_ps(dp + 1, d);
         }
       }
       else

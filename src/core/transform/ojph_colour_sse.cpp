@@ -58,7 +58,7 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128i t = (__m128i)_mm_loadu_ps((float*)sp);
         __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
         s = _mm_sub_ps(s, shift);
@@ -73,7 +73,7 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128i t = (__m128i)_mm_loadu_ps((float*)sp);
         __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
         _mm_store_ps(dp, s);

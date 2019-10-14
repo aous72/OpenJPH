@@ -6,7 +6,7 @@ The interested reader is refered to [HTJ2K white paper](https://kakadusoftware.c
 
 # Status #
 
-The code is written entirely in C++, but it conceivable that at some point in the future, SIMD instructions are employed to improve coding speed.  As it stands, on the quad core i7-6700, the code can encode 4K 4:4:4 HDR images losslessly in around 0.4-0.5s; for lossy compression, performance depends on the quantization step size (qstep), and it is between 0.25-0.55s for a similar image. 
+The code is written entirely in C++, but it conceivable that at some point in the future, SIMD instructions are employed to improve coding speed.  As it stands, on Intel Skylake i7-6700, encoding 4K 4:4:4 HDR images losslessly takes around 0.5s, and decoding takes around 0.34s; for lossy compression, performance depends on the quantisation step size (qstep), but for a high-quality image at a bitrate of around 3bits/pixel, encoding takes around 0.27s and decoding takes 0.22s.
 
 As it stands, the OpenJPH library needs some documentation, and a more propor handling of errors. The provided encoder ojph\_compress only generates HTJ2K codestreams, with the extension j2c; the generated files lack the .jph header.  Adding the .jph header is of little urgency, as the codestream contains all needed information to properly decode an image.  The .jph header will be added at a future point in time.  The provided decoder ojph\_expand ignores the .jph header if it is present.
 

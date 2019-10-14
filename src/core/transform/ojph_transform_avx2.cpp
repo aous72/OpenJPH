@@ -96,6 +96,7 @@ namespace ojph {
         // predict
         const si32* sp = src + (even ? 1 : 0);
         si32 *dph = hdst;
+        const __m256i mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
         for (int i = (H_width + 7) >> 3; i > 0; --i, dph+=8)
         { //this is doing twice the work it needs to do
           //it can be definitely written better
@@ -111,8 +112,9 @@ namespace ojph {
           s1 = _mm256_srai_epi32(_mm256_add_epi32(s1, s2), 1);
           __m256i d2 = _mm256_sub_epi32(d, s1);
           sp += 8;
-          d = (__m256i)_mm256_shuffle_ps((__m256)d1, (__m256)d2, 0x88);
-          d = _mm256_permute4x64_epi64(d, 0xD4);
+          d1 = _mm256_permutevar8x32_epi32(d1, mask);
+          d2 = _mm256_permutevar8x32_epi32(d2, mask);
+          d = _mm256_permute2x128_si256(d1, d2, (2 << 4) | 0);
           _mm256_store_si256((__m256i*)dph, d);
         }
 
@@ -132,8 +134,9 @@ namespace ojph {
           s2 = _mm256_add_epi32(s2, s1);
           __m256i d1 = _mm256_loadu_si256((__m256i*)sp);
           __m256i d2 = _mm256_loadu_si256((__m256i*)sp + 1);
-          __m256i d = (__m256i)_mm256_shuffle_ps((__m256)d1,(__m256)d2,0x88);
-          d = _mm256_permute4x64_epi64(d, 0xD8);
+          d1 = _mm256_permutevar8x32_epi32(d1, mask);
+          d2 = _mm256_permutevar8x32_epi32(d2, mask);
+          __m256i d = _mm256_permute2x128_si256(d1, d2, (2 << 4) | 0);
           d = _mm256_add_epi32(d, _mm256_srai_epi32(s2, 2));
           _mm256_store_si256((__m256i*)dpl, d);
         }
@@ -223,9 +226,9 @@ namespace ojph {
           d = _mm256_add_epi32(d, s2);
           s2 = _mm256_unpackhi_epi32(s1, d);
           s1 = _mm256_unpacklo_epi32(s1, d);
-          d = _mm256_permute2f128_si256(s1, s2, 0x08);
+          d = _mm256_permute2x128_si256(s1, s2, (2 << 4) | 0);
           _mm256_storeu_si256((__m256i*)dp, d);
-          d = _mm256_permute2f128_si256(s1, s2, 0x0D);
+          d = _mm256_permute2x128_si256(s1, s2, (3 << 4) | 1);
           _mm256_storeu_si256((__m256i*)dp + 1, d);
         }
       }

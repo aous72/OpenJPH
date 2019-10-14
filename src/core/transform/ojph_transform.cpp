@@ -115,38 +115,38 @@ namespace ojph {
 
       int level = cpu_ext_level();
       rev_vert_wvlt_fwd_predict = gen_rev_vert_wvlt_fwd_predict;
-      rev_vert_wvlt_fwd_update = gen_rev_vert_wvlt_fwd_update;
-      rev_horz_wvlt_fwd_tx = gen_rev_horz_wvlt_fwd_tx;
+      rev_vert_wvlt_fwd_update  = gen_rev_vert_wvlt_fwd_update;
+      rev_horz_wvlt_fwd_tx      = gen_rev_horz_wvlt_fwd_tx;
       rev_vert_wvlt_bwd_predict = gen_rev_vert_wvlt_bwd_predict;
-      rev_vert_wvlt_bwd_update = gen_rev_vert_wvlt_bwd_update;
-      rev_horz_wvlt_bwd_tx = gen_rev_horz_wvlt_bwd_tx;
-      irrev_vert_wvlt_step = gen_irrev_vert_wvlt_step;
-      irrev_vert_wvlt_K = gen_irrev_vert_wvlt_K;
-      irrev_horz_wvlt_fwd_tx = gen_irrev_horz_wvlt_fwd_tx;
-      irrev_horz_wvlt_bwd_tx = gen_irrev_horz_wvlt_bwd_tx;
+      rev_vert_wvlt_bwd_update  = gen_rev_vert_wvlt_bwd_update;
+      rev_horz_wvlt_bwd_tx      = gen_rev_horz_wvlt_bwd_tx;
+      irrev_vert_wvlt_step      = gen_irrev_vert_wvlt_step;
+      irrev_vert_wvlt_K         = gen_irrev_vert_wvlt_K;
+      irrev_horz_wvlt_fwd_tx    = gen_irrev_horz_wvlt_fwd_tx;
+      irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
 
       if (level >= 2)
       {
-        irrev_vert_wvlt_step = sse_irrev_vert_wvlt_step;
-        irrev_vert_wvlt_K = sse_irrev_vert_wvlt_K;
-        irrev_horz_wvlt_fwd_tx = sse_irrev_horz_wvlt_fwd_tx;
-        irrev_horz_wvlt_bwd_tx = sse_irrev_horz_wvlt_bwd_tx;
+        irrev_vert_wvlt_step    = sse_irrev_vert_wvlt_step;
+        irrev_vert_wvlt_K       = sse_irrev_vert_wvlt_K;
+        irrev_horz_wvlt_fwd_tx  = sse_irrev_horz_wvlt_fwd_tx;
+        irrev_horz_wvlt_bwd_tx  = sse_irrev_horz_wvlt_bwd_tx;
       }
 
       if (level >= 3)
       {
         rev_vert_wvlt_fwd_predict = sse2_rev_vert_wvlt_fwd_predict;
-        rev_vert_wvlt_fwd_update = sse2_rev_vert_wvlt_fwd_update;
-        rev_horz_wvlt_fwd_tx = sse2_rev_horz_wvlt_fwd_tx;
+        rev_vert_wvlt_fwd_update  = sse2_rev_vert_wvlt_fwd_update;
+        rev_horz_wvlt_fwd_tx      = sse2_rev_horz_wvlt_fwd_tx;
         rev_vert_wvlt_bwd_predict = sse2_rev_vert_wvlt_bwd_predict;
-        rev_vert_wvlt_bwd_update = sse2_rev_vert_wvlt_bwd_update;
-        rev_horz_wvlt_bwd_tx = sse2_rev_horz_wvlt_bwd_tx;
+        rev_vert_wvlt_bwd_update  = sse2_rev_vert_wvlt_bwd_update;
+        rev_horz_wvlt_bwd_tx      = sse2_rev_horz_wvlt_bwd_tx;
       }
 
       if (level >= 7)
       {
-        irrev_vert_wvlt_step = avx_irrev_vert_wvlt_step;
-        irrev_vert_wvlt_K = avx_irrev_vert_wvlt_K;
+        irrev_vert_wvlt_step   = avx_irrev_vert_wvlt_step;
+        irrev_vert_wvlt_K      = avx_irrev_vert_wvlt_K;
         irrev_horz_wvlt_fwd_tx = avx_irrev_horz_wvlt_fwd_tx;
         irrev_horz_wvlt_bwd_tx = avx_irrev_horz_wvlt_bwd_tx;
       }
@@ -154,11 +154,11 @@ namespace ojph {
       if (level >= 8)
       {
         rev_vert_wvlt_fwd_predict = avx2_rev_vert_wvlt_fwd_predict;
-        rev_vert_wvlt_fwd_update = avx2_rev_vert_wvlt_fwd_update;
-        rev_horz_wvlt_fwd_tx = avx2_rev_horz_wvlt_fwd_tx;
+        rev_vert_wvlt_fwd_update  = avx2_rev_vert_wvlt_fwd_update;
+        rev_horz_wvlt_fwd_tx      = avx2_rev_horz_wvlt_fwd_tx;
         rev_vert_wvlt_bwd_predict = avx2_rev_vert_wvlt_bwd_predict;
-        rev_vert_wvlt_bwd_update = avx2_rev_vert_wvlt_bwd_update;
-        rev_horz_wvlt_bwd_tx = avx2_rev_horz_wvlt_bwd_tx;
+        rev_vert_wvlt_bwd_update  = avx2_rev_vert_wvlt_bwd_update;
+        rev_horz_wvlt_bwd_tx      = avx2_rev_horz_wvlt_bwd_tx;
       }
 
       wavelet_transform_functions_initialized = true;

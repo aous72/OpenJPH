@@ -251,7 +251,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-reversible true"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-colour_trans false"

@@ -196,7 +196,7 @@ namespace ojph {
                                        int width)
     {
       for (int i = width; i > 0; --i)
-        *dp++ = (si32)round((*sp++ + 0.5f) * mul);
+        *dp++ = ojph_round((*sp++ + 0.5f) * mul);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -204,7 +204,7 @@ namespace ojph {
                                  int width)
     {
       for (int i = width; i > 0; --i)
-        *dp++ = (si32)round(*sp++ * mul);
+        *dp++ = ojph_round(*sp++ * mul);
     }
 
     //////////////////////////////////////////////////////////////////////////

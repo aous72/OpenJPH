@@ -3028,7 +3028,7 @@ namespace ojph {
         si32 *dp = lines->i32;
         for (int i = band_rect.siz.w; i > 0; --i)
         {
-          si32 t = (si32)trunc(*sp++ * delta_inv);
+          si32 t = ojph_trunc(*sp++ * delta_inv);
           si32 val = t >= 0 ? t : -t;
           si32 sign = t >= 0 ? 0 : 0x80000000;
           *dp++ = sign | val;

@@ -41,6 +41,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cmath>
 
 #include "ojph_defs.h"
 
@@ -122,6 +123,29 @@ namespace ojph {
   #endif
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  static inline si32 ojph_round(float val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    return (si32)(val + (val >= 0.0f ? 0.5f : -0.5f));
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (si32)(val + (val >= 0.0f ? 0.5f : -0.5f));
+  #else
+    return (si32)round(float val);
+  #endif
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  static inline si32 ojph_trunc(float val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    return (si32)(val);
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (si32)(val);
+  #else
+    return (si32)trunc(float val);
+  #endif
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // constants

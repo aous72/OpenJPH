@@ -36,10 +36,15 @@
 /****************************************************************************/
 
 #include <cmath>
-#include <intrin.h>
 
 #include "ojph_defs.h"
 #include "ojph_colour.h"
+
+#ifdef OJPH_COMPILER_MSVC
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 namespace ojph {
   namespace local {

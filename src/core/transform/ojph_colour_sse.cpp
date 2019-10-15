@@ -38,6 +38,7 @@
 #include <cmath>
 
 #include "ojph_defs.h"
+#include "ojph_arch.h"
 #include "ojph_colour.h"
 #include "ojph_colour_local.h"
 

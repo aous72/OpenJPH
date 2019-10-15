@@ -37,6 +37,8 @@
 
 #include <cstdio>
 
+#include "ojph_defs.h"
+#include "ojph_arch.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 

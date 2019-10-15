@@ -54,7 +54,7 @@ namespace ojph {
       __m256 m = _mm256_set1_ps(mul);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
       {
-        __m256i t = _mm256_load_si256((__m256i*)sp);
+        __m256i t = _mm256_loadu_si256((__m256i*)sp);
         __m256 s = _mm256_cvtepi32_ps(t);
         s = _mm256_mul_ps(s, m);
         s = _mm256_sub_ps(s, shift);
@@ -69,7 +69,7 @@ namespace ojph {
       __m256 m = _mm256_set1_ps(mul);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
       {
-        __m256i t = _mm256_load_si256((__m256i*)sp);
+        __m256i t = _mm256_loadu_si256((__m256i*)sp);
         __m256 s = _mm256_cvtepi32_ps(t);
         s = _mm256_mul_ps(s, m);
         _mm256_store_ps(dp, s);
@@ -88,7 +88,7 @@ namespace ojph {
         __m256 s = _mm256_add_ps(t, shift);
         s = _mm256_mul_ps(s, m);
         s = _mm256_round_ps(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm256_store_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
+        _mm256_storeu_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
       }
     }
 
@@ -102,7 +102,7 @@ namespace ojph {
         __m256 t = _mm256_load_ps(sp);
         __m256 s = _mm256_mul_ps(t, m);
         s = _mm256_round_ps(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm256_store_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
+        _mm256_storeu_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
       }
     }
 

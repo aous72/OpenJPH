@@ -45,39 +45,39 @@
 namespace ojph {
   namespace local {
 
-  //////////////////////////////////////////////////////////////////////////
-  void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                     int width)
-  {
-    uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
-    _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-    __m128 shift = _mm_set1_ps(0.5f);
-    __m128 m = _mm_set1_ps(mul);
-    for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                       int width)
     {
-      __m128 t = _mm_load_ps(sp);
-      __m128 s = _mm_add_ps(t, shift);
-      s = _mm_mul_ps(s, m);
-      _mm_store_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
+      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+      __m128 shift = _mm_set1_ps(0.5f);
+      __m128 m = _mm_set1_ps(mul);
+      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      {
+        __m128 t = _mm_loadu_ps(sp);
+        __m128 s = _mm_add_ps(t, shift);
+        s = _mm_mul_ps(s, m);
+        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      }
+      _MM_SET_ROUNDING_MODE(rounding_mode);
     }
-    _MM_SET_ROUNDING_MODE(rounding_mode);
-  }
 
-  //////////////////////////////////////////////////////////////////////////
-  void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                               int width)
-  {
-    uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
-    _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-    __m128 m = _mm_set1_ps(mul);
-    for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                 int width)
     {
-      __m128 t = _mm_load_ps(sp);
-      __m128 s = _mm_mul_ps(t, m);
-      _mm_store_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
+      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+      __m128 m = _mm_set1_ps(mul);
+      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      {
+        __m128 t = _mm_loadu_ps(sp);
+        __m128 s = _mm_mul_ps(t, m);
+        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      }
+      _MM_SET_ROUNDING_MODE(rounding_mode);
     }
-    _MM_SET_ROUNDING_MODE(rounding_mode);
-  }
 
 
     //////////////////////////////////////////////////////////////////////////
@@ -87,9 +87,9 @@ namespace ojph {
       __m128i sh = _mm_set1_epi32(shift);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128i s = _mm_load_si128((__m128i*)sp);
+        __m128i s = _mm_loadu_si128((__m128i*)sp);
         s = _mm_add_epi32(s, sh);
-        _mm_store_si128((__m128i*)dp, s);
+        _mm_storeu_si128((__m128i*)dp, s);
       }
     }
 

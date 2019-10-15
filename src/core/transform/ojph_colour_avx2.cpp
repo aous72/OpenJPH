@@ -51,9 +51,9 @@ namespace ojph {
       __m256i sh = _mm256_set1_epi32(shift);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
       {
-        __m256i s = _mm256_load_si256((__m256i*)sp);
+        __m256i s = _mm256_loadu_si256((__m256i*)sp);
         s = _mm256_add_epi32(s, sh);
-        _mm256_store_si256((__m256i*)dp, s);
+        _mm256_storeu_si256((__m256i*)dp, s);
       }
     }
 

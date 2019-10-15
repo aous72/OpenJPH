@@ -511,6 +511,12 @@ int main(int argc, char * argv[]) {
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
     ojph::image_in_base *base = NULL;
+    if (input_filename == NULL)
+      OJPH_ERROR(0x01000007, "please specify an input file name using"
+        " the -i command line option");
+    if (output_filename == NULL)
+      OJPH_ERROR(0x01000008, "please specify an output file name using"
+        " the -o command line option");
     const char *v = get_file_extension(input_filename);
 
     if (v)

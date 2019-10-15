@@ -39,12 +39,14 @@
 #define OJPH_MESSAGE_H
 
 #include <cstring>
+#include "ojph_arch.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   class message_base {
   public:
+    OJPH_EXPORT
     virtual void operator() (int warn_code, const char* file_name,
       int line_num, const char *fmt, ...) = 0;
   };
@@ -53,6 +55,7 @@ namespace ojph {
   class message_error : public message_base
   {
     public:
+      OJPH_EXPORT
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char *fmt, ...);
   };
@@ -61,36 +64,26 @@ namespace ojph {
   class message_warning : public message_base
   {
     public:
+      OJPH_EXPORT
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char *fmt, ...);
   };
 
-//  ////////////////////////////////////////////////////////////////////////////
-//  void warn(int warn_code, const char* file_name, int line_num,
-//            const char *fmt, ...)
-//  #ifdef OJPH_COMPILER_GNUC
-//    __attribute__((format(printf, 4, 5)))
-//  #endif
-//    ;
-//
-//  ////////////////////////////////////////////////////////////////////////////
-//  void error(int error_code, const char* file_name, int line_num,
-//             const char *fmt, ...)
-//  #ifdef OJPH_COMPILER_GNUC
-//    __attribute__((format(printf, 4, 5)))
-//  #endif
-//    ;
-
   ////////////////////////////////////////////////////////////////////////////
+  OJPH_EXPORT
   void set_warning_stream(FILE *s);
+  OJPH_EXPORT
   void configure_warning(message_warning* warn);
-  extern message_warning warn;
+  OJPH_EXPORT
+  message_warning& get_warning();
 
   ////////////////////////////////////////////////////////////////////////////
+  OJPH_EXPORT
   void set_error_stream(FILE *s);
+  OJPH_EXPORT
   void configure_error(message_error* error);
-  extern message_error error;
-
+  OJPH_EXPORT
+  message_error& get_error();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -103,9 +96,11 @@ namespace ojph {
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-#define OJPH_WARN(t, ...) ojph::warn(t, __OJPHFILE__, __LINE__, __VA_ARGS__);
+#define OJPH_WARN(t, ...) \
+  ojph::get_warning()(t, __OJPHFILE__, __LINE__, __VA_ARGS__);
 //////////////////////////////////////////////////////////////////////////////
-#define OJPH_ERROR(t, ...) ojph::error(t, __OJPHFILE__, __LINE__,__VA_ARGS__);
+#define OJPH_ERROR(t, ...) \
+  ojph::get_error()(t, __OJPHFILE__, __LINE__,__VA_ARGS__);
 
 
 #endif // !OJPH_MESSAGE_H

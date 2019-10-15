@@ -36,16 +36,11 @@
 /****************************************************************************/
 
 #include <cmath>
+#include <intrin.h>
 
 #include "ojph_defs.h"
 #include "ojph_colour.h"
 #include "ojph_colour_local.h"
-
-#ifdef OJPH_COMPILER_MSVC
-#include <intrin.h>
-#else
-#include <x86intrin.h>
-#endif
 
 namespace ojph {
   namespace local {
@@ -58,7 +53,7 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128i t = _mm_castps_si128(_mm_load_ps((float*)sp));
         __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
         s = _mm_sub_ps(s, shift);
@@ -73,7 +68,7 @@ namespace ojph {
       __m128 m = _mm_set1_ps(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
-        __m128i t = (__m128i)_mm_load_ps((float*)sp);
+        __m128i t = _mm_castps_si128(_mm_load_ps((float*)sp));
         __m128 s = _mm_cvtepi32_ps(t);
         s = _mm_mul_ps(s, m);
         _mm_store_ps(dp, s);
@@ -93,10 +88,16 @@ namespace ojph {
         __m128 t = _mm_load_ps(sp);
         __m128 s = _mm_add_ps(t, shift);
         s = _mm_mul_ps(s, m);
-        *(__m64*)dp = _mm_cvtps_pi32(s); //the lower 2 floats
-        dp += 2;
-        *(__m64*)dp = _mm_cvtps_pi32(_mm_movehl_ps(s,s)); //the upper 2 floats
-        dp += 2;
+        // the following is a poorly designed code, but it is the only
+        // code that I am aware of that compiles on VS 32 and 64 modes
+        t = s;
+        *dp++ = _mm_cvtss_si32(t); 
+        t = _mm_shuffle_ps(s, s, 1);
+        *dp++ = _mm_cvtss_si32(t); 
+        t = _mm_shuffle_ps(s, s, 2);
+        *dp++ = _mm_cvtss_si32(t); 
+        t = _mm_shuffle_ps(s, s, 3);
+        *dp++ = _mm_cvtss_si32(t);
       }
       _MM_SET_ROUNDING_MODE(rounding_mode);
     }
@@ -112,10 +113,16 @@ namespace ojph {
       {
         __m128 t = _mm_load_ps(sp);
         __m128 s = _mm_mul_ps(t, m);
-        *(__m64*)dp = _mm_cvtps_pi32(s); //the lower 2 floats
-        dp += 2;
-        *(__m64*)dp = _mm_cvtps_pi32(_mm_movehl_ps(s,s)); //the upper 2 floats
-        dp += 2;
+        // the following is a poorly designed code, but it is the only
+        // code that I am aware of that compiles on VS 32 and 64 modes
+        t = s;
+        *dp++ = _mm_cvtss_si32(t);
+        t = _mm_shuffle_ps(s, s, 1);
+        *dp++ = _mm_cvtss_si32(t);
+        t = _mm_shuffle_ps(s, s, 2);
+        *dp++ = _mm_cvtss_si32(t);
+        t = _mm_shuffle_ps(s, s, 3);
+        *dp++ = _mm_cvtss_si32(t);
       }
       _MM_SET_ROUNDING_MODE(rounding_mode);
     }

@@ -50,7 +50,7 @@ namespace ojph {
   bool run_cpuid(uint32_t eax, uint32_t ecx, uint32_t* abcd)
   {
   #ifdef OJPH_COMPILER_MSVC
-    __cpuidex(abcd, eax, ecx);
+    __cpuidex((int *)abcd, eax, ecx);
   #else
     uint32_t ebx = 0, edx = 0;
   #if defined( __i386__ ) && defined ( __PIC__ )

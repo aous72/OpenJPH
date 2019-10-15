@@ -36,15 +36,10 @@
 /****************************************************************************/
 
 #include <cstdio>
+#include <intrin.h>
 
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
-
-#ifdef OJPH_COMPILER_MSVC
-#include <intrin.h>
-#else
-#include <x86intrin.h>
-#endif
 
 namespace ojph {
   namespace local {
@@ -111,7 +106,8 @@ namespace ojph {
           s1 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
           __m128i d2 = _mm_sub_epi32(d, s1);
           sp += 4;
-          d = (__m128i)_mm_shuffle_ps((__m128)d1, (__m128)d2, 0x88);
+          d = _mm_castps_si128(_mm_shuffle_ps(
+              _mm_castsi128_ps(d1), _mm_castsi128_ps(d2), 0x88));
           _mm_store_si128((__m128i*)dph, d);
         }
 
@@ -131,7 +127,8 @@ namespace ojph {
           s2 = _mm_add_epi32(s2, s1);
           __m128i d1 = _mm_loadu_si128((__m128i*)sp);
           __m128i d2 = _mm_loadu_si128((__m128i*)sp + 1);
-          __m128i d = (__m128i)_mm_shuffle_ps((__m128)d1, (__m128)d2, 0x88);
+          __m128i d = _mm_castps_si128(_mm_shuffle_ps(
+              _mm_castsi128_ps(d1), _mm_castsi128_ps(d2), 0x88));
           d = _mm_add_epi32(d, _mm_srai_epi32(s2, 2));
           _mm_store_si128((__m128i*)dpl, d);
         }

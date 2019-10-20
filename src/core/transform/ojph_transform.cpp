@@ -125,6 +125,7 @@ namespace ojph {
       irrev_horz_wvlt_fwd_tx    = gen_irrev_horz_wvlt_fwd_tx;
       irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
 
+#ifndef OJPH_DISABLE_INTEL_SIMD
       if (level >= 2)
       {
         irrev_vert_wvlt_step    = sse_irrev_vert_wvlt_step;
@@ -160,6 +161,7 @@ namespace ojph {
         rev_vert_wvlt_bwd_update  = avx2_rev_vert_wvlt_bwd_update;
         rev_horz_wvlt_bwd_tx      = avx2_rev_horz_wvlt_bwd_tx;
       }
+#endif
 
       wavelet_transform_functions_initialized = true;
     }

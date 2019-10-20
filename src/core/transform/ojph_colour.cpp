@@ -114,6 +114,7 @@ namespace ojph {
       ict_forward = gen_ict_forward;
       ict_backward = gen_ict_backward;
 
+#ifndef OJPH_DISABLE_INTEL_SIMD
       if (level >= 2)
       {
         cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
@@ -149,6 +150,7 @@ namespace ojph {
         rct_forward = avx2_rct_forward;
         rct_backward = avx2_rct_backward;
       }
+#endif
 
       colour_transform_functions_initialized = true;
     }

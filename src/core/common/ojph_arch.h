@@ -131,7 +131,7 @@ namespace ojph {
   #elif (defined OJPH_COMPILER_GNUC)
     return (si32)(val + (val >= 0.0f ? 0.5f : -0.5f));
   #else
-    return (si32)round(float val);
+    return (si32)round(val);
   #endif
   }
 
@@ -143,7 +143,7 @@ namespace ojph {
   #elif (defined OJPH_COMPILER_GNUC)
     return (si32)(val);
   #else
-    return (si32)trunc(float val);
+    return (si32)trunc(val);
   #endif
   }
 

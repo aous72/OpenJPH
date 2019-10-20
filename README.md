@@ -1,18 +1,51 @@
 # Readme #
 
-Open source implementation of High-throughput JPEG2000 (HTJ2K), also known as JPH, JPEG2000 Part 15, ISO/IEC 15444-15, and ITU-T.814. Here, we are interested in implementing the HTJ2K only, supporting features that are defined in JPEG2000 Part 1 (for example, for wavelet transform, only reversible 5/3 and irreversible 9/7 are supported).
+Open source implementation of High-throughput JPEG2000 (HTJ2K), also known as JPH, JPEG2000 Part 15, ISO/IEC 15444-15, and ITU-T T.814. Here, we are interested in implementing the HTJ2K only, supporting features that are defined in JPEG2000 Part 1 (for example, for wavelet transform, only reversible 5/3 and irreversible 9/7 are supported).
 
-The interested reader is refered to [HTJ2K white paper](https://kakadusoftware.com/wp-content/uploads/2019/09/HTJ2K-White-Paper.pdf) for more details about HTJ2K.
+The interested reader is refered to [HTJ2K white paper](https://kakadusoftware.com/wp-content/uploads/2019/09/HTJ2K-White-Paper.pdf) for more details on HTJ2K, [this](https://kakadusoftware.com/wp-content/uploads/2019/09/icip2019.pdf) paper for the attainable performance on CPU, and [this] (https://kakadusoftware.com/wp-content/uploads/2019/09/ICIP2019_GPU.pdf) paper for decoding on a GPU.
+
 
 # Status #
 
-The code is written entirely in C++, but it conceivable that at some point in the future, SIMD instructions are employed to improve coding speed.  As it stands, on Intel Skylake i7-6700, encoding 4K 4:4:4 HDR images losslessly takes around 0.5s, and decoding takes around 0.34s; for lossy compression, performance depends on the quantisation step size (qstep), but for a high-quality image at a bitrate of around 3bits/pixel, encoding takes around 0.27s and decoding takes 0.22s.
+The code is written in C++; the color and wavelet transform steps can employ SIMD instructions on Intel platforms.  It conceivable that at some point in the future, SIMD instructions are employed to improve performance of the block (de)coder, and/or for platforms other than Intel.  As it stands, on Intel Skylake i7-6700, encoding 4K 4:4:4 HDR images losslessly takes around 0.5s, and decoding takes around 0.34s; for lossy compression, performance depends on the quantisation step size (qstep), but for a high-quality image at a bitrate of around 3 bits/pixel, encoding takes around 0.27s and decoding takes 0.22s.
 
-As it stands, the OpenJPH library needs some documentation, and a more propor handling of errors. The provided encoder ojph\_compress only generates HTJ2K codestreams, with the extension j2c; the generated files lack the .jph header.  Adding the .jph header is of little urgency, as the codestream contains all needed information to properly decode an image.  The .jph header will be added at a future point in time.  The provided decoder ojph\_expand ignores the .jph header if it is present.
+As it stands, the OpenJPH library needs documentation. The provided encoder ojph\_compress only generates HTJ2K codestreams, with the extension j2c; the generated files lack the .jph header.  Adding the .jph header is of little urgency, as the codestream contains all needed information to properly decode an image.  The .jph header will be added at a future point in time.  The provided decoder ojph\_expand decodes .jph files, by ignoring the .jph header if it is present.
 
 The provided command line tools ojph\_compress and ojph\_expand accepts and generated .pgm, .ppm, and .yuv. See the usage examples below.
 
+
+# Compiling #
+
+The code employs the *cmake* tool to generate a variety of build enviroments.
+
+** For Linux **
+
+    cd build
+    cmake ../
+    make
+
+The generated library and executables will be in the bin folder.
+
+** For Windows **
+
+    cd build
+    cmake ../ -G "Visual Studio 14 2015 Win64"
+
+cmake support other visual studio versions.  This command generates a solution in the build folder, which can be build using visual studio
+
+** For macOS **
+
+You can use the "For Linux" approach above.  Alternatively, you can use the Xcode project in src/apps/apps.xcodeproj, which I use.  Another approach is to use cmake to generate an xcode project, in the build folder, using
+
+    cd build
+    cmake ../ -G Xcode
+    make
+
+The generated library and executables will be in the bin folder.
+
+
 # Usage Example #
+
 **Note**: in Kakadu, pairs of data in command line arguments represent columns,rows. Here, a pair represents x,y information.  On a different note, in reversible compression, quantization is not supported.
 
     ojph_compress -i input_file.ppm -o output_file.j2c -num_decomps 5 -block_size {64,64} -precincts {128,128},{256,256} -prog_order CPRL -colour_trans true -qstep 0.05

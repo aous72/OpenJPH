@@ -2,7 +2,7 @@
 
 Open source implementation of High-throughput JPEG2000 (HTJ2K), also known as JPH, JPEG2000 Part 15, ISO/IEC 15444-15, and ITU-T T.814. Here, we are interested in implementing the HTJ2K only, supporting features that are defined in JPEG2000 Part 1 (for example, for wavelet transform, only reversible 5/3 and irreversible 9/7 are supported).
 
-The interested reader is refered to [HTJ2K white paper](https://kakadusoftware.com/wp-content/uploads/2019/09/HTJ2K-White-Paper.pdf) for more details on HTJ2K, [this](https://kakadusoftware.com/wp-content/uploads/2019/09/icip2019.pdf) paper for the attainable performance on CPU, and [this] (https://kakadusoftware.com/wp-content/uploads/2019/09/ICIP2019_GPU.pdf) paper for decoding on a GPU.
+The interested reader is refered to [HTJ2K white paper](https://kakadusoftware.com/wp-content/uploads/2019/09/HTJ2K-White-Paper.pdf) for more details on HTJ2K, [this](https://kakadusoftware.com/wp-content/uploads/2019/09/icip2019.pdf) paper for the attainable performance on CPU, and [this](https://kakadusoftware.com/wp-content/uploads/2019/09/ICIP2019_GPU.pdf) paper for decoding on a GPU.
 
 
 # Status #

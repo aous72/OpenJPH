@@ -57,11 +57,12 @@ typedef int64_t si64;
 
 /////////////////////////////////////////////////////////////////////////////
 #define OJPH_CORE_VER_MAJOR    0
-#define OJPH_CORE_VER_MINOR    3
-#define OJPH_CORE_VER_SUBMINOR 2
+#define OJPH_CORE_VER_MINOR    4
+#define OJPH_CORE_VER_SUBMINOR 0
 
 /////////////////////////////////////////////////////////////////////////////
-#define OJPH_INT_TO_STRING(I) #I
+#define OJPH_INT_STRINGIFY(I) #I
+#define OJPH_INT_TO_STRING(I) OJPH_INT_STRINGIFY(I)
 
 /////////////////////////////////////////////////////////////////////////////
 // number of fractional bits for 16 bit representation

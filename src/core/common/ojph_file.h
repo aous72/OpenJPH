@@ -50,6 +50,9 @@ namespace ojph {
   class outfile_base
   {
   public:
+
+    virtual ~outfile_base() {}
+
     virtual size_t write(const void *ptr, size_t size) = 0;
     virtual void flush() {}
     virtual void close() {}
@@ -88,10 +91,12 @@ namespace ojph {
       OJPH_SEEK_END = SEEK_END
     };
 
+    virtual ~infile_base() {}
+
     //read reads size bytes, returns the number of bytes read
     virtual size_t read(void *ptr, size_t size) = 0;
     //seek returns 0 on success
-    virtual int seek(size_t offset, enum seek origin) = 0;
+    virtual int seek(long int offset, enum seek origin) = 0;
     virtual long tell() = 0;
     virtual bool eof() = 0;
     virtual void close() {}
@@ -114,7 +119,7 @@ namespace ojph {
     virtual size_t read(void *ptr, size_t size);
     //seek returns 0 on success
     OJPH_EXPORT
-    virtual int seek(size_t offset, enum seek origin);
+    virtual int seek(long int offset, enum seek origin);
     OJPH_EXPORT
     virtual long tell();
     OJPH_EXPORT
@@ -126,6 +131,38 @@ namespace ojph {
     FILE *fh;
 
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class mem_infile : public infile_base
+  {
+  public:
+    OJPH_EXPORT
+    mem_infile() { close(); }
+    OJPH_EXPORT
+    ~mem_infile() { }
+
+    OJPH_EXPORT
+    void open(const ui8* data, size_t size);
+
+    //read reads size bytes, returns the number of bytes read
+    OJPH_EXPORT
+    virtual size_t read(void *ptr, size_t size);
+    //seek returns 0 on success
+    OJPH_EXPORT
+    virtual int seek(long int offset, enum seek origin);
+    OJPH_EXPORT
+    virtual long tell() { return cur_ptr - data; }
+    OJPH_EXPORT
+    virtual bool eof() { return cur_ptr >= data + size; }
+    OJPH_EXPORT
+    virtual void close() { data = cur_ptr = NULL; size = 0; }
+
+  private:
+    const ui8 *data, *cur_ptr;
+    size_t size;
+
+  };
+
 
 }
 

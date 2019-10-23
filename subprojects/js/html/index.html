@@ -1,0 +1,65 @@
+<html>
+<head>
+<meta charset="UTF-8"> 
+<!-- This is a test of libopenjph javascript -->
+<script type="text/javascript" src="libopenjph.js"></script>
+</head>
+<body>
+<h1>HTJ2K decoding in a browser</h1>
+<canvas id="mycanvas" width="512" height="512"></canvas>
+<br>
+<div id="time"></div>
+<script>
+
+     Module.onRuntimeInitialized = async _ => {
+        create_j2c_data = Module.cwrap('create_j2c_data', 'number');
+        init_j2c_data = Module.cwrap('init_j2c_data', 'void', ['number', 'number', 'number']);
+        get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number']);
+        get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number']);
+        expand_j2c_data = Module.cwrap('expand_j2c_data', 'void', ['number', 'number', 'number', 'number']);
+        release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
+
+        var request = new XMLHttpRequest;
+        request.open("GET", "test.j2c" , true);
+        request.responseType = "arraybuffer";
+        request.onload = function (event) {
+            if (request.status == 200)
+            {
+                var t0 = performance.now();
+
+                j2c = create_j2c_data();
+                const array = new Uint8Array(this.response);
+                
+                var buffer = Module._malloc(array.length);
+                writeArrayToMemory(array, buffer);
+                init_j2c_data(j2c, buffer, array.length);
+                var width = get_j2c_width(j2c);
+                var height = get_j2c_height(j2c);
+                
+                var canvas = document.getElementById("mycanvas");
+                var ctx = canvas.getContext("2d");
+
+                var img = Module._malloc(canvas.width * canvas.height * 4);
+                expand_j2c_data(j2c, img, canvas.width, canvas.height);
+                release_j2c_data(j2c);
+
+                var heapu8 = Module["HEAPU8"];
+                var cimg = ctx.createImageData(width, height);
+                var dst = cimg.data;
+                var total = width * height * 4;
+                for (var y = 0; y < total; ++y)
+                    dst[y|0] = heapu8[img + y|0]|0;
+                ctx.putImageData(cimg, 0, 0);
+                Module._free(img);
+                Module._free(buffer);
+
+                var t1 = performance.now();
+
+                document.getElementById('time').innerText = "Decode time: " + (t1 - t0) + " ms";
+            }
+        };
+        request.send(null);
+     }
+</script>
+</body>
+</html>

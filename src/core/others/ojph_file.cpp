@@ -108,7 +108,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int j2c_infile::seek(size_t offset, enum seek origin)
+  int j2c_infile::seek(long int offset, enum seek origin)
   {
     assert(fh);
     return fseek(fh, offset, origin);
@@ -128,5 +128,67 @@ namespace ojph {
     fclose(fh);
     fh = NULL;
   }
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void mem_infile::open(const ui8* data, size_t size)
+  {
+    assert(this->data == NULL);
+    cur_ptr = this->data = data;
+    this->size = size;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size_t mem_infile::read(void *ptr, size_t size)
+  {
+    size_t num_bytes = ojph_min(size, data + this->size - cur_ptr);
+    memcpy(ptr, cur_ptr, num_bytes);
+    cur_ptr += num_bytes;
+    return num_bytes;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  int mem_infile::seek(long int offset, enum seek origin)
+  {
+    int result = -1;
+    if (origin == OJPH_SEEK_SET)
+    {
+      if (offset >= 0 && offset <= size)
+      {
+        cur_ptr = data + offset;
+        result = 0;
+      }
+    }
+    else if (origin == OJPH_SEEK_CUR)
+    {
+      size_t bytes_off = cur_ptr - data + offset;
+      if (bytes_off >= 0 && bytes_off <= size)
+      {
+        cur_ptr = data + bytes_off;
+        result = 0;
+      }
+    }
+    else if (origin == OJPH_SEEK_END)
+    {
+      if (offset <= 0 && size + offset >= 0)
+      {
+        cur_ptr = data + size + offset;
+        result = 0;
+      }
+    }
+    else
+      assert(0);
+
+    return result;
+  }
+
 
 }

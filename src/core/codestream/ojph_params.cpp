@@ -760,7 +760,7 @@ namespace ojph {
         delta_b = base_delta / (gain_l * gain_h);
 
         int exp = 0, mantissa;
-        while (delta_b < 1)
+        while (delta_b < 1.0f)
         { exp++; delta_b *= 2.0f; }
         mantissa = round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
@@ -817,7 +817,8 @@ namespace ojph {
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
       mantissa = ((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
-      mantissa /= (float)(1 << (eps+11));
+      mantissa /= (float)(1 << 11);
+      mantissa /= (float)(1u << eps);
       return mantissa;
     }
 

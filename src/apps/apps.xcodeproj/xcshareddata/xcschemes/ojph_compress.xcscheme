@@ -67,6 +67,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i 15512894668_2e5581297c_o.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\} -prog_order CPRL"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

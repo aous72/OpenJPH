@@ -2895,10 +2895,10 @@ namespace ojph {
       this->K_max = qcd.get_Kmax(this->res_num, band_num);
       if (!reversible)
       {
-        double d = (double) qcd.irrev_get_delta(res_num, subband_num);
-        d /= (double)(1 << (31 - this->K_max));
-        delta =  (float)d;
-        delta_inv = (float)(1.0/d);
+        float d = qcd.irrev_get_delta(res_num, subband_num);
+        d /= (float)(1u << (31 - this->K_max));
+        delta = d;
+        delta_inv = (1.0f/d);
       }
 
       int tbx0 = band_rect.org.x;

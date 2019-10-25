@@ -72,12 +72,44 @@ void cpp_init_j2c_data(j2c_t *j2c, const uint8_t *data, size_t size)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+void cpp_parse_j2c_data(j2c_t *j2c)
+{
+  try {
+    j2c->codestream.set_planar(false);
+    j2c->codestream.create();
+  }
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
 void cpp_release_j2c_data(j2c_t* j2c)
 {
   if (j2c)
   {
     delete j2c;
   }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+signed int* cpp_pull_j2c_line(j2c_t* j2c)
+{
+  try {
+    int comp_num;
+    ojph::line_buf *line = j2c->codestream.pull(comp_num);
+    return line->i32;
+  }
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+  }
+  return NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -110,60 +142,62 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  void expand_j2c_data(j2c_t* j2c, ojph::ui8* buf, 
-                       int buf_width, int buf_height)
+  int get_j2c_bit_depth(j2c_t* j2c, int comp_num)
   {
-    j2c->codestream.set_planar(false);
-    j2c->codestream.create();
-    
-    int max_val = 255;
     ojph::param_siz_t siz = j2c->codestream.access_siz();
-    int height = siz.get_image_extent().y - siz.get_image_offset().y;
-    height = ojph_min(height, buf_height);
-    int width = siz.get_image_extent().x - siz.get_image_offset().x;
-    width = ojph_min(width, buf_width);
-    if (siz.get_num_components() == 1)
-      for (int i = 0; i < height; ++i)
-      {
-        int comp_num;
-        ojph::line_buf *line = j2c->codestream.pull(comp_num);
-        const ojph::si32 *sp = line->i32;
-        ojph::ui8 *dp = buf + i * width * 4;
-        for (int j = 0; j < width; ++j)
-        {
-          int val = *sp++;
-          val = val >= 0 ? val : 0;
-          val = val <= max_val ? val : max_val;
-          *dp++ = (ojph::ui8)val;
-          *dp++ = (ojph::ui8)val;
-          *dp++ = (ojph::ui8)val;
-          *dp++ = (ojph::ui8)255;
-        }
-      }
+    if (comp_num >= 0 && comp_num < siz.get_num_components())
+      return siz.get_bit_depth(comp_num);
     else
-      for (int i = 0; i < height; ++i)
-      {
-        for (int c = 0; c < siz.get_num_components(); ++c)
-        {
-          int comp_num;
-          ojph::line_buf *line = j2c->codestream.pull(comp_num);
-          const ojph::si32 *sp = line->i32;
-          ojph::ui8 *dp = buf + i * width * 4 + c;
-          for (int j = 0; j < width; ++j, dp+=4)
-          {
-            int val = *sp++;
-            val = val >= 0 ? val : 0;
-            val = val <= max_val ? val : max_val;
-            *dp = (ojph::ui8)val;
-          }
-        }
-        ojph::ui8 *dp = buf + i * width * 4 + 3;
-        for (int j = 0; j < width; ++j, dp+=4)
-        {
-          *dp = (ojph::ui8)255;
-        }
-      }
-    j2c->codestream.close();
+      return -1;
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////
+  int get_j2c_is_signed(j2c_t* j2c, int comp_num)
+  {
+    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    if (comp_num >= 0 && comp_num < siz.get_num_components())
+      return siz.is_signed(comp_num) ? 1 : 0;
+    else
+      return -1;
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////
+  int get_j2c_num_components(j2c_t* j2c)
+  {
+    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    return siz.get_num_components();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  int get_j2c_downsampling_x(j2c_t* j2c, int comp_num)
+  {
+    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    if (comp_num >= 0 && comp_num < siz.get_num_components())
+    { return siz.get_downsampling(comp_num).x; }
+    else
+    { return -1; }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  int get_j2c_downsampling_y(j2c_t* j2c, int comp_num)
+  {
+    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    if (comp_num >= 0 && comp_num < siz.get_num_components())
+    { return siz.get_downsampling(comp_num).y; }
+    else
+    { return -1; }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////
+  void parse_j2c_data(j2c_t *j2c)
+  {
+    cpp_parse_j2c_data(j2c);
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////
+  signed int* pull_j2c_line(j2c_t* j2c)
+  {
+    return cpp_pull_j2c_line(j2c);
   }
   
   ////////////////////////////////////////////////////////////////////////////
@@ -190,21 +224,36 @@ int main(int argc, const char* argv[])
   init_j2c_data(j2c, compressed_data, size);
   int width = get_j2c_width(j2c);
   int height = get_j2c_height(j2c);
+  int num_components = get_j2c_num_components(j2c);
   printf("width = %d, height = %d\n", width, height);
   
-  ojph::ui8* buf = (ojph::ui8*)malloc(width * height * 4); //assuming RGBA
-   
-  expand_j2c_data(j2c, buf, width, height);
+  ojph::ui8* buf = (ojph::ui8*)malloc(width * height * num_components);
+
+  decode_j2c_data(j2c);
+  int max_val = 255;
+  for (int y = 0; y < height; ++y)
+  {
+    for (int c = 0; c < num_components; ++c)
+    {
+      ojph::si32* sp = pull_j2c_line(j2c);
+      ojph::ui8* dp = buf + c + y * width * num_components;
+      for (int x = 0; x < width; ++x, dp+=num_components)
+      {
+        int val = *sp++;
+        val = val >= 0 ? val : 0;
+        val = val <= max_val ? val : max_val;
+        *dp = (ojph::ui8)val;
+      }
+    }
+  }
   release_j2c_data(j2c);
 
   f = fopen("test_out.ppm", "wb");
-  fprintf(f, "P6 %d %d %d\n", width, height, 255);
-  for (int i = 0; i < height; ++i)
-  {
-    ojph::ui8* sp = buf + i * width * 4;
-    for (int j = 0; j < width; ++j, sp+=4)
-      fwrite(sp, 3, 1, f);
-  }
+  if (num_components == 1)
+    fprintf(f, "P5 %d %d %d\n", width, height, max_val);
+  else
+    fprintf(f, "P6 %d %d %d\n", width, height, max_val);
+  fwrite(buf, width * height * num_components, 1, f);
   fclose(f);
 
   return 0;

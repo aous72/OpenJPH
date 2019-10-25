@@ -71,6 +71,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i 15512894668_2e5581297c_o.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\} -prog_order CPRL"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i 155.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\} -prog_order CPRL"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i Gray16.yuv -o test.j2c -num_decomps 5 -dims \{2688,1520\} -num_comps 1 -signed true -bit_depth 16 -downsamp \{1,1\}  -reversible true"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

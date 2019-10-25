@@ -16,7 +16,13 @@
         init_j2c_data = Module.cwrap('init_j2c_data', 'void', ['number', 'number', 'number']);
         get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number']);
         get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number']);
-        expand_j2c_data = Module.cwrap('expand_j2c_data', 'void', ['number', 'number', 'number', 'number']);
+        get_j2c_bit_depth = Module.cwrap('get_j2c_bit_depth', 'number', ['number', 'number']);
+        get_j2c_is_signed = Module.cwrap('get_j2c_is_signed', 'number', ['number', 'number']);
+        get_j2c_num_components = Module.cwrap('get_j2c_num_components', 'number', ['number']);
+        get_j2c_downsampling_x = Module.cwrap('get_j2c_downsampling_x', 'number', ['number', 'number']);
+        get_j2c_downsampling_y = Module.cwrap('get_j2c_downsampling_y', 'number', ['number', 'number']);
+        parse_j2c_data = Module.cwrap('parse_j2c_data', 'void', ['number']);
+        pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
         var request = new XMLHttpRequest;
@@ -33,24 +39,70 @@
                 var buffer = Module._malloc(array.length);
                 writeArrayToMemory(array, buffer);
                 init_j2c_data(j2c, buffer, array.length);
-                var width = get_j2c_width(j2c);
-                var height = get_j2c_height(j2c);
+                var width = get_j2c_width(j2c) | 0;
+                var height = get_j2c_height(j2c) | 0;
+                var num_comps = get_j2c_num_components(j2c) | 0;
+                var bit_depth = get_j2c_bit_depth(j2c, 0) | 0; //component 0
+                var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
+                parse_j2c_data(j2c);
                 
                 var canvas = document.getElementById("mycanvas");
+                canvas.width = width;
+                canvas.height = height;
                 var ctx = canvas.getContext("2d");
+                var cimg = ctx.createImageData(width, height);
 
-                var img = Module._malloc(canvas.width * canvas.height * 4);
-                expand_j2c_data(j2c, img, canvas.width, canvas.height);
+                var shift = (bit_depth >= 8 ? bit_depth - 8 : 0) | 0;
+                var half = (bit_depth > 8 ? (1<<(shift-1)) : 0) | 0;
+                var heap = Module["HEAP32"];
+                var dst = cimg.data;
+                if (num_comps == 1)
+                {
+                  for (var y = 0|0; y < height; y = y + 1|0)
+                  {
+                    //src is an address in memory, but since we are 
+                    // dealing with integers (i.e, each entry is 4 bytes 
+                    // away from the previous sample, we need to divide by 4
+                    var src = pull_j2c_line(j2c) >> 2; 
+                    var didx = y * width * 4;
+                    for (var x = 0|0; x < width; x = x + 1|0)
+                    {
+                      var val = (heap[src + x] + half) >> shift;
+                      dst[didx + x * 4    ] = val;
+                      dst[didx + x * 4 + 1] = val;
+                      dst[didx + x * 4 + 2] = val;
+                      dst[didx + x * 4 + 3] = 255;
+                    }
+                  }
+                }
+                else if (num_comps == 3)
+                {
+                  for (var y = 0|0; y < height; y = y + 1|0)
+                  {
+                    for (var c = 0|0; c < num_comps; c = c + 1|0)
+                    {
+                      //src is an address in memory, but since we are 
+                      // dealing with integers (i.e, each entry is 4 bytes 
+                      // away from the previous sample, we need to divide by 4
+                      var src = pull_j2c_line(j2c) >> 2; 
+                      var didx = y * width * 4 + c;
+                      for (var x = 0|0; x < width; x = x + 1|0)
+                      {
+                        var val = (heap[src + x] + half) >> shift;
+                        dst[didx + x * 4] = val;
+                      }
+                    }
+                    var didx = y * width * 4 + 3;
+                    for (var x = 0|0; x < width; x = x + 1|0)
+                      dst[didx + x * 4] = 255;
+                  }
+                }
+                else
+                  console.log('Unsupported number of components');
+                
                 release_j2c_data(j2c);
 
-                var heapu8 = Module["HEAPU8"];
-                var cimg = ctx.createImageData(width, height);
-                var dst = cimg.data;
-                var total = width * height * 4;
-                for (var y = 0; y < total; ++y)
-                    dst[y|0] = heapu8[img + y|0]|0;
                 ctx.putImageData(cimg, 0, 0);
-                Module._free(img);
                 Module._free(buffer);
 
                 var t1 = performance.now();

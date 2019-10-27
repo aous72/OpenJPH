@@ -18,7 +18,7 @@ The provided command line tools ojph\_compress and ojph\_expand accepts and gene
 
 The code employs the *cmake* tool to generate a variety of build enviroments.
 
-** For Linux **
+**For Linux**
 
     cd build
     cmake ../
@@ -26,14 +26,14 @@ The code employs the *cmake* tool to generate a variety of build enviroments.
 
 The generated library and executables will be in the bin folder.
 
-** For Windows **
+**For Windows**
 
     cd build
     cmake ../ -G "Visual Studio 14 2015 Win64"
 
 cmake support other visual studio versions.  This command generates a solution in the build folder, which can be build using visual studio
 
-** For macOS **
+**For macOS**
 
 You can use the "For Linux" approach above.  Alternatively, you can use the Xcode project in src/apps/apps.xcodeproj, which I use.  Another approach is to use cmake to generate an xcode project, in the build folder, using
 
@@ -43,6 +43,25 @@ You can use the "For Linux" approach above.  Alternatively, you can use the Xcod
 
 The generated library and executables will be in the bin folder.
 
+# Compiling to javascript/wasm #
+
+The library can now be compiled to javascript/wasm.  For this purpose, a small wrapper file (ojph_wrapper.cpp) has been written to interface between javascript and C++; the wrapper currently supports decoding only.  A small demo page demonstrating the script can be accessed [here](https://openjph.org/javascript/demo.html).
+
+Compilation needs the [emscripten](https://emscripten.org/) tools.  The tools are activated using
+```bash 
+emsdk_env.sh
+```
+Then, the javascript decoder can be compiled using
+```bash
+cd subprojects/js/build
+emmake cmake ..
+make
+```
+This creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  A simple python webserver can be run 
+```python
+python -m SimpleHTTPServer 8000
+```  
+from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open 127.0.0.1:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
 
 # Usage Example #
 
@@ -54,4 +73,9 @@ The generated library and executables will be in the bin folder.
     ojph_expand -i input_file.j2c -o output_file.ppm
     ojph_expand -i input_file.j2c -o output_file.yuv
 
+# Related #
+
+The standard is available [here](https://www.itu.int/rec/T-REC-T.814/en).  It is currently free of charge; I do not know if this is temporary or permanent.
+
+The associate site [openjph.org](https://openjph.org) serves as a blog.  It currently host the [javascript](https://openjph.org/javascript/demo.html) demo of the decoder; the webpage demonstrates that the library can be compiled to javascript, and can run inside a web-browser.  Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
 

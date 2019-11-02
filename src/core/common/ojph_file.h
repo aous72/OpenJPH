@@ -101,8 +101,9 @@ namespace ojph {
     virtual void close() {}
 
     OJPH_EXPORT
-    ui8* get_data() {return data;}
+    const ui8* get_data() const {return data;}
     size_t get_size() const {return cur_ptr - data;}
+    ui8* release_data() {ui8 * result = data; data = NULL; return result;}
 
   private:
     ui8 *data, *cur_ptr;

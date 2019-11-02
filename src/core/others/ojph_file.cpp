@@ -202,21 +202,38 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   void mem_outfile::open()
   {
+    // really should not be called a second time so assert check
     assert(this->data == NULL);
-    cur_ptr = this->data = data;
-    this->size = size;
+    assert(this->cur_ptr == NULL);
+    assert(this->size == 0);
+    // but if they do, lets reset
+    delete this->data;
+    this->data = NULL;
+    this->cur_ptr = NULL;
+    this->size = 0;
+
+    this->size = 10000000;
+    this->data = (ui8*)malloc(this->size);
+    this->cur_ptr = this->data;
   }
 
-  size_t mem_outfile::write(const void *ptr, size_t size) 
+  size_t mem_outfile::write(const void *ptr, size_t dsize) 
   {
+    //printf("write %d\n", dsize);
       // ensure buffer is big enough for write
-      size_t current_size = this->get_size();
-      this->data = (ui8*)realloc(this->data, current_size + size);
-      this->cur_ptr = this->data + current_size;
+      //size_t current_size = this->get_size();
+      //this->data = (ui8*)realloc(this->data, current_size + size);
+      //this->cur_ptr = this->data + current_size;
+      //current_size+= size;
+
+      //printf("new current size=%d\n", current_size);
 
       // copy bytes into buffer and adjust cur_ptr
-      memcpy(cur_ptr, ptr, size);
-      cur_ptr += size;
+      memcpy(this->cur_ptr, ptr, dsize);
+      cur_ptr += dsize;
+
+      //printf("cur_ptr = %d\n", cur_ptr - data);
+      return dsize;
   }
 
 }

@@ -71,6 +71,72 @@ namespace ojph {
   //
   //
   //
+  // Based on yuv_in
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class raw_in : public image_in_base
+  {
+  public:
+    raw_in()
+    {
+      temp_buf = NULL;
+      for (int i = 0; i < 3; ++i)
+      {
+        width[i] = height[i] = bit_depth[i] = 0;
+        is_signed[i] = false;
+        subsampling[i] = point(1,1);
+        comp_address[i] = 0;
+        bytes_per_sample[i] = 0;
+      }
+      num_com = 0;
+
+      cur_line = 0;
+      last_comp = 0;
+      planar = false;
+    }
+    virtual ~raw_in()
+    {
+      close();
+      if (temp_buf)
+        free(temp_buf);
+    }
+
+    void open(const uint8_t *data, size_t data_size);
+    virtual int read(const line_buf* line, int comp_num);
+    void close() {  }
+
+    void set_bit_depth(int num_bit_depths, int* bit_depth);
+    void set_img_props(const size& s, int num_components,
+                       int num_downsampling, const point *downsampling);
+
+    size get_size() { assert(data); assert(data_size); return size(width[0], height[0]); }
+    int get_num_components() { assert(data); assert(data_size); return num_com; }
+    ui32 *get_bit_depth() { assert(data); assert(data_size); return bit_depth; }
+    bool *get_is_signed() { assert(data); assert(data_size); return is_signed; }
+    point *get_comp_subsampling() { assert(data); assert(data_size); return subsampling; }
+    size get_comp_size(int c);
+
+  private:
+    const uint8_t *data;
+    size_t data_size;
+    const uint8_t *cur_pos;
+
+    void *temp_buf;
+    int width[3], height[3], num_com;
+    int bytes_per_sample[3];
+    int comp_address[3];
+
+    int cur_line, last_comp;
+    bool planar;
+    ui32 bit_depth[3];
+    bool is_signed[3];
+    point subsampling[3];
+  }; 
+  
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
   //
   //
   ////////////////////////////////////////////////////////////////////////////

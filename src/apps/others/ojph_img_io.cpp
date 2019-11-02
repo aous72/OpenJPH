@@ -583,4 +583,124 @@ namespace ojph {
 
     return w;
   }
+
+
+
+  /////////////////
+  //// new raw_in
+  /////////////////
+
+
+  void raw_in::open(const uint8_t *data, size_t data_size)
+  {
+    printf("raw_in::open %d\n", data_size);
+    this->data = data;
+    this->cur_pos = data;
+    this->data_size = data_size;
+
+    //need to extact info from filename
+
+    assert(num_com == 1 || num_com == 3);
+    for (int i = 0; i < num_com; ++i)
+      bytes_per_sample[i] = bit_depth[i] > 8 ? 2 : 1;
+      printf("bytes_per_sample=%d\n", bytes_per_sample[0]);
+    int max_byte_width = width[0] * bytes_per_sample[0];
+    comp_address[0] = 0;
+    for (int i = 1; i < num_com; ++i)
+    {
+      comp_address[i] = comp_address[i - 1];
+      comp_address[i] += width[i-1] * height[i-1] * bytes_per_sample[i-1];
+      max_byte_width = ojph_max(max_byte_width, width[i]*bytes_per_sample[i]);
+    }
+    printf("max_byte_width=%d\n", max_byte_width);
+    temp_buf = malloc(max_byte_width);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  int raw_in::read(const line_buf* line, int comp_num)
+  {
+    assert(comp_num < num_com);
+    size_t read_length = bytes_per_sample[comp_num] * width[comp_num];
+    //printf("reading %d\n", read_length);
+    if(cur_pos + read_length > data + data_size) {
+      close();
+      OJPH_ERROR(0x03000061, "not enough data in buffer");
+    }
+    memcpy(temp_buf, cur_pos, read_length);
+    cur_pos += read_length;
+
+    if (bytes_per_sample[comp_num] == 1)
+    {
+      const ui8* sp = (ui8*)temp_buf;
+      si32* dp = line->i32;
+      for (int i = width[comp_num]; i > 0; --i, ++sp)
+        *dp++ = (si32)*sp;
+    }
+    else
+    {
+      const ui16* sp = (ui16*)temp_buf;
+      si32* dp = line->i32;
+      for (int i = width[comp_num]; i > 0; --i, ++sp)
+        *dp++ = (si32)*sp;
+    }
+
+    //printf("cur_pos = %d\n", cur_pos - data);
+
+    return width[comp_num];
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::set_img_props(const size& s, int num_components,
+                             int num_downsamplings, const point *subsampling)
+  {
+    if (num_components != 1 && num_components !=3)
+      OJPH_ERROR(0x03000071, "yuv_in support 1 or 3 components");
+    this->num_com = num_components;
+
+    if (num_downsamplings < 1)
+      OJPH_ERROR(0x03000072, "one or more downsampling must be provided");
+
+    int last_downsamp_idx = 0;
+    for (int i = 0; i < num_components; ++i)
+    {
+      point cp_ds = subsampling[i<num_downsamplings ? i : last_downsamp_idx];
+      last_downsamp_idx += last_downsamp_idx + 1 < num_downsamplings ? 1 : 0;
+
+      this->subsampling[i] = cp_ds;
+    }
+
+    for (int i = 0; i < num_components; ++i)
+    {
+      width[i] = ojph_div_ceil(s.w, this->subsampling[i].x);
+      height[i] = ojph_div_ceil(s.h, this->subsampling[i].y);
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::set_bit_depth(int num_bit_depths, int* bit_depth)
+  {
+    if (num_bit_depths < 1)
+      OJPH_ERROR(0x03000081, "one or more bit_depths must be provided");
+    int last_bd_idx = 0;
+    for (int i = 0; i < 3; ++i)
+    {
+      int bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
+      last_bd_idx += last_bd_idx + 1 < num_bit_depths ? 1 : 0;
+
+      this->bit_depth[i] = bd;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size raw_in::get_comp_size(int c)
+  {
+    assert(c < num_com);
+    return size(width[c], height[c]);
+  }
+
+
 }
+
+
+
+

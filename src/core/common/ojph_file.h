@@ -81,6 +81,34 @@ namespace ojph {
 
   };
 
+
+  ////////////////////////////////////////////////////////////////////////////
+  class mem_outfile : public outfile_base
+  {
+  public:
+    OJPH_EXPORT
+    mem_outfile() {data = NULL; cur_ptr = NULL; size =0; }
+    OJPH_EXPORT
+    ~mem_outfile() { delete data; data = NULL; cur_ptr =NULL; size = 0; }
+
+    OJPH_EXPORT
+    void open();
+    OJPH_EXPORT
+    virtual size_t write(const void *ptr, size_t size);
+    OJPH_EXPORT
+    virtual void flush() {}
+    OJPH_EXPORT
+    virtual void close() {}
+
+    OJPH_EXPORT
+    ui8* get_data() {return data;}
+    size_t get_size() const {return cur_ptr - data;}
+
+  private:
+    ui8 *data, *cur_ptr;
+    size_t size;
+  };
+
   ////////////////////////////////////////////////////////////////////////////
   class infile_base
   {

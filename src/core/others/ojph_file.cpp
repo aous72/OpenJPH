@@ -191,4 +191,33 @@ namespace ojph {
   }
 
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void mem_outfile::open()
+  {
+    assert(this->data == NULL);
+    cur_ptr = this->data = data;
+    this->size = size;
+  }
+
+  size_t mem_outfile::write(const void *ptr, size_t size) 
+  {
+      // ensure buffer is big enough for write
+      size_t current_size = this->get_size();
+      this->data = (ui8*)realloc(this->data, current_size + size);
+      this->cur_ptr = this->data + current_size;
+
+      // copy bytes into buffer and adjust cur_ptr
+      memcpy(cur_ptr, ptr, size);
+      cur_ptr += size;
+  }
+
 }
+

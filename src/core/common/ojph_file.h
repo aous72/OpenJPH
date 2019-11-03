@@ -83,31 +83,42 @@ namespace ojph {
 
 
   ////////////////////////////////////////////////////////////////////////////
+  // mem_outfile is used with ojph::codestream to encode to an in memory 
+  // buffer.  Once endoding is complete, you can use get_size(), get_data()
+  // or release_data() to access the compressed bytes.
+  ////////////////////////////////////////////////////////////////////////////
   class mem_outfile : public outfile_base
   {
   public:
     OJPH_EXPORT
-    mem_outfile() {data = NULL; cur_ptr = NULL; size =0; }
+    mem_outfile();
     OJPH_EXPORT
-    ~mem_outfile() { delete data; data = NULL; cur_ptr =NULL; size = 0; }
-
+    ~mem_outfile();
+     
     OJPH_EXPORT
-    void open();
+    void open(size_t initial_size = 65535);
     OJPH_EXPORT
     virtual size_t write(const void *ptr, size_t size);
     OJPH_EXPORT
     virtual void flush() {}
     OJPH_EXPORT
-    virtual void close() {}
+    virtual void close();
 
     OJPH_EXPORT
-    const ui8* get_data() const {return data;}
+    // returns the size of the compressed data stream in bytes
     size_t get_size() const {return cur_ptr - data;}
-    ui8* release_data() {ui8 * result = data; data = NULL; return result;}
-
+    // returns a the compressed bytes and retains ownership
+    const ui8* get_data() const {return data;}
+    // returns the compressed bytes and releases ownership
+    ui8* get_data() {return data;}
+    // release ownership of compressed data bytes
+    void release_data();
+     
   private:
-    ui8 *data, *cur_ptr;
+    bool is_open;
     size_t size;
+    ui8 *data;
+    ui8 *cur_ptr;
   };
 
   ////////////////////////////////////////////////////////////////////////////

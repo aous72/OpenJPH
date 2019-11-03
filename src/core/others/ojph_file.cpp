@@ -200,40 +200,82 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void mem_outfile::open()
+  mem_outfile::mem_outfile() :
+    is_open(false),
+    size(0),
+    data(NULL),
+    cur_ptr(NULL)
   {
-    // really should not be called a second time so assert check
-    assert(this->data == NULL);
-    assert(this->cur_ptr == NULL);
-    assert(this->size == 0);
-    // but if they do, lets reset
-    delete this->data;
+  }
+  
+  mem_outfile::~mem_outfile()
+  {
+    free(data);
+    this->is_open = false;
+    this->size = 0;
     this->data = NULL;
     this->cur_ptr = NULL;
-    this->size = 0;
+  }
 
-    this->size = 10000000;
+  void mem_outfile::open(size_t initial_size /* = 65535 */)
+  {
+    assert(this->is_open == false);
+    assert(this->size == 0);
+    assert(this->data == NULL);
+    assert(this->cur_ptr == NULL);
+    
+    // do initial buffer allocation
+    this->is_open = true;
+    this->size = initial_size;
     this->data = (ui8*)malloc(this->size);
     this->cur_ptr = this->data;
   }
 
-  size_t mem_outfile::write(const void *ptr, size_t dsize) 
+  void mem_outfile::close() {
+    assert(this->is_open == true);
+    assert(this->size);
+    assert(this->data);
+    assert(this->cur_ptr);
+
+    this->is_open = false;
+  }
+  
+  void mem_outfile::release_data() 
   {
-    //printf("write %d\n", dsize);
-      // ensure buffer is big enough for write
-      //size_t current_size = this->get_size();
-      //this->data = (ui8*)realloc(this->data, current_size + size);
-      //this->cur_ptr = this->data + current_size;
-      //current_size+= size;
+    assert(this->is_open == false);
+    assert(this->size);
+    assert(this->data);
+    assert(this->cur_ptr);
+    
+    this->is_open = false;
+    this->size = 0;
+    this->data = NULL;
+    this->cur_ptr = NULL;
+  } 
 
-      //printf("new current size=%d\n", current_size);
+  size_t mem_outfile::write(const void *ptr, size_t size) 
+  {
+    assert(this->is_open);
+    assert(this->size);
+    assert(this->data);
+    assert(this->cur_ptr);
 
-      // copy bytes into buffer and adjust cur_ptr
-      memcpy(this->cur_ptr, ptr, dsize);
-      cur_ptr += dsize;
 
-      //printf("cur_ptr = %d\n", cur_ptr - data);
-      return dsize;
+    // expand buffer if needed to make sure it has room for this write
+    size_t current_size = this->cur_ptr - this->data;
+    while(current_size + size > this->size) {
+      const size_t grow_size = 65535; // grpw 64k at a time
+      this->size = this->size + grow_size;
+      this->data = (ui8*)realloc(this->data, this->size);
+      this->cur_ptr = this->data + current_size;
+      //printf("mem_outfile: expanded buffer by %d bytes to %d bytes\n", grow_size, this->size);
+    }
+
+    // copy bytes into buffer and adjust cur_ptr
+    memcpy(this->cur_ptr, ptr, size);
+    cur_ptr += size;
+
+    return size;
   }
 
 }

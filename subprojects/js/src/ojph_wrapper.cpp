@@ -461,7 +461,9 @@ extern "C"
       }
       // return compressed data stream from j2c_file
       compressed_size = j2c_file.get_size();
-      return j2c_file.release_data();
+      uint8_t* compressed_data = j2c_file.get_data();
+      j2c_file.release_data();
+      return compressed_data;
     }
     catch (const std::exception& e)
     {
@@ -572,25 +574,6 @@ int main(int argc, const char* argv[])
           pOut++;
         }
     }
-
-    /*
-    for (int y = 0; y < height; y++)
-    {
-      //src is an address in memory, but since we are 
-      // dealing with integers (i.e, each entry is 4 bytes 
-      // away from the previous sample, we need to divide by 4
-      int* src = (int*)((int)pull_j2c_line(j2c) >> 2); 
-      int didx = y * width * 4;
-      for (int x = 0; x < width; x++)
-      {
-        var val = (heap[src + x] + half) >> shift;
-        dst[didx + x * 4    ] = val;
-        dst[didx + x * 4 + 1] = val;
-        dst[didx + x * 4 + 2] = val;
-        dst[didx + x * 4 + 3] = 255;
-      }
-    }
-    */
   }
   else if (num_comps == 3)
   {

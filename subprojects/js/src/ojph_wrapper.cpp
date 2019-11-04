@@ -470,7 +470,7 @@ extern "C"
     }
 }
 
-//#ifdef BUILD_TEST
+#ifdef BUILD_TEST
 #include <cstdio>
 
 uint8_t* getPelvisU16GrayRaw(j2c_format_t* j2c_format, size_t& raw_size) {
@@ -726,6 +726,6 @@ int main(int argc, const char* argv[])
   return 0;
 }
 }
-//#endif
+#endif
 
 

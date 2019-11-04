@@ -67,70 +67,103 @@ namespace ojph {
     virtual void close() {}
   };
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //
-  // Based on yuv_in
-  //
-  ////////////////////////////////////////////////////////////////////////////
+  struct image_properties
+  {
+    image_properties();
+
+    /**
+     * width of image
+     */
+    size_t width;
+    /**
+     * height of image
+     */
+    size_t height;
+    /**
+     * number of components per pixel - 1 for grayscale, 3 for color/rgb
+     */
+    size_t num_components;
+    
+    /**
+     * number of values in bit_depths array
+     */
+    size_t num_bit_depths;
+    /**
+     * bit depth of each component - 8 for 8 bit, 16 for 16 bit, etc
+     */
+    ui32 bit_depth[3];
+
+    /**
+     * number of entries in is_signed array
+     */
+    size_t num_signed;
+    /**
+     * the sign of each component - false for unsigned, true for signed data
+     */
+    bool is_signed[3];
+
+    /**
+     * the number of entries in downsamplings array
+     */
+    size_t num_downsamplings;
+    /**
+     * downsamplings?  not sure what this does...
+     */
+    point downsamplings[3];
+  };
+
+  /**
+   * Implementation of reading streams of raw pixel values
+   * 
+   */
   class raw_in : public image_in_base
   {
   public:
-    raw_in()
-    {
-      temp_buf = NULL;
-      for (int i = 0; i < 3; ++i)
-      {
-        width[i] = height[i] = bit_depth[i] = 0;
-        is_signed[i] = false;
-        subsampling[i] = point(1,1);
-        comp_address[i] = 0;
-        bytes_per_sample[i] = 0;
-      }
-      num_com = 0;
+    raw_in();
+    virtual ~raw_in();
 
-      cur_line = 0;
-      last_comp = 0;
-      planar = false;
-    }
-    virtual ~raw_in()
-    {
-      close();
-      if (temp_buf)
-        free(temp_buf);
-    }
+    /**
+     * Read raw pixels from the specified file name.
+     * 
+     * @param image_props[in] the image properties (size, num_components, bit depth, signedness)
+     * @param filename[in] the filename to read
+     */
+    void open(const image_properties& image_props, const char* filename);
 
-    void open(const uint8_t *data, size_t data_size);
+    /**
+     * Read raw pixels from the memory buffer.  Note that the object does not make a copy of the
+     * data so the caller must make sure the data is not free()d until the object is close()d
+     * 
+     * @param image_props[in] the image properties (size, num_components, bit depth, signedness)
+     * @param data[in] pointer to the memory buffer
+     * @param data_size[in] size of the memory buffer
+     */
+    void open(const image_properties& image_props, const uint8_t *data, size_t data_size);
+    
     virtual int read(const line_buf* line, int comp_num);
-    void close() {  }
+    /**
+     * closes the object once reading is done. 
+     */
+    void close();
 
-    void set_bit_depth(int num_bit_depths, int* bit_depth);
-    void set_img_props(const size& s, int num_components,
-                       int num_downsampling, const point *downsampling);
-
-    size get_size() { assert(data); assert(data_size); return size(width[0], height[0]); }
-    int get_num_components() { assert(data); assert(data_size); return num_com; }
-    ui32 *get_bit_depth() { assert(data); assert(data_size); return bit_depth; }
-    bool *get_is_signed() { assert(data); assert(data_size); return is_signed; }
-    point *get_comp_subsampling() { assert(data); assert(data_size); return subsampling; }
-    size get_comp_size(int c);
+    /**
+     * returns the image_properties
+     */
+    const image_properties& get_image_properties() const {return this->image_props;}
 
   private:
-    const uint8_t *data;
-    size_t data_size;
-    const uint8_t *cur_pos;
+    uint8_t *file_data; // buffer for holding data read for file based open() method
 
-    void *temp_buf;
-    int width[3], height[3], num_com;
-    int bytes_per_sample[3];
-    int comp_address[3];
+    const uint8_t *data; // const pointer to raw pixel data
+    size_t data_size; // size of raw pixel data
+    const uint8_t *cur_pos; // current read position in raw pixel data
 
-    int cur_line, last_comp;
-    bool planar;
-    ui32 bit_depth[3];
-    bool is_signed[3];
-    point subsampling[3];
+    void *temp_buf; // temporary buffer used for reading a line of raw pixel data
+
+    image_properties image_props; // the image_properties for this raw pixel data
+
+    int bytes_per_sample[3]; // how many bytes per sample based on bit depth per component
+    int width[3], height[3]; // component width/height based on downsamplings
   }; 
   
   ////////////////////////////////////////////////////////////////////////////

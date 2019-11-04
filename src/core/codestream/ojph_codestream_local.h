@@ -52,7 +52,8 @@ namespace ojph {
   class mem_elastic_allocator;
   class codestream;
   struct coded_lists;
-
+  struct truncation_point_t;
+  
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
@@ -98,6 +99,8 @@ namespace ojph {
 
       bool is_planar() const { return planar; }
 
+      void add_truncation_point(size_t resolution, size_t layer, size_t offset, size_t length);
+      const ojph::truncation_point_t* get_truncation_points(size_t& num_points) {num_points = truncation_point_index; return truncation_points;}
     private:
       int cur_line;
       int cur_comp;
@@ -124,6 +127,11 @@ namespace ojph {
       mem_elastic_allocator *elastic_alloc;
       outfile_base *outfile;
       infile_base *infile;
+
+    private:
+      ojph::truncation_point_t* truncation_points;
+      size_t truncation_point_index;
+      size_t num_truncation_points;
     };
 
     //////////////////////////////////////////////////////////////////////////

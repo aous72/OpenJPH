@@ -62,6 +62,15 @@ namespace ojph {
   class outfile_base;
   class infile_base;
 
+  struct truncation_point_t
+  {
+    truncation_point_t(size_t resolution, size_t layer, size_t offset, size_t length) : resolution(resolution), layer(layer), offset(offset), length(length) {}
+    size_t resolution;
+    size_t layer;
+    size_t offset;
+    size_t length;
+  };
+
   ////////////////////////////////////////////////////////////////////////////
   class codestream
   {
@@ -90,6 +99,9 @@ namespace ojph {
 
     OJPH_EXPORT
     void close();
+
+    OJPH_EXPORT
+    const truncation_point_t* get_truncation_points(size_t& num_points);
 
     OJPH_EXPORT
     param_siz_t access_siz();

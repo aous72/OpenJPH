@@ -140,6 +140,13 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  const truncation_point_t* codestream::get_truncation_points(size_t& num_points) 
+  {
+    return state->get_truncation_points(num_points);
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////
   line_buf* codestream::exchange(line_buf* line, int& next_component)
   {
     return state->exchange(line, next_component);
@@ -197,6 +204,10 @@ namespace ojph {
 
       init_colour_transform_functions();
       init_wavelet_transform_functions();
+
+      truncation_points = NULL;
+      truncation_point_index = 0;
+      num_truncation_points = 0;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -207,6 +218,17 @@ namespace ojph {
       if (elastic_alloc)
         delete elastic_alloc;
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    void codestream::add_truncation_point(size_t resolution, size_t layer, size_t offset, size_t length) 
+    {
+      if(truncation_point_index >= num_truncation_points) {
+        num_truncation_points += 4;
+        truncation_points = (truncation_point_t*)realloc(truncation_points, sizeof(truncation_point_t) * num_truncation_points);
+      }
+      truncation_points[truncation_point_index++] = truncation_point_t(resolution, layer, offset, length);
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     void codestream::pre_alloc()
@@ -1018,14 +1040,18 @@ namespace ojph {
       //sequence the writing of precincts according to preogression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
       {
-        for (int r = 0; r <= max_decompositions; ++r)
+        for (int r = 0; r <= max_decompositions; ++r) {
+          size_t offset = file->tell();
           for (int c = 0; c < num_comps; ++c)
             comps[c].write_precincts(r, file);
+          parent->add_truncation_point(r, 0, offset, file->tell());
+        }
       }
       else if (prog_order == OJPH_PO_RPCL)
       {
         for (int r = 0; r <= max_decompositions; ++r)
         {
+          size_t offset = file->tell();
           while (true)
           {
             int comp_num = -1;
@@ -1044,6 +1070,7 @@ namespace ojph {
             else
               break;
           }
+          parent->add_truncation_point(r, 0, offset, file->tell());
         }
       }
       else if (prog_order == OJPH_PO_PCRL)

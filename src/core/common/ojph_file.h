@@ -56,6 +56,7 @@ namespace ojph {
     virtual size_t write(const void *ptr, size_t size) = 0;
     virtual void flush() {}
     virtual void close() {}
+    virtual size_t tell() = 0;
   };
 
   ////////////////////////////////////////////////////////////////////////////
@@ -71,6 +72,8 @@ namespace ojph {
     void open(const char *filename);
     OJPH_EXPORT
     virtual size_t write(const void *ptr, size_t size);
+    OJPH_EXPORT
+    virtual size_t tell();
     OJPH_EXPORT
     virtual void flush();
     OJPH_EXPORT
@@ -99,6 +102,8 @@ namespace ojph {
     void open(size_t initial_size = 65535);
     OJPH_EXPORT
     virtual size_t write(const void *ptr, size_t size);
+    OJPH_EXPORT
+    virtual size_t tell() {return cur_ptr - data;}
     OJPH_EXPORT
     virtual void flush() {}
     OJPH_EXPORT

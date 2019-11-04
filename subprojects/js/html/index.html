@@ -26,26 +26,27 @@
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
         var request = new XMLHttpRequest;
-        request.open("GET", "test.j2c" , true);
+        request.open("GET", "ct.j2c" , true);
         request.responseType = "arraybuffer";
         request.onload = function (event) {
             if (request.status == 200)
             {
-                var t0 = performance.now();
-
-                j2c = create_j2c_data();
                 const array = new Uint8Array(this.response);
-                
                 var buffer = Module._malloc(array.length);
                 writeArrayToMemory(array, buffer);
+
+                var t0 = performance.now();
+                j2c = create_j2c_data();
                 init_j2c_data(j2c, buffer, array.length);
+                parse_j2c_data(j2c);
+
                 var width = get_j2c_width(j2c) | 0;
                 var height = get_j2c_height(j2c) | 0;
                 var num_comps = get_j2c_num_components(j2c) | 0;
                 var bit_depth = get_j2c_bit_depth(j2c, 0) | 0; //component 0
                 var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
-                parse_j2c_data(j2c);
-                
+                console.log(width, height, num_comps, bit_depth, is_signed);
+
                 var canvas = document.getElementById("mycanvas");
                 canvas.width = width;
                 canvas.height = height;
@@ -67,7 +68,9 @@
                     var didx = y * width * 4;
                     for (var x = 0|0; x < width; x = x + 1|0)
                     {
-                      var val = (heap[src + x] + half) >> shift;
+                      var v = heap[src + x];
+                      //var val = (v + half) >> shift;
+                      var val = v >> 4;
                       dst[didx + x * 4    ] = val;
                       dst[didx + x * 4 + 1] = val;
                       dst[didx + x * 4 + 2] = val;
@@ -101,11 +104,11 @@
                   console.log('Unsupported number of components');
                 
                 release_j2c_data(j2c);
+                var t1 = performance.now();
 
                 ctx.putImageData(cimg, 0, 0);
                 Module._free(buffer);
 
-                var t1 = performance.now();
 
                 document.getElementById('time').innerText = "Decode time: " + (t1 - t0) + " ms";
             }

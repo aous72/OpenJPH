@@ -44,6 +44,8 @@
 #include "ojph_codestream.h"
 #include "ojph_img_io.h"
 #include "ojph_message.h"
+#include <chrono> 
+using namespace std::chrono; 
 
 //////////////////////////////////////////////////////////////////////////////
 struct j2c_t
@@ -310,7 +312,7 @@ extern "C"
   uint8_t * cpp_init_j2c_encoder(j2c_encoder_t *j2c, j2c_format_t* j2c_format, const uint8_t *data, size_t size, size_t& compressed_size)
   {
     try {
-      char prog_order_store[] = "RPCL";
+      char prog_order_store[] = "LRCP";
       char *prog_order = prog_order_store;
       int num_decompositions = 5;
       float quantization_step = -1.0;
@@ -352,7 +354,7 @@ extern "C"
       ojph::raw_in raw_image;
 
       // BEGIN YUV BASED CODE
-        ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz_t siz = codestream.access_siz();
       if (dims.w < 0 || dims.h < 0)
         OJPH_ERROR(0x01000021,
           "width and height must be provided and >= 0\n");
@@ -361,9 +363,6 @@ extern "C"
       if (num_components <= 0)
         OJPH_ERROR(0x01000022,
           "num_components must be provided and > 0\n");
-      //if (num_is_signed <= 0)
-      // OJPH_ERROR(0x01000023,
-      //    "-signed option is missing and must be provided\n");
       if (num_bit_depths <= 0)
         OJPH_ERROR(0x01000024,
           "num_bit_depths must be > 0\n");
@@ -371,9 +370,18 @@ extern "C"
         OJPH_ERROR(0x01000025,
           "num_downsamplings must be > 0\n");
 
-      raw_image.set_img_props(dims, num_components, num_comp_downsamps,
-        comp_downsampling);
-      raw_image.set_bit_depth(num_bit_depths, bit_depth);
+      ojph::image_properties image_props;
+      image_props.width = dims.w;
+      image_props.height = dims.h;
+      image_props.num_components = num_components;
+      image_props.num_downsamplings = num_comp_downsamps;
+      image_props.downsamplings[0] = num_comp_downsamps > 0 ? comp_downsampling[0] : ojph::point(1,1);
+      image_props.downsamplings[1] = num_comp_downsamps > 1 ? comp_downsampling[1] : ojph::point(1,1);
+      image_props.downsamplings[2] = num_comp_downsamps > 2 ? comp_downsampling[2] : ojph::point(1,1);
+      image_props.num_bit_depths = num_bit_depths;
+      image_props.bit_depth[0] = num_bit_depths > 0 ? bit_depth[0] : 0;
+      image_props.bit_depth[1] = num_bit_depths > 1 ? bit_depth[1] : 0;
+      image_props.bit_depth[2] = num_bit_depths > 2 ? bit_depth[2] : 0;
 
       int last_signed_idx = 0, last_bit_depth_idx = 0, last_downsamp_idx = 0;
       siz.set_num_components(num_components);
@@ -408,9 +416,9 @@ extern "C"
       cod.set_reversible(reversible);
       if (!reversible && quantization_step != -1)
         codestream.access_qcd().set_irrev_quant(quantization_step);
-      codestream.set_planar(true);
+      codestream.set_planar(false);
 
-      raw_image.open(data, size);
+      raw_image.open(image_props, data, size);
       // END YUV BASED CODE
 
       ojph::mem_outfile j2c_file;
@@ -418,40 +426,28 @@ extern "C"
       codestream.write_headers(&j2c_file);
       int next_comp;
       ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);
-      if (codestream.is_planar())
+   
+      int height = siz.get_image_extent().y - siz.get_image_offset().y;
+      for (int i = 0; i < height; ++i)
       {
-        ojph::param_siz_t siz = codestream.access_siz();
         for (int c = 0; c < siz.get_num_components(); ++c)
         {
-          ojph::point p = siz.get_downsampling(c);
-          int height = ojph_div_ceil(siz.get_image_extent().y, p.y)
-                    - ojph_div_ceil(siz.get_image_offset().y, p.y);
-          for (int i = height; i > 0; --i)
-          {
-            assert(c == next_comp);
-            raw_image.read(cur_line, next_comp);
-            cur_line = codestream.exchange(cur_line, next_comp);
-          }
+          assert(c == next_comp);
+          raw_image.read(cur_line, next_comp);
+          cur_line = codestream.exchange(cur_line, next_comp);
         }
       }
-      else
-      {
-        ojph::param_siz_t siz = codestream.access_siz();
-        int height = siz.get_image_extent().y - siz.get_image_offset().y;
-        for (int i = 0; i < height; ++i)
-        {
-          for (int c = 0; c < siz.get_num_components(); ++c)
-          {
-            assert(c == next_comp);
-            raw_image.read(cur_line, next_comp);
-            cur_line = codestream.exchange(cur_line, next_comp);
-          }
-        }
-      }
-
+   
       codestream.flush();
       codestream.close();
       raw_image.close();
+
+      size_t num_truncation_points;
+      const ojph::truncation_point_t* truncation_points = codestream.get_truncation_points(num_truncation_points);
+      for(int t=0; t < num_truncation_points; t++) {
+        const ojph::truncation_point_t& tp = truncation_points[t];
+        printf("%d - resolution=%d layer=%d offset=%d length=%d\n", t, tp.resolution, tp.layer, tp.offset, tp.length);
+      }
 
       if (max_num_comps != initial_num_comps)
       {
@@ -476,9 +472,101 @@ extern "C"
 
 //#ifdef BUILD_TEST
 #include <cstdio>
-int main(int argc, const char* argv[])
+
+uint8_t* getPelvisU16GrayRaw(j2c_format_t* j2c_format, size_t& raw_size) {
+  const char filename[] = "pelvis-u16gray.raw";
+  FILE *f = fopen(filename, "rb");
+  fseek(f, 0, SEEK_END);
+  raw_size = ftell(f);
+  ojph::ui8 *raw_data = (ojph::ui8*)malloc(raw_size);
+  fseek(f, 0, SEEK_SET);
+  fread(raw_data, 1, raw_size, f);
+  fclose(f);
+
+  j2c_format->num_decomps = 5;
+  j2c_format->width = 3730;
+  j2c_format->height = 3062;
+  j2c_format->num_components = 1;
+  j2c_format->is_signed = 0;
+  j2c_format->num_bit_depths = 1;
+  j2c_format->bit_depths[0] = 16;
+  j2c_format->num_downsamplings = 1;
+  j2c_format->downsampling_x[0] = 1;
+  j2c_format->downsampling_y[0] = 1;
+  j2c_format->reversible = 1; // 0 = lossy, 1 = lossless
+  return raw_data;
+}
+
+uint8_t* getCTU16GrayRaw(j2c_format_t* j2c_format, size_t& raw_size) {
+  const char filename[] = "ct-u16gray.raw";
+  FILE *f = fopen(filename, "rb");
+  fseek(f, 0, SEEK_END);
+  raw_size = ftell(f);
+  ojph::ui8 *raw_data = (ojph::ui8*)malloc(raw_size);
+  fseek(f, 0, SEEK_SET);
+  fread(raw_data, 1, raw_size, f);
+  fclose(f);
+
+  j2c_format->num_decomps = 5;
+  j2c_format->width = 512;
+  j2c_format->height = 512;
+  j2c_format->num_components = 1;
+  j2c_format->is_signed = 0;
+  j2c_format->num_bit_depths = 1;
+  j2c_format->bit_depths[0] = 12;
+  j2c_format->num_downsamplings = 1;
+  j2c_format->downsampling_x[0] = 1;
+  j2c_format->downsampling_y[0] = 1;
+  j2c_format->reversible = 1; // 0 = lossy, 1 = lossless
+  return raw_data;
+}
+
+uint8_t* getRandomU16GrayRaw(j2c_format_t* j2c_format, size_t& raw_size) {
+  j2c_format->num_decomps = 5;
+  j2c_format->width = 128;
+  j2c_format->height = 128;
+  j2c_format->num_components = 1;
+  j2c_format->is_signed = 0;
+  j2c_format->num_bit_depths = 1;
+  j2c_format->bit_depths[0] = 8;
+  j2c_format->num_downsamplings = 1;
+  j2c_format->downsampling_x[0] = 1;
+  j2c_format->downsampling_y[0] = 1;
+  j2c_format->reversible = 1; // 0 = lossy, 1 = lossless
+
+  size_t bytesPerSample = j2c_format->bit_depths[0] >> 3;
+  int maxValue = 1<<j2c_format->bit_depths[0];
+  raw_size = j2c_format->width * j2c_format->height * bytesPerSample * j2c_format->num_components;
+  printf("raw_size=%d, bytesPerSample=%d\n", raw_size, bytesPerSample);
+  ojph::ui8* raw_data = (ojph::ui8*)malloc(raw_size);
+  ojph::ui8* ui8out = raw_data;
+  ojph::ui16* ui16out = (ojph::ui16*)raw_data;
+  ojph::si16* si16out = (ojph::si16*)raw_data;
+  for(int y=0; y < j2c_format->height; y++) {
+    for(int c=0; c < j2c_format->num_components; c++) {
+      for(int x=0; x < j2c_format->width; x++) {
+        int value = x;//rand() % maxValue;
+        if(bytesPerSample == 1) {
+          *ui8out = value;
+          ui8out++;
+        }
+        if(bytesPerSample == 2) {
+          if(j2c_format->is_signed) {
+            *si16out = value;
+            si16out++;
+          } else {
+            *ui16out = value;
+            ui16out++;
+          }
+        }
+      }
+    } 
+  }
+  return raw_data;
+}
+
+uint8_t* getTestJ2C() 
 {
-  /*
   const char filename[] = "test.j2c";
   FILE *f = fopen(filename, "rb");
   fseek(f, 0, SEEK_END);
@@ -487,47 +575,43 @@ int main(int argc, const char* argv[])
   fseek(f, 0, SEEK_SET);
   fread(compressed_data, 1, size, f);
   fclose(f);
-  */
-// recompress
-    j2c_encoder_t* j2cIn = cpp_create_j2c_encoder();
-    j2c_format_t* j2c_format = cpp_create_j2c_format();
-    j2c_format->num_decomps = 5;
-    j2c_format-> width = 1024;
-    j2c_format-> height = 1024;
-    j2c_format-> num_components = 1;
-    j2c_format-> is_signed = 0;
-    j2c_format->num_bit_depths = 1;
-    j2c_format->bit_depths[0] = 16;
-    j2c_format-> num_downsamplings = 1;
-    j2c_format-> downsampling_x[0] = 1;
-    j2c_format-> downsampling_y[0] = 1;
-    j2c_format->reversible = 1; // 0 = lossy, 1 = lossless
-    //j2c_format->quantization_step = 0.05; // ?
+  return compressed_data;
+}
 
-    size_t bytesPerSample = j2c_format->bit_depths[0] >> 3;
-    printf("bytesPerSample=%d\n", bytesPerSample);
-    size_t srcSize = j2c_format->height * j2c_format->width * j2c_format-> num_components *  bytesPerSample;
-    printf("srcSize=%d\n", srcSize);
-    uint8_t* srcin = new uint8_t[srcSize];
-    for(int y=0; y < j2c_format-> height; y++) {
-      unsigned short * pOut = (unsigned short*)srcin + (y * j2c_format->width * j2c_format-> num_components);
-      for(int c=0; c < j2c_format-> num_components; c++) {
-        for(int x =0; x < j2c_format-> width; x++) {
-          *pOut = rand() % 256;//x;
-          //printf("%d ", *pOut);
-          pOut++;
-        }
-      }
-    }
+void writeJ2C(const char* filename, ojph::ui8 *compressed_data, size_t compressed_size)
+{
+  FILE *f = fopen(filename, "wb");
+  fwrite(compressed_data, 1, compressed_size, f);
+  fclose(f);
+}
 
-    size_t compressed_size;
-    uint8_t *  result = cpp_init_j2c_encoder(
-      j2cIn,
-      j2c_format,
-      (uint8_t*)srcin,
-      srcSize,
-      compressed_size);
-    printf("compressed result = %p, size = %d\n", result, compressed_size);
+int main(int argc, const char* argv[])
+{
+  // Get Raw Data
+  j2c_encoder_t* j2cIn = cpp_create_j2c_encoder();
+  j2c_format_t* j2c_format = cpp_create_j2c_format();
+  size_t rawSize;
+  //uint8_t* rawData = getRandomU16GrayRaw(j2c_format, rawSize);
+  //uint8_t* rawData = getPelvisU16GrayRaw(j2c_format, rawSize);
+  uint8_t* rawData = getCTU16GrayRaw(j2c_format, rawSize);
+
+  printf("%dx%d\n", j2c_format->width, j2c_format->height);
+
+  size_t compressed_size;
+  auto start = high_resolution_clock::now();
+  uint8_t *  result = cpp_init_j2c_encoder(
+    j2cIn,
+    j2c_format,
+    (uint8_t*)rawData,
+    rawSize,
+    compressed_size);
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<milliseconds>(stop - start).count();
+  printf("rawSize = %d, compressed size = %d, %.2f:1 in %d ms %.2f FPS\n", rawSize, compressed_size, (float)rawSize / (float)compressed_size, duration, 1000.0f/duration);
+
+  writeJ2C("ct-part.j2c", result, compressed_size / 2);
+
+/*
 
   ojph::ui8 *compressed_data = result;
   long int size = compressed_size;
@@ -558,7 +642,7 @@ int main(int argc, const char* argv[])
   {
     int max_val = 65535; // TODO: Caculate
     for(int y=0; y < height; y++) {
-      unsigned short * pOut = (unsigned short*)srcin + (y * width);
+      unsigned short * pOut = (unsigned short*)rawSize + (y * width);
       ojph::si32* sp = pull_j2c_line(j2c);
       unsigned short* dp = (unsigned short*)(buf) + (y * width);
       for (int x = 0; x < width; ++x, dp++)
@@ -580,7 +664,7 @@ int main(int argc, const char* argv[])
     int max_val = 255;
     for (int y = 0; y < height; y++)
     {
-      unsigned short * pOut = (unsigned short*)srcin + (y * j2c_format->width * j2c_format-> num_components);
+      unsigned short * pOut = (unsigned short*)rawSize + (y * j2c_format->width * j2c_format-> num_components);
       for (int c = 0; c < num_comps; c++)
       {
         //int *src = pull_j2c_line(j2c); 

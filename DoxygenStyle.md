@@ -8,8 +8,8 @@ The comment block should use
 
 ```
 /**
-*    ... comment ...
-*/
+ *    ... comment ...
+ */
 ```
 
 ## File Documentation

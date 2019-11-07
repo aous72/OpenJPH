@@ -31,6 +31,6 @@ The file description should be inserted after the license statement.
 2. Functions should have a function comment block with `\fn` marker. 
     * A function should also have `\param`, `\return`, and optionally `\sa`. It is useful to use `[in], [out], [in,out]` to specify the direction of a parameter.
 3. Member variables can be documented using 
-```
-int var; /**< Description after the member */
-``` 
+    ```
+    int var; /**< Description after the member */
+    ``` 

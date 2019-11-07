@@ -1,4 +1,4 @@
-/****************************************************************************/
+//***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
@@ -28,12 +28,12 @@
 // LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-/****************************************************************************/
+//***************************************************************************/
 // This file is part of the OpenJPH software implementation.
 // File: ojph_colour.h
 // Author: Aous Naman
 // Date: 28 August 2019
-/****************************************************************************/
+//***************************************************************************/
 
 
 #ifndef OJPH_COLOR_H

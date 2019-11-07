@@ -7,9 +7,9 @@ Here, we describe how to document the source code.  This represent so sort of mi
 The comment block should use
 
 ```
-	/**
-	*    ... comment ...
-	*/
+/**
+*    ... comment ...
+*/
 ```
 
 ## File Documentation

@@ -36,8 +36,8 @@
 //***************************************************************************/
 
 
-#ifndef TPJH_PARAMS_LOCAL_H
-#define TPJH_PARAMS_LOCAL_H
+#ifndef OJPH_PARAMS_LOCAL_H
+#define OJPH_PARAMS_LOCAL_H
 
 #include <cstring>
 #include <cassert>
@@ -477,4 +477,4 @@ namespace ojph {
   }
 }
 
-#endif // !TPJH_PARAMS_LOCAL_H
+#endif // !OJPH_PARAMS_LOCAL_H

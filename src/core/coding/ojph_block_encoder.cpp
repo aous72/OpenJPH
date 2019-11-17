@@ -60,11 +60,6 @@ namespace ojph {
     static ui16 vlc_tbl1[2048] = { 0 };
 
     //UVLC encoding
-//    // index is u0 + (u1 << 5)
-//    // data is cwd + (cwd_len << 16);
-//    static ui32 uvlc_tbl0[1024] = { 0 };
-//    static ui32 uvlc_tbl1[1024] = { 0 };
-
     static int ulvc_cwd_pre[33];
     static int ulvc_cwd_pre_len[33];
     static int ulvc_cwd_suf[33];
@@ -690,9 +685,6 @@ namespace ojph {
         if (u_q0 > 0 && u_q1 > 0)
           mel_encode(&mel, ojph_min(u_q0, u_q1) > 2);
 
-//        int uvlc_cwd = uvlc_tbl0[u_q0 + (u_q1<<5)];
-//        vlc_encode(&vlc, uvlc_cwd & 0xFFFF, uvlc_cwd >> 16);
-
         if (u_q0 > 2 && u_q1 > 2)
         {
           vlc_encode(&vlc, ulvc_cwd_pre[u_q0-2], ulvc_cwd_pre_len[u_q0-2]);
@@ -911,9 +903,6 @@ namespace ojph {
             ms_encode(&ms, s[7] & ((1<<m)-1), m);
           }
 
-//          int uvlc_cwd = uvlc_tbl1[u_q0 + (u_q1<<5)];
-//          vlc_encode(&vlc, uvlc_cwd & 0xFFFF, uvlc_cwd >> 16);
-
           vlc_encode(&vlc, ulvc_cwd_pre[u_q0], ulvc_cwd_pre_len[u_q0]);
           vlc_encode(&vlc, ulvc_cwd_pre[u_q1], ulvc_cwd_pre_len[u_q1]);
           vlc_encode(&vlc, ulvc_cwd_suf[u_q0], ulvc_cwd_suf_len[u_q0]);
@@ -925,8 +914,6 @@ namespace ojph {
           e_q[0]=e_q[1]=e_q[2]=e_q[3]=e_q[4]=e_q[5]=e_q[6]=e_q[7]=0;
           rho[0] = rho[1] = 0; e_qmax[0] = e_qmax[1] = 0;
         }
-
-
       }
 
 

@@ -67,7 +67,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\}"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i 15512894668_2e5581297c_o.ppm -o test.j2c -num_decomps 5 -block_size \{64,64\} -precincts \{128,128\},\{256,256\} -prog_order CPRL"
@@ -79,7 +79,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i Gray16.yuv -o test.j2c -num_decomps 5 -dims \{2688,1520\} -num_comps 1 -signed true -bit_depth 16 -downsamp \{1,1\}  -reversible true"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i t5-334.pgm -o test.j2c -num_decomps 2 -block_size \{64,64\} -precincts \{1024,2\} -prog_order CPRL -image_offset \{1717,374\} -tile_offset \{1717,374\} -tile_size \{343,121\}"

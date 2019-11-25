@@ -36,6 +36,10 @@
 //***************************************************************************/
 
 
+/** @file ojph_file.cpp
+ *  @contains implementations of classes related to file operations
+ */
+
 #include <cassert>
 
 #include "ojph_file.h"
@@ -68,6 +72,13 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  long j2c_outfile::tell()
+  {
+    assert(fh);
+    return ftell(fh);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void j2c_outfile::flush()
   {
     assert(fh);
@@ -80,6 +91,80 @@ namespace ojph {
     assert(fh);
     fclose(fh);
     fh = NULL;
+  }
+
+  //*************************************************************************/
+  // mem_outfile
+  //*************************************************************************/
+
+  /**  */
+  mem_outfile::mem_outfile()
+  {
+    is_open = false;
+    buf_size = 0;
+    buf = cur_ptr = NULL;
+  }
+
+  /**  */
+  mem_outfile::~mem_outfile()
+  {
+    close();
+  }
+
+  /**  */
+  void mem_outfile::open(size_t initial_size /* = 65536 */)
+  {
+    assert(this->is_open == false);
+    assert(this->buf_size == 0);
+    assert(this->buf == NULL);
+    assert(this->cur_ptr == NULL);
+
+    // do initial buffer allocation
+    this->is_open = true;
+    this->buf_size = initial_size;
+    if (initial_size)
+      this->buf = (ui8*)malloc(this->buf_size);
+    this->cur_ptr = this->buf;
+  }
+
+  /**  */
+  void mem_outfile::close() {
+    if (buf)
+      free(buf);
+    is_open = false;
+    buf_size = 0;
+    buf = cur_ptr = NULL;
+  }
+
+  /** The function starts with a buffer size of 65536.  Then, whenever the
+   *  need arises, this buffer is expanded by a factor approx 1.5x
+   */
+  size_t mem_outfile::write(const void *ptr, size_t size)
+  {
+    assert(this->is_open);
+    assert(this->buf_size);
+    assert(this->buf);
+    assert(this->cur_ptr);
+
+    // expand buffer if needed to make sure it has room for this write
+    long used_size = tell(); //current used size
+    size_t new_used_size = used_size + size; //needed size
+    if (new_used_size > this->buf_size) //only expand when there is need
+    {
+      size_t new_buf_size = this->buf_size;
+      while (new_used_size > new_buf_size)
+        new_buf_size += new_buf_size >> 1; //expand by ~1.5x
+
+      this->buf = (ui8*)realloc(this->buf, new_buf_size);
+      this->buf_size = new_buf_size;
+      this->cur_ptr = this->buf + used_size;
+    }
+
+    // copy bytes into buffer and adjust cur_ptr
+    memcpy(this->cur_ptr, ptr, size);
+    cur_ptr += size;
+
+    return size;
   }
 
 

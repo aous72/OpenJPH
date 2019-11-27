@@ -54,6 +54,7 @@ namespace ojph {
     virtual ~outfile_base() {}
 
     virtual size_t write(const void *ptr, size_t size) = 0;
+    virtual long tell() { return 0; }
     virtual void flush() {}
     virtual void close() {}
   };
@@ -72,13 +73,96 @@ namespace ojph {
     OJPH_EXPORT
     virtual size_t write(const void *ptr, size_t size);
     OJPH_EXPORT
+    virtual long tell();
+    OJPH_EXPORT
     virtual void flush();
     OJPH_EXPORT
     virtual void close();
 
   private:
     FILE *fh;
+  };
 
+  //*************************************************************************/
+  /**  @brief mem_outfile stores encoded j2k codestreams in memory
+   *
+   *  This code was first developed by Chris Hafey https://github.com/chafey
+   *  I took the code and integrated with OpenJPH, with some modifications.
+   *
+   *  This class serves as a memory-based file storage.
+   *  For example, generated j2k codestream is stored in memory
+   *  instead of a conventional file. The memory buffer associated with
+   *  this class grows with the addition of new data.
+   *
+   *  memory data can be accessed using get_data()
+   */
+  class mem_outfile : public outfile_base
+  {
+  public:
+    /**  A constructor */
+    OJPH_EXPORT
+    mem_outfile();
+    /**  A destructor */
+    OJPH_EXPORT
+    ~mem_outfile();
+
+    /**  Call this function to open a memory file
+     *  This function creates a memory buffer to be used for storing
+     *  the generated j2k codestream
+     *
+     *  @param initial_size is the initial memory buffer size.
+     *         The default value is 2^16
+     */
+    OJPH_EXPORT
+    void open(size_t initial_size = 65536);
+
+    /**  Call this function to write data to the memory file
+     *  This function adds new data to the memory file.  The memory buffer
+     *  of the file grows as needed.
+     *
+     *  @param ptr is the address of the new data
+     *  @param size the number of bytes in the new data
+     */
+    OJPH_EXPORT
+    virtual size_t write(const void *ptr, size_t size);
+
+    /** Call this function to know the file size (i.e., number of bytes used
+     *  to store the file)
+     *
+     *  @return the file size
+     */
+    OJPH_EXPORT
+    virtual long tell() { return cur_ptr - buf; }
+
+    /** Call this function to close the file and deallocate memory
+     *  The object can be used again after calling close
+     */
+    OJPH_EXPORT
+    virtual void close();
+
+    /** Call this function to access memory file data.
+     *  It is not recommended to store the returned value because buffer
+     *  storage address can change between write calls
+     *
+     *  @return a constant pointer to the data.
+     */
+    OJPH_EXPORT
+    const ui8* get_data() { return buf; }
+
+    /** Call this function to access memory file data (for const objects)
+     *  This is similar to the above function, except that it can be used
+     *  with constant objects.
+     *
+     *  @return a constant pointer to the data
+     */
+    OJPH_EXPORT
+    const ui8* get_data() const { return buf; }
+
+  private:
+    bool is_open;
+    size_t buf_size;
+    ui8 *buf;
+    ui8 *cur_ptr;
   };
 
   ////////////////////////////////////////////////////////////////////////////

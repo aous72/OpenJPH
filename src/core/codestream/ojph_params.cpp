@@ -544,7 +544,7 @@ namespace ojph {
         OJPH_ERROR(0x00050043, "error reading SIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
-        OJPH_ERROR(0x00050044, "Rsiz bit 14 set (not a JPH file)");
+        OJPH_ERROR(0x00050044, "Rsiz bit 14 not set (this is not a JPH file)");
       if (Rsiz & 0xBFFF)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)

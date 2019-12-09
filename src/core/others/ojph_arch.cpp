@@ -111,7 +111,7 @@ namespace ojph {
                 level = 6;
 
                 uint64_t xcr_val = 0;
-                bool osxsave_avail, ymm_avail, avx_avail;
+                bool osxsave_avail, ymm_avail, avx_avail = false;
                 osxsave_avail = ((mmx_abcd[2] & 0x08000000) == 0x08000000);
                 if (osxsave_avail)
                 {

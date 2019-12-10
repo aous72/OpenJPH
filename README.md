@@ -16,7 +16,8 @@ The provided command line tools ojph\_compress and ojph\_expand accepts and gene
 
 # Compiling #
 
-The code employs the *cmake* tool to generate a variety of build enviroments.
+The code employs the *cmake* tool to generate a variety of build enviroments.  A visual studio code container is included for building using
+the visual studio code remote conatiners add in (highly recommended)
 
 **For Linux**
 
@@ -47,16 +48,14 @@ The generated library and executables will be in the bin folder.
 
 The library can now be compiled to javascript/wasm.  For this purpose, a small wrapper file (ojph_wrapper.cpp) has been written to interface between javascript and C++; the wrapper currently supports decoding only.  A small demo page demonstrating the script can be accessed [here](https://openjph.org/javascript/demo.html).
 
-Compilation needs the [emscripten](https://emscripten.org/) tools.  The tools are activated using
-```bash 
-emsdk_env.sh
-```
-Then, the javascript decoder can be compiled using
+Compilation needs the [emscripten](https://emscripten.org/) tools. The script subprojects/js/emscripten-docker.sh will create a shell in a docker image
+with emscripten already installed if you don't want to install it locally.  The javascript decoder can be compiled using
 ```bash
 cd subprojects/js/build
 emmake cmake ..
 make
 ```
+
 This creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  A simple python webserver can be run 
 ```python
 python -m SimpleHTTPServer 8000

@@ -1,3 +1,4 @@
+
 # Readme #
 
 Open source implementation of High-throughput JPEG2000 (HTJ2K), also known as JPH, JPEG2000 Part 15, ISO/IEC 15444-15, and ITU-T T.814. Here, we are interested in implementing the HTJ2K only, supporting features that are defined in JPEG2000 Part 1 (for example, for wavelet transform, only reversible 5/3 and irreversible 9/7 are supported).
@@ -48,19 +49,35 @@ The generated library and executables will be in the bin folder.
 
 The library can now be compiled to javascript/wasm.  For this purpose, a small wrapper file (ojph_wrapper.cpp) has been written to interface between javascript and C++; the wrapper currently supports decoding only.  A small demo page demonstrating the script can be accessed [here](https://openjph.org/javascript/demo.html).
 
-Compilation needs the [emscripten](https://emscripten.org/) tools. The script subprojects/js/emscripten-docker.sh will create a shell in a docker image
-with emscripten already installed if you don't want to install it locally.  The javascript decoder can be compiled using
+Compilation needs the [emscripten](https://emscripten.org/) tools. One way of using these tools is to install them on your machine, and activate them using 
+```base
+source emsdk_env.sh
+```  
+before compilation.  Alternatively, if you are a docker user, the you can launch a docker session using script provided at ```subprojects/js/emscripten-docker.sh```; this script will download a third-party docker image that has the emscripten tools integrated in it -- Thanks to [Chris](https://github.com/chafey) for the suggesting and providing these tools.  
+
+The javascript decoder can be compiled using
 ```bash
 cd subprojects/js/build
 emmake cmake ..
 make
 ```
 
-This creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  A simple python webserver can be run 
+The compilation creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  You can use the ```emrun``` command, provided with the emscripten
+tools, by issuing the command
+```base
+emrun index.html
+```
+from inside the html folder; the default port is 6931.
+Alternatively, a simple python webserver can be run using
 ```python
 python -m SimpleHTTPServer 8000
 ```  
-from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open 127.0.0.1:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
+also from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open 127.0.0.1:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
+
+# Visual Studio Code Remote Containers #
+
+Visual Studio Code Remote Containers are now available with OpenJPH.  These scripts/configuration files are provided by [Chris](https://github.com/chafey) -- Thank you Chris, and I must say I am not familiar with them.
+The scripts, in the ```.devcontainer``` folder, will build a docker image that can be used with visual studio code as a development environment.
 
 # Usage Example #
 

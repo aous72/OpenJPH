@@ -385,7 +385,7 @@ namespace ojph {
     if (fh == 0)
       OJPH_ERROR(0x03000051, "Unable to open file %s", filename);
 
-    //need to extact info from filename
+    //need to extract info from filename
 
     assert(num_com == 1 || num_com == 3);
     for (int i = 0; i < num_com; ++i)

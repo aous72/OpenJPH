@@ -236,7 +236,7 @@ namespace ojph {
       int tag_tree_size;
       si32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
-      //wavelet machinary
+      //wavelet machinery
       int cur_line, available_lines;
       bool vert_even, horz_even;
       mem_elastic_allocator *elastic;

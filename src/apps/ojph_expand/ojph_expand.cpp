@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
       else
         OJPH_ERROR(0x020000006,
           "unknown output file extension; only (pgm, ppm, and yuv) are"
-          " suppoted\n");
+          " supported\n");
     }
     else
       OJPH_ERROR(0x020000007,

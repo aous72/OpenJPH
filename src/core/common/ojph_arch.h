@@ -159,7 +159,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  // finds the size such that it is a mulitple of byte_alignment
+  // finds the size such that it is a multiple of byte_alignment
   template <typename T, int N>
   size_t calc_aligned_size(size_t size) {
     size = size * sizeof(T) + N - 1;

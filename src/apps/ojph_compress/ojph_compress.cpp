@@ -74,14 +74,14 @@ struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
       char *endptr;
       sizelist[num_eles].w = (int)strtol(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "size number is improperly formated";
+        throw "size number is improperly formatted";
       next_char = endptr;
       if (*next_char != ',')
         throw "size must have a "","" between the two numbers";
       next_char++;
       sizelist[num_eles].h = (int)strtol(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "number is improperly formated";
+        throw "number is improperly formatted";
       next_char = endptr;
       if (*next_char != '}')
         throw "size must end with }";
@@ -131,14 +131,14 @@ struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
       char *endptr;
       pointlist[num_eles].x = (int)strtol(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "point number is improperly formated";
+        throw "point number is improperly formatted";
       next_char = endptr;
       if (*next_char != ',')
         throw "point must have a "","" between the two numbers";
       next_char++;
       pointlist[num_eles].y = (int)strtol(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "number is improperly formated";
+        throw "number is improperly formatted";
       next_char = endptr;
       if (*next_char != '}')
         throw "point must end with }";
@@ -174,14 +174,14 @@ struct size_interpreter : public ojph::cli_interpreter::arg_inter_base
     char *endptr;
     val.w = (int)strtol(next_char, &endptr, 10);
     if (endptr == next_char)
-      throw "size number is improperly formated";
+      throw "size number is improperly formatted";
     next_char = endptr;
     if (*next_char != ',')
       throw "size must have a "","" between the two numbers";
     next_char++;
     val.h = (int)strtol(next_char, &endptr, 10);
     if (endptr == next_char)
-      throw "number is improperly formated";
+      throw "number is improperly formatted";
     next_char = endptr;
     if (*next_char != '}')
       throw "size must end with }";
@@ -205,14 +205,14 @@ struct point_interpreter : public ojph::cli_interpreter::arg_inter_base
     char *endptr;
     val.x = (int)strtol(next_char, &endptr, 10);
     if (endptr == next_char)
-      throw "size number is improperly formated";
+      throw "size number is improperly formatted";
     next_char = endptr;
     if (*next_char != ',')
       throw "size must have a "","" between the two numbers";
     next_char++;
     val.y = (int)strtol(next_char, &endptr, 10);
     if (endptr == next_char)
-      throw "number is improperly formated";
+      throw "number is improperly formatted";
     next_char = endptr;
     if (*next_char != '}')
       throw "size must end with }";
@@ -247,7 +247,7 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
       char *endptr;
       si32list[num_eles] = (int)strtol(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "size number is improperly formated";
+        throw "size number is improperly formatted";
       next_char = endptr;
       ++num_eles;
     }
@@ -673,7 +673,7 @@ int main(int argc, char * argv[]) {
             "we currently do not support color transform on yuv files."
             " In any case, this not a normal usage scenario.  The OpenJPH "
             "library however does support that, but ojph_compress.cpp must be "
-            "modifed to send all lines from one component before moving to "
+            "modified to send all lines from one component before moving to "
             "the next component;  this requires buffering components outside"
             " of the OpenJPH library");
         cod.set_reversible(reversible);
@@ -687,7 +687,7 @@ int main(int argc, char * argv[]) {
       else
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only (pgm, ppm, and yuv) are"
-          " suppoted\n");
+          " supported\n");
 
     }
     else

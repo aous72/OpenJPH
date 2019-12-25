@@ -4,9 +4,7 @@ project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 if (MSVC)
-	set(CMAKE_CXX_FLAGS "/O2 /EHsc")
-else()
-	set(CMAKE_CXX_FLAGS "-O3 -DNDEBUG")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)

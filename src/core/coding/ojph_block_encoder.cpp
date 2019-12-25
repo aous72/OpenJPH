@@ -98,7 +98,7 @@ namespace ojph {
                 if (src_tbl[j].u_off == 1)
                   if ((emb & src_tbl[j].e_k) == src_tbl[j].e_1)
                   {
-                    //now we need to find the smallest cwd with the heighest
+                    //now we need to find the smallest cwd with the highest
                     // number of bits set in e_k
                     int ones_count = pattern_popcnt[src_tbl[j].e_k];
                     if (ones_count >= best_e_k)
@@ -152,7 +152,7 @@ namespace ojph {
                 if (src_tbl[j].u_off == 1)
                   if ((emb & src_tbl[j].e_k) == src_tbl[j].e_1)
                   {
-                    //now we need to find the smallest cwd with the heighest
+                    //now we need to find the smallest cwd with the highest
                     // number of bits set in e_k
                     int ones_count = pattern_popcnt[src_tbl[j].e_k];
                     if (ones_count >= best_e_k)

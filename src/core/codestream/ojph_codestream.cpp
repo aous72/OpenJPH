@@ -1637,7 +1637,7 @@ namespace ojph {
 
       if (reversible)
       {
-        //vertical tranform
+        //vertical transform
         assert(num_lines >= 4);
         if (vert_even)
         {
@@ -1731,7 +1731,7 @@ namespace ojph {
       }
       else
       {
-        //vertical tranform
+        //vertical transform
         assert(num_lines >= 6);
         if (vert_even)
         {
@@ -1904,7 +1904,7 @@ namespace ojph {
         {
           do
           {
-            //horizontal tranform
+            //horizontal transform
             if (cur_line < res_rect.siz.h)
             {
               if (vert_even)
@@ -1964,7 +1964,7 @@ namespace ojph {
         {
           do
           {
-            //horizontal tranform
+            //horizontal transform
             if (cur_line < res_rect.siz.h)
             {
               if (vert_even)
@@ -2149,7 +2149,7 @@ namespace ojph {
         }
         int max_ratio = ojph_max(ratio.w, ratio.h);
         max_ratio = 1 << max_ratio;
-        // assuming that we have a hierachy of n levels.
+        // assuming that we have a hierarchy of n levels.
         // This needs 4/3 times the area, rounded up
         // (rounding up leaves one extra entry).
         // This exta entry is necessary

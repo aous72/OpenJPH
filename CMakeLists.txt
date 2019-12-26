@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.10.0)
 project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
+
+find_package(Threads REQUIRED)
+
 if (MSVC)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
 endif()
@@ -10,9 +13,8 @@ endif()
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 
-include_directories(src/core/common)
-include_directories(src/apps/common)
-file(GLOB SOURCES "src/core/coding/*.cpp" "src/core/others/*.cpp" "src/core/codestream/*.cpp" "src/core/transform/ojph_colour.cpp" "src/core/transform/ojph_transform.cpp")
+include_directories(src/core/common src/apps/common)
+file(GLOB SOURCES "src/core/enkitTS/TaskScheduler.cpp" "src/core/coding/*.cpp" "src/core/others/*.cpp" "src/core/codestream/*.cpp" "src/core/transform/ojph_colour.cpp" "src/core/transform/ojph_transform.cpp")
 file(GLOB SSE_SOURCES "src/core/transform/*_sse.cpp")
 file(GLOB SSE2_SOURCES "src/core/transform/*_sse2.cpp")
 file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
@@ -32,8 +34,8 @@ else()
 endif()
 
 add_executable(ojph_expand src/apps/ojph_expand/ojph_expand.cpp src/apps/others/ojph_img_io.cpp)
-target_link_libraries(ojph_expand openjph)
+target_link_libraries(ojph_expand openjph Threads::Threads)
 
 add_executable(ojph_compress src/apps/ojph_compress/ojph_compress.cpp src/apps/others/ojph_img_io.cpp)
-target_link_libraries (ojph_compress openjph)
+target_link_libraries (ojph_compress openjph Threads::Threads)
 

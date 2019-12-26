@@ -42,6 +42,8 @@
 #include "ojph_defs.h"
 #include "ojph_file.h"
 #include "ojph_params_local.h"
+#include <map>
+#include <vector>
 
 namespace ojph {
 
@@ -262,7 +264,30 @@ namespace ojph {
       bool special_x, special_y;
     };
 
+    class TaskSchedulerWrapper{
+    	public:
+			TaskSchedulerWrapper(){
+				m_scheduler.Initialize();
+			}
+			enki::TaskScheduler m_scheduler;
+    };
+
     //////////////////////////////////////////////////////////////////////////
+    class subband;
+    class codeblock;
+    class BlockCache {
+    public:
+    	void addBlock(subband* band, codeblock* block);
+    	codeblock* getBlock(subband *band,uint32_t index);
+    	void getBlocks(std::vector<codeblock*>& blks);
+    	void clear();
+
+    private:
+    	std::map<subband*, std::vector<codeblock*>* > blocks;
+    };
+
+
+
     class subband
     {
       friend struct precinct;
@@ -279,6 +304,7 @@ namespace ojph {
       void get_cb_indices(const size& num_precincts, precinct *precincts);
 
       line_buf* pull_line();
+      static BlockCache blockCache;
 
     private:
       int res_num, band_num;
@@ -297,6 +323,7 @@ namespace ojph {
       int K_max;
       coded_cb_header *coded_cbs;
       mem_elastic_allocator *elastic;
+      static TaskSchedulerWrapper m_scheduler;
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -315,6 +342,7 @@ namespace ojph {
 
       void decode();
       void pull_line(line_buf *line);
+      bool is_decoded(){ return m_decoded;}
 
     private:
       si32* buf;
@@ -326,6 +354,7 @@ namespace ojph {
       int K_max;
       int max_val;
       coded_cb_header* coded_cb;
+      bool m_decoded;
     };
 
     //////////////////////////////////////////////////////////////////////////

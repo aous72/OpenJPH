@@ -137,6 +137,7 @@ namespace ojph {
   void codestream::close()
   {
     state->close();
+    ojph::local::subband::blockCache.clear();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -2816,6 +2817,39 @@ namespace ojph {
       data_left = bb.bytes_left;
     }
 
+    void BlockCache::addBlock(subband *band, codeblock* block){
+       auto b = blocks.find(band);
+       if (b != blocks.end()){
+           b->second->push_back(block);
+       } else {
+    	   auto blks = new  std::vector<codeblock*>();;
+    	   blks->push_back(block);
+    	   blocks[band] = blks;
+       }
+    }
+
+    codeblock* BlockCache::getBlock(subband *band,uint32_t index){
+        auto b = blocks.find(band);
+        if (b == blocks.end())
+        	return nullptr;
+        return b->second->operator[](index);
+    }
+
+    void BlockCache::getBlocks(std::vector<codeblock*>& blks){
+    	for (auto& b : blocks){
+    		for (auto iter = b.second->begin(); iter != b.second->end(); ++iter) {
+    			blks.push_back(*iter);
+    		}
+
+    	}
+    }
+    void BlockCache::clear(){
+    	for (auto& b : blocks){
+    		delete b.second;
+    	}
+    	blocks.clear();
+    }
+
     //////////////////////////////////////////////////////////////////////////
     //
     //
@@ -2825,6 +2859,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    TaskSchedulerWrapper subband::m_scheduler;
+    ojph::local::BlockCache subband::blockCache;
+
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
                             int res_num, int subband_num)
     {
@@ -2852,11 +2889,11 @@ namespace ojph {
 
       if (num_blocks.area())
       {
-        allocator->pre_alloc_obj<codeblock>(num_blocks.w);
+        allocator->pre_alloc_obj<codeblock>(num_blocks.area());
         //allocate codeblock headers
         allocator->pre_alloc_obj<coded_cb_header>(num_blocks.area());
 
-        for (int i = 0; i < num_blocks.w; ++i)
+        for (int i = 0; i < num_blocks.area(); ++i)
           codeblock::pre_alloc(codestream, nominal);
 
         //allocate lines
@@ -2916,7 +2953,7 @@ namespace ojph {
 
       if (num_blocks.area())
       {
-        blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
+        blocks = allocator->post_alloc_obj<codeblock>(num_blocks.area());
         //allocate codeblock headers
         coded_cb_header *cp = coded_cbs =
           allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
@@ -2924,21 +2961,36 @@ namespace ojph {
         for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
           cp->Kmax = K_max;
 
+
+        int tbx0 = band_rect.org.x;
+        int tby0 = band_rect.org.y;
+        int tbx1 = band_rect.org.x + band_rect.siz.w;
+        int tby1 = band_rect.org.y + band_rect.siz.h;
+        size nominal(1 << xcb_prime, 1 << ycb_prime);
+
         int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
         int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
 
         size cb_size;
         cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
         cur_cb_height = cb_size.h;
-        int line_offset = 0;
-        for (int i = 0; i < num_blocks.w; ++i)
-        {
-          int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-          int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
-          cb_size.w = cbx1 - cbx0;
-          blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
-                                   coded_cbs + i, K_max, line_offset);
-          line_offset += cb_size.w;
+        for (int j = 0; j < num_blocks.h; ++j) {
+            int line_offset = 0;
+            int cby0 = ojph_max(tby0, y_lower_bound + j * nominal.h);
+            int cby1 = ojph_min(tby1, y_lower_bound+(j+1)*nominal.h);
+
+            size cb_size;
+            cb_size.h = cby1 - cby0;
+			for (int i = 0; i < num_blocks.w; ++i)
+			{
+			  int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+			  int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+			  cb_size.w = cbx1 - cbx0;
+			  blocks[i + j*num_blocks.w].finalize_alloc(codestream, this, nominal, cb_size,
+									   coded_cbs + i + j*num_blocks.w, K_max, line_offset);
+			  blockCache.addBlock(this, blocks + i + j*num_blocks.w);
+			  line_offset += cb_size.w;
+			}
         }
 
         //allocate lines
@@ -3077,6 +3129,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+#define MT
     line_buf *subband::pull_line()
     {
       //push to codeblocks
@@ -3084,29 +3137,39 @@ namespace ojph {
       {
         if (cur_cb_row < num_blocks.h)
         {
-          int tbx0 = band_rect.org.x;
           int tby0 = band_rect.org.y;
-          int tbx1 = band_rect.org.x + band_rect.siz.w;
           int tby1 = band_rect.org.y + band_rect.siz.h;
           size nominal(1 << xcb_prime, 1 << ycb_prime);
-
-          int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
           int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
           int cby0 = ojph_max(tby0, y_lower_bound + cur_cb_row * nominal.h);
           int cby1 = ojph_min(tby1, y_lower_bound+(cur_cb_row+1)*nominal.h);
 
-          size cb_size;
-          cb_size.h = cby1 - cby0;
-          cur_line = cur_cb_height = cb_size.h;
-          for (int i = 0; i < num_blocks.w; ++i)
-          {
-            int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-            int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
-            cb_size.w = cbx1 - cbx0;
-            blocks[i].recreate(cb_size,
-                               coded_cbs + i + cur_cb_row * num_blocks.w);
-            blocks[i].decode();
+          cur_line = cur_cb_height = cby1 - cby0;
+
+#ifdef MT
+          if (!blocks[0].is_decoded()) {
+			  std::vector<codeblock*> blks;
+			  blockCache.getBlocks(blks);
+			  enki::TaskSet task((uint32_t) blks.size(),
+					[this, &blks](enki::TaskSetPartition range, uint32_t threadnum) {
+						for (auto i = range.start; i < range.end; ++i) {
+						    if (i >= blks.size())
+								return;
+							blks[i]->decode();
+
+						}
+					});
+			  m_scheduler.m_scheduler.AddTaskSetToPipe(&task);
+			  m_scheduler.m_scheduler.WaitforTask(&task);
           }
+#else
+	          size cb_size;
+	          cb_size.h = cby1 - cby0;
+	          cur_line = cur_cb_height = cb_size.h;
+	          for (int i = 0; i < num_blocks.area(); ++i)
+	            blocks[i].decode();
+
+#endif
           ++cur_cb_row;
         }
       }
@@ -3115,7 +3178,7 @@ namespace ojph {
 
       //pull from codeblocks
       for (int i = 0; i < num_blocks.w; ++i)
-        blocks[i].pull_line(lines + 0);
+        blocks[i + (cur_cb_row-1) * num_blocks.w].pull_line(lines + 0);
 
       if (reversible)
       {
@@ -3182,6 +3245,7 @@ namespace ojph {
       this->K_max = K_max;
       this->max_val = 0;
       this->coded_cb = coded_cb;
+      m_decoded = false;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -3228,15 +3292,18 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
-      if (coded_cb->num_passes > 0)
-      {
-        ojph_decode_codeblock(coded_cb->next_coded->buf,
-          buf, coded_cb->missing_msbs, coded_cb->num_passes,
-          coded_cb->pass_length[0], coded_cb->pass_length[1],
-          cb_size.w, cb_size.h, cb_size.w);
+      if (!m_decoded) {
+		  if (coded_cb->num_passes > 0)
+		  {
+			ojph_decode_codeblock(coded_cb->next_coded->buf,
+			  buf, coded_cb->missing_msbs, coded_cb->num_passes,
+			  coded_cb->pass_length[0], coded_cb->pass_length[1],
+			  cb_size.w, cb_size.h, cb_size.w);
+		  }
+		  else
+			memset(buf, 0, cb_size.area() * sizeof(si32));
+		  m_decoded = true;
       }
-      else
-        memset(buf, 0, cb_size.area() * sizeof(si32));
     }
 
     //////////////////////////////////////////////////////////////////////////

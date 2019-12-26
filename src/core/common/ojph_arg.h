@@ -160,7 +160,7 @@ namespace ojph {
       if (t.is_valid()) {
         argument t2 = get_next_value(t);
         if (t2.is_valid()) {
-          val = atof(t2.arg);
+          val = strtof(t2.arg, NULL);
           release_argument(t);
           release_argument(t2);
         }

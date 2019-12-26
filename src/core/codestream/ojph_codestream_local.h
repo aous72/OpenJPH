@@ -96,7 +96,7 @@ namespace ojph {
       void flush();
       void close();
 
-      bool is_planar() const { return planar; }
+      bool is_planar() const { return planar != 0; }
 
     private:
       int cur_line;

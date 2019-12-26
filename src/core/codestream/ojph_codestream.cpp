@@ -940,7 +940,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1 << num_bits[comp_num];
+          float mul = (float)(1 << num_bits[comp_num]);
           const float *sp = src_line->f32;
           si32 *dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num])
@@ -977,7 +977,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1 << num_bits[comp_num];
+          float mul = (float)(1 << num_bits[comp_num]);
           const float *sp = comp_num < 3 ?
             lines[comp_num].f32 : comps[comp_num].get_line()->f32;
           si32 *dp = tgt_line->i32 + line_offsets[comp_num];
@@ -2051,7 +2051,7 @@ namespace ojph {
     void resolution::write_precincts(outfile_base *file)
     {
       precinct *p = precincts;
-      for (int i = 0; i < num_precincts.area(); ++i)
+      for (size_t i = 0; i < num_precincts.area(); ++i)
         p[i].write(file);
     }
 
@@ -2088,7 +2088,7 @@ namespace ojph {
     {
       precinct *p = precincts;
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      for (int i = idx; i < num_precincts.area(); ++i)
+      for (size_t i = idx; i < num_precincts.area(); ++i)
       {
         if (data_left == 0)
           break;

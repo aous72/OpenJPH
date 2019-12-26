@@ -183,7 +183,7 @@ namespace ojph {
       bool is_signed(si32 comp_num) const
       {
         assert(comp_num < Csiz);
-        return cptr[comp_num].SSiz & 0x80;
+        return (cptr[comp_num].SSiz & 0x80) != 0;
       }
       point get_downsampling(si32 comp_num) const
       {
@@ -400,7 +400,7 @@ namespace ojph {
       {
         memset(this, 0, sizeof(param_cap_t));
         Lcap = 8;
-        Pcap = 0x00020000; //for jph, Pcap^15 must be set
+        Pcap = 0x00020000; //for jph, Pcap^15 must be set, the 15th MSB
       }
 
       void check_validity(const param_cod_t& cod, const param_qcd_t& qcd)

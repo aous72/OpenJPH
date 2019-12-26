@@ -125,7 +125,7 @@ namespace ojph {
 
                   uint32_t avx2_abcd[4];
                   run_cpuid(7, 0, avx2_abcd);
-                  bool avx2_avail = avx2_abcd[1] & 0x20;
+                  bool avx2_avail = (avx2_abcd[1] & 0x20) != 0;
                   if (avx2_avail)
                   {
                     level = 8;
@@ -137,7 +137,7 @@ namespace ojph {
 
                       bool zmm_avail =
                         osxsave_avail && ((xcr_val & 0xE) == 0xE);
-                      bool avx512vl_avail = avx2_abcd[1] & 0x80000000;
+                      bool avx512vl_avail = (avx2_abcd[1] & 0x80000000) != 0;
                       bool avx512_avail = zmm_avail && avx512vl_avail;
                       if (avx512_avail)
                         level = 10;

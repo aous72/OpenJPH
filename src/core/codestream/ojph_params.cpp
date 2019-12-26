@@ -630,9 +630,10 @@ namespace ojph {
       if (Pcap & 0xFFFDFFFF)
         OJPH_ERROR(0x00050063,
           "error Pcap in CAP has options that are not supported");
-      if (Pcap & 0x000200000)
+      if ((Pcap & 0x00020000) == 0)
         OJPH_ERROR(0x00050064,
-          "error Pcap does not have Pcap^15 set (not JPH)");
+          "error Pcap should have its 15th MSB set, Pcap^15. "
+          " This is not a JPH file");
       for (int i = 0; i < count; ++i)
         if (file->read(Ccap+i, 2) != 2)
           OJPH_ERROR(0x00050065, "error reading CAP marker");
@@ -749,7 +750,7 @@ namespace ojph {
       { exp++; delta_b *= 2.0f; }
       //with rounding, there is a risk of becoming equal to 1<<12
       // but that should not happen in reality
-      mantissa = round(delta_b * (float)(1<<11)) - (1<<11);
+      mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
       mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
       u16_SPqcd[s++] = (exp << 11) | mantissa;
       for (int d = num_decomps - 1; d >= 0; --d)
@@ -762,7 +763,7 @@ namespace ojph {
         int exp = 0, mantissa;
         while (delta_b < 1.0f)
         { exp++; delta_b *= 2.0f; }
-        mantissa = round(delta_b * (float)(1<<11)) - (1<<11);
+        mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
         u16_SPqcd[s++] = (exp << 11) | mantissa;
         u16_SPqcd[s++] = (exp << 11) | mantissa;
@@ -772,7 +773,7 @@ namespace ojph {
         exp = 0;
         while (delta_b < 1)
         { exp++; delta_b *= 2.0f; }
-        mantissa = round(delta_b * (float)(1<<11)) - (1<<11);
+        mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
         u16_SPqcd[s++] = (exp << 11) | mantissa;
       }

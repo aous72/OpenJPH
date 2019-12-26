@@ -92,7 +92,7 @@ namespace ojph {
           if (emb) // u_off = 1
           {
             int best_e_k = -1;
-            for (int j = 0; j < tbl_size; ++j)
+            for (size_t j = 0; j < tbl_size; ++j)
             {
               if (src_tbl[j].c_q == c_q && src_tbl[j].rho == rho)
                 if (src_tbl[j].u_off == 1)
@@ -111,7 +111,7 @@ namespace ojph {
           }
           else // u_off = 0
           {
-            for (int j = 0; j < tbl_size; ++j)
+            for (size_t j = 0; j < tbl_size; ++j)
             {
               if (src_tbl[j].c_q == c_q && src_tbl[j].rho == rho)
                 if (src_tbl[j].u_off == 0)
@@ -146,7 +146,7 @@ namespace ojph {
           if (emb) // u_off = 1
           {
             int best_e_k = -1;
-            for (int j = 0; j < tbl_size; ++j)
+            for (size_t j = 0; j < tbl_size; ++j)
             {
               if (src_tbl[j].c_q == c_q && src_tbl[j].rho == rho)
                 if (src_tbl[j].u_off == 1)
@@ -165,7 +165,7 @@ namespace ojph {
           }
           else // u_off = 0
           {
-            for (int j = 0; j < tbl_size; ++j)
+            for (size_t j = 0; j < tbl_size; ++j)
             {
               if (src_tbl[j].c_q == c_q && src_tbl[j].rho == rho)
                 if (src_tbl[j].u_off == 0)

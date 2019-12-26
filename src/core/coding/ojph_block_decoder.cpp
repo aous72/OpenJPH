@@ -403,7 +403,7 @@ namespace ojph {
       {
         int cwd = i & 0x7F;
         int c_q = i >> 7;
-        for (int j = 0; j < tbl0_size; ++j)
+        for (size_t j = 0; j < tbl0_size; ++j)
           if (tbl0[j].c_q == c_q) // this is an and operation
             if (tbl0[j].cwd == (cwd & ((1 << tbl0[j].cwd_len) - 1)))
             {
@@ -417,7 +417,7 @@ namespace ojph {
       {
         int cwd = i & 0x7F; //7 bits
         int c_q = i >> 7;
-        for (int j = 0; j < tbl1_size; ++j)
+        for (size_t j = 0; j < tbl1_size; ++j)
           if (tbl1[j].c_q == c_q) // this is an and operation
             if (tbl1[j].cwd == (cwd & ((1 << tbl1[j].cwd_len) - 1)))
             {

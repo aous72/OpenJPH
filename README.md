@@ -91,7 +91,7 @@ The scripts, in the ```.devcontainer``` folder, will build a docker image that c
 
 # Related #
 
-The standard is available [here](https://www.itu.int/rec/T-REC-T.814/en).  It is currently free of charge; I do not know if this is temporary or permanent.
+The standard is available [here](https://www.itu.int/rec/T-REC-T.814/en).  It is currently free of charge; I do not know if this is temporary or permanent -- **Update 25/12/2019**: it is no longer available free of charge. 
 
 The associate site [openjph.org](https://openjph.org) serves as a blog.  It currently host the [javascript](https://openjph.org/javascript/demo.html) demo of the decoder; the webpage demonstrates that the library can be compiled to javascript, and can run inside a web-browser.  Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
 

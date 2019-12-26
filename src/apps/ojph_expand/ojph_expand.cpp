@@ -46,6 +46,7 @@
 #include "ojph_codestream.h"
 #include "ojph_params.h"
 #include "ojph_message.h"
+#include <chrono>
 
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[],
@@ -96,7 +97,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  clock_t begin = clock();
+  auto start = std::chrono::high_resolution_clock::now();
 
   try {
     ojph::j2c_infile j2c_file;
@@ -235,9 +236,9 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  clock_t end = clock();
-  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-  printf("Elapsed time = %f\n", elapsed_secs);
+	auto finish = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = finish - start;
+  printf("Elapsed time = %f\n", elapsed.count());
 
   return 0;
 }

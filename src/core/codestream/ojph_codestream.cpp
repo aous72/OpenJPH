@@ -380,13 +380,15 @@ namespace ojph {
       if (!qcd.write(file))
         OJPH_ERROR(0x00030026, "Error writing to file");
 
-      char buf[] = "    OpenJPH Ver "
+      char buf[] = "      OpenJPH Ver "
         OJPH_INT_TO_STRING(OJPH_CORE_VER_MAJOR) "."
         OJPH_INT_TO_STRING(OJPH_CORE_VER_MINOR) "."
         OJPH_INT_TO_STRING(OJPH_CORE_VER_SUBMINOR) ".";
       size_t len = strlen(buf);
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
+      //1 for General use (IS 8859-15:1999 (Latin) values)
+      *(ui16*)(buf + 4) = swap_byte((ui16)(1)); 
       if (file->write(buf, len) != len)
         OJPH_ERROR(0x00030027, "Error writing to file");
     }

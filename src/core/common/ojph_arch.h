@@ -84,7 +84,9 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanReverse)
+#endif
   static inline ui32 count_leading_zeros(ui32 val)
   {
   #ifdef OJPH_COMPILER_MSVC
@@ -104,7 +106,9 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanForward)
+#endif
   static inline ui32 count_trailing_zeros(ui32 val)
   {
   #ifdef OJPH_COMPILER_MSVC

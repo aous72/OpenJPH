@@ -50,7 +50,7 @@ namespace ojph {
     si32 w; //width
     si32 h; //height
 
-    size_t area() const { return (size_t)w * (size_t)h; }
+    si64 area() const { return (si64)w * (si64)h; }
   };
 
   /////////////////////////////////////////////////////////////////////////////

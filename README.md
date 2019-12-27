@@ -23,7 +23,7 @@ the visual studio code remote containers add in (highly recommended)
 **For Linux**
 
     cd build
-    cmake ../
+    cmake -DCMAKE_BUILD_TYPE=Release  ../
     make
 
 The generated library and executables will be in the bin folder.
@@ -33,7 +33,7 @@ The generated library and executables will be in the bin folder.
     cd build
     cmake ../ -G "Visual Studio 14 2015 Win64"
 
-cmake support other visual studio versions.  This command generates a solution in the build folder, which can be build using visual studio
+cmake support other visual studio versions.  This command generates a solution in the build folder, which can be build using visual studio.
 
 **For macOS**
 

@@ -99,6 +99,8 @@ int main(int argc, char *argv[]) {
 
   auto start = std::chrono::high_resolution_clock::now();
 
+  const uint32_t numReps = 200;
+  for (int p=0; p < numReps; ++p){
   try {
     ojph::j2c_infile j2c_file;
     j2c_file.open(input_filename);
@@ -236,9 +238,11 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
+  }
+
 	auto finish = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = finish - start;
-  printf("Elapsed time = %f\n", elapsed.count());
+  printf("Elapsed time = %f\n", elapsed.count()/numReps);
 
   return 0;
 }

@@ -1596,7 +1596,9 @@ namespace ojph {
       else
         for (int i = 1; i < 4; ++i)
           bands[i].get_cb_indices(num_precincts, precincts);
-      precinct::alloc_scratch(codestream);
+      for (int i = 0; i < num_precincts.area(); ++i){
+    	  precincts->alloc_scratch(codestream);
+      }
       size log_cb = cd.get_log_block_dims();
       log_PP.w -= (res_num?1:0);
       log_PP.h -= (res_num?1:0);
@@ -2129,7 +2131,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    ui8* precinct::scratch = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void precinct::alloc_scratch(codestream *codestream)

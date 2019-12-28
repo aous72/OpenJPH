@@ -252,8 +252,8 @@ namespace ojph {
                  mem_elastic_allocator *elastic,
                  int& data_left, infile_base *file);
 
-      static ui8 *scratch;
-      static void alloc_scratch(codestream *codestream);
+      ui8 *scratch;
+      void alloc_scratch(codestream *codestream);
       point img_point;   //the precinct projected to full resolution
       rect cb_idxs[4]; //indices of codeblocks
       subband *bands;  //the subbands

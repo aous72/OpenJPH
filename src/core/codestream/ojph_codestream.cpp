@@ -421,15 +421,30 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     static
     void skip_marker(infile_base *file, const char *marker,
-                     const char *warning_msg)
+                     const char *msg, int msg_level)
     {
       ui16 com_len;
       if (file->read(&com_len, 2) != 2)
         OJPH_ERROR(0x00030041, "error reading marker");
       com_len = swap_byte(com_len);
       file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
-      if (warning_msg)
-        OJPH_WARN(0x00030001, "%s\n", warning_msg);
+      if (msg != NULL && msg_level != OJPH_MSG_LEVEL::NO_MSG)
+      {
+        if (msg_level == OJPH_MSG_LEVEL::INFO)
+        {
+          OJPH_INFO(0x00030001, "%s\n", msg);
+        }
+        else if (msg_level == OJPH_MSG_LEVEL::WARN)
+        {
+          OJPH_WARN(0x00030001, "%s\n", msg);
+        }
+        else if (msg_level == OJPH_MSG_LEVEL::ERROR)
+        {
+          OJPH_ERROR(0x00030001, "%s\n", msg);
+        }
+        else
+          assert(0);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -448,31 +463,43 @@ namespace ojph {
         if (marker_idx == 0)
           cap.read(file);
         else if (marker_idx == 1)
-          skip_marker(file, "PRF", "PRF is not supported yet");
+          skip_marker(file, "PRF", 
+            "Skipping PRF marker segment; this should not cause any issues.", 
+            OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 2)
-          skip_marker(file, "CPF", "CPF is not supported yet");
+          skip_marker(file, "CPF", 
+            "Skipping CPF marker segment; this should not cause any issues.",
+            OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 3)
         { cod.read(file); received_markers |= 1; }
         else if (marker_idx == 4)
-          skip_marker(file, "COC", "COC is not supported yet");
+          skip_marker(file, "COC", "COC is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 5)
         { qcd.read(file); received_markers |= 2; }
         else if (marker_idx == 6)
-          skip_marker(file, "QCC", "QCC is not supported yet");
+          skip_marker(file, "QCC", "QCC is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 7)
-          skip_marker(file, "RGN", "RGN is not supported yet");
+          skip_marker(file, "RGN", "RGN is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 8)
-          skip_marker(file, "POC", "POC is not supported yet");
+          skip_marker(file, "POC", "POC is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 9)
-          skip_marker(file, "PPM", "PPM is not supported yet");
+          skip_marker(file, "PPM", "PPM is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 10)
-          skip_marker(file, "TLM", "TLM is not supported yet");
+          skip_marker(file, "TLM", "TLM is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 11)
-          skip_marker(file, "PLM", "PLM is not supported yet");
+          skip_marker(file, "PLM", "PLM is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 12)
-          skip_marker(file, "CRG", "CRG is not supported yet");
+          skip_marker(file, "CRG", "CRG is not supported yet",
+            OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 13)
-          skip_marker(file, "COM", NULL);
+          skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 14)
           break;
         else
@@ -514,13 +541,16 @@ namespace ojph {
             int marker_idx = 0;
             marker_idx = find_marker(infile, other_tile_part_markers + 1, 5);
             if (marker_idx == 0)
-              skip_marker(infile, "POC", "POC in a tile is not supported yet");
+              skip_marker(infile, "POC", "POC in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 1)
-              skip_marker(infile, "PPT", "PPT in a tile is not supported yet");
+              skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 2)
-              skip_marker(infile, "PLT", "PLT in a tile is not supported yet");
+              skip_marker(infile, "PLT", "PLT in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 3)
-              skip_marker(infile, "COM", NULL);
+              skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 4)
               break;
             else
@@ -537,23 +567,31 @@ namespace ojph {
             int marker_idx = 0;
             marker_idx = find_marker(infile, first_tile_part_markers + 1, 10);
             if (marker_idx == 0)
-              skip_marker(infile, "COD", "COD in a tile is not supported yet");
+              skip_marker(infile, "COD", "COD in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 1)
-              skip_marker(infile, "COC", "COC in a tile is not supported yet");
+              skip_marker(infile, "COC", "COC in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 2)
-              skip_marker(infile, "QCD", "QCD in a tile is not supported yet");
+              skip_marker(infile, "QCD", "QCD in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 3)
-              skip_marker(infile, "QCC", "QCC in a tile is not supported yet");
+              skip_marker(infile, "QCC", "QCC in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 4)
-              skip_marker(infile, "RGN", "RGN in a tile is not supported yet");
+              skip_marker(infile, "RGN", "RGN in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 5)
-              skip_marker(infile, "POC", "POC in a tile is not supported yet");
+              skip_marker(infile, "POC", "POC in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 6)
-              skip_marker(infile, "PPT", "PPT in a tile is not supported yet");
+              skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 7)
-              skip_marker(infile, "PLT", "PLT in a tile is not supported yet");
+              skip_marker(infile, "PLT", "PLT in a tile is not supported yet",
+                OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 8)
-              skip_marker(infile, "COM", NULL);
+              skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 9)
               break;
             else

@@ -44,12 +44,55 @@
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
+  enum OJPH_MSG_LEVEL : int
+  {
+    NO_MSG = 0,
+    INFO = 1,
+    WARN = 2,
+    ERROR = 3
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
   class message_base {
   public:
     OJPH_EXPORT
-    virtual void operator() (int warn_code, const char* file_name,
-      int line_num, const char *fmt, ...) = 0;
+      virtual void operator() (int warn_code, const char* file_name,
+        int line_num, const char *fmt, ...) = 0;
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class message_info : public message_base
+  {
+    public:
+      OJPH_EXPORT
+      virtual void operator() (int info_code, const char* file_name,
+        int line_num, const char* fmt, ...);
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  OJPH_EXPORT
+    void set_info_stream(FILE* s);
+  OJPH_EXPORT
+    void configure_info(message_info* info);
+  OJPH_EXPORT
+    message_info& get_info();
+
+  ////////////////////////////////////////////////////////////////////////////
+  class message_warning : public message_base
+  {
+    public:
+      OJPH_EXPORT
+      virtual void operator() (int warn_code, const char* file_name,
+        int line_num, const char* fmt, ...);
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  OJPH_EXPORT
+    void set_warning_stream(FILE* s);
+  OJPH_EXPORT
+    void configure_warning(message_warning* warn);
+  OJPH_EXPORT
+    message_warning& get_warning();
 
   ////////////////////////////////////////////////////////////////////////////
   class message_error : public message_base
@@ -59,23 +102,6 @@ namespace ojph {
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char *fmt, ...);
   };
-
-  ////////////////////////////////////////////////////////////////////////////
-  class message_warning : public message_base
-  {
-    public:
-      OJPH_EXPORT
-      virtual void operator() (int warn_code, const char* file_name,
-        int line_num, const char *fmt, ...);
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
-  OJPH_EXPORT
-  void set_warning_stream(FILE *s);
-  OJPH_EXPORT
-  void configure_warning(message_warning* warn);
-  OJPH_EXPORT
-  message_warning& get_warning();
 
   ////////////////////////////////////////////////////////////////////////////
   OJPH_EXPORT
@@ -96,11 +122,14 @@ namespace ojph {
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
+#define OJPH_INFO(t, ...) \
+  { ojph::get_info()(t, __OJPHFILE__, __LINE__, __VA_ARGS__); }
+//////////////////////////////////////////////////////////////////////////////
 #define OJPH_WARN(t, ...) \
-  ojph::get_warning()(t, __OJPHFILE__, __LINE__, __VA_ARGS__);
+  { ojph::get_warning()(t, __OJPHFILE__, __LINE__, __VA_ARGS__); }
 //////////////////////////////////////////////////////////////////////////////
 #define OJPH_ERROR(t, ...) \
-  ojph::get_error()(t, __OJPHFILE__, __LINE__,__VA_ARGS__);
+  { ojph::get_error()(t, __OJPHFILE__, __LINE__,__VA_ARGS__); }
 
 
 #endif // !OJPH_MESSAGE_H

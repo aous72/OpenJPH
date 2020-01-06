@@ -136,7 +136,8 @@ namespace ojph {
 
       bool push(line_buf *line, int comp_num);
       void flush(outfile_base *file);
-      void parse_tile_header(const param_sot_t& sot, infile_base *file);
+      void parse_tile_header(const param_sot_t& sot, infile_base *file,
+                             const ui64& tile_start_location);
       bool pull(line_buf *, int comp_num);
 
     private:
@@ -260,6 +261,7 @@ namespace ojph {
       coded_lists* coded;
       int num_bands;
       bool special_x, special_y;
+      bool may_use_sop, uses_eph;
     };
 
     //////////////////////////////////////////////////////////////////////////

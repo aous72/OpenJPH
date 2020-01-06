@@ -136,6 +136,10 @@ namespace ojph {
     int get_num_layers() const;
     OJPH_EXPORT
     bool is_using_color_transform() const;
+    OJPH_EXPORT
+    bool packets_may_use_sop() const;
+    OJPH_EXPORT
+    bool packets_use_eph() const;
 
   private:
     local::param_cod_t* state;

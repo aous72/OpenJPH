@@ -78,27 +78,26 @@ namespace ojph {
       CAP = 0xFF50, //extended capability
       SIZ = 0xFF51, //image and tile size (required)
       COD = 0xFF52, //coding style default (required)
-      QCD = 0xFF5C, //qunatization default (required)
-      COM = 0xFF64, //comment
-      EOC = 0xFFD9, //end of codestream (required)
-      SOT = 0xFF90, //start of tile-part
-      SOD = 0xFF93, //start of data
-
-      //These headers are not used in the first iteration of the code
-      COC = 0xFF53, //coding style component
       TLM = 0xFF55, //tile-part lengths
       PRF = 0xFF56, //profile
       PLM = 0xFF57, //packet length, main header
       PLT = 0xFF58, //packet length, tile-part header
       CPF = 0xFF59, //corresponding profile values
+      QCD = 0xFF5C, //qunatization default (required)
+      COM = 0xFF64, //comment
+      SOT = 0xFF90, //start of tile-part
+      SOP = 0xFF91, //start of packet
+      EPH = 0xFF92, //end of packet
+      SOD = 0xFF93, //start of data
+      EOC = 0xFFD9, //end of codestream (required)
+
+      COC = 0xFF53, //coding style component
       QCC = 0xFF5D, //quantization component
       RGN = 0xFF5E, //region of interest
       POC = 0xFF5F, //progression order change
       PPM = 0xFF60, //packed packet headers, main header
       PPT = 0xFF61, //packed packet headers, tile-part header
       CRG = 0xFF63, //component registration
-      SOP = 0xFF91, //start of packet
-      EPH = 0xFF92, //end of packet
     };
 
     //////////////////////////////////////////////////////////////////////////

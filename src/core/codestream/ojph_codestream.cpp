@@ -463,13 +463,11 @@ namespace ojph {
         if (marker_idx == 0)
           cap.read(file);
         else if (marker_idx == 1)
-          skip_marker(file, "PRF", 
-            "Skipping PRF marker segment; this should not cause any issues.", 
-            OJPH_MSG_LEVEL::NO_MSG);
+          //Skipping PRF marker segment; this should not cause any issues
+          skip_marker(file, "PRF", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 2)
-          skip_marker(file, "CPF", 
-            "Skipping CPF marker segment; this should not cause any issues.",
-            OJPH_MSG_LEVEL::NO_MSG);
+          //Skipping CPF marker segment; this should not cause any issues
+          skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 3)
         { cod.read(file); received_markers |= 1; }
         else if (marker_idx == 4)
@@ -490,14 +488,19 @@ namespace ojph {
           skip_marker(file, "PPM", "PPM is not supported yet",
             OJPH_MSG_LEVEL::WARN);
         else if (marker_idx == 10)
-          skip_marker(file, "TLM", "TLM is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+          //Skipping TLM marker segment; this should not cause any issues
+          skip_marker(file, "TLM", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 11)
-          skip_marker(file, "PLM", "PLM is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+          //Skipping PLM marker segment; this should not cause any issues
+          skip_marker(file, "PLM", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 12)
-          skip_marker(file, "CRG", "CRG is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+          //Skipping CRG marker segment;
+          skip_marker(file, "CRG", "CRG has been ignored; CRG is related to"
+            " where the Cb and Cr colour components are co-sited or located"
+            " with respect to the Y' luma component. Perhaps, it is better"
+            " to get the indivdual components and assemble the samples"
+            " according to your needs",
+            OJPH_MSG_LEVEL::INFO);
         else if (marker_idx == 13)
           skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
         else if (marker_idx == 14)
@@ -523,6 +526,7 @@ namespace ojph {
       {
         param_sot_t sot;
         sot.read(infile);
+        ui64 tile_start_location = infile->tell();
 
         if (sot.get_tile_index() > (int)num_tiles.area())
           OJPH_ERROR(0x00030061, "wrong tile index");
@@ -547,8 +551,8 @@ namespace ojph {
               skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
                 OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 2)
-              skip_marker(infile, "PLT", "PLT in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
+              //Skipping PLT marker segment; this should not cause any issues
+              skip_marker(infile, "PLT", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 3)
               skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 4)
@@ -556,7 +560,8 @@ namespace ojph {
             else
               OJPH_ERROR(0x00030063, "unknown marker in a tile header");
           }
-          tiles[sot.get_tile_index()].parse_tile_header(sot, infile);
+          tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
+                                                        tile_start_location);
         }
         else
         { //first tile part
@@ -588,8 +593,8 @@ namespace ojph {
               skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
                 OJPH_MSG_LEVEL::WARN);
             else if (marker_idx == 7)
-              skip_marker(infile, "PLT", "PLT in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
+              //Skipping PLT marker segment; this should not cause any issues
+              skip_marker(infile, "PLT", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 8)
               skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
             else if (marker_idx == 9)
@@ -597,7 +602,8 @@ namespace ojph {
             else
               OJPH_ERROR(0x00030064, "unknown marker in a tile header");
           }
-          tiles[sot.get_tile_index()].parse_tile_header(sot, infile);
+          tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
+                                                        tile_start_location);
         }
         // check the next marker; either SOT or EOC,
         // if something is broken, just an end of file
@@ -605,7 +611,7 @@ namespace ojph {
         int marker_idx = find_marker(infile, next_markers, 2);
         if (marker_idx == -1)
         {
-          OJPH_ERROR(0x00030065, "file termianted early");
+          OJPH_INFO(0x00030021, "file terminated early");
           break;
         }
         else if (marker_idx == 0)
@@ -1147,16 +1153,26 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile::parse_tile_header(const param_sot_t &sot, infile_base *file)
+    void tile::parse_tile_header(const param_sot_t &sot, infile_base *file,
+                                 const ui64& tile_start_location)
     {
-      if (this->sot.get_tile_part_index() != next_tile_part)
+      if (sot.get_tile_part_index() != next_tile_part)
         OJPH_ERROR(0x00030091, "wrong tile part index");
       this->sot.append(sot.get_length());
       ++next_tile_part;
 
-      long tile_end_location = file->tell() + sot.get_length();//used on
-                                                               //failure
+      //tile_end_location used on failure
+      ui64 tile_end_location = tile_start_location + sot.get_length();
+
       int data_left = sot.get_length(); //how many bytes left to parse
+      data_left -= file->tell() - tile_start_location;
+      data_left += 2; //2 is the size of SOD
+
+      if (data_left == 0)
+        return;
+      else if (data_left < 0)
+        OJPH_ERROR(0x00030092, "a tile part that has less than 0 bytes;"
+          "something is wrong");
 
       int max_decompositions = 0;
       for (int c = 0; c < num_comps; ++c)
@@ -1170,7 +1186,8 @@ namespace ojph {
         {
           for (int r = 0; r <= max_decompositions; ++r)
             for (int c = 0; c < num_comps; ++c)
-              comps[c].parse_precincts(r, data_left, file);
+              if (data_left > 0)
+                comps[c].parse_precincts(r, data_left, file);
         }
         else if (prog_order == OJPH_PO_RPCL)
         {
@@ -1189,7 +1206,7 @@ namespace ojph {
                 else if (cur.y == smallest.y && cur.x < smallest.x)
                 { smallest = cur; comp_num = c; }
               }
-              if (comp_num >= 0)
+              if (comp_num >= 0 && data_left > 0)
                 comps[comp_num].parse_one_precinct(r, data_left, file);
               else
                 break;
@@ -1221,7 +1238,7 @@ namespace ojph {
                 { smallest = cur; comp_num = c; res_num = r; }
               }
             }
-            if (comp_num >= 0)
+            if (comp_num >= 0 && data_left > 0)
               comps[comp_num].parse_one_precinct(res_num, data_left, file);
             else
               break;
@@ -1244,7 +1261,7 @@ namespace ojph {
                 else if (cur.y == smallest.y && cur.x < smallest.x)
                 { smallest = cur; res_num = r; }
               }
-              if (res_num >= 0)
+              if (res_num >= 0 && data_left > 0)
                 comps[c].parse_one_precinct(res_num, data_left, file);
               else
                 break;
@@ -1257,7 +1274,7 @@ namespace ojph {
       }
       catch (const char *error)
       {
-        OJPH_WARN(0x00030011, "%s\n", error);
+        OJPH_INFO(0x00030011, "%s\n", error);
       }
       file->seek(tile_end_location, infile_base::OJPH_SEEK_SET);
     }
@@ -1627,6 +1644,8 @@ namespace ojph {
           pp->special_y = test_y && y == 0;
           pp->num_bands = num_bands;
           pp->bands = bands;
+          pp->may_use_sop = cd.packets_may_use_sop();
+          pp->uses_eph = cd.packets_use_eph();
         }
       }
       if (num_bands == 1)
@@ -2130,7 +2149,7 @@ namespace ojph {
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       for (size_t i = idx; i < num_precincts.area(); ++i)
       {
-        if (data_left == 0)
+        if (data_left <= 0)
           break;
         p[i].parse(tag_tree_size, level_index, elastic, data_left, file);
         if (++cur_precinct_loc.x >= num_precincts.w)
@@ -2147,7 +2166,7 @@ namespace ojph {
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < (int)num_precincts.area());
 
-      if (data_left == 0)
+      if (data_left <= 0)
         return;
       precinct *p = precincts + idx;
       p->parse(tag_tree_size, level_index, elastic, data_left, file);
@@ -2663,15 +2682,70 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    bool terminate(bit_read_buf *bbp)
+    void bb_skip_eph(bit_read_buf *bbp)
+    {
+      if (bbp->bytes_left >= 2)
+      {
+        ui8 marker[2];
+        if (bbp->file->read(marker, 2) != 2)
+          throw "error reading from file";
+        bbp->bytes_left -= 2;
+        if ((int)marker[0] != (EPH >> 8) || (int)marker[1] != (EPH & 0xFF))
+          throw "should find EPH, but found something else";
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    bool bb_terminate(bit_read_buf *bbp, bool uses_eph)
     {
       bool result = true;
       if (bbp->unstuff)
         result = bb_read(bbp);
       assert(bbp->unstuff == false);
+      if (uses_eph)
+        bb_skip_eph(bbp);
       bbp->tmp = 0;
       bbp->avail_bits = 0;
       return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    bool bb_skip_sop(bit_read_buf *bbp)
+    {
+      if (bbp->bytes_left >= 2)
+      {
+        ui8 marker[2];
+        if (bbp->file->read(marker, 2) != 2)
+          throw "error reading from file";
+        if ((int)marker[0] == (SOP >> 8) && (int)marker[1] == (SOP & 0xFF))
+        {
+          bbp->bytes_left -= 2;
+          if (bbp->bytes_left >= 4)
+          {
+            ui16 com_len;
+            if (bbp->file->read(&com_len, 2) != 2)
+              OJPH_ERROR(0x000300A1, "error reading from file");
+            com_len = swap_byte(com_len);
+            if (bbp->file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR) != 0)
+              throw "error seeking file";
+            bbp->bytes_left -= com_len;
+            if (com_len != 4)
+              throw "something is wrong with SOP length";
+          }
+          return true;
+        }
+        else
+        {
+          //put the bytes back
+          if (bbp->file->seek(-2, infile_base::OJPH_SEEK_CUR) != 0)
+            throw "error seeking file";
+          return false;
+        }
+      }
+
+      return false;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2682,6 +2756,8 @@ namespace ojph {
       assert(data_left);
       bit_read_buf bb;
       bb_init(&bb, data_left, file);
+      if (may_use_sop)
+        bb_skip_sop(&bb);
 
       int sst = num_bands == 3 ? 1 : 0;
       int send = num_bands == 3 ? 4 : 1;
@@ -2696,7 +2772,7 @@ namespace ojph {
           ui32 bit;
           bb_read_bit(&bb, bit);
           if (bit == 0) //empty packet
-          { terminate(&bb); data_left = bb.bytes_left; return; }
+          { bb_terminate(&bb, uses_eph); data_left = bb.bytes_left; return; }
           empty_packet = false;
         }
 
@@ -2830,7 +2906,7 @@ namespace ojph {
           }
         }
       }
-      terminate(&bb);
+      bb_terminate(&bb, uses_eph);
       //read codeblock data
       for (int s = sst; s < send; ++s)
       {

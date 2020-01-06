@@ -62,7 +62,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-i test.j2c"
+            argument = "-i test.jph"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -70,7 +70,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-o test_out.ppm"
+            argument = "-o test.ppm"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

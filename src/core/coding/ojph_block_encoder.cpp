@@ -372,7 +372,7 @@ namespace ojph {
       int fuse = melp->tmp | vlcp->tmp;
       if ( ( ((fuse ^ melp->tmp) & mel_mask)
            | ((fuse ^ vlcp->tmp) & vlc_mask) ) == 0
-          && (fuse != 0xFF))
+          && (fuse != 0xFF) && vlcp->pos > 1)
       {
         melp->buf[melp->pos++] = fuse;
       }

@@ -44,20 +44,20 @@
 #include "ojph_codestream.h"
 
 //////////////////////////////////////////////////////////////////////////////
-struct j2c_t
+struct j2k_struct
 {
   ojph::codestream codestream;
   ojph::mem_infile mem_file;
 };
 
 //////////////////////////////////////////////////////////////////////////////
-j2c_t* cpp_create_j2c_data(void)
+j2k_struct* cpp_create_j2c_data(void)
 {
-  return new j2c_t;
+  return new j2k_struct;
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void cpp_init_j2c_data(j2c_t *j2c, const uint8_t *data, size_t size)
+void cpp_init_j2c_data(j2k_struct *j2c, const uint8_t *data, size_t size)
 {
   try {
     j2c->mem_file.open(data, size);
@@ -72,7 +72,7 @@ void cpp_init_j2c_data(j2c_t *j2c, const uint8_t *data, size_t size)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void cpp_parse_j2c_data(j2c_t *j2c)
+void cpp_parse_j2c_data(j2k_struct *j2c)
 {
   try {
     j2c->codestream.set_planar(false);
@@ -87,7 +87,7 @@ void cpp_parse_j2c_data(j2c_t *j2c)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void cpp_release_j2c_data(j2c_t* j2c)
+void cpp_release_j2c_data(j2k_struct* j2c)
 {
   if (j2c)
   {
@@ -96,7 +96,7 @@ void cpp_release_j2c_data(j2c_t* j2c)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-signed int* cpp_pull_j2c_line(j2c_t* j2c)
+signed int* cpp_pull_j2c_line(j2k_struct* j2c)
 {
   try {
     int comp_num;
@@ -116,35 +116,35 @@ signed int* cpp_pull_j2c_line(j2c_t* j2c)
 extern "C"
 {
   ////////////////////////////////////////////////////////////////////////////
-  j2c_t* create_j2c_data(void)
+  j2k_struct* create_j2c_data(void)
   {
     return cpp_create_j2c_data();
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  void init_j2c_data(j2c_t *j2c, const uint8_t *data, size_t size)
+  void init_j2c_data(j2k_struct *j2c, const uint8_t *data, size_t size)
   {
     cpp_init_j2c_data(j2c, data, size);
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_width(j2c_t* j2c)
+  int get_j2c_width(j2k_struct* j2c)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     return siz.get_image_extent().x - siz.get_image_offset().x;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_height(j2c_t* j2c)
+  int get_j2c_height(j2k_struct* j2c)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     return siz.get_image_extent().y - siz.get_image_offset().y;
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_bit_depth(j2c_t* j2c, int comp_num)
+  int get_j2c_bit_depth(j2k_struct* j2c, int comp_num)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     if (comp_num >= 0 && comp_num < siz.get_num_components())
       return siz.get_bit_depth(comp_num);
     else
@@ -152,9 +152,9 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_is_signed(j2c_t* j2c, int comp_num)
+  int get_j2c_is_signed(j2k_struct* j2c, int comp_num)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     if (comp_num >= 0 && comp_num < siz.get_num_components())
       return siz.is_signed(comp_num) ? 1 : 0;
     else
@@ -162,16 +162,16 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_num_components(j2c_t* j2c)
+  int get_j2c_num_components(j2k_struct* j2c)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     return siz.get_num_components();
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_downsampling_x(j2c_t* j2c, int comp_num)
+  int get_j2c_downsampling_x(j2k_struct* j2c, int comp_num)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     if (comp_num >= 0 && comp_num < siz.get_num_components())
     { return siz.get_downsampling(comp_num).x; }
     else
@@ -179,9 +179,9 @@ extern "C"
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_downsampling_y(j2c_t* j2c, int comp_num)
+  int get_j2c_downsampling_y(j2k_struct* j2c, int comp_num)
   {
-    ojph::param_siz_t siz = j2c->codestream.access_siz();
+    ojph::param_siz siz = j2c->codestream.access_siz();
     if (comp_num >= 0 && comp_num < siz.get_num_components())
     { return siz.get_downsampling(comp_num).y; }
     else
@@ -189,19 +189,19 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  void parse_j2c_data(j2c_t *j2c)
+  void parse_j2c_data(j2k_struct *j2c)
   {
     cpp_parse_j2c_data(j2c);
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  signed int* pull_j2c_line(j2c_t* j2c)
+  signed int* pull_j2c_line(j2k_struct* j2c)
   {
     return cpp_pull_j2c_line(j2c);
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  void release_j2c_data(j2c_t* j2c)
+  void release_j2c_data(j2k_struct* j2c)
   {
     cpp_release_j2c_data(j2c);
   }
@@ -220,7 +220,7 @@ int main(int argc, const char* argv[])
   fread(compressed_data, 1, size, f);
   fclose(f);
   
-  struct j2c_t* j2c = create_j2c_data();
+  struct j2k_struct* j2c = create_j2c_data();
   init_j2c_data(j2c, compressed_data, size);
   int width = get_j2c_width(j2c);
   int height = get_j2c_height(j2c);

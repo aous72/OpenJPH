@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     if (v)
     {
       codestream.read_headers(&j2c_file);
-      ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz siz = codestream.access_siz();
 
       if (strncmp(".pgm", v, 4) == 0)
       {
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
       else if (strncmp(".ppm", v, 4) == 0)
       {
         codestream.set_planar(false);
-        ojph::param_siz_t siz = codestream.access_siz();
+        ojph::param_siz siz = codestream.access_siz();
 
         if (siz.get_num_components() != 3)
           OJPH_ERROR(0x020000002,
@@ -154,13 +154,13 @@ int main(int argc, char *argv[]) {
       else if (strncmp(".yuv", v, 4) == 0)
       {
         codestream.set_planar(true);
-        ojph::param_siz_t siz = codestream.access_siz();
+        ojph::param_siz siz = codestream.access_siz();
 
         if (siz.get_num_components() != 3 && siz.get_num_components() != 1)
           OJPH_ERROR(0x020000004,
             "The file has %d color components; this cannot be saved to"
              " a .yuv file\n", siz.get_num_components());
-        ojph::param_cod_t cod = codestream.access_cod();
+        ojph::param_cod cod = codestream.access_cod();
         if (cod.is_using_color_transform())
           OJPH_ERROR(0x020000005,
             "The current implementation of yuv file object does not "
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
 
     if (codestream.is_planar())
     {
-      ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz siz = codestream.access_siz();
       for (int c = 0; c < siz.get_num_components(); ++c)
       {
         ojph::point p = siz.get_downsampling(c);
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
     }
     else
     {
-      ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz siz = codestream.access_siz();
       int height = siz.get_image_extent().y - siz.get_image_offset().y;
       for (int i = 0; i < height; ++i)
       {

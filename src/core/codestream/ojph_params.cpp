@@ -56,90 +56,90 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_image_extent(point dims)
+  void param_siz::set_image_extent(point dims)
   {
     state->Xsiz = dims.x;
     state->Ysiz = dims.y;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_tile_size(size s)
+  void param_siz::set_tile_size(size s)
   {
     state->XTsiz = s.w;
     state->YTsiz = s.h;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_image_offset(point offset)
+  void param_siz::set_image_offset(point offset)
   { // WARNING need to check if these are valid
     state->XOsiz = offset.x;
     state->YOsiz = offset.y;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_tile_offset(point offset)
+  void param_siz::set_tile_offset(point offset)
   { // WARNING need to check if these are valid
     state->XTOsiz = offset.x;
     state->YTOsiz = offset.y;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_num_components(int num_comps)
+  void param_siz::set_num_components(int num_comps)
   {
     state->set_num_components(num_comps);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz_t::set_component(int comp_num, const point& downsampling,
+  void param_siz::set_component(int comp_num, const point& downsampling,
                                   int bit_depth, bool is_signed)
   {
     state->set_comp_info(comp_num, downsampling, bit_depth, is_signed);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  point param_siz_t::get_image_extent() const
+  point param_siz::get_image_extent() const
   {
     return point(state->Xsiz, state->Ysiz);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  point param_siz_t::get_image_offset() const
+  point param_siz::get_image_offset() const
   {
     return point(state->XOsiz, state->YOsiz);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_siz_t::get_tile_size() const
+  size param_siz::get_tile_size() const
   {
     return size(state->XTsiz, state->YTsiz);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  point param_siz_t::get_tile_offset() const
+  point param_siz::get_tile_offset() const
   {
     return point(state->XTOsiz, state->YTOsiz);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  si32 param_siz_t::get_num_components() const
+  si32 param_siz::get_num_components() const
   {
     return state->Csiz;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  si32 param_siz_t::get_bit_depth(si32 comp_num) const
+  si32 param_siz::get_bit_depth(si32 comp_num) const
   {
     return state->get_bit_depth(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_siz_t::is_signed(si32 comp_num) const
+  bool param_siz::is_signed(si32 comp_num) const
   {
     return state->is_signed(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  point param_siz_t::get_downsampling(si32 comp_num) const
+  point param_siz::get_downsampling(si32 comp_num) const
   {
     return state->get_downsampling(comp_num);
   }
@@ -153,7 +153,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_num_decomposition(ui8 num_decompositions)
+  void param_cod::set_num_decomposition(ui8 num_decompositions)
   {
     if (num_decompositions > 32)
       OJPH_ERROR(0x00050001,
@@ -162,7 +162,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_block_dims(int width, int height)
+  void param_cod::set_block_dims(int width, int height)
   {
     int log_width = 31 - count_leading_zeros(width);
     int log_height = 31 - count_leading_zeros(height);
@@ -176,7 +176,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_precinct_size(int num_levels, size* precinct_size)
+  void param_cod::set_precinct_size(int num_levels, size* precinct_size)
   {
     if (num_levels == 0 || precinct_size == NULL)
       state->Scod &= 0xFE;
@@ -204,7 +204,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_progression_order(const char *name)
+  void param_cod::set_progression_order(const char *name)
   {
     int prog_order = 0;
     size_t len = strlen(name);
@@ -231,44 +231,44 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_color_transform(bool color_transform)
+  void param_cod::set_color_transform(bool color_transform)
   {
     state->employ_color_transform(color_transform ? 1 : 0);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod_t::set_reversible(bool reversible)
+  void param_cod::set_reversible(bool reversible)
   {
     state->set_reversible(reversible);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int param_cod_t::get_num_decompositions() const
+  int param_cod::get_num_decompositions() const
   {
     return state->get_num_decompositions();
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod_t::get_block_dims() const
+  size param_cod::get_block_dims() const
   {
     return size(1 << (state->SPcod.block_width + 2),
                 1 << (state->SPcod.block_height + 2));
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod_t::get_log_block_dims() const
+  size param_cod::get_log_block_dims() const
   {
     return size(state->SPcod.block_width + 2, state->SPcod.block_height + 2);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_cod_t::is_reversible() const
+  bool param_cod::is_reversible() const
   {
     return state->is_reversible();
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod_t::get_precinct_size(int res_num) const
+  size param_cod::get_precinct_size(int res_num) const
   {
     assert(res_num <= state->SPcod.num_decomp);
     size ps(1<<15, 1<<15);
@@ -281,7 +281,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod_t::get_log_precinct_size(int res_num) const
+  size param_cod::get_log_precinct_size(int res_num) const
   {
     assert(res_num <= state->SPcod.num_decomp);
     size ps(15, 15);
@@ -294,13 +294,13 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int param_cod_t::get_progression_order() const
+  int param_cod::get_progression_order() const
   {
     return state->SGCod.prog_order;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  const char* param_cod_t::get_progression_order_as_string() const
+  const char* param_cod::get_progression_order_as_string() const
   {
     if (state->SGCod.prog_order == OJPH_PO_LRCP)
       return OJPH_PO_STRING_LRCP;
@@ -318,25 +318,25 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int param_cod_t::get_num_layers() const
+  int param_cod::get_num_layers() const
   {
     return state->SGCod.num_layers;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_cod_t::is_using_color_transform() const
+  bool param_cod::is_using_color_transform() const
   {
     return (state->SGCod.mc_trans == 0 ? false : true);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_cod_t::packets_may_use_sop() const
+  bool param_cod::packets_may_use_sop() const
   {
     return (state->Scod & 2) == 2;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_cod_t::packets_use_eph() const
+  bool param_cod::packets_use_eph() const
   {
     return (state->Scod & 4) == 4;
   }
@@ -351,7 +351,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////
-  void param_qcd_t::set_irrev_quant(float delta)
+  void param_qcd::set_irrev_quant(float delta)
   {
     state->set_delta(delta);
   }
@@ -500,7 +500,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_siz_t::write(outfile_base *file)
+    bool param_siz::write(outfile_base *file)
     {
       //marker size excluding header
       Lsiz = 38 + 3 * Csiz;
@@ -545,7 +545,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_siz_t::read(infile_base *file)
+    void param_siz::read(infile_base *file)
     {
       if (file->read(&Lsiz, 2) != 2)
         OJPH_ERROR(0x00050041, "error reading SIZ marker");
@@ -608,7 +608,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_cap_t::write(outfile_base *file)
+    bool param_cap::write(outfile_base *file)
     {
       //marker size excluding header
       Lcap = 8;
@@ -631,7 +631,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cap_t::read(infile_base *file)
+    void param_cap::read(infile_base *file)
     {
       if (file->read(&Lcap, 2) != 2)
         OJPH_ERROR(0x00050061, "error reading CAP marker");
@@ -655,7 +655,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_cod_t::write(outfile_base *file)
+    bool param_cod::write(outfile_base *file)
     {
       //marker size excluding header
       Lcod = 12;
@@ -695,7 +695,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod_t::read(infile_base *file)
+    void param_cod::read(infile_base *file)
     {
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050071, "error reading COD marker");
@@ -727,8 +727,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd_t::set_rev_quant(int bit_depth,
-                                    bool is_employing_color_transform)
+    void param_qcd::set_rev_quant(int bit_depth,
+                                  bool is_employing_color_transform)
     {
       int guard_bits = 1;
       Sqcd = guard_bits << 5; //one guard bit, and no quantization
@@ -751,7 +751,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd_t::set_irrev_quant()
+    void param_qcd::set_irrev_quant()
     {
       int guard_bits = 1;
       Sqcd = (guard_bits<<5)|0x2;//one guard bit, scalar quantization
@@ -793,7 +793,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd_t::get_MAGBp() const
+    int param_qcd::get_MAGBp() const
     {
       int B = 0;
       int irrev = Sqcd & 0x1F;
@@ -810,7 +810,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd_t::rev_get_num_bits(int resolution, int subband) const
+    int param_qcd::rev_get_num_bits(int resolution, int subband) const
     {
       assert((resolution == 0 && subband == 0) ||
              (resolution <= num_decomps && subband > 0 && subband < 4));
@@ -820,7 +820,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd_t::irrev_get_delta(int resolution, int subband) const
+    float param_qcd::irrev_get_delta(int resolution, int subband) const
     {
       assert((resolution == 0 && subband == 0) ||
              (resolution <= num_decomps && subband > 0 && subband<4));
@@ -837,13 +837,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd_t::get_num_guard_bits() const
+    int param_qcd::get_num_guard_bits() const
     {
       return (Sqcd >> 5);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd_t::get_Kmax(int resolution, int subband) const
+    int param_qcd::get_Kmax(int resolution, int subband) const
     {
       assert((resolution == 0 && subband == 0) ||
              (resolution <= num_decomps && subband > 0 && subband<4));
@@ -861,7 +861,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_qcd_t::write(outfile_base *file)
+    bool param_qcd::write(outfile_base *file)
     {
       int irrev = Sqcd & 0x1F;
       int num_subbands = 1 + 3 * num_decomps;
@@ -905,7 +905,7 @@ namespace ojph {
       return result;
     }
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd_t::read(infile_base *file)
+    void param_qcd::read(infile_base *file)
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x00050081, "error reading QCD marker");
@@ -944,7 +944,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_sot_t::write(outfile_base *file, ui32 payload_len)
+    bool param_sot::write(outfile_base *file, ui32 payload_len)
     {
       char buf[4];
       bool result = true;
@@ -969,7 +969,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_sot_t::read(infile_base *file)
+    void param_sot::read(infile_base *file)
     {
       if (file->read(&Lsot, 2) != 2)
         OJPH_ERROR(0x00050091, "error reading SOT marker");

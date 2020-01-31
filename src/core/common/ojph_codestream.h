@@ -53,9 +53,9 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  class param_siz_t;
-  class param_cod_t;
-  class param_qcd_t;
+  class param_siz;
+  class param_cod;
+  class param_qcd;
   class mem_fixed_allocator;
   struct point;
   struct line_buf;
@@ -92,11 +92,11 @@ namespace ojph {
     void close();
 
     OJPH_EXPORT
-    param_siz_t access_siz();
+    param_siz access_siz();
     OJPH_EXPORT
-    param_cod_t access_cod();
+    param_cod access_cod();
     OJPH_EXPORT
-    param_qcd_t access_qcd();
+    param_qcd access_qcd();
     OJPH_EXPORT
     bool is_planar() const;
 

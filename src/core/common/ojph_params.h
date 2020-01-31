@@ -46,18 +46,18 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   //prototyping from local
   namespace local {
-    struct param_siz_t;
-    struct param_cod_t;
-    struct param_qcd_t;
-    struct param_cap_t;
+    struct param_siz;
+    struct param_cod;
+    struct param_qcd;
+    struct param_cap;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_siz_t
+  class param_siz
   {
   public:
     OJPH_EXPORT
-    param_siz_t(local::param_siz_t *p) : state(p) {}
+    param_siz(local::param_siz *p) : state(p) {}
 
     //setters
     OJPH_EXPORT
@@ -93,15 +93,15 @@ namespace ojph {
     point get_downsampling(si32 comp_num) const;
 
   private:
-    local::param_siz_t* state;
+    local::param_siz* state;
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_cod_t
+  class param_cod
   {
   public:
     OJPH_EXPORT
-    param_cod_t(local::param_cod_t* p) : state(p) {}
+    param_cod(local::param_cod* p) : state(p) {}
 
     OJPH_EXPORT
     void set_num_decomposition(ui8 num_decompositions);
@@ -142,21 +142,21 @@ namespace ojph {
     bool packets_use_eph() const;
 
   private:
-    local::param_cod_t* state;
+    local::param_cod* state;
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_qcd_t
+  class param_qcd
   {
   public:
     OJPH_EXPORT
-    param_qcd_t(local::param_qcd_t* p) : state(p) {}
+    param_qcd(local::param_qcd* p) : state(p) {}
 
     OJPH_EXPORT
     void set_irrev_quant(float delta);
 
   private:
-    local::param_qcd_t* state;
+    local::param_qcd* state;
   };
 
 }

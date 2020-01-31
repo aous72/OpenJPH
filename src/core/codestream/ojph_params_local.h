@@ -115,20 +115,20 @@ namespace ojph {
     };
 
     //////////////////////////////////////////////////////////////////////////
-    struct param_siz_t
+    struct param_siz
     {
-      friend ::ojph::param_siz_t;
+      friend ::ojph::param_siz;
 
     public:
-      param_siz_t()
+      param_siz()
       {
-        memset(this, 0, sizeof(param_siz_t));
+        memset(this, 0, sizeof(param_siz));
         cptr = store;
         old_Csiz = 4;
         Rsiz = 0x4000; //for jph, bit 14 of Rsiz is 1
       }
 
-      ~param_siz_t()
+      ~param_siz()
       {
         if (cptr != store) delete[] cptr;
       }
@@ -210,8 +210,8 @@ namespace ojph {
     private:
       int old_Csiz;
       siz_comp_info store[4];
-      param_siz_t(const param_siz_t&); //prevent copy constructor
-      param_siz_t& operator=(const param_siz_t&); //prevent copy
+      param_siz(const param_siz&); //prevent copy constructor
+      param_siz& operator=(const param_siz&); //prevent copy
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -243,13 +243,13 @@ namespace ojph {
     };
 
     ///////////////////////////////////////////////////////////////////////////
-    struct param_cod_t
+    struct param_cod
     {
-      friend ::ojph::param_cod_t;
+      friend ::ojph::param_cod;
     public:
-      param_cod_t()
+      param_cod()
       {
-        memset(this, 0, sizeof(param_cod_t));
+        memset(this, 0, sizeof(param_cod));
         SPcod.block_style = 0x40;
         SGCod.prog_order = 2;
         SGCod.num_layers = 1;
@@ -271,7 +271,7 @@ namespace ojph {
         SGCod.mc_trans = val;
       }
 
-      void check_validity(const param_siz_t& siz)
+      void check_validity(const param_siz& siz)
       {
         //check that colour transform and match number of components and
         // downsampling
@@ -334,18 +334,18 @@ namespace ojph {
     //
     //
     ///////////////////////////////////////////////////////////////////////////
-    struct param_qcd_t
+    struct param_qcd
     {
-      friend ::ojph::param_qcd_t;
+      friend ::ojph::param_qcd;
     public:
-      param_qcd_t()
-      { memset(this, 0, sizeof(param_qcd_t)); base_delta = -1.0f; }
+      param_qcd()
+      { memset(this, 0, sizeof(param_qcd)); base_delta = -1.0f; }
 
       void set_delta(float delta) { base_delta = delta; }
       void set_rev_quant(int bit_depth, bool is_employing_color_transform);
       void set_irrev_quant();
 
-      void check_validity(const param_siz_t& siz, const param_cod_t& cod)
+      void check_validity(const param_siz& siz, const param_cod& cod)
       {
         num_decomps = cod.get_num_decompositions();
         if (cod.is_reversible())
@@ -392,17 +392,17 @@ namespace ojph {
     //
     //
     ///////////////////////////////////////////////////////////////////////////
-    struct param_cap_t
+    struct param_cap
     {
     public:
-      param_cap_t()
+      param_cap()
       {
-        memset(this, 0, sizeof(param_cap_t));
+        memset(this, 0, sizeof(param_cap));
         Lcap = 8;
         Pcap = 0x00020000; //for jph, Pcap^15 must be set, the 15th MSB
       }
 
-      void check_validity(const param_cod_t& cod, const param_qcd_t& qcd)
+      void check_validity(const param_cod& cod, const param_qcd& qcd)
       {
         if (cod.is_reversible())
           Ccap[0] &= 0xFFDF;
@@ -439,7 +439,7 @@ namespace ojph {
     //
     //
     ///////////////////////////////////////////////////////////////////////////
-    struct param_sot_t
+    struct param_sot
     {
     public:
       void init(ui32 tile_length = 0, ui16 tile_idx = 0,

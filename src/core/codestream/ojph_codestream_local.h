@@ -77,11 +77,11 @@ namespace ojph {
       void pre_alloc();
       void finalize_alloc();
 
-      ojph::param_siz_t access_siz()
-      { return ojph::param_siz_t(&siz); }
-      ojph::param_cod_t access_cod()
-      { return ojph::param_cod_t(&cod); }
-      param_qcd_t access_qcd()
+      ojph::param_siz access_siz()
+      { return ojph::param_siz(&siz); }
+      ojph::param_cod access_cod()
+      { return ojph::param_cod(&cod); }
+      param_qcd access_qcd()
       { return qcd; }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
@@ -114,10 +114,10 @@ namespace ojph {
       int planar;
 
     private:
-      param_siz_t siz;
-      param_cod_t cod;
-      param_cap_t cap;
-      param_qcd_t qcd;
+      param_siz siz;
+      param_cod cod;
+      param_cap cap;
+      param_qcd qcd;
 
     private:
       mem_fixed_allocator *allocator;
@@ -136,7 +136,7 @@ namespace ojph {
 
       bool push(line_buf *line, int comp_num);
       void flush(outfile_base *file);
-      void parse_tile_header(const param_sot_t& sot, infile_base *file,
+      void parse_tile_header(const param_sot& sot, infile_base *file,
                              const ui64& tile_start_location);
       bool pull(line_buf *, int comp_num);
 
@@ -157,7 +157,7 @@ namespace ojph {
       int prog_order;
 
     private:
-      param_sot_t sot;
+      param_sot sot;
       int next_tile_part;
 
 

@@ -524,7 +524,7 @@ int main(int argc, char * argv[]) {
       if (strncmp(".pgm", v, 4) == 0)
       {
         ppm.open(input_filename);
-        ojph::param_siz_t siz = codestream.access_siz();
+        ojph::param_siz siz = codestream.access_siz();
         siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
           image_offset.y + ppm.get_size().h));
         int num_comps = ppm.get_num_components();
@@ -537,7 +537,7 @@ int main(int argc, char * argv[]) {
         siz.set_tile_size(tile_size);
         siz.set_tile_offset(tile_offset);
 
-        ojph::param_cod_t cod = codestream.access_cod();
+        ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
         if (num_precints != -1)
@@ -572,7 +572,7 @@ int main(int argc, char * argv[]) {
       else if (strncmp(".ppm", v, 4) == 0)
       {
         ppm.open(input_filename);
-        ojph::param_siz_t siz = codestream.access_siz();
+        ojph::param_siz siz = codestream.access_siz();
         siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
           image_offset.y + ppm.get_size().h));
         int num_comps = ppm.get_num_components();
@@ -585,7 +585,7 @@ int main(int argc, char * argv[]) {
         siz.set_tile_size(tile_size);
         siz.set_tile_offset(tile_offset);
 
-        ojph::param_cod_t cod = codestream.access_cod();
+        ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
         if (num_precints != -1)
@@ -620,7 +620,7 @@ int main(int argc, char * argv[]) {
       }
       else if (strncmp(".yuv", v, 4) == 0)
       {
-        ojph::param_siz_t siz = codestream.access_siz();
+        ojph::param_siz siz = codestream.access_siz();
         if (dims.w < 0 || dims.h < 0)
           OJPH_ERROR(0x01000021,
             "-dims option is missing, and need to be provided\n");
@@ -660,7 +660,7 @@ int main(int argc, char * argv[]) {
         siz.set_tile_size(tile_size);
         siz.set_tile_offset(tile_offset);
 
-        ojph::param_cod_t cod = codestream.access_cod();
+        ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
         if (num_precints != -1)
@@ -703,7 +703,7 @@ int main(int argc, char * argv[]) {
     ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);
     if (codestream.is_planar())
     {
-      ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz siz = codestream.access_siz();
       for (int c = 0; c < siz.get_num_components(); ++c)
       {
         ojph::point p = siz.get_downsampling(c);
@@ -719,7 +719,7 @@ int main(int argc, char * argv[]) {
     }
     else
     {
-      ojph::param_siz_t siz = codestream.access_siz();
+      ojph::param_siz siz = codestream.access_siz();
       int height = siz.get_image_extent().y - siz.get_image_offset().y;
       for (int i = 0; i < height; ++i)
       {

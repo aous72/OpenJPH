@@ -73,21 +73,21 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  param_siz_t codestream::access_siz()
+  param_siz codestream::access_siz()
   {
-    return param_siz_t(&state->siz);
+    return param_siz(&state->siz);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  param_cod_t codestream::access_cod()
+  param_cod codestream::access_cod()
   {
-    return param_cod_t(&state->cod);
+    return param_cod(&state->cod);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  param_qcd_t codestream::access_qcd()
+  param_qcd codestream::access_qcd()
   {
-    return param_qcd_t(&state->qcd);
+    return param_qcd(&state->qcd);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -211,7 +211,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::pre_alloc()
     {
-      ojph::param_siz_t sz = access_siz();
+      ojph::param_siz sz = access_siz();
       num_tiles.w = sz.get_image_extent().x - sz.get_tile_offset().x;
       num_tiles.w = ojph_div_ceil(num_tiles.w, sz.get_tile_size().w);
       num_tiles.h = sz.get_image_extent().y - sz.get_tile_offset().y;
@@ -279,7 +279,7 @@ namespace ojph {
 
       point index;
       rect tile_rect;
-      ojph::param_siz_t sz = access_siz();
+      ojph::param_siz sz = access_siz();
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
         tile_rect.org.y = sz.get_tile_offset().y;
@@ -524,7 +524,7 @@ namespace ojph {
 
       while (true)
       {
-        param_sot_t sot;
+        param_sot sot;
         sot.read(infile);
         ui64 tile_start_location = infile->tell();
 
@@ -760,7 +760,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate tiles_comp
-      ojph::param_siz_t sz = codestream->access_siz();
+      ojph::param_siz sz = codestream->access_siz();
       int num_comps = sz.get_num_components();
       allocator->pre_alloc_obj<tile_comp>(num_comps);
       allocator->pre_alloc_obj<rect>(num_comps); //for comp_rects
@@ -795,7 +795,7 @@ namespace ojph {
       }
 
       //allocate lines
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       if (cd.is_using_color_transform())
       {
         allocator->pre_alloc_obj<line_buf>(3);
@@ -812,11 +812,11 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       sot.init(0, (ui16)tile_idx, 0, 1);
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       prog_order = cd.get_progression_order();
 
       //allocate tiles_comp
-      ojph::param_siz_t sz = codestream->access_siz();
+      ojph::param_siz sz = codestream->access_siz();
 
       num_comps = sz.get_num_components();
       comps = allocator->post_alloc_obj<tile_comp>(num_comps);
@@ -1153,7 +1153,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile::parse_tile_header(const param_sot_t &sot, infile_base *file,
+    void tile::parse_tile_header(const param_sot &sot, infile_base *file,
                                  const ui64& tile_start_location)
     {
       if (sot.get_tile_part_index() != next_tile_part)
@@ -1294,7 +1294,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       int num_decomps = cd.get_num_decompositions();
       allocator->pre_alloc_obj<resolution>(1);
 
@@ -1308,10 +1308,10 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       num_decomps = cd.get_num_decompositions();
 
-      ojph::param_siz_t sz = codestream->access_siz();
+      ojph::param_siz sz = codestream->access_siz();
       comp_downsamp = sz.get_downsampling(comp_num);
       this->comp_rect = comp_rect;
       this->parent_tile = parent;
@@ -1482,7 +1482,7 @@ namespace ojph {
                                const rect &res_rect, int res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
 
       //create next resolution
       if (res_num > 0)
@@ -1556,7 +1556,7 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
 
       this->num_decomps = cd.get_num_decompositions();
       this->comp_downsamp = comp_downsamp;
@@ -2193,7 +2193,7 @@ namespace ojph {
     {
       if (scratch == NULL)
       {
-        ojph::param_cod_t cd = codestream->access_cod();
+        ojph::param_cod cd = codestream->access_cod();
         int num_decomps = cd.get_num_decompositions();
         size log_cb = cd.get_log_block_dims();
 
@@ -2943,7 +2943,7 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       size log_cb = cd.get_log_block_dims();
       size log_PP = cd.get_log_precinct_size(res_num);
 
@@ -2994,7 +2994,7 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      ojph::param_cod_t cd = codestream->access_cod();
+      ojph::param_cod cd = codestream->access_cod();
       this->reversible = cd.is_reversible();
       size log_cb = cd.get_log_block_dims();
       log_PP = cd.get_log_precinct_size(res_num);
@@ -3007,7 +3007,7 @@ namespace ojph {
       cur_cb_row = 0;
       cur_line = 0;
       cur_cb_height = 0;
-      param_qcd_t qcd = codestream->access_qcd();
+      param_qcd qcd = codestream->access_qcd();
       this->K_max = qcd.get_Kmax(this->res_num, band_num);
       if (!reversible)
       {

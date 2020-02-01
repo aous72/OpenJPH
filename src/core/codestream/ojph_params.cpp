@@ -608,6 +608,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
     bool param_cap::write(outfile_base *file)
     {
       //marker size excluding header
@@ -653,6 +661,14 @@ namespace ojph {
       if (Lcap != 6 + 2 * count)
         OJPH_ERROR(0x00050066, "error in CAP marker length");
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
@@ -725,6 +741,14 @@ namespace ojph {
       if (Lcod != 12 + ((Scod & 1) ? 1 + SPcod.num_decomp : 0))
         OJPH_ERROR(0x0005007C, "error in COD marker length");
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::set_rev_quant(int bit_depth,
@@ -944,6 +968,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
     bool param_sot::write(outfile_base *file, ui32 payload_len)
     {
       char buf[4];
@@ -959,6 +991,30 @@ namespace ojph {
       *(ui16*)buf = swap_byte(Isot);
       result &= file->write(&buf, 2) == 2;
       *(ui32*)buf = swap_byte(Psot);
+      result &= file->write(&buf, 4) == 4;
+      *(ui8*)buf = TPsot;
+      result &= file->write(&buf, 1) == 1;
+      *(ui8*)buf = TNsot;
+      result &= file->write(&buf, 1) == 1;
+
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_sot::write(outfile_base *file, ui32 payload_len,
+                          ui8 TPsot, ui8 TNsot)
+    {
+      char buf[4];
+      bool result = true;
+
+      *(ui16*)buf = JP2K_MARKER::SOT;
+      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      result &= file->write(&buf, 2) == 2;
+      *(ui16*)buf = swap_byte(Lsot);
+      result &= file->write(&buf, 2) == 2;
+      *(ui16*)buf = swap_byte(Isot);
+      result &= file->write(&buf, 2) == 2;
+      *(ui32*)buf = swap_byte(payload_len + 14);
       result &= file->write(&buf, 4) == 4;
       *(ui8*)buf = TPsot;
       result &= file->write(&buf, 1) == 1;
@@ -989,6 +1045,58 @@ namespace ojph {
       if (file->read(&TNsot, 1) != 1)
         OJPH_ERROR(0x00050097, "error reading SOT marker");
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_tlm::init(int num_pairs, Ttlm_Ptlm_pair *store)
+    {
+      this->num_pairs = num_pairs;
+      pairs = (Ttlm_Ptlm_pair*)store;
+      Ltlm = 4 + 6 * num_pairs;
+      Ztlm = 0;
+      Stlm = 0x60;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_tlm::set_next_pair(ui16 Ttlm, ui32 Ptlm)
+    {
+      assert(next_pair_index < num_pairs);
+      pairs[next_pair_index].Ttlm = Ttlm;
+      pairs[next_pair_index].Ptlm = Ptlm + 14;
+      ++next_pair_index;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_tlm::write(outfile_base *file)
+    {
+      assert(next_pair_index == num_pairs);
+      char buf[4];
+      bool result = true;
+
+      *(ui16*)buf = JP2K_MARKER::TLM;
+      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      result &= file->write(&buf, 2) == 2;
+      *(ui16*)buf = swap_byte(Ltlm);
+      result &= file->write(&buf, 2) == 2;
+      result &= file->write(&Ztlm, 1) == 1;
+      result &= file->write(&Stlm, 1) == 1;
+      for (int i = 0; i < num_pairs; ++i)
+      {
+        *(ui16*)buf = swap_byte(pairs[i].Ttlm);
+        result &= file->write(&buf, 2) == 2;
+        *(ui32*)buf = swap_byte(pairs[i].Ptlm);
+        result &= file->write(&buf, 4) == 4;
+      }
+      return result;
+    }
+
   }
 
 }

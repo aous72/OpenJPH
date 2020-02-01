@@ -69,6 +69,30 @@ namespace ojph {
   const char OJPH_PO_STRING_PCRL[] = "PCRL";
   const char OJPH_PO_STRING_CPRL[] = "CPRL";
 
+  ////////////////////////////////////////////////////////////////////////////
+  enum OJPH_PROFILE_NUM : si32
+  {
+    OJPH_PN_UNDEFINED = 0,
+    OJPH_PN_PROFILE0 = 1,
+    OJPH_PN_PROFILE1 = 2,
+    OJPH_PN_CINEMA2K = 3,
+    OJPH_PN_CINEMA4K = 4,
+    OJPH_PN_CINEMAS2K = 5,
+    OJPH_PN_CINEMAS4K = 6,
+    OJPH_PN_BROADCAST = 7,
+    OJPH_PN_IMF = 8
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  const char OJPH_PN_STRING_PROFILE0[] = "PROFILE0";
+  const char OJPH_PN_STRING_PROFILE1[] = "PROFILE1";
+  const char OJPH_PN_STRING_CINEMA2K[] = "CINEMA2K";
+  const char OJPH_PN_STRING_CINEMA4K[] = "CINEMA4K";
+  const char OJPH_PN_STRING_CINEMAS2K[] = "CINEMAS2K";
+  const char OJPH_PN_STRING_CINEMAS4K[] = "CINEMAS4K";
+  const char OJPH_PN_STRING_BROADCAST[] = "BROADCAST";
+  const char OJPH_PN_STRING_IMF[] = "IMF";
+
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
@@ -453,6 +477,7 @@ namespace ojph {
       }
 
       bool write(outfile_base *file, ui32 payload_len);
+      bool write(outfile_base *file, ui32 payload_len, ui8 TPsot, ui8 TNsot);
       void read(infile_base *file);
       void append(ui32 additional_length)
       {
@@ -472,7 +497,37 @@ namespace ojph {
       ui8 TNsot;
     };
 
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    struct param_tlm
+    {
+      struct Ttlm_Ptlm_pair
+      {
+        ui16 Ttlm;
+        ui32 Ptlm;
+      };
 
+    public:
+      param_tlm() { pairs = NULL; num_pairs = 0; next_pair_index = 0; };
+      void init(int num_pairs, Ttlm_Ptlm_pair* store);
+
+      void set_next_pair(ui16 Ttlm, ui32 Ptlm);
+      bool write(outfile_base *file);
+
+    private:
+      ui16 Ltlm;
+      ui8 Ztlm;
+      ui8 Stlm;
+      Ttlm_Ptlm_pair* pairs;
+      int num_pairs;
+      int next_pair_index;
+      
+    };
   }
 }
 

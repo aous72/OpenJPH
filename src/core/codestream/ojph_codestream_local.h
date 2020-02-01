@@ -92,11 +92,16 @@ namespace ojph {
       void read_headers(infile_base *file);
       void read();
       void set_planar(int planar);
+      void set_profile(const char *s);
       line_buf* pull(int &comp_num);
       void flush();
       void close();
 
       bool is_planar() const { return planar != 0; }
+      si32 get_profile() const { return profile; };
+
+      void check_imf_validity();
+      void check_boardcast_validity();
 
     private:
       int cur_line;
@@ -112,12 +117,14 @@ namespace ojph {
       size *comp_size; //stores the number of lines and width of each comp
       bool employ_color_transform;
       int planar;
+      int profile;
 
     private:
       param_siz siz;
       param_cod cod;
       param_cap cap;
       param_qcd qcd;
+      param_tlm tlm;
 
     private:
       mem_fixed_allocator *allocator;
@@ -135,6 +142,8 @@ namespace ojph {
                           int tile_idx, int offset);
 
       bool push(line_buf *line, int comp_num);
+      void prepare_for_flush();
+      void fill_tlm(param_tlm* tlm);
       void flush(outfile_base *file);
       void parse_tile_header(const param_sot& sot, infile_base *file,
                              const ui64& tile_start_location);
@@ -160,7 +169,9 @@ namespace ojph {
       param_sot sot;
       int next_tile_part;
 
-
+    private:
+      int profile;
+      int *num_comp_bytes; //this for use with TLM
     };
 
     //////////////////////////////////////////////////////////////////////////

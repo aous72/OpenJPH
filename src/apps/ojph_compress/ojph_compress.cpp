@@ -321,8 +321,8 @@ struct si32_to_bool_list_interpreter
 
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[], char *&input_filename,
-                   char *&output_filename,
-                   char *&progression_order, int &num_decompositions,
+                   char *&output_filename, char *&progression_order,
+                   char *&profile_string, int &num_decompositions,
                    float &quantization_step, bool &reversible,
                    int &employ_color_transform,
                    const int max_num_precincts, int &num_precincts,
@@ -340,6 +340,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   interpreter.reinterpret("-i", input_filename);
   interpreter.reinterpret("-o", output_filename);
   interpreter.reinterpret("-prog_order", progression_order);
+  interpreter.reinterpret("-profile", profile_string);
   interpreter.reinterpret("-num_decomps", num_decompositions);
   interpreter.reinterpret("-qstep", quantization_step);
   interpreter.reinterpret("-reversible", reversible);
@@ -422,6 +423,8 @@ int main(int argc, char * argv[]) {
   char *output_filename = NULL;
   char prog_order_store[] = "RPCL";
   char *prog_order = prog_order_store;
+  char profile_string_store[] = "";
+  char *profile_string = profile_string_store;
   int num_decompositions = 5;
   float quantization_step = -1.0;
   bool reversible = false;
@@ -477,6 +480,9 @@ int main(int argc, char * argv[]) {
     " -tile_offset  {x,y} tile offset. \n"
     " -tile_size    {x,y} tile width and height. \n"
     " -image_offset {x,y} image offset from origin. \n"
+    " -profile      (None) is the profile, the code will check if the \n"
+    "               selected options meet the profile.  Currently only \n"
+    "               BROADCAST and IMF are supported\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"
@@ -491,7 +497,7 @@ int main(int argc, char * argv[]) {
     return -1;
   }
   if (!get_arguments(argc, argv, input_filename, output_filename,
-                     prog_order, num_decompositions,
+                     prog_order, profile_string, num_decompositions,
                      quantization_step, reversible, employ_color_transform,
                      max_precinct_sizes, num_precints, precinct_size,
                      block_size, dims, image_offset, tile_size, tile_offset,
@@ -547,6 +553,8 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
 
         if (employ_color_transform != -1)
           OJPH_WARN(0x01000001,
@@ -599,6 +607,8 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
 
         if (dims.w != -1 || dims.h != -1)
           OJPH_WARN(0x01000011,
@@ -680,6 +690,8 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         codestream.set_planar(true);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
 
         yuv.open(input_filename);
         base = &yuv;

@@ -73,6 +73,8 @@ namespace ojph {
 
     OJPH_EXPORT
     void set_planar(bool planar);
+    OJPH_EXPORT
+    void set_profile(const char* s);
 
     OJPH_EXPORT
     void write_headers(outfile_base *file);

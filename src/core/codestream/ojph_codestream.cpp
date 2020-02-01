@@ -97,6 +97,12 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  void codestream::set_profile(const char *s)
+  {
+    state->set_profile(s);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   bool codestream::is_planar() const
   {
     return state->is_planar();
@@ -187,6 +193,7 @@ namespace ojph {
       num_comps = 0;
       employ_color_transform = false;
       planar = -1;
+      profile = OJPH_PROFILE_NUM::OJPH_PN_UNDEFINED;
 
       cur_comp = 0;
       cur_line = 0;
@@ -267,6 +274,18 @@ namespace ojph {
       }
 
       allocator->pre_alloc_data<si32>(width, 0);
+
+      //allocate tlm
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+      {
+        int num_pairs = (int)num_tiles.area() * num_comps;
+        allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
+      }
+      else
+      {
+        int num_pairs = (int)num_tiles.area();
+        allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -333,6 +352,261 @@ namespace ojph {
 
       cur_comp = 0;
       cur_line = 0;
+
+      //allocate tlm
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+      {
+        int num_pairs = (int)num_tiles.area() * num_comps;
+        tlm.init(num_pairs,
+          allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
+      }
+      else
+      {
+        int num_pairs = (int)num_tiles.area();
+        tlm.init(num_pairs,
+          allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
+      }
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::check_imf_validity()
+    {
+      //two possibilities lossy single tile or lossless
+      //For the following code, we use the least strict profile
+      ojph::param_siz sz(&siz);
+      ojph::param_cod cd(&cod);
+      bool reversible = cd.is_reversible();
+      bool imf2k = !reversible, imf4k = !reversible, imf8k = !reversible;
+      bool imf2kls = reversible, imf4kls = reversible, imf8kls = reversible;
+
+      if (reversible)
+      {
+        point ext = sz.get_image_extent();
+        if (ext.x <= 2048 && ext.y <= 1556)
+          imf2kls &= true;
+        if (ext.x <= 4096 && ext.y <= 3112)
+          imf4kls &= true;
+        if (ext.x <= 8192 && ext.y <= 6224)
+          imf8kls &= true;
+
+        if (!imf2kls && !imf4kls && !imf8kls)
+          OJPH_ERROR(0x000300C1,
+            "Image dimensions do not meet any of the lossless IMF profiles");
+      }
+      else
+      {
+        point ext = sz.get_image_extent();
+        if (ext.x <= 2048 && ext.y <= 1556)
+          imf2k &= true;
+        if (ext.x <= 4096 && ext.y <= 3112)
+          imf4k &= true;
+        if (ext.x <= 8192 && ext.y <= 6224)
+          imf8k &= true;
+
+        if (!imf2k && !imf4k && !imf8k)
+          OJPH_ERROR(0x000300C2,
+            "Image dimensions do not meet any of the lossy IMF profiles");
+      }
+
+
+      if (sz.get_image_offset().x != 0 || sz.get_image_offset().y != 0)
+        OJPH_ERROR(0x000300C3,
+          "For IMF profile, image offset (XOsiz, YOsiz) has to be 0.");
+      if (sz.get_tile_offset().x != 0 || sz.get_tile_offset().y != 0)
+        OJPH_ERROR(0x000300C4,
+          "For IMF profile, tile offset (XTOsiz, YTOsiz) has to be 0.");
+      if (sz.get_num_components() > 3)
+        OJPH_ERROR(0x000300C5,
+          "For IMF profile, the number of components has to be less "
+          " or equal to 3");
+      bool test_ds1 = true, test_ds2 = true;
+      for (int i = 0; i < sz.get_num_components(); ++i)
+      {
+        point downsamping = sz.get_downsampling(i);
+        test_ds1 &= downsamping.y == 1;
+        test_ds2 &= downsamping.y == 1;
+
+        test_ds1 &= downsamping.x == 1;
+        if (i == 1 || i == 2)
+          test_ds2 &= downsamping.x == 2;
+        else
+          test_ds2 &= downsamping.x == 1;
+      }
+      if (!test_ds1 && !test_ds2)
+        OJPH_ERROR(0x000300C6,
+          "For IMF profile, either no component downsampling is used,"
+          " or the x-dimension of the 2nd and 3rd components is downsampled"
+          " by 2.");
+
+      bool test_bd = true;
+      for (int i = 0; i < sz.get_num_components(); ++i)
+      {
+        int bit_depth = sz.get_bit_depth(i);
+        bool is_signed = sz.is_signed(i);
+        test_bd &= bit_depth >= 8 && bit_depth <= 16 && is_signed == false;
+      }
+      if (!test_bd)
+        OJPH_ERROR(0x000300C7,
+          "For IMF profile, compnent bit_depth has to be between"
+          " 8 and 16 bits inclusively, and the samples must be unsigned");
+
+      if (cd.get_log_block_dims().w != 5 || cd.get_log_block_dims().h != 5)
+        OJPH_ERROR(0x000300C8,
+          "For IMF profile, codeblock dimensions are restricted."
+          " Use -block_size {32,32} at the commandline");
+
+      int num_decomps = cd.get_num_decompositions();
+      bool test_pz = cd.get_log_precinct_size(0).w == 7
+                  && cd.get_log_precinct_size(0).h == 7;
+      for (int i = 1; i <= num_decomps; ++i)
+        test_pz = cd.get_log_precinct_size(i).w == 8
+               && cd.get_log_precinct_size(i).h == 8;
+      if (!test_pz)
+        OJPH_ERROR(0x000300C9,
+          "For IMF profile, precinct sizes are restricted."
+          " Use -precincts {128,128},{256,256} at the commandline");
+
+      if (cd.get_progression_order() != OJPH_PO_CPRL)
+        OJPH_ERROR(0x000300CA,
+          "For IMF profile, the CPRL progression order must be used.");
+
+      imf2k &= num_decomps <= 5;
+      imf2kls &= num_decomps <= 5;
+      imf4k &= num_decomps <= 6;
+      imf4kls &= num_decomps <= 6;
+      imf8k &= num_decomps <= 7;
+      imf8kls &= num_decomps <= 7;
+
+      if (num_decomps == 0 ||
+        (!imf2k && !imf4k && !imf8k && !imf2kls && !imf4kls && !imf8kls))
+        OJPH_ERROR(0x000300CB,
+          "Number of decompositions does not match the IMF profile"
+          " dictated by wavelet reversibility and image dimensions.");
+
+      int tiles_w = sz.get_image_extent().x;
+      tiles_w = ojph_div_ceil(tiles_w, sz.get_tile_size().w);
+      int tiles_h = sz.get_image_extent().y;
+      tiles_h = ojph_div_ceil(tiles_h, sz.get_tile_size().h);
+      int total_tiles = tiles_w * tiles_h;
+
+      if (total_tiles > 1)
+      {
+        if (!reversible)
+          OJPH_ERROR(0x000300CC,
+            "Lossy IMF profile must have one tile.");
+
+        size tt = sz.get_tile_size();
+        imf2kls &= (tt.w == 1024 && tt.h == 1024);
+        imf2kls &= (tt.w >= 1024 && num_decomps <= 4)
+                || (tt.w >= 2048 && num_decomps <= 5);
+        imf4kls &= (tt.w == 1024 && tt.h == 1024)
+                || (tt.w == 2048 && tt.h == 2048);
+        imf4kls &= (tt.w >= 1024 && num_decomps <= 4)
+                || (tt.w >= 2048 && num_decomps <= 5)
+                || (tt.w >= 4096 && num_decomps <= 6);
+        imf8kls &= (tt.w == 1024 && tt.h == 1024)
+                || (tt.w == 2048 && tt.h == 2048)
+                || (tt.w == 4096 && tt.h == 4096);
+        imf8kls &= (tt.w >= 1024 && num_decomps <= 4)
+                || (tt.w >= 2048 && num_decomps <= 5)
+                || (tt.w >= 4096 && num_decomps <= 6)
+                || (tt.w >= 8192 && num_decomps <= 7);
+        if (!imf2kls && !imf4kls && !imf8kls)
+          OJPH_ERROR(0x000300CD,
+            "Number of decompositions does not match the IMF profile"
+            " dictated by wavelet reversibility and image dimensions and"
+            " tiles.");
+     }
+
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::check_boardcast_validity()
+    {
+      ojph::param_siz sz(&siz);
+      ojph::param_cod cd(&cod);
+
+      if (sz.get_image_offset().x != 0 || sz.get_image_offset().y != 0)
+        OJPH_ERROR(0x000300B1,
+          "For broadcast profile, image offset (XOsiz, YOsiz) has to be 0.");
+      if (sz.get_tile_offset().x != 0 || sz.get_tile_offset().y != 0)
+        OJPH_ERROR(0x000300B2,
+          "For broadcast profile, tile offset (XTOsiz, YTOsiz) has to be 0.");
+      if (sz.get_num_components() > 4)
+        OJPH_ERROR(0x000300B3,
+          "For broadcast profile, the number of components has to be less "
+          " or equal to 4");
+      bool test_ds1 = true, test_ds2 = true;
+      for (int i = 0; i < sz.get_num_components(); ++i)
+      {
+        point downsamping = sz.get_downsampling(i);
+        test_ds1 &= downsamping.y == 1;
+        test_ds2 &= downsamping.y == 1;
+
+        test_ds1 &= downsamping.x == 1;
+        if (i == 1 || i == 2)
+          test_ds2 &= downsamping.x == 2;
+        else
+          test_ds2 &= downsamping.x == 1;
+      }
+      if (!test_ds1 && !test_ds2)
+        OJPH_ERROR(0x000300B4,
+          "For broadcast profile, either no component downsampling is used,"
+          " or the x-dimension of the 2nd and 3rd components is downsampled"
+          " by 2.");
+
+      bool test_bd = true;
+      for (int i = 0; i < sz.get_num_components(); ++i)
+      {
+        int bit_depth = sz.get_bit_depth(i);
+        bool is_signed = sz.is_signed(i);
+        test_bd &= bit_depth >= 8 && bit_depth <= 12 && is_signed == false;
+      }
+      if (!test_bd)
+        OJPH_ERROR(0x000300B5,
+          "For broadcast profile, compnent bit_depth has to be between"
+          " 8 and 12 bits inclusively, and the samples must be unsigned");
+
+      int num_decomps = cd.get_num_decompositions();
+      if (num_decomps == 0 || num_decomps > 5)
+        OJPH_ERROR(0x000300B6,
+          "For broadcast profile, number of decompositions has to be between"
+          "1 and 5 inclusively.");
+
+      if (cd.get_log_block_dims().w < 5 || cd.get_log_block_dims().w > 7)
+        OJPH_ERROR(0x000300B7,
+          "For broadcast profile, codeblock dimensions are restricted such"
+          " that codeblock width has to be either 32, 64, or 128.");
+
+      if (cd.get_log_block_dims().h < 5 || cd.get_log_block_dims().h > 7)
+        OJPH_ERROR(0x000300B8,
+          "For broadcast profile, codeblock dimensions are restricted such"
+          " that codeblock height has to be either 32, 64, or 128.");
+
+      bool test_pz = cd.get_log_precinct_size(0).w == 7
+                  && cd.get_log_precinct_size(0).h == 7;
+      for (int i = 1; i <= num_decomps; ++i)
+        test_pz = cd.get_log_precinct_size(i).w == 8
+               && cd.get_log_precinct_size(i).h == 8;
+      if (!test_pz)
+        OJPH_ERROR(0x000300B9,
+          "For broadcast profile, precinct sizes are restricted."
+          " Use -precincts {128,128},{256,256} at the commandline");
+
+      if (cd.get_progression_order() != OJPH_PO_CPRL)
+        OJPH_ERROR(0x000300BA,
+          "For broadcast profile, the CPRL progression order must be used.");
+
+      int tiles_w = sz.get_image_extent().x;
+      tiles_w = ojph_div_ceil(tiles_w, sz.get_tile_size().w);
+      int tiles_h = sz.get_image_extent().y;
+      tiles_h = ojph_div_ceil(tiles_h, sz.get_tile_size().h);
+      int total_tiles = tiles_w * tiles_h;
+
+      if (total_tiles != 1 && total_tiles != 4)
+        OJPH_ERROR(0x000300BB,
+          "The broadcast profile can only have one or 4 tiles");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -343,6 +617,10 @@ namespace ojph {
       cod.check_validity(siz);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
+      if (profile == OJPH_PN_IMF)
+        check_imf_validity();
+      else if (profile == OJPH_PN_BROADCAST)
+        check_boardcast_validity();
 
       if (planar == -1) //not initialized
         planar = cod.is_employing_color_transform() ? 1 : 0;
@@ -628,9 +906,29 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void codestream::set_profile(const char *s)
+    {
+      size_t len = strlen(s);
+      if (len == 9 && strncmp(s, OJPH_PN_STRING_BROADCAST, 9) == 0)
+        profile = OJPH_PN_BROADCAST;
+      else if (len == 3 && strncmp(s, OJPH_PN_STRING_IMF, 3) == 0)
+        profile = OJPH_PN_IMF;
+      else
+        OJPH_ERROR(0x000300A1, "unkownn or unsupported profile");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void codestream::flush()
     {
       si32 repeat = (si32)num_tiles.area();
+      for (si32 i = 0; i < repeat; ++i)
+        tiles[i].prepare_for_flush();
+      if (profile == OJPH_PN_BROADCAST || profile == OJPH_PN_IMF)
+      { //write tlm
+        for (si32 i = 0; i < repeat; ++i)
+          tiles[i].fill_tlm(&tlm);
+        tlm.write(outfile);
+      }
       for (si32 i = 0; i < repeat; ++i)
         tiles[i].flush(outfile);
       ui16 t = swap_byte(JP2K_MARKER::EOC);
@@ -769,6 +1067,12 @@ namespace ojph {
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
       allocator->pre_alloc_obj<int>(num_comps);  //for cur_line
 
+      int profile = codestream->get_profile();
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+        allocator->pre_alloc_obj<int>(num_comps);  //for num_comp_bytes
+      else
+        allocator->pre_alloc_obj<int>(1);
+
       int tx0 = tile_rect.org.x;
       int ty0 = tile_rect.org.y;
       int tx1 = tile_rect.org.x + tile_rect.siz.w;
@@ -825,6 +1129,13 @@ namespace ojph {
       num_bits = allocator->post_alloc_obj<int>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
       cur_line = allocator->post_alloc_obj<int>(num_comps);
+
+      profile = codestream->get_profile();
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+        num_comp_bytes = allocator->post_alloc_obj<int>(num_comps);
+      else
+        num_comp_bytes = allocator->post_alloc_obj<int>(1);
+
 
       this->tile_rect = tile_rect;
 
@@ -1039,6 +1350,31 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
+    void tile::prepare_for_flush()
+    {
+      //prepare precinct headers
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
+        for (int c = 0; c < num_comps; ++c)
+          num_comp_bytes[c] = comps[c].prepare_precincts();
+      else
+        for (int c = 0; c < num_comps; ++c)
+          num_comp_bytes[0] += comps[c].prepare_precincts();
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile::fill_tlm(param_tlm *tlm)
+    {
+      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
+      {
+        for (int c = 0; c < num_comps; ++c)
+          tlm->set_next_pair(sot.get_tile_index(), num_comp_bytes[c]);
+      }
+      else
+        tlm->set_next_pair(sot.get_tile_index(), num_comp_bytes[0]);
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
     void tile::flush(outfile_base *file)
     {
       int max_decompositions = 0;
@@ -1046,20 +1382,18 @@ namespace ojph {
         max_decompositions = ojph_max(max_decompositions,
           comps[c].get_num_decompositions());
 
+      if (profile != OJPH_PN_IMF && profile != OJPH_PN_BROADCAST)
+      {
+        //write tile header
+        if (!sot.write(file, num_comp_bytes[0]))
+          OJPH_ERROR(0x00030081, "Error writing to file");
 
-      //prepare precinct headers
-      ui32 used_bytes = 0;
-      for (int c = 0; c < num_comps; ++c)
-        used_bytes += comps[c].prepare_precincts();
+        //write start of data
+        ui16 t = swap_byte(JP2K_MARKER::SOD);
+        if (!file->write(&t, 2))
+          OJPH_ERROR(0x00030082, "Error writing to file");
+      }
 
-      //write tile header
-      if (!sot.write(file, used_bytes))
-        OJPH_ERROR(0x00030081, "Error writing to file");
-
-      //write start of data
-      ui16 t = swap_byte(JP2K_MARKER::SOD);
-      if (!file->write(&t, 2))
-        OJPH_ERROR(0x00030082, "Error writing to file");
 
       //sequence the writing of precincts according to preogression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
@@ -1127,6 +1461,18 @@ namespace ojph {
       {
         for (int c = 0; c < num_comps; ++c)
         {
+          if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
+          {
+            //write tile header
+            if (!sot.write(file, num_comp_bytes[c], (ui8)c, (ui8)num_comps))
+              OJPH_ERROR(0x00030083, "Error writing to file");
+
+            //write start of data
+            ui16 t = swap_byte(JP2K_MARKER::SOD);
+            if (!file->write(&t, 2))
+              OJPH_ERROR(0x00030084, "Error writing to file");
+          }
+
           while (true)
           {
             int res_num = -1;

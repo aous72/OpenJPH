@@ -608,7 +608,7 @@ namespace ojph {
 
       if (total_tiles != 1 && total_tiles != 4)
         OJPH_ERROR(0x000300BB,
-          "The broadcast profile can only have one or 4 tiles");
+          "The broadcast profile can only have 1 or 4 tiles");
     }
 
     //////////////////////////////////////////////////////////////////////////

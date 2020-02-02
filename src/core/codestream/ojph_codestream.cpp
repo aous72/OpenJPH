@@ -454,7 +454,7 @@ namespace ojph {
       if (cd.get_log_block_dims().w != 5 || cd.get_log_block_dims().h != 5)
         OJPH_ERROR(0x000300C8,
           "For IMF profile, codeblock dimensions are restricted."
-          " Use -block_size {32,32} at the commandline");
+          " Use \"-block_size {32,32}\" at the commandline");
 
       int num_decomps = cd.get_num_decompositions();
       bool test_pz = cd.get_log_precinct_size(0).w == 7
@@ -465,11 +465,12 @@ namespace ojph {
       if (!test_pz)
         OJPH_ERROR(0x000300C9,
           "For IMF profile, precinct sizes are restricted."
-          " Use -precincts {128,128},{256,256} at the commandline");
+          " Use \"-precincts {128,128},{256,256}\" at the commandline");
 
       if (cd.get_progression_order() != OJPH_PO_CPRL)
         OJPH_ERROR(0x000300CA,
-          "For IMF profile, the CPRL progression order must be used.");
+          "For IMF profile, the CPRL progression order must be used."
+          " Use \"-prog_order CPRL\".");
 
       imf2k &= num_decomps <= 5;
       imf2kls &= num_decomps <= 5;
@@ -592,11 +593,12 @@ namespace ojph {
       if (!test_pz)
         OJPH_ERROR(0x000300B9,
           "For broadcast profile, precinct sizes are restricted."
-          " Use -precincts {128,128},{256,256} at the commandline");
+          " Use \"-precincts {128,128},{256,256}\" at the commandline");
 
       if (cd.get_progression_order() != OJPH_PO_CPRL)
         OJPH_ERROR(0x000300BA,
-          "For broadcast profile, the CPRL progression order must be used.");
+          "For broadcast profile, the CPRL progression order must be used."
+          " Use \"-prog_order CPRL\".");
 
       int tiles_w = sz.get_image_extent().x;
       tiles_w = ojph_div_ceil(tiles_w, sz.get_tile_size().w);

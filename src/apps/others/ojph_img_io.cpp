@@ -239,7 +239,7 @@ namespace ojph {
         OJPH_ERROR(0x030000021,
           "unable to open file %s for writing", filename);
 
-      fprintf(fh, "P5 %d %d %d\n", width, height, (1 << bit_depth) - 1);
+      fprintf(fh, "P5\n%d %d\n%d\n", width, height, (1 << bit_depth) - 1);
       buffer_size = width * bytes_per_sample;
       buffer = (ui8*)malloc(buffer_size);
     }
@@ -264,7 +264,7 @@ namespace ojph {
         OJPH_ERROR(0x030000022,
           "unable to open file %s for writing", filename);
       int result = //the number of written characters
-        fprintf(fh, "P6 %d %d %d\n", width, height, (1 << bit_depth) - 1);
+        fprintf(fh, "P6\n%d %d\n%d\n", width, height, (1 << bit_depth) - 1);
       if (result == 0)
         OJPH_ERROR(0x030000023, "error writing to file %s", filename);
       buffer_size = width * num_components * bytes_per_sample;

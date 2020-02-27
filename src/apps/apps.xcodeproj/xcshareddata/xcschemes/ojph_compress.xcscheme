@@ -182,8 +182,8 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-num_decomps 4"
-            isEnabled = "YES">
+            argument = "-num_decomps 6"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-num_decomps 2"
@@ -215,7 +215,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-prog_order CPRL"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-block_size \{4,1024\}"
@@ -263,7 +263,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-reversible true"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-colour_trans false"
@@ -275,7 +275,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-profile IMF"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-profile BROADCAST"
@@ -283,10 +283,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-tile_size \{1024,1024\}"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-i ARRI_AlexaDrums_3840x2160p_24_8b_P3_444_00000.ppm -o test.j2c -block_size \{32,32\} -precincts \{128,128\},\{256,256\}"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-i ARRI_AlexaDrums_3840x2160p_24_10b_bt709_444_00162.ppm -o test.j2c -profile IMF -block_size \{32,32\} -precincts \{128,128\},\{256,256\} -prog_order CPRL -reversible true"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

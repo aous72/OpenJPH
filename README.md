@@ -50,28 +50,28 @@ The generated library and executables will be in the bin folder.
 The library can now be compiled to javascript/wasm.  For this purpose, a small wrapper file (ojph_wrapper.cpp) has been written to interface between javascript and C++; the wrapper currently supports decoding only.  A small demo page demonstrating the script can be accessed [here](https://openjph.org/javascript/demo.html).
 
 Compilation needs the [emscripten](https://emscripten.org/) tools. One way of using these tools is to install them on your machine, and activate them using 
-```base
-source emsdk_env.sh
-```  
+
+	source emsdk_env.sh
+  
 before compilation.  Alternatively, if you are a docker user, the you can launch a docker session using script provided at ```subprojects/js/emscripten-docker.sh```; this script will download a third-party docker image that has the emscripten tools integrated in it -- Thanks to [Chris](https://github.com/chafey) for the suggesting and providing these tools.  
 
 The javascript decoder can be compiled using
-```bash
-cd subprojects/js/build
-emmake cmake ..
-make
-```
+
+	cd subprojects/js/build
+	emmake cmake ..
+	make
+
 
 The compilation creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  You can use the ```emrun``` command, provided with the emscripten
 tools, by issuing the command
-```base
-emrun index.html
-```
+
+	emrun index.html
+
 from inside the html folder; the default port is 6931.
 Alternatively, a simple python webserver can be run using
-```python
-python -m SimpleHTTPServer 8000
-```  
+
+	python -m SimpleHTTPServer 8000
+  
 also from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open 127.0.0.1:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
 
 # Visual Studio Code Remote Containers #
@@ -79,15 +79,33 @@ also from inside the html folder.  Here, 8000 is the port number at which the we
 Visual Studio Code Remote Containers are now available with OpenJPH.  These scripts/configuration files are provided by [Chris](https://github.com/chafey) -- Thank you Chris, and I must say I am not familiar with them.
 The scripts, in the ```.devcontainer``` folder, will build a docker image that can be used with visual studio code as a development environment.
 
+# Compiling for ARM and other platforms #
+
+To compile for platforms where x86_64 SIMD instructions are not supported, such as on ARM, we need to disable SIMD instructions; this can be achieved using
+
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_DISABLE_INTEL_SIMD=ON ../
+    make
+
+As I do not have an ARM board, I tested this using QEMU for aarch64 architecture, targeting a Cortex-A57 CPU. The code worked without issues, but because the ARM platform is emulated, the whole process was slow.
+
 # Usage Example #
 
-**Note**: in Kakadu, pairs of data in command line arguments represent columns,rows. Here, a pair represents x,y information.  On a different note, in reversible compression, quantization is not supported.
+Here are some usage examples:
 
     ojph_compress -i input_file.ppm -o output_file.j2c -num_decomps 5 -block_size {64,64} -precincts {128,128},{256,256} -prog_order CPRL -colour_trans true -qstep 0.05
     ojph_compress -i input_file.yuv -o output_file.j2c -num_decomps 5 -reversible true -dims {3840,2160} -num_comps 3 -signed false -bit_depth 10 -downsamp {1,1},{2,2}
 
     ojph_expand -i input_file.j2c -o output_file.ppm
     ojph_expand -i input_file.j2c -o output_file.yuv
+
+**Notes**: 
+
+* Issuing ojph\_compress or ojph\_expand without arguments prints a short usage statement.
+* In reversible compression, quantization is not supported.
+* On Linux and MacOS, but NOT Windows, { and } need to be escaped; i.e, we need to write \\\{ and \\\}.  So, -block\_size {64,64} must be written as -block\_size \\\{64,64\\\}.
+* When the source is a .yuv file, use -downsamp {1,1} for 4:4:4 sources. For 4:2:2 downsampling, specify -downsamp {1,1},{2,1}, and for 4:2:0 subsampling specify -downsamp {1,1},{2,2}. The source must have already been downsampled (i.e., OpenJPH does not downsample the source before compression, but can compress downsampled sources).
+* In Kakadu, pairs of data in command line arguments represent columns,rows. Here, a pair represents x,y information.
 
 # Related #
 

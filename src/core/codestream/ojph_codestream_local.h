@@ -109,7 +109,6 @@ namespace ojph {
       int cur_tile_row;
 
     private:
-      rect tile_rect;
       size num_tiles;
       tile *tiles;
       line_buf* line;

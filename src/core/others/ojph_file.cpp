@@ -37,7 +37,7 @@
 
 
 /** @file ojph_file.cpp
- *  @contains implementations of classes related to file operations
+ *  @brief contains implementations of classes related to file operations
  */
 
 #include <cassert>

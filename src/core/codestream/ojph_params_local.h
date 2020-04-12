@@ -391,7 +391,6 @@ namespace ojph {
       int get_num_guard_bits() const;
       int get_MAGBp() const;
       int get_Kmax(int resolution, int subband) const;
-      int rev_get_num_bits(int resolution, int subband) const;
       float irrev_get_delta(int resolution, int subband) const;
 
       bool write(outfile_base *file);

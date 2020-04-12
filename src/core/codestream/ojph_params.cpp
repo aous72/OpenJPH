@@ -760,16 +760,17 @@ namespace ojph {
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
-      int X = (int) ceil(log(bibo_l*bibo_l)/M_LN2/0.9f);//David's code uses 0.9
+      //we leave some leeway for numerical error by multiplying by 1.1f
+      int X = (int) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
       u8_SPqcd[s++] = (B + X) << 3;
       for (int d = num_decomps - 1; d >= 0; --d)
       {
         float bibo_l = bibo_gains::get_bibo_gain_l(d + 1, true);
         float bibo_h = bibo_gains::get_bibo_gain_h(d, true);
-        X = (int) ceil(log(bibo_h*bibo_l)/M_LN2/0.9f);
+        X = (int) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
         u8_SPqcd[s++] = (B + X) << 3;
         u8_SPqcd[s++] = (B + X) << 3;
-        X = (int) ceil(log(bibo_h*bibo_h)/M_LN2/0.9f);
+        X = (int) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
         u8_SPqcd[s++] = (B + X) << 3;
       }
     }
@@ -818,29 +819,22 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     int param_qcd::get_MAGBp() const
-    {
+    { //this can be written better, but it is only executed once
       int B = 0;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible
         for (int i = 0; i < 3 * num_decomps + 1; ++i)
-          B = ojph_max(B, u8_SPqcd[i] >> 3);
+          B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1);
       else if (irrev == 2) //scalar expounded
         for (int i = 0; i < 3 * num_decomps + 1; ++i)
-          B = ojph_max(B, u16_SPqcd[i] >> 11);
+        {
+          int nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
+          B = ojph_max(B, (u16_SPqcd[i] >> 11) + get_num_guard_bits() - nb);
+        }
       else
         assert(0);
 
       return B;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    int param_qcd::rev_get_num_bits(int resolution, int subband) const
-    {
-      assert((resolution == 0 && subband == 0) ||
-             (resolution <= num_decomps && subband > 0 && subband < 4));
-      assert((Sqcd & 0x1F) == 0);
-      int idx = ojph_max(resolution - 1, 0) * 3 + subband;
-      return u8_SPqcd[idx] >> 3;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -874,8 +868,8 @@ namespace ojph {
       int num_bits = get_num_guard_bits();
       int idx = ojph_max(resolution - 1, 0) * 3 + subband;
       int irrev = Sqcd & 0x1F;
-      if (irrev == 0) //reversible
-        num_bits += (u8_SPqcd[idx] >> 3) - 1;
+      if (irrev == 0) //reversible; this is (10.22) from the J2K book
+        num_bits = ojph_max(0, (u8_SPqcd[idx] >> 3) + num_bits - 1);
       else if (irrev == 2) //scalar expounded
         num_bits += (u16_SPqcd[idx] >> 11) - 1;
       else

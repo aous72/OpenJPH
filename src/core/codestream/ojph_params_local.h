@@ -465,11 +465,11 @@ namespace ojph {
     struct param_sot
     {
     public:
-      void init(ui32 tile_length = 0, ui16 tile_idx = 0,
+      void init(ui32 payload_length = 0, ui16 tile_idx = 0,
                 ui8 tile_part_index = 0, ui8 num_tile_parts = 0)
       {
         Lsot = 10;
-        Psot = tile_length > 0 ? tile_length + 14 : 0;
+        Psot = payload_length + 12; //total = payload + SOT marker
         Isot = tile_idx;
         TPsot = tile_part_index;
         TNsot = num_tile_parts;
@@ -478,13 +478,9 @@ namespace ojph {
       bool write(outfile_base *file, ui32 payload_len);
       bool write(outfile_base *file, ui32 payload_len, ui8 TPsot, ui8 TNsot);
       void read(infile_base *file);
-      void append(ui32 additional_length)
-      {
-        Psot = get_length() + additional_length;
-      }
 
       ui16 get_tile_index() const { return Isot; }
-      ui32 get_length() const { return Psot > 0 ? Psot - 14 : 0; }
+      ui32 get_payload_length() const { return Psot > 0 ? Psot - 12 : 0; }
       ui8  get_tile_part_index() const { return TPsot; }
       ui8  get_num_tile_parts() const { return TNsot; }
 

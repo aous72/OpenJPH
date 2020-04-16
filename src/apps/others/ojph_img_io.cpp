@@ -39,6 +39,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "ojph_file.h"
 #include "ojph_img_io.h"
 #include "ojph_mem.h"
 #include "ojph_message.h"
@@ -133,7 +134,7 @@ namespace ojph {
     bytes_per_sample = max_val > 255 ? 2 : 1;
     max_val_num_bits = 32 - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
-    start_of_data = ftell(fh);
+    start_of_data = ojph_ftell(fh);
 
     if (temp_buf_byte_size < num_comps * width * bytes_per_sample)
     {
@@ -184,7 +185,7 @@ namespace ojph {
       if (++cur_line >= height)
       {
         cur_line = 0;
-        fseek(fh, start_of_data, SEEK_SET); //handles plannar reading
+        ojph_fseek(fh, start_of_data, SEEK_SET); //handles plannar reading
       }
     }
 

@@ -192,8 +192,8 @@ namespace ojph {
       void write_precincts(int res_num, outfile_base *file);
       bool get_top_left_precinct(int res_num, point &top_left);
       void write_one_precinct(int res_num, outfile_base *file);
-      void parse_precincts(int res_num, int& data_left, infile_base *file);
-      void parse_one_precinct(int res_num, int& data_left, infile_base *file);
+      void parse_precincts(int res_num, ui32& data_left, infile_base *file);
+      void parse_one_precinct(int res_num, ui32& data_left, infile_base *file);
 
     private:
       tile *parent_tile;
@@ -227,8 +227,8 @@ namespace ojph {
       bool get_top_left_precinct(point &top_left);
       void write_one_precinct(outfile_base *file);
       resolution *next_resolution() { return child_res; }
-      void parse_all_precincts(int& data_left, infile_base *file);
-      void parse_one_precinct(int& data_left, infile_base *file);
+      void parse_all_precincts(ui32& data_left, infile_base *file);
+      void parse_one_precinct(ui32& data_left, infile_base *file);
 
     private:
       bool reversible;
@@ -261,7 +261,7 @@ namespace ojph {
       void write(outfile_base *file);
       void parse(int tag_tree_size, si32* lev_idx,
                  mem_elastic_allocator *elastic,
-                 int& data_left, infile_base *file);
+                 ui32& data_left, infile_base *file);
 
       static ui8 *scratch;
       static void alloc_scratch(codestream *codestream);

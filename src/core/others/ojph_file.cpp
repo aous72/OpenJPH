@@ -72,10 +72,10 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  long j2c_outfile::tell()
+  si64 j2c_outfile::tell()
   {
     assert(fh);
-    return ftell(fh);
+    return ojph_ftell(fh);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -147,7 +147,7 @@ namespace ojph {
     assert(this->cur_ptr);
 
     // expand buffer if needed to make sure it has room for this write
-    long used_size = tell(); //current used size
+    si64 used_size = tell(); //current used size
     size_t new_used_size = used_size + size; //needed size
     if (new_used_size > this->buf_size) //only expand when there is need
     {
@@ -193,17 +193,17 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int j2c_infile::seek(long int offset, enum seek origin)
+  int j2c_infile::seek(si64 offset, enum infile_base::seek origin)
   {
     assert(fh);
-    return fseek(fh, offset, origin);
+    return ojph_fseek(fh, offset, origin);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  long j2c_infile::tell()
+  si64 j2c_infile::tell()
   {
     assert(fh);
-    return ftell(fh);
+    return ojph_ftell(fh);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -234,19 +234,20 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size_t mem_infile::read(void *ptr, size_t size)
   {
-    size_t num_bytes = ojph_min(size, data + this->size - cur_ptr);
-    memcpy(ptr, cur_ptr, num_bytes);
-    cur_ptr += num_bytes;
-    return num_bytes;
+    size_t bytes_left = data + this->size - cur_ptr;
+    size_t bytes_to_read = ojph_min(size, bytes_left);
+    memcpy(ptr, cur_ptr, bytes_to_read);
+    cur_ptr += bytes_to_read;
+    return bytes_to_read;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int mem_infile::seek(long int offset, enum seek origin)
+  int mem_infile::seek(si64 offset, enum infile_base::seek origin)
   {
     int result = -1;
     if (origin == OJPH_SEEK_SET)
     {
-      if (offset >= 0 && offset <= size)
+      if (offset >= 0 && (size_t)offset <= size)
       {
         cur_ptr = data + offset;
         result = 0;

@@ -1506,21 +1506,16 @@ namespace ojph {
     {
       if (sot.get_tile_part_index() != next_tile_part)
         OJPH_ERROR(0x00030091, "wrong tile part index");
-      this->sot.append(sot.get_length());
       ++next_tile_part;
 
       //tile_end_location used on failure
-      ui64 tile_end_location = tile_start_location + sot.get_length();
+      ui64 tile_end_location = tile_start_location + sot.get_payload_length();
 
-      int data_left = sot.get_length(); //how many bytes left to parse
-      data_left -= file->tell() - tile_start_location;
-      data_left += 2; //2 is the size of SOD
+      ui32 data_left = sot.get_payload_length(); //bytes left to parse
+      data_left -= (ui32)(file->tell() - tile_start_location);
 
       if (data_left == 0)
         return;
-      else if (data_left < 0)
-        OJPH_ERROR(0x00030092, "a tile part that has less than 0 bytes;"
-          "something is wrong");
 
       int max_decompositions = 0;
       for (int c = 0; c < num_comps; ++c)
@@ -1742,7 +1737,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_precincts(int res_num, int& data_left,
+    void tile_comp::parse_precincts(int res_num, ui32& data_left,
                                     infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -1759,7 +1754,7 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_one_precinct(int res_num, int& data_left,
+    void tile_comp::parse_one_precinct(int res_num, ui32& data_left,
                                        infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -2458,7 +2453,7 @@ namespace ojph {
     void resolution::write_precincts(outfile_base *file)
     {
       precinct *p = precincts;
-      for (size_t i = 0; i < num_precincts.area(); ++i)
+      for (si32 i = 0; i < (si32)num_precincts.area(); ++i)
         p[i].write(file);
     }
 
@@ -2491,13 +2486,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_all_precincts(int& data_left, infile_base *file)
+    void resolution::parse_all_precincts(ui32& data_left, infile_base *file)
     {
       precinct *p = precincts;
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      for (size_t i = idx; i < num_precincts.area(); ++i)
+      for (si32 i = idx; i < (si32)num_precincts.area(); ++i)
       {
-        if (data_left <= 0)
+        if (data_left == 0)
           break;
         p[i].parse(tag_tree_size, level_index, elastic, data_left, file);
         if (++cur_precinct_loc.x >= num_precincts.w)
@@ -2509,12 +2504,12 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_one_precinct(int& data_left, infile_base *file)
+    void resolution::parse_one_precinct(ui32& data_left, infile_base *file)
     {
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < (int)num_precincts.area());
 
-      if (data_left <= 0)
+      if (data_left == 0)
         return;
       precinct *p = precincts + idx;
       p->parse(tag_tree_size, level_index, elastic, data_left, file);
@@ -2682,14 +2677,17 @@ namespace ojph {
         width = s.w;
         height = s.h;
         for (int i = 0; i < num_levels; ++i)
-          memset(levs[i], init_val, 1 << ((num_levels - 1 - i) << 1));
+        {
+          ui32 size = 1u << ((num_levels - 1 - i) << 1);
+          memset(levs[i], init_val, size);
+        }
         *levs[num_levels] = 0;
         this->num_levels = num_levels;
       }
 
       ui8* get(int x, int y, int lev)
       {
-        return levs[lev] + x + y * ((width + (1 << lev) - 1) >> lev);
+        return levs[lev] + (x + y * ((width + (1 << lev) - 1) >> lev));
       }
 
       int width, height, num_levels;
@@ -2938,7 +2936,7 @@ namespace ojph {
       ui32 tmp;
       int avail_bits;
       bool unstuff;
-      int bytes_left;
+      ui32 bytes_left;
       static const int extra_buffer_space;
     };
 
@@ -2947,7 +2945,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    void bb_init(bit_read_buf *bbp, int bytes_left, infile_base* file)
+    void bb_init(bit_read_buf *bbp, ui32 bytes_left, infile_base* file)
     {
       bbp->avail_bits = 0;
       bbp->file = file;
@@ -2960,7 +2958,7 @@ namespace ojph {
     static inline
     bool bb_read(bit_read_buf *bbp)
     {
-      if (bbp->bytes_left)
+      if (bbp->bytes_left > 0)
       {
         int t = 0;
         if (bbp->file->read(&t, 1) != 1)
@@ -3013,15 +3011,15 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    bool bb_read_chunk(bit_read_buf *bbp, int num_bytes,
+    bool bb_read_chunk(bit_read_buf *bbp, ui32 num_bytes,
                        coded_lists*& cur_coded_list,
                        mem_elastic_allocator *elastic)
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
-      int bytes = ojph_min(num_bytes, bbp->bytes_left);
+      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
       elastic->get_buffer(bytes + bit_read_buf::extra_buffer_space,
                           cur_coded_list);
-      size_t bytes_read = bbp->file->read(cur_coded_list->buf, bytes);
+      ui32 bytes_read = (ui32)bbp->file->read(cur_coded_list->buf, bytes);
       if (num_bytes > bytes_read)
         memset(cur_coded_list->buf + bytes, 0, num_bytes - bytes_read);
       bbp->bytes_left -= bytes_read;
@@ -3076,12 +3074,16 @@ namespace ojph {
             if (bbp->file->read(&com_len, 2) != 2)
               OJPH_ERROR(0x000300A1, "error reading from file");
             com_len = swap_byte(com_len);
-            if (bbp->file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR) != 0)
-              throw "error seeking file";
-            bbp->bytes_left -= com_len;
             if (com_len != 4)
               throw "something is wrong with SOP length";
+            int result = 
+              bbp->file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
+            if (result != 0)
+              throw "error seeking file";
+            bbp->bytes_left -= com_len;
           }
+          else
+            throw "precinct truncated early";
           return true;
         }
         else
@@ -3099,9 +3101,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void precinct::parse(int tag_tree_size, si32* lev_idx,
                          mem_elastic_allocator *elastic,
-                         int &data_left, infile_base *file)
+                         ui32 &data_left, infile_base *file)
     {
-      assert(data_left);
+      assert(data_left > 0);
       bit_read_buf bb;
       bb_init(&bb, data_left, file);
       if (may_use_sop)
@@ -3267,7 +3269,7 @@ namespace ojph {
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
           for (int x = 0; x < width; ++x, ++cp)
           {
-            int num_bytes = cp->pass_length[0] + cp->pass_length[1];
+            ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
             if (num_bytes)
               if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
               { data_left = bb.bytes_left; assert(data_left == 0); return; }

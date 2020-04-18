@@ -103,6 +103,12 @@ namespace ojph {
       void check_imf_validity();
       void check_boardcast_validity();
 
+      ui8* get_precinct_scratch() { return precinct_scratch; }
+
+    private:
+      int precinct_scratch_needed_bytes;
+      ui8* precinct_scratch;
+
     private:
       int cur_line;
       int cur_comp;
@@ -263,8 +269,7 @@ namespace ojph {
                  mem_elastic_allocator *elastic,
                  int& data_left, infile_base *file);
 
-      static ui8 *scratch;
-      static void alloc_scratch(codestream *codestream);
+      ui8 *scratch;
       point img_point;   //the precinct projected to full resolution
       rect cb_idxs[4]; //indices of codeblocks
       subband *bands;  //the subbands

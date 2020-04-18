@@ -181,7 +181,7 @@ namespace ojph {
 
     ////////////////////////////////////////////////////////////////////////////
     codestream::codestream()
-    : allocator(NULL), elastic_alloc(NULL)
+    : allocator(NULL), elastic_alloc(NULL), precinct_scratch(NULL)
     {
       tiles = NULL;
       line = NULL;
@@ -198,6 +198,8 @@ namespace ojph {
       cur_comp = 0;
       cur_line = 0;
       cur_tile_row = 0;
+
+      precinct_scratch_needed_bytes = 0;
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
@@ -286,12 +288,44 @@ namespace ojph {
         int num_pairs = (int)num_tiles.area();
         allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
       }
+
+      //precinct scratch buffer
+      ojph::param_cod cd = access_cod();
+      int num_decomps = cd.get_num_decompositions();
+      size log_cb = cd.get_log_block_dims();
+
+      size ratio;
+      for (int r = 0; r <= num_decomps; ++r)
+      {
+        size log_PP = cd.get_log_precinct_size(r);
+        log_PP.w -= (r ? 1 : 0);
+        log_PP.h -= (r ? 1 : 0);
+        ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
+        ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
+      }
+      int max_ratio = ojph_max(ratio.w, ratio.h);
+      max_ratio = 1 << max_ratio;
+      // assuming that we have a hierarchy of n levels.
+      // This needs 4/3 times the area, rounded up
+      // (rounding up leaves one extra entry).
+      // This exta entry is necessary
+      // We need 4 such tables. These tables store
+      // 1. missing msbs and 2. their flags, 
+      // 3. number of layers and 4. their flags
+      precinct_scratch_needed_bytes = 
+        4 * (int)((max_ratio * max_ratio * 4 + 2) / 3);
+
+      allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
     }
 
     //////////////////////////////////////////////////////////////////////////
     void codestream::finalize_alloc()
     {
       allocator->alloc();
+
+      //precinct scratch buffer
+      precinct_scratch = 
+        allocator->post_alloc_obj<ui8>(precinct_scratch_needed_bytes);
 
       //get tiles
       tiles = this->allocator->post_alloc_obj<tile>(num_tiles.area());
@@ -1359,8 +1393,11 @@ namespace ojph {
         for (int c = 0; c < num_comps; ++c)
           num_comp_bytes[c] = comps[c].prepare_precincts();
       else
+      {
+        num_comp_bytes[0] = 0;
         for (int c = 0; c < num_comps; ++c)
           num_comp_bytes[0] += comps[c].prepare_precincts();
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1989,6 +2026,7 @@ namespace ojph {
           pp->bands = bands;
           pp->may_use_sop = cd.packets_may_use_sop();
           pp->uses_eph = cd.packets_use_eph();
+          pp->scratch = codestream->get_precinct_scratch();
         }
       }
       if (num_bands == 1)
@@ -1996,7 +2034,7 @@ namespace ojph {
       else
         for (int i = 1; i < 4; ++i)
           bands[i].get_cb_indices(num_precincts, precincts);
-      precinct::alloc_scratch(codestream);
+      
       size log_cb = cd.get_log_block_dims();
       log_PP.w -= (res_num?1:0);
       log_PP.h -= (res_num?1:0);
@@ -2527,44 +2565,6 @@ namespace ojph {
     //
     //
     //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    ui8* precinct::scratch = NULL;
-
-    //////////////////////////////////////////////////////////////////////////
-    void precinct::alloc_scratch(codestream *codestream)
-    {
-      if (scratch == NULL)
-      {
-        ojph::param_cod cd = codestream->access_cod();
-        int num_decomps = cd.get_num_decompositions();
-        size log_cb = cd.get_log_block_dims();
-
-        size ratio;
-        for (int r = 0; r <= num_decomps; ++r)
-        {
-          size log_PP = cd.get_log_precinct_size(r);
-          log_PP.w -= (r?1:0);
-          log_PP.h -= (r?1:0);
-          ratio.w = ojph_max(ratio.w, log_PP.w-ojph_min(log_cb.w, log_PP.w));
-          ratio.h = ojph_max(ratio.h, log_PP.h-ojph_min(log_cb.h, log_PP.h));
-        }
-        int max_ratio = ojph_max(ratio.w, ratio.h);
-        max_ratio = 1 << max_ratio;
-        // assuming that we have a hierarchy of n levels.
-        // This needs 4/3 times the area, rounded up
-        // (rounding up leaves one extra entry).
-        // This exta entry is necessary
-        // We need to store missing msbs and number of layers,
-        // and indicators if they have been transmitted
-        int needed_bytes = 4 * (int)((max_ratio * max_ratio * 4 + 2) / 3);
-
-        mem_elastic_allocator *elastic = codestream->get_elastic_alloc();
-        coded_lists *p;
-        elastic->get_buffer(needed_bytes, p);
-        scratch = p->buf;
-      }
-    }
 
     //////////////////////////////////////////////////////////////////////////
     struct bit_write_buf

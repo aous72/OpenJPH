@@ -30,9 +30,9 @@ file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
 file(GLOB AVX2_SOURCES "src/core/transform/*_avx2.cpp")
 
 if (OJPH_DISABLE_INTEL_SIMD)
-    add_library(openjph SHARED ${SOURCES})
+    add_library(openjph ${SOURCES})
 else()
-    add_library(openjph SHARED ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+    add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
 endif()
 
 target_include_directories(openjph PUBLIC src/core/common)

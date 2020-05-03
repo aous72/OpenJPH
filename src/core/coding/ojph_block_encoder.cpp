@@ -713,6 +713,7 @@ namespace ojph {
         rho[0] = rho[1] = 0; e_qmax[0] = e_qmax[1] = 0;
       }
 
+      lep[1] = 0;
 
       for (y = 2; y < height; y += 2)
       {

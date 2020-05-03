@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.10.0)
 project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
+option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 
 set(CMAKE_CXX_STANDARD 11)
 if (MSVC)
@@ -32,10 +33,12 @@ file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
 file(GLOB AVX2_SOURCES "src/core/transform/*_avx2.cpp")
 
 if (OJPH_DISABLE_INTEL_SIMD)
-    add_library(openjph SHARED ${SOURCES})
+    add_library(openjph ${SOURCES})
 else()
-    add_library(openjph SHARED ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+    add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
 endif()
+
+target_include_directories(openjph PUBLIC src/core/common)
 
 if (MSVC)
 	set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")

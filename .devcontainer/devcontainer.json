@@ -1,31 +1,29 @@
-// For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
-// https://github.com/microsoft/vscode-dev-containers/tree/master/containers/cpp
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or this file's README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.112.0/containers/cpp
 {
 	"name": "C++",
 	"dockerFile": "Dockerfile",
-	"runArgs": [
-		// Uncomment the next line to use a non-root user. On Linux, this will prevent
-		// new files getting created as root, but you may need to update the USER_UID
-		// and USER_GID in .devcontainer/Dockerfile to match your user if not 1000.
-		// "-u", "vscode",
+	"runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
 
-		"--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"
-	],
-
-	// Use 'settings' to set *default* container specific settings.json values on container create. 
-	// You can edit these settings after create using File > Preferences > Settings > Remote.
+	// Set *default* container specific settings.json values on container create.
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash"
 	},
 
-	// Uncomment the next line if you want to publish any ports.
-	// "appPort": [],
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"ms-vscode.cpptools",
+		"twxs.cmake",
+		"flixs.vs-code-http-server-and-html-preview"
+	],
 
-	// Uncomment the next line to run commands after the container is created.
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "gcc -v",
 
-	// Add the IDs of extensions you want installed when the container is created in the array below.
-	"extensions": [
-		"ms-vscode.cpptools"
-	]
+	// Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "emscripten"
+
 }

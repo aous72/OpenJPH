@@ -3,43 +3,35 @@
 # Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
 #-------------------------------------------------------------------------------------------------------------
 
-FROM debian:9
+#FROM mcr.microsoft.com/vscode/devcontainers/base:0-debian-9
+FROM trzeci/emscripten
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
-# This Dockerfile adds a non-root 'vscode' user with sudo access. However, for Linux,
-# this user's GID/UID must match your local user UID/GID to avoid permission issues
-# with bind mounts. Update USER_UID / USER_GID if yours is not 1000. See
-# https://aka.ms/vscode-remote/containers/non-root-user for details.
+# This Dockerfile's base image has a non-root user with sudo access. Use the "remoteUser"
+# property in devcontainer.json to use it. On Linux, the container user's GID/UIDs
+# will be updated to match your local UID/GID (when using the dockerFile property).
+# See https://aka.ms/vscode-remote/containers/non-root-user for details.
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Configure apt and install packages
 RUN apt-get update \
-    && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
-    # 
-    # Verify git, process tools, lsb-release (useful for CLI installs) installed
-    && apt-get -y install git iproute2 procps lsb-release \
     #
     # Install C++ tools
+    #&& apt-get -y install build-essential cmake cppcheck valgrind \
     && apt-get -y install build-essential cppcheck valgrind \
+    # version 3.17 of cmake
+    && wget -qO- "https://cmake.org/files/v3.17/cmake-3.17.0-Linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local\
     #
-    ## Install newer version of CMake (OpenJPH requires 3.10+, debian has older version)
-    && apt-get install wget \
-    && wget https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2.tar.gz \
-    && tar -zxvf cmake-3.15.2.tar.gz \
-    && (cd /cmake-3.15.2; ./bootstrap; make -j2 install)\
-    && rm -rf /cmake-3.15.2\
-    #
-    # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
-    && groupadd --gid $USER_GID $USERNAME \
-    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    # [Optional] Add sudo support for the non-root user
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    # [Optional] Update UID/GID if needed
+    && if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
+        groupmod --gid $USER_GID $USERNAME \
+        && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
+        && chown -R $USER_UID:$USER_GID /home/$USERNAME; \
+    fi \
     #
     # Clean up
     && apt-get autoremove -y \
@@ -47,4 +39,4 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Switch back to dialog for any ad-hoc use of apt-get
-ENV DEBIAN_FRONTEND=
+ENV DEBIAN_FRONTEND=dialog

@@ -353,6 +353,9 @@ namespace ojph {
       int Kmax;
       int missing_msbs;
       coded_lists *next_coded;
+
+      static const int prefix_buf_size = 8;
+      static const int suffix_buf_size = 8;
     };
 
   }

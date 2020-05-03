@@ -2937,11 +2937,7 @@ namespace ojph {
       int avail_bits;
       bool unstuff;
       ui32 bytes_left;
-      static const int extra_buffer_space;
     };
-
-    //////////////////////////////////////////////////////////////////////////
-    const int bit_read_buf::extra_buffer_space = 8;
 
     //////////////////////////////////////////////////////////////////////////
     static inline
@@ -3017,11 +3013,13 @@ namespace ojph {
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
       ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
-      elastic->get_buffer(bytes + bit_read_buf::extra_buffer_space,
-                          cur_coded_list);
-      ui32 bytes_read = (ui32)bbp->file->read(cur_coded_list->buf, bytes);
+      elastic->get_buffer(bytes + coded_cb_header::prefix_buf_size
+        + coded_cb_header::suffix_buf_size, cur_coded_list);
+      ui32 bytes_read = (ui32)bbp->file->read(
+        cur_coded_list->buf + coded_cb_header::prefix_buf_size, bytes);
       if (num_bytes > bytes_read)
-        memset(cur_coded_list->buf + bytes, 0, num_bytes - bytes_read);
+        memset(cur_coded_list->buf + coded_cb_header::prefix_buf_size + bytes, 
+          0, num_bytes - bytes_read);
       bbp->bytes_left -= bytes_read;
       return bytes_read == bytes;
     }
@@ -3272,7 +3270,14 @@ namespace ojph {
             ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
             if (num_bytes)
               if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
-              { data_left = bb.bytes_left; assert(data_left == 0); return; }
+              { 
+                //no need to decode a broken codeblock, decoding is a 
+                // security risk
+                cp->pass_length[0] = cp->pass_length[1] = 0;
+                data_left = bb.bytes_left; 
+                assert(data_left == 0); 
+                return; 
+              }
           }
         }
       }
@@ -3691,9 +3696,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
-      if (coded_cb->num_passes > 0)
+      if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0)
       {
-        ojph_decode_codeblock(coded_cb->next_coded->buf,
+        ojph_decode_codeblock(
+          coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
           buf, coded_cb->missing_msbs, coded_cb->num_passes,
           coded_cb->pass_length[0], coded_cb->pass_length[1],
           cb_size.w, cb_size.h, cb_size.w);

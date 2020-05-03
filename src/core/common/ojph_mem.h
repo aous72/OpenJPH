@@ -202,7 +202,7 @@ namespace ojph {
       stores_list(int chunk_size)
       {
         this->next_store = NULL;
-        this->available = chunk_size - sizeof(stores_list);
+        this->available = chunk_size - (int)sizeof(stores_list);
         this->data = (char*)this + sizeof(stores_list);
       }
       stores_list *next_store;

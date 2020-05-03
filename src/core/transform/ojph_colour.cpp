@@ -103,7 +103,6 @@ namespace ojph {
       if (colour_transform_functions_initialized)
         return;
 
-      int level = cpu_ext_level();
       cnvrt_si32_to_si32_shftd = gen_cnvrt_si32_to_si32_shftd;
       cnvrt_si32_to_float_shftd = gen_cnvrt_si32_to_float_shftd;
       cnvrt_si32_to_float = gen_cnvrt_si32_to_float;
@@ -115,6 +114,8 @@ namespace ojph {
       ict_backward = gen_ict_backward;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
+      int level = cpu_ext_level();
+
       if (level >= 2)
       {
         cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
@@ -182,7 +183,7 @@ namespace ojph {
                                        int width)
     {
       for (int i = width; i > 0; --i)
-        *dp++ = *sp++ * mul - 0.5f;
+        *dp++ = (float)*sp++ * mul - 0.5f;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -190,7 +191,7 @@ namespace ojph {
                                  int width)
     {
       for (int i = width; i > 0; --i)
-        *dp++ = *sp++ * mul;
+        *dp++ = (float)*sp++ * mul;
     }
 
     //////////////////////////////////////////////////////////////////////////

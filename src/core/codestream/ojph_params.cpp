@@ -153,12 +153,12 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod::set_num_decomposition(ui8 num_decompositions)
+  void param_cod::set_num_decomposition(ui32 num_decompositions)
   {
     if (num_decompositions > 32)
       OJPH_ERROR(0x00050001,
         "maximum number of decompositions cannot exceed 32");
-    state->SPcod.num_decomp = num_decompositions;
+    state->SPcod.num_decomp = (ui8)num_decompositions;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -171,8 +171,8 @@ namespace ojph {
       || log_width < 2 || log_height < 2
       || log_width + log_height > 12)
       OJPH_ERROR(0x00050011, "incorrect code block dimensions");
-    state->SPcod.block_width = log_width - 2;
-    state->SPcod.block_height = log_height - 2;
+    state->SPcod.block_width = (ui8)(log_width - 2);
+    state->SPcod.block_height = (ui8)(log_height - 2);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -227,7 +227,7 @@ namespace ojph {
       OJPH_ERROR(0x00050032, "improper progression order");
 
 
-    state->SGCod.prog_order = prog_order;
+    state->SGCod.prog_order = (ui8)prog_order;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -370,7 +370,7 @@ namespace ojph {
     static inline
     ui16 swap_byte(ui16 t)
     {
-      return (t << 8) | (t >> 8);
+      return (ui16)((t << 8) | (t >> 8));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -503,7 +503,7 @@ namespace ojph {
     bool param_siz::write(outfile_base *file)
     {
       //marker size excluding header
-      Lsiz = 38 + 3 * Csiz;
+      Lsiz = (ui16)(38 + 3 * Csiz);
 
       char buf[4];
       bool result = true;
@@ -675,7 +675,7 @@ namespace ojph {
     {
       //marker size excluding header
       Lcod = 12;
-      Lcod += Scod & 1 ? 1 + SPcod.num_decomp : 0;
+      Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
       char buf[4];
       bool result = true;
@@ -755,23 +755,23 @@ namespace ojph {
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
-      Sqcd = guard_bits << 5; //one guard bit, and no quantization
+      Sqcd = (ui8)(guard_bits << 5); //one guard bit, and no quantization
       int B = bit_depth;
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       //we leave some leeway for numerical error by multiplying by 1.1f
       int X = (int) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
-      u8_SPqcd[s++] = (B + X) << 3;
+      u8_SPqcd[s++] = (ui8)((B + X) << 3);
       for (int d = num_decomps - 1; d >= 0; --d)
       {
         float bibo_l = bibo_gains::get_bibo_gain_l(d + 1, true);
         float bibo_h = bibo_gains::get_bibo_gain_h(d, true);
         X = (int) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
-        u8_SPqcd[s++] = (B + X) << 3;
-        u8_SPqcd[s++] = (B + X) << 3;
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
         X = (int) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
-        u8_SPqcd[s++] = (B + X) << 3;
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
       }
     }
 
@@ -779,7 +779,7 @@ namespace ojph {
     void param_qcd::set_irrev_quant()
     {
       int guard_bits = 1;
-      Sqcd = (guard_bits<<5)|0x2;//one guard bit, scalar quantization
+      Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
       int s = 0;
       float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
       float delta_b = base_delta / (gain_l * gain_l);
@@ -790,7 +790,7 @@ namespace ojph {
       // but that should not happen in reality
       mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
       mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-      u16_SPqcd[s++] = (exp << 11) | mantissa;
+      u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
       for (int d = num_decomps - 1; d >= 0; --d)
       {
         float gain_l = sqrt_energy_gains::get_gain_l(d + 1, false);
@@ -803,8 +803,8 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
 
         delta_b = base_delta / (gain_h * gain_h);
 
@@ -813,7 +813,7 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
       }
     }
 
@@ -887,9 +887,9 @@ namespace ojph {
       //marker size excluding header
       Lqcd = 3;
       if (irrev == 0)
-        Lqcd += num_subbands;
+        Lqcd = (ui16)(Lqcd + num_subbands);
       else if (irrev == 2)
-        Lqcd += 2 * num_subbands;
+        Lqcd = (ui16)(Lqcd + 2 * num_subbands);
       else
         assert(0);
 
@@ -1053,7 +1053,7 @@ namespace ojph {
     {
       this->num_pairs = num_pairs;
       pairs = (Ttlm_Ptlm_pair*)store;
-      Ltlm = 4 + 6 * num_pairs;
+      Ltlm = (ui16)(4 + 6 * num_pairs);
       Ztlm = 0;
       Stlm = 0x60;
     }

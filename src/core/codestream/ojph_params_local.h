@@ -159,7 +159,7 @@ namespace ojph {
 
       void set_num_components(int num_comps)
       {
-        Csiz = num_comps;
+        Csiz = (ui16)num_comps;
         if (Csiz > old_Csiz)
         {
           if (cptr != store)
@@ -175,20 +175,18 @@ namespace ojph {
       {
         assert(comp_num < Csiz);
         assert(downsampling.x != 0 && downsampling.y != 0);
-        cptr[comp_num].SSiz = bit_depth - 1 + (is_signed ? 0x80 : 0);
-        cptr[comp_num].XRsiz = downsampling.x;
-        cptr[comp_num].YRsiz = downsampling.y;
+        cptr[comp_num].SSiz = (ui8)(bit_depth - 1 + (is_signed ? 0x80 : 0));
+        cptr[comp_num].XRsiz = (ui8)downsampling.x;
+        cptr[comp_num].YRsiz = (ui8)downsampling.y;
       }
 
       void check_validity()
       {
         if (XTsiz == 0 && YTsiz == 0)
         { XTsiz = Xsiz - XOsiz; YTsiz = Ysiz - YOsiz; }
-        if (Xsiz <= 0 || Ysiz <= 0 || XTsiz <= 0 || YTsiz <= 0 ||
-            XOsiz < 0 || YOsiz < 0 || XTOsiz < 0 || YTOsiz < 0)
-          OJPH_ERROR(0x00040001,
-            "image extent and offset, and tile size and offset cannot be "
-            "negative");
+        if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
+          OJPH_ERROR(0x00040001, 
+            "You cannot set image extent nor tile size to zero");
         if (XTOsiz > XOsiz || YTOsiz > XOsiz)
           OJPH_ERROR(0x00040002,
             "tile offset has to be smaller than image offset");
@@ -383,7 +381,7 @@ namespace ojph {
         {
           if (base_delta == -1.0f)
             base_delta = 1.0f /
-              (1 << (siz.get_bit_depth(0) + siz.is_signed(0)));
+              (float)(1 << (siz.get_bit_depth(0) + siz.is_signed(0)));
           set_irrev_quant();
          }
       }
@@ -442,7 +440,7 @@ namespace ojph {
           Bp = 13 + (B >> 2);
         else
           Bp = 31;
-        Ccap[0] |= Bp;
+        Ccap[0] |= (ui16)Bp;
       }
 
       bool write(outfile_base *file);

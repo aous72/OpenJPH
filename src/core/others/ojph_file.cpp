@@ -41,6 +41,7 @@
  */
 
 #include <cassert>
+#include <cstddef>
 
 #include "ojph_file.h"
 #include "ojph_message.h"
@@ -255,8 +256,8 @@ namespace ojph {
     }
     else if (origin == OJPH_SEEK_CUR)
     {
-      size_t bytes_off = cur_ptr - data + offset;
-      if (bytes_off >= 0 && bytes_off <= size)
+      std::ptrdiff_t bytes_off = cur_ptr - data; bytes_off += offset;
+      if (bytes_off >= 0 && (size_t)bytes_off <= size)
       {
         cur_ptr = data + bytes_off;
         result = 0;
@@ -264,7 +265,7 @@ namespace ojph {
     }
     else if (origin == OJPH_SEEK_END)
     {
-      if (offset <= 0 && size + offset >= 0)
+      if (offset <= 0 && (std::ptrdiff_t)size + offset >= 0)
       {
         cur_ptr = data + size + offset;
         result = 0;

@@ -74,7 +74,7 @@ bool get_arguments(int argc, char *argv[],
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + ojph_max(0, len - 4);
+  return filename + (len >= 4 ? len - 4 : 0);
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -183,8 +183,7 @@ namespace ojph {
     class tile_comp
     {
     public:
-      static void pre_alloc(codestream *codestream, int comp_num,
-                            const rect& comp_rect);
+      static void pre_alloc(codestream *codestream, const rect& comp_rect);
       void finalize_alloc(codestream *codestream, tile *parent,
                            int comp_num, const rect& comp_rect);
 
@@ -285,7 +284,7 @@ namespace ojph {
       friend struct precinct;
     public:
       static void pre_alloc(codestream *codestream, const rect& band_rect,
-                            int res_num, int subband_num);
+                            int res_num);
       void finalize_alloc(codestream *codestream, const rect& band_rect,
                           resolution* res, int res_num, int subband_num);
 

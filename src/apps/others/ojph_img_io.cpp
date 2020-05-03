@@ -54,7 +54,7 @@ namespace ojph {
   static
   ui16 be2le(const ui16 v)
   {
-    return (v<<8) | (v>>8);
+    return (ui16)((v<<8) | (v>>8));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -172,11 +172,12 @@ namespace ojph {
   int ppm_in::read(const line_buf* line, int comp_num)
   {
     assert(temp_buf_byte_size != 0 && fh != 0 && comp_num < num_comps);
-    assert(line->size >= width);
+    assert((int)line->size >= width);
 
     if (planar || comp_num == 0)
     {
-      size_t result = fread(temp_buf, bytes_per_sample, num_ele_per_line, fh);
+      int result = (int)fread(
+        temp_buf, bytes_per_sample, num_ele_per_line, fh);
       if (result != num_ele_per_line)
       {
         close();
@@ -326,7 +327,7 @@ namespace ojph {
           *dp++ = be2le((ui16) val);
         }
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+      if ((int)fwrite(buffer, bytes_per_sample, width, fh) != width)
         OJPH_ERROR(0x030000041, "error writing to file %s", fname);
     }
     else
@@ -361,7 +362,7 @@ namespace ojph {
       }
       if (comp_num == 2)
       {
-        size_t result = fwrite(buffer,
+        int result = (int)fwrite(buffer,
                                bytes_per_sample, samples_per_line, fh);
         if (result != samples_per_line)
           OJPH_ERROR(0x030000042, "error writing to file %s", fname);
@@ -407,7 +408,7 @@ namespace ojph {
   int yuv_in::read(const line_buf* line, int comp_num)
   {
     assert(comp_num < num_com);
-    size_t result = fread(temp_buf, bytes_per_sample[comp_num],
+    int result = (int)fread(temp_buf, bytes_per_sample[comp_num],
                           width[comp_num], fh);
     if (result != width[comp_num])
     {
@@ -564,7 +565,7 @@ namespace ojph {
         val = val <= max_val ? val : max_val;
         *dp++ = (ui16)val;
       }
-      if (fwrite(buffer, 2, w, fh) != w)
+      if ((int)fwrite(buffer, 2, w, fh) != w)
         OJPH_ERROR(0x030000A1, "unable to write to file %s", fname);
     }
     else
@@ -578,7 +579,7 @@ namespace ojph {
         val = val <= max_val ? val : max_val;
         *dp++ = (ui8)val;
       }
-      if (fwrite(buffer, 1, w, fh) != w)
+      if ((int)fwrite(buffer, 1, w, fh) != w)
         OJPH_ERROR(0x030000A2, "unable to write to file %s", fname);
     }
 

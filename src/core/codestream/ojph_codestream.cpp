@@ -168,7 +168,7 @@ namespace ojph {
     static inline
     ui16 swap_byte(ui16 t)
     {
-      return (t << 8) | (t >> 8);
+      return (ui16)((t << 8) | (t >> 8));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ namespace ojph {
 
     ////////////////////////////////////////////////////////////////////////////
     codestream::codestream()
-    : allocator(NULL), elastic_alloc(NULL), precinct_scratch(NULL)
+    : precinct_scratch(NULL), allocator(NULL), elastic_alloc(NULL)
     {
       tiles = NULL;
       line = NULL;
@@ -737,6 +737,7 @@ namespace ojph {
     void skip_marker(infile_base *file, const char *marker,
                      const char *msg, int msg_level)
     {
+      ojph_unused(marker);
       ui16 com_len;
       if (file->read(&com_len, 2) != 2)
         OJPH_ERROR(0x00030041, "error reading marker");
@@ -1130,7 +1131,7 @@ namespace ojph {
         comp_rect.siz.w = tcx1 - tcx0;
         comp_rect.siz.h = tcy1 - tcy0;
 
-        tile_comp::pre_alloc(codestream, i, comp_rect);
+        tile_comp::pre_alloc(codestream, comp_rect);
         width = ojph_max(width, comp_rect.siz.w);
       }
 
@@ -1250,7 +1251,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (1<<num_bits[comp_num]);
+          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           float *dp = tc->f32;
           if (is_signed[comp_num])
@@ -1285,7 +1286,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (1<<num_bits[comp_num]);
+          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           float *dp = lines[comp_num].f32;
           if (is_signed[comp_num])
@@ -1668,8 +1669,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::pre_alloc(codestream *codestream, int comp_num,
-                              const rect& comp_rect)
+    void tile_comp::pre_alloc(codestream *codestream,  const rect& comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -1902,11 +1902,11 @@ namespace ojph {
           band_rect.org.y = tby0;
           band_rect.siz.w = tbx1 - tbx0;
           band_rect.siz.h = tby1 - tby0;
-          subband::pre_alloc(codestream, band_rect, res_num, i);
+          subband::pre_alloc(codestream, band_rect, res_num);
         }
       }
       else
-        subband::pre_alloc(codestream, res_rect, res_num, 0);
+        subband::pre_alloc(codestream, res_rect, res_num);
 
       //prealloc precincts
       size log_PP = cd.get_log_precinct_size(res_num);
@@ -2654,8 +2654,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    void bb_terminate(bit_write_buf *bbp, mem_elastic_allocator *elastic,
-                      coded_lists*& cur_coded_list, ui32& ph_bytes)
+    void bb_terminate(bit_write_buf *bbp)
     {
       if (bbp->avail_bits < 8) //bits have been written
       {
@@ -2738,7 +2737,7 @@ namespace ojph {
           {
             coded_cb_header *p = cp + x;
             *inc_tag.get(x, y, 0) = (p->next_coded == NULL); //1 if true
-            *mmsb_tag.get(x, y, 0) = p->missing_msbs;
+            *mmsb_tag.get(x, y, 0) = (ui8)p->missing_msbs;
           }
           cp += band_width;
         }
@@ -2877,7 +2876,7 @@ namespace ojph {
 
       if (coded)
       {
-        bb_terminate(&bb, elastic, cur_coded_list, ph_bytes);
+        bb_terminate(&bb);
         ph_bytes += cur_coded_list->buf_size - cur_coded_list->avail_size;
       }
 
@@ -3165,7 +3164,7 @@ namespace ojph {
                 if (bb_read_bit(&bb, bit) == false)
                 { data_left = bb.bytes_left; assert(data_left == 0); return; }
                 empty_cb = (bit == 0);
-                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1 - bit;
+                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
                 *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
               }
               if (empty_cb)
@@ -3191,7 +3190,7 @@ namespace ojph {
                   { data_left = bb.bytes_left; assert(data_left==0); return; }
                   mmsbs += 1 - bit;
                 }
-                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = mmsbs;
+                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
                 *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
               }
             }
@@ -3294,7 +3293,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
-                            int res_num, int subband_num)
+                            int res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -3603,7 +3602,7 @@ namespace ojph {
         float *dp = lines->f32;
         for (int i = band_rect.siz.w; i > 0; --i, ++sp)
         {
-          float val = (*sp & 0x7FFFFFFF) * delta;
+          float val = (float)(*sp & 0x7FFFFFFF) * delta;
           *dp++ = (*sp & 0x80000000) ? -val : val;
         }
       }

@@ -104,7 +104,7 @@ namespace ojph {
     param_cod(local::param_cod* p) : state(p) {}
 
     OJPH_EXPORT
-    void set_num_decomposition(ui8 num_decompositions);
+    void set_num_decomposition(ui32 num_decompositions);
     OJPH_EXPORT
     void set_block_dims(int width, int height);
     OJPH_EXPORT

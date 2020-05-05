@@ -52,6 +52,15 @@
 
 namespace ojph {
 
+  size calculate_decomposition_resolution(size extent, int level) {
+      while(level > 0) {
+        extent.w = ojph_div_ceil(extent.w, 2);
+        extent.h = ojph_div_ceil(extent.h, 2);
+        level--;
+      }
+     return extent;
+  }
+
   ////////////////////////////////////////////////////////////////////////////
   //
   //
@@ -109,6 +118,12 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  point codestream::get_resolution_at_level(int level)
+  {
+    return state->get_resolution_at_level(level);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void codestream::write_headers(outfile_base *file)
   {
     state->write_headers(file);
@@ -127,9 +142,9 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  line_buf* codestream::pull(int &comp_num)
+  line_buf* codestream::pull(int &comp_num, int level)
   {
-    return state->pull(comp_num);
+    return state->pull(comp_num, level);
   }
 
 
@@ -646,6 +661,20 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    point codestream::get_resolution_at_level(int level) {
+      int currentLevel = access_cod().get_num_decompositions();
+      point resolution = access_siz().get_image_extent();
+      while(level > 0) {
+        resolution.x = ojph_div_ceil(resolution.x, 2);
+        resolution.y = ojph_div_ceil(resolution.y, 2);
+        level--;
+      }
+
+     return resolution;
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
     void codestream::write_headers(outfile_base *file)
     {
       //finalize
@@ -1033,7 +1062,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    line_buf* codestream::pull(int &comp_num)
+    line_buf* codestream::pull(int &comp_num, int level)
     {
       bool success = false;
       while (!success)
@@ -1042,7 +1071,7 @@ namespace ojph {
         for (int i = 0; i < num_tiles.w; ++i)
         {
           int idx = i + cur_tile_row * num_tiles.w;
-          if ((success &= tiles[idx].pull(line, cur_comp)) == false)
+          if ((success &= tiles[idx].pull(line, cur_comp, level)) == false)
             break;
         }
         cur_tile_row += success == false ? 1 : 0;
@@ -1309,8 +1338,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool tile::pull(line_buf* tgt_line, int comp_num)
+    bool tile::pull(line_buf* tgt_line, int comp_num, int level)
     {
+
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= comp_rects[comp_num].siz.h)
         return false;
@@ -1319,15 +1349,16 @@ namespace ojph {
 
       if (!employ_color_transform || num_comps == 1)
       {
-        line_buf *src_line = comps[comp_num].pull_line();
+        line_buf *src_line = comps[comp_num].pull_line(level);
         int comp_width = comp_rects[comp_num].siz.w;
+        comp_width >>= (parent->access_cod().get_num_decompositions() - level);
         if (reversible)
         {
           int shift = 1 << (num_bits[comp_num] - 1);
           const si32 *sp = src_line->i32;
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32));
+            memcpy(dp, sp, comp_width * sizeof(si32) >> level);
           else
             cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }
@@ -1346,15 +1377,16 @@ namespace ojph {
       {
         assert(num_comps >= 3);
         int comp_width = comp_rects[comp_num].siz.w;
+        comp_width >>= (parent->access_cod().get_num_decompositions() - level);
         if (comp_num == 0)
         {
           if (reversible)
-            rct_backward(comps[0].pull_line()->i32, comps[1].pull_line()->i32,
-              comps[2].pull_line()->i32, lines[0].i32, lines[1].i32,
+            rct_backward(comps[0].pull_line(level)->i32, comps[1].pull_line(level)->i32,
+              comps[2].pull_line(level)->i32, lines[0].i32, lines[1].i32,
               lines[2].i32, comp_width);
           else
-            ict_backward(comps[0].pull_line()->f32, comps[1].pull_line()->f32,
-              comps[2].pull_line()->f32, lines[0].f32, lines[1].f32,
+            ict_backward(comps[0].pull_line(level)->f32, comps[1].pull_line(level)->f32,
+              comps[2].pull_line(level)->f32, lines[0].f32, lines[1].f32,
               lines[2].f32, comp_width);
         }
         if (reversible)
@@ -1720,9 +1752,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    line_buf* tile_comp::pull_line()
+    line_buf* tile_comp::pull_line(int level)
     {
-      return res->pull_line();
+      return res->pull_line(level);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2334,8 +2366,12 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    line_buf* resolution::pull_line()
+    line_buf* resolution::pull_line(int level)
     {
+      if(level < res_num) {
+        return child_res->pull_line(level);
+      }
+
       if (res_num == 0)
       {
         assert(num_bands == 1 && child_res == NULL);
@@ -2354,7 +2390,7 @@ namespace ojph {
             {
               if (vert_even)
                 rev_horz_wvlt_bwd_tx(lines[0].i32,
-                  child_res->pull_line()->i32, bands[1].pull_line()->i32,
+                  child_res->pull_line(level)->i32, bands[1].pull_line()->i32,
                   res_rect.siz.w, horz_even);
               else
                 rev_horz_wvlt_bwd_tx(lines[0].i32,
@@ -2388,7 +2424,7 @@ namespace ojph {
           assert(res_rect.siz.h == 1);
           if (vert_even)
           {
-            rev_horz_wvlt_bwd_tx(lines[0].i32, child_res->pull_line()->i32,
+            rev_horz_wvlt_bwd_tx(lines[0].i32, child_res->pull_line(level)->i32,
               bands[1].pull_line()->i32, res_rect.siz.w, horz_even);
           }
           else
@@ -2415,7 +2451,7 @@ namespace ojph {
               if (vert_even)
               {
                 irrev_horz_wvlt_bwd_tx(lines[0].f32,
-                  child_res->pull_line()->f32, bands[1].pull_line()->f32,
+                  child_res->pull_line(level)->f32, bands[1].pull_line()->f32,
                   res_rect.siz.w, horz_even);
                 irrev_vert_wvlt_K(lines[0].f32, lines[0].f32,
                   false, res_rect.siz.w);
@@ -2464,7 +2500,7 @@ namespace ojph {
           assert(res_rect.siz.h == 1);
           if (vert_even)
           {
-            irrev_horz_wvlt_bwd_tx(lines[0].f32, child_res->pull_line()->f32,
+            irrev_horz_wvlt_bwd_tx(lines[0].f32, child_res->pull_line(level)->f32,
               bands[1].pull_line()->f32, res_rect.siz.w, horz_even);
           }
           else

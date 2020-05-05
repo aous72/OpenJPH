@@ -93,7 +93,7 @@ namespace ojph {
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);
-      line_buf* pull(int &comp_num);
+      line_buf* pull(int &comp_num, int level);
       void flush();
       void close();
 
@@ -104,6 +104,8 @@ namespace ojph {
       void check_boardcast_validity();
 
       ui8* get_precinct_scratch() { return precinct_scratch; }
+
+      point get_resolution_at_level(int level);
 
     private:
       int precinct_scratch_needed_bytes;
@@ -152,7 +154,7 @@ namespace ojph {
       void flush(outfile_base *file);
       void parse_tile_header(const param_sot& sot, infile_base *file,
                              const ui64& tile_start_location);
-      bool pull(line_buf *, int comp_num);
+      bool pull(line_buf *, int comp_num, int level);
 
     private:
       codestream *parent;
@@ -192,7 +194,7 @@ namespace ojph {
       int get_num_decompositions() { return num_decomps; }
       line_buf* get_line();
       void push_line();
-      line_buf* pull_line();
+      line_buf* pull_line(int level);
 
       ui32 prepare_precincts();
       void write_precincts(int res_num, outfile_base *file);
@@ -225,7 +227,7 @@ namespace ojph {
 
       line_buf* get_line() { return lines + 0; }
       void push_line();
-      line_buf* pull_line();
+      line_buf* pull_line(int level);
       rect get_rect() { return res_rect; }
 
       ui32 prepare_precinct();

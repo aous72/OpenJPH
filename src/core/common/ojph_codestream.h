@@ -62,6 +62,10 @@ namespace ojph {
   class outfile_base;
   class infile_base;
 
+  // Calculates the resolution of a decomposition level for an image 
+  // of a certain size
+  size calculate_decomposition_resolution(size extent, int level);
+
   ////////////////////////////////////////////////////////////////////////////
   class codestream
   {
@@ -88,7 +92,7 @@ namespace ojph {
     OJPH_EXPORT
     void create(); //after reading headers
     OJPH_EXPORT
-    line_buf* pull(int &comp_num);
+    line_buf* pull(int &comp_num, int level=0);
 
     OJPH_EXPORT
     void close();
@@ -101,6 +105,10 @@ namespace ojph {
     param_qcd access_qcd();
     OJPH_EXPORT
     bool is_planar() const;
+    
+    // returns the resolution for a given decomposition level
+    OJPH_EXPORT
+    point get_resolution_at_level(int level);
 
   private:
     local::codestream* state;

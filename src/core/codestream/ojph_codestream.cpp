@@ -1358,7 +1358,7 @@ namespace ojph {
           const si32 *sp = src_line->i32;
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32) >> level);
+            memcpy(dp, sp, comp_width * sizeof(si32));
           else
             cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }

@@ -187,7 +187,7 @@ namespace ojph {
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
           OJPH_ERROR(0x00040001, 
             "You cannot set image extent nor tile size to zero");
-        if (XTOsiz > XOsiz || YTOsiz > XOsiz)
+        if (XTOsiz > XOsiz || YTOsiz > YOsiz)
           OJPH_ERROR(0x00040002,
             "tile offset has to be smaller than image offset");
         if (XTsiz + XTOsiz <= XOsiz || YTsiz + YTOsiz <= YOsiz)
@@ -215,6 +215,39 @@ namespace ojph {
       bool write(outfile_base *file);
       void read(infile_base *file);
 
+      void set_skipped_resolutions(int skipped_resolutions)
+      {
+        this->skipped_resolutions = skipped_resolutions;
+      }
+      ui32 get_width(int comp_num) const
+      {
+        assert(comp_num < get_num_components());
+        ui32 ds = (ui32)cptr[comp_num].XRsiz;
+        ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
+        return t;
+      }
+      ui32 get_height(int comp_num) const
+      {
+        assert(comp_num < get_num_components());
+        ui32 ds = (ui32)cptr[comp_num].YRsiz;
+        ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
+        return t;
+      }
+      ui32 get_recon_width(int comp_num) const
+      {
+        assert(comp_num < get_num_components());
+        ui32 ds = (ui32)cptr[comp_num].XRsiz * (1u << skipped_resolutions);
+        ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
+        return t;
+      }
+      ui32 get_recon_height(int comp_num) const
+      {
+        assert(comp_num < get_num_components());
+        ui32 ds = (ui32)cptr[comp_num].YRsiz * (1u << skipped_resolutions);
+        ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
+        return t;
+      }
+
     private:
       ui16 Lsiz;
       ui16 Rsiz;
@@ -230,10 +263,11 @@ namespace ojph {
       siz_comp_info* cptr;
 
     private:
+      int skipped_resolutions;
       int old_Csiz;
       siz_comp_info store[4];
-      param_siz(const param_siz&); //prevent copy constructor
-      param_siz& operator=(const param_siz&); //prevent copy
+      param_siz(const param_siz&) = delete; //prevent copy constructor
+      param_siz& operator=(const param_siz&) = delete; //prevent copy
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -334,10 +368,39 @@ namespace ojph {
 
       ui8 get_num_decompositions() const
       { return SPcod.num_decomp; }
+      size get_block_dims() const
+      {
+        return size(1 << (SPcod.block_width + 2),
+                    1 << (SPcod.block_height + 2));
+      }
       bool is_reversible() const
       { return (SPcod.wavelet_trans == 1); }
       bool is_employing_color_transform() const
       { return (SGCod.mc_trans == 1); }
+      size get_log_block_dims() const
+      { return size(SPcod.block_width + 2, SPcod.block_height + 2); }
+      size get_precinct_size(int res_num) const
+      {
+        size t = get_log_precinct_size(res_num);
+        t.w = 1 << t.w;
+        t.h = 1 << t.h;
+        return t;
+      }
+      size get_log_precinct_size(int res_num) const
+      {
+        assert(res_num <= SPcod.num_decomp);
+        size ps(15, 15);
+        if (Scod & 1)
+        {
+          ps.w = SPcod.precinct_size[res_num] & 0xF;
+          ps.h = SPcod.precinct_size[res_num] >> 4;
+        }
+        return ps;
+      }
+      bool packets_may_use_sop() const
+      { return (Scod & 2) == 2; }
+      bool packets_use_eph() const
+      { return (Scod & 4) == 4; }
 
       bool write(outfile_base *file);
       void read(infile_base *file);
@@ -475,7 +538,7 @@ namespace ojph {
 
       bool write(outfile_base *file, ui32 payload_len);
       bool write(outfile_base *file, ui32 payload_len, ui8 TPsot, ui8 TNsot);
-      void read(infile_base *file);
+      bool read(infile_base *file, bool resilient);
 
       ui16 get_tile_index() const { return Isot; }
       ui32 get_payload_length() const { return Psot > 0 ? Psot - 12 : 0; }

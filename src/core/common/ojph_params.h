@@ -92,6 +92,12 @@ namespace ojph {
     OJPH_EXPORT
     point get_downsampling(si32 comp_num) const;
 
+    //deeper getters
+    OJPH_EXPORT
+    ui32 get_recon_width(int comp_num) const;
+    OJPH_EXPORT
+    ui32 get_recon_height(int comp_num) const;
+
   private:
     local::param_siz* state;
   };

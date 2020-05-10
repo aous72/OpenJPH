@@ -277,7 +277,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void ppm_out::configure(int width, int height, int num_components,
+  void ppm_out::configure(ui32 width, ui32 height, int num_components,
                           int bit_depth)
   {
     assert(fh == NULL); //configure before opening
@@ -327,7 +327,7 @@ namespace ojph {
           *dp++ = be2le((ui16) val);
         }
       }
-      if ((int)fwrite(buffer, bytes_per_sample, width, fh) != width)
+      if ((ui32)fwrite(buffer, bytes_per_sample, width, fh) != width)
         OJPH_ERROR(0x030000041, "error writing to file %s", fname);
     }
     else
@@ -501,11 +501,6 @@ namespace ojph {
       buffer = NULL;
       buffer_size = 0;
     }
-    if (downsampling)
-    {
-      delete [] downsampling;
-      downsampling = NULL;
-    }
     if (comp_width)
     {
       delete [] comp_width;
@@ -516,7 +511,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   void yuv_out::open(char *filename)
   {
-    assert(fh == NULL && downsampling != NULL); //configure before open
+    assert(fh == NULL); //configure before open
     fh = fopen(filename, "wb");
     if (fh == 0)
       OJPH_ERROR(0x03000091, "Unable to open file %s", filename);
@@ -528,16 +523,14 @@ namespace ojph {
                           int bit_depth, int num_components,
                           point *downsampling)
   {
-    assert(fh == NULL && this->downsampling == NULL);
+    assert(fh == NULL);
     this->width = image_x_extent - image_x_offset;
     this->num_components = num_components;
     this->bit_depth = bit_depth;
-    this->downsampling = new point[num_components];
-    this->comp_width = new int[num_components];
-    int tw = 0;
+    this->comp_width = new ui32[num_components];
+    ui32 tw = 0;
     for (int i = 0; i < num_components; ++i)
     {
-      this->downsampling[i] = downsampling[i];
       this->comp_width[i] = ojph_div_ceil(image_x_extent, downsampling[i].x)
                           - ojph_div_ceil(image_x_offset, downsampling[i].x);
       tw = ojph_max(tw, this->comp_width[i]);
@@ -547,9 +540,27 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  void yuv_out::configure(int bit_depth, int num_components, ui32* comp_width)
+  {
+    assert(fh == NULL);
+    this->num_components = num_components;
+    this->bit_depth = bit_depth;
+    this->comp_width = new ui32[num_components];
+    ui32 tw = 0;
+    for (int i = 0; i < num_components; ++i)
+    {
+      this->comp_width[i] = comp_width[i];
+      tw = ojph_max(tw, this->comp_width[i]);
+    }
+    this->width = tw;
+    buffer_size = tw * (bit_depth > 8 ? 2 : 1);
+    buffer = (ui8*)malloc(buffer_size);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   int yuv_out::write(const line_buf* line, int comp_num)
   {
-    assert(fh && downsampling);
+    assert(fh);
     assert(comp_num < num_components);
 
     int max_val = (1<<bit_depth) - 1;

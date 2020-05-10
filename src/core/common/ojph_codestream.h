@@ -84,9 +84,14 @@ namespace ojph {
     void flush();
 
     OJPH_EXPORT
-    void read_headers(infile_base *file);
+    void enable_resilience();             // before read_headers
     OJPH_EXPORT
-    void create(); //after reading headers
+    void read_headers(infile_base *file); // before resolution restrictions
+    OJPH_EXPORT
+    void restrict_input_resolution(int skipped_res_for_data, 
+      int skipped_res_for_recon);         // before create
+    OJPH_EXPORT
+    void create(); 
     OJPH_EXPORT
     line_buf* pull(int &comp_num);
 

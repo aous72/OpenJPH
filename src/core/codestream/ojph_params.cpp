@@ -145,6 +145,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  ui32 param_siz::get_recon_width(int comp_num) const
+  {
+    return state->get_recon_width(comp_num);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 param_siz::get_recon_height(int comp_num) const
+  {
+    return state->get_recon_height(comp_num);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   //
   //
   //
@@ -251,14 +263,13 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_block_dims() const
   {
-    return size(1 << (state->SPcod.block_width + 2),
-                1 << (state->SPcod.block_height + 2));
+    return state->get_block_dims();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_log_block_dims() const
   {
-    return size(state->SPcod.block_width + 2, state->SPcod.block_height + 2);
+    return state->get_log_block_dims();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -270,27 +281,13 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_precinct_size(int res_num) const
   {
-    assert(res_num <= state->SPcod.num_decomp);
-    size ps(1<<15, 1<<15);
-    if (state->Scod & 1)
-    {
-      ps.w = 1 << (state->SPcod.precinct_size[res_num] & 0xF);
-      ps.h = 1 << (state->SPcod.precinct_size[res_num] >> 4);
-    }
-    return ps;
+    return state->get_precinct_size(res_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_log_precinct_size(int res_num) const
   {
-    assert(res_num <= state->SPcod.num_decomp);
-    size ps(15, 15);
-    if (state->Scod & 1)
-    {
-      ps.w = state->SPcod.precinct_size[res_num] & 0xF;
-      ps.h = state->SPcod.precinct_size[res_num] >> 4;
-    }
-    return ps;
+    return state->get_log_precinct_size(res_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -326,19 +323,19 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::is_using_color_transform() const
   {
-    return (state->SGCod.mc_trans == 0 ? false : true);
+    return state->is_employing_color_transform();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::packets_may_use_sop() const
   {
-    return (state->Scod & 2) == 2;
+    return state->packets_may_use_sop();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::packets_use_eph() const
   {
-    return (state->Scod & 4) == 4;
+    return state->packets_use_eph();
   }
 
 
@@ -848,7 +845,7 @@ namespace ojph {
       int idx = ojph_max(resolution - 1, 0) * 3 + subband;
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
-      mantissa = ((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
+      mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
       mantissa /= (float)(1 << 11);
       mantissa /= (float)(1u << eps);
       return mantissa;
@@ -1019,25 +1016,77 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_sot::read(infile_base *file)
+    bool param_sot::read(infile_base *file, bool resilient)
     {
-      if (file->read(&Lsot, 2) != 2)
-        OJPH_ERROR(0x00050091, "error reading SOT marker");
-      Lsot = swap_byte(Lsot);
-      if (Lsot != 10)
-        OJPH_ERROR(0x00050092, "error in SOT length");
-      if (file->read(&Isot, 2) != 2)
-        OJPH_ERROR(0x00050093, "error reading SOT marker");
-      Isot = swap_byte(Isot);
-      if (Isot == 0xFFFF)
-        OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
-      if (file->read(&Psot, 4) != 4)
-        OJPH_ERROR(0x00050095, "error reading SOT marker");
-      Psot = swap_byte(Psot);
-      if (file->read(&TPsot, 1) != 1)
-        OJPH_ERROR(0x00050096, "error reading SOT marker");
-      if (file->read(&TNsot, 1) != 1)
-        OJPH_ERROR(0x00050097, "error reading SOT marker");
+      if (resilient)
+      {
+        if (file->read(&Lsot, 2) != 2)
+        {
+          OJPH_INFO(0x00050091, "error reading SOT marker");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0; 
+          return false;
+        }
+        Lsot = swap_byte(Lsot);
+        if (Lsot != 10)
+        {
+          OJPH_INFO(0x00050092, "error in SOT length");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+        if (file->read(&Isot, 2) != 2)
+        {
+          OJPH_INFO(0x00050093, "error reading tile index");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+        Isot = swap_byte(Isot);
+        if (Isot == 0xFFFF)
+        {
+          OJPH_INFO(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+        if (file->read(&Psot, 4) != 4)
+        {
+          OJPH_INFO(0x00050095, "error reading SOT marker");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+        Psot = swap_byte(Psot);
+        if (file->read(&TPsot, 1) != 1)
+        {
+          OJPH_INFO(0x00050096, "error reading SOT marker");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+        if (file->read(&TNsot, 1) != 1)
+        {
+          OJPH_INFO(0x00050097, "error reading SOT marker");
+          Lsot = Isot = 0; Psot = 0; TPsot = TNsot = 0;
+          return false;
+        }
+      }
+      else
+      {
+        if (file->read(&Lsot, 2) != 2)
+          OJPH_ERROR(0x00050091, "error reading SOT marker");
+        Lsot = swap_byte(Lsot);
+        if (Lsot != 10)
+          OJPH_ERROR(0x00050092, "error in SOT length");
+        if (file->read(&Isot, 2) != 2)
+          OJPH_ERROR(0x00050093, "error reading SOT tile index");
+        Isot = swap_byte(Isot);
+        if (Isot == 0xFFFF)
+          OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
+        if (file->read(&Psot, 4) != 4)
+          OJPH_ERROR(0x00050095, "error reading SOT marker");
+        Psot = swap_byte(Psot);
+        if (file->read(&TPsot, 1) != 1)
+          OJPH_ERROR(0x00050096, "error reading SOT marker");
+        if (file->read(&TNsot, 1) != 1)
+          OJPH_ERROR(0x00050097, "error reading SOT marker");
+      }
+      return true;
     }
 
     //////////////////////////////////////////////////////////////////////////

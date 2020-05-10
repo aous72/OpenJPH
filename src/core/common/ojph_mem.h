@@ -106,7 +106,7 @@ namespace ojph {
       assert(store == NULL);
       num_ele = calc_aligned_size<T, N>(num_ele);
       size_t total = (num_ele + pre_size) * sizeof(T);
-      total += N - 1;
+      total += 2*N - 1;
 
       sz += total;
     }
@@ -118,7 +118,7 @@ namespace ojph {
       assert(store != NULL);
       num_ele = calc_aligned_size<T, N>(num_ele);
       size_t total = (num_ele + pre_size) * sizeof(T);
-      total += N - 1;
+      total += 2*N - 1;
 
       T* p = align_ptr<T, N>((T*)avail_p + pre_size);
       avail_p = (ui8*)avail_p + total;

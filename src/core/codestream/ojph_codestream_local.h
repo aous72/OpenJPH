@@ -77,10 +77,14 @@ namespace ojph {
       void pre_alloc();
       void finalize_alloc();
 
-      ojph::param_siz access_siz()
+      ojph::param_siz access_siz()            //return externally wrapped siz
       { return ojph::param_siz(&siz); }
-      ojph::param_cod access_cod()
+      const param_siz* get_siz() //return internal siz
+      { return &siz; }
+      ojph::param_cod access_cod()            //return externally wrapped cod
       { return ojph::param_cod(&cod); }
+      const param_cod* get_cod() //return internal code
+      { return &cod; }
       param_qcd access_qcd()
       { return qcd; }
       mem_fixed_allocator* get_allocator() { return allocator; }
@@ -89,7 +93,11 @@ namespace ojph {
 
       line_buf* exchange(line_buf* line, int& next_component);
       void write_headers(outfile_base *file);
+      void enable_resilience();
+      bool is_resilient() { return resilient; }
       void read_headers(infile_base *file);
+      void restrict_input_resolution(int skipped_res_for_data,
+        int skipped_res_for_recon);
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);
@@ -104,6 +112,10 @@ namespace ojph {
       void check_boardcast_validity();
 
       ui8* get_precinct_scratch() { return precinct_scratch; }
+      int get_skipped_res_for_recon()
+      { return skipped_res_for_recon; }
+      int get_skipped_res_for_read()
+      { return skipped_res_for_read; }
 
     private:
       int precinct_scratch_needed_bytes;
@@ -113,13 +125,16 @@ namespace ojph {
       int cur_line;
       int cur_comp;
       int cur_tile_row;
+      bool resilient;
+      int skipped_res_for_read, skipped_res_for_recon;
 
     private:
       size num_tiles;
       tile *tiles;
       line_buf* line;
       int num_comps;
-      size *comp_size; //stores the number of lines and width of each comp
+      size *comp_size;       //stores full resolution no. of lines and width
+      size *recon_comp_size; //stores number of lines and width of each comp
       bool employ_color_transform;
       int planar;
       int profile;
@@ -142,8 +157,10 @@ namespace ojph {
     class tile
     {
     public:
-      static void pre_alloc(codestream *codestream, const rect& tile_rect);
+      static void pre_alloc(codestream *codestream, const rect& tile_rect,
+                            const rect& recon_tile_rect);
       void finalize_alloc(codestream *codestream, const rect& tile_rect,
+                          const rect& recon_tile_rect, 
                           int tile_idx, int offset);
 
       bool push(line_buf *line, int comp_num);
@@ -156,14 +173,15 @@ namespace ojph {
 
     private:
       codestream *parent;
-      rect tile_rect;
+      rect tile_rect, recon_tile_rect;
       int num_comps;
       tile_comp *comps;
       int num_lines;
       line_buf* lines;
-      bool reversible, employ_color_transform;
-      rect *comp_rects;
+      bool reversible, employ_color_transform, resilient;
+      rect *comp_rects, *recon_comp_rects;
       int *line_offsets;
+      int skipped_res_for_read;
 
       int *num_bits;
       bool *is_signed;
@@ -183,9 +201,11 @@ namespace ojph {
     class tile_comp
     {
     public:
-      static void pre_alloc(codestream *codestream, const rect& comp_rect);
+      static void pre_alloc(codestream *codestream, const rect& comp_rect,
+                            const rect& recon_comp_rect);
       void finalize_alloc(codestream *codestream, tile *parent,
-                           int comp_num, const rect& comp_rect);
+                          int comp_num, const rect& comp_rect,
+                          const rect& recon_comp_rect);
 
       int get_num_resolutions() { return num_decomps + 1; }
       int get_num_decompositions() { return num_decomps; }
@@ -216,8 +236,9 @@ namespace ojph {
 
     public:
       static void pre_alloc(codestream *codestream, const rect& res_rect,
-                            int res_num);
+                            const rect& recon_res_rect, int res_num);
       void finalize_alloc(codestream *codestream, const rect& res_rect,
+                          const rect& recon_res_rect,
                           int res_num, point comp_downsamp,
                           tile_comp *parent_tile,
                           resolution *parent_res);
@@ -236,8 +257,8 @@ namespace ojph {
       void parse_one_precinct(ui32& data_left, infile_base *file);
 
     private:
-      bool reversible;
-      int num_lines, num_bands, res_num, num_decomps;
+      bool reversible, skipped_res_for_read, skipped_res_for_recon;
+      int num_lines, num_bands, res_num;
       point comp_downsamp;
       rect res_rect;
       line_buf *lines;
@@ -266,7 +287,7 @@ namespace ojph {
       void write(outfile_base *file);
       void parse(int tag_tree_size, si32* lev_idx,
                  mem_elastic_allocator *elastic,
-                 ui32& data_left, infile_base *file);
+                 ui32& data_left, infile_base *file, bool skipped);
 
       ui8 *scratch;
       point img_point;   //the precinct projected to full resolution

@@ -14,14 +14,15 @@
      Module.onRuntimeInitialized = async _ => {
         create_j2c_data = Module.cwrap('create_j2c_data', 'number');
         init_j2c_data = Module.cwrap('init_j2c_data', 'void', ['number', 'number', 'number']);
-        get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number']);
-        get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number']);
+        get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number', 'number']);
+        get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number', 'number']);
         get_j2c_bit_depth = Module.cwrap('get_j2c_bit_depth', 'number', ['number', 'number']);
         get_j2c_is_signed = Module.cwrap('get_j2c_is_signed', 'number', ['number', 'number']);
         get_j2c_num_components = Module.cwrap('get_j2c_num_components', 'number', ['number']);
         get_j2c_downsampling_x = Module.cwrap('get_j2c_downsampling_x', 'number', ['number', 'number']);
         get_j2c_downsampling_y = Module.cwrap('get_j2c_downsampling_y', 'number', ['number', 'number']);
         parse_j2c_data = Module.cwrap('parse_j2c_data', 'void', ['number']);
+        restrict_input_resolution = Module.cwrap('restrict_input_resolution', 'void', ['number', 'number', 'number']);
         pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
@@ -39,10 +40,10 @@
                 var buffer = Module._malloc(array.length);
                 writeArrayToMemory(array, buffer);
                 init_j2c_data(j2c, buffer, array.length);
-                var width = get_j2c_width(j2c) | 0;
-                var height = get_j2c_height(j2c) | 0;
+                var width = get_j2c_width(j2c, 0) | 0;          //component 0
+                var height = get_j2c_height(j2c, 0) | 0;        //component 0
                 var num_comps = get_j2c_num_components(j2c) | 0;
-                var bit_depth = get_j2c_bit_depth(j2c, 0) | 0; //component 0
+                var bit_depth = get_j2c_bit_depth(j2c, 0) | 0;  //component 0
                 var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
                 parse_j2c_data(j2c);
                 

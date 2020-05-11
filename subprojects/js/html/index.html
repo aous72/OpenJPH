@@ -6,9 +6,74 @@
 </head>
 <body>
 <h1>HTJ2K decoding in a browser</h1>
+<pre style="font-size:16px">
+Decoding the full resolution image.
+</pre>
 <canvas id="mycanvas" width="512" height="512"></canvas>
 <br>
-<div id="time"></div>
+<pre id="time" style="font-size: 16px">Decode time: </pre>
+
+<h1>HTJ2K progressive decoding to the actual image resolution</h1>
+<pre style="font-size:16px">
+This example shows that one source image can be used for multiple reconstructed resolutions.
+The client/browser can decide, depending on the rendering resolution, the number of bytes to load and decode for a given image.
+
+Note: Below each image, we display the number of decoded bytes
+</pre>
+<table>
+  <tr>
+    <td></td>
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c5' width=48px"> </canvas></td>
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c4' width=48px"> </canvas></td>
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c3' width=64px"> </canvas></td>
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c2' width=128px"></canvas></td>
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c1' width=256px"></canvas></td>    
+    <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c0' width=512px"></canvas></td>    
+  </tr>                                                       
+  <tr>
+    <td style="text-align:center; width:64px"> <pre>Decoded<br/>Bytes</pre></td>
+    <td style="text-align:center; width:48px"> <pre>1152<br/>bytes</pre></td>
+    <td style="text-align:center; width:48px"> <pre>3074<br/>bytes</pre></td>
+    <td style="text-align:center; width:64px"> <pre>8173<br/>bytes</pre></td>
+    <td style="text-align:center; width:128px"><pre>19395<br/>bytes</pre></td>
+    <td style="text-align:center; width:256px"><pre>41160<br/>bytes</pre></td>
+    <td style="text-align:center; width:512px"><pre>77593<br/>bytes</pre></td>
+  </tr>
+</table>
+
+<h1>HTJ2K progressive decoding to full resolution (downloaded once, decoded many ways)</h1>
+<pre style="font-size:16px">
+This example shows the progressive decoding of JPEG2000. 
+Image quality improves as more data arrives. This is better than waiting for the whole image to arrive before decoding it.
+
+Note: Below each image, we display the number of decoded bytes
+</pre>
+<table>
+  <tr>
+    <td><canvas id='r2c5' width="512px" height="512px"></canvas></td>
+    <td><canvas id='r2c4' width="512px" height="512px"></canvas></td>
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">Decoded Bytes: 1152 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 3074 bytes</pre></td>
+  </tr>
+  <tr>
+    <td><canvas id='r2c3' width="512px" height="512px"></canvas></td>
+    <td><canvas id='r2c2' width="512px" height="512px"></canvas></td>
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">Decoded Bytes: 8173 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 19395 bytes</pre></td>
+  </tr>
+  <tr>
+    <td><canvas id='r2c1' width="512px" height="512px"></canvas></td>    
+    <td><canvas id='r2c0' width="512px" height="512px"></canvas></td>    
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">Decoded Bytes: 41160 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 77593 bytes</pre></td>
+  </tr>
+</table>
 <script>
 
      Module.onRuntimeInitialized = async _ => {
@@ -26,6 +91,82 @@
         pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
+        function display_image(Module, data, canvas_name, skip_res_for_data, skip_res_for_recon)
+        {
+          j2c = create_j2c_data();
+          const array = new Uint8Array(data);
+          
+          var buffer = Module._malloc(array.length);
+          writeArrayToMemory(array, buffer);
+          init_j2c_data(j2c, buffer, array.length);
+          restrict_input_resolution(j2c, skip_res_for_data, skip_res_for_recon);
+          var width = get_j2c_width(j2c, 0) | 0;          //component 0
+          var height = get_j2c_height(j2c, 0) | 0;        //component 0
+          var num_comps = get_j2c_num_components(j2c) | 0;
+          var bit_depth = get_j2c_bit_depth(j2c, 0) | 0;  //component 0
+          var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
+          parse_j2c_data(j2c);
+          
+          var canvas = document.getElementById(canvas_name);
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext("2d");
+          var cimg = ctx.createImageData(width, height);
+
+          var shift = (bit_depth >= 8 ? bit_depth - 8 : 0) | 0;
+          var half = (bit_depth > 8 ? (1<<(shift-1)) : 0) | 0;
+          var heap = Module["HEAP32"];
+          var dst = cimg.data;
+          if (num_comps == 1)
+          {
+            for (var y = 0|0; y < height; y = y + 1|0)
+            {
+              //src is an address in memory, but since we are 
+              // dealing with integers (i.e, each entry is 4 bytes 
+              // away from the previous sample, we need to divide by 4
+              var src = pull_j2c_line(j2c) >> 2; 
+              var didx = y * width * 4;
+              for (var x = 0|0; x < width; x = x + 1|0)
+              {
+                var val = (heap[src + x] + half) >> shift;
+                dst[didx + x * 4    ] = val;
+                dst[didx + x * 4 + 1] = val;
+                dst[didx + x * 4 + 2] = val;
+                dst[didx + x * 4 + 3] = 255;
+              }
+            }
+          }
+          else if (num_comps == 3)
+          {
+            for (var y = 0|0; y < height; y = y + 1|0)
+            {
+              for (var c = 0|0; c < num_comps; c = c + 1|0)
+              {
+                //src is an address in memory, but since we are 
+                // dealing with integers (i.e, each entry is 4 bytes 
+                // away from the previous sample, we need to divide by 4
+                var src = pull_j2c_line(j2c) >> 2; 
+                var didx = y * width * 4 + c;
+                for (var x = 0|0; x < width; x = x + 1|0)
+                {
+                  var val = (heap[src + x] + half) >> shift;
+                  dst[didx + x * 4] = val;
+                }
+              }
+              var didx = y * width * 4 + 3;
+              for (var x = 0|0; x < width; x = x + 1|0)
+                dst[didx + x * 4] = 255;
+            }
+          }
+          else
+            console.log('Unsupported number of components');
+          
+          release_j2c_data(j2c);
+
+          ctx.putImageData(cimg, 0, 0);
+          Module._free(buffer);        
+        }
+
         var request = new XMLHttpRequest;
         request.open("GET", "test.j2c" , true);
         request.responseType = "arraybuffer";
@@ -33,82 +174,15 @@
             if (request.status == 200)
             {
                 var t0 = performance.now();
-
-                j2c = create_j2c_data();
-                const array = new Uint8Array(this.response);
-                
-                var buffer = Module._malloc(array.length);
-                writeArrayToMemory(array, buffer);
-                init_j2c_data(j2c, buffer, array.length);
-                var width = get_j2c_width(j2c, 0) | 0;          //component 0
-                var height = get_j2c_height(j2c, 0) | 0;        //component 0
-                var num_comps = get_j2c_num_components(j2c) | 0;
-                var bit_depth = get_j2c_bit_depth(j2c, 0) | 0;  //component 0
-                var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
-                parse_j2c_data(j2c);
-                
-                var canvas = document.getElementById("mycanvas");
-                canvas.width = width;
-                canvas.height = height;
-                var ctx = canvas.getContext("2d");
-                var cimg = ctx.createImageData(width, height);
-
-                var shift = (bit_depth >= 8 ? bit_depth - 8 : 0) | 0;
-                var half = (bit_depth > 8 ? (1<<(shift-1)) : 0) | 0;
-                var heap = Module["HEAP32"];
-                var dst = cimg.data;
-                if (num_comps == 1)
-                {
-                  for (var y = 0|0; y < height; y = y + 1|0)
-                  {
-                    //src is an address in memory, but since we are 
-                    // dealing with integers (i.e, each entry is 4 bytes 
-                    // away from the previous sample, we need to divide by 4
-                    var src = pull_j2c_line(j2c) >> 2; 
-                    var didx = y * width * 4;
-                    for (var x = 0|0; x < width; x = x + 1|0)
-                    {
-                      var val = (heap[src + x] + half) >> shift;
-                      dst[didx + x * 4    ] = val;
-                      dst[didx + x * 4 + 1] = val;
-                      dst[didx + x * 4 + 2] = val;
-                      dst[didx + x * 4 + 3] = 255;
-                    }
-                  }
-                }
-                else if (num_comps == 3)
-                {
-                  for (var y = 0|0; y < height; y = y + 1|0)
-                  {
-                    for (var c = 0|0; c < num_comps; c = c + 1|0)
-                    {
-                      //src is an address in memory, but since we are 
-                      // dealing with integers (i.e, each entry is 4 bytes 
-                      // away from the previous sample, we need to divide by 4
-                      var src = pull_j2c_line(j2c) >> 2; 
-                      var didx = y * width * 4 + c;
-                      for (var x = 0|0; x < width; x = x + 1|0)
-                      {
-                        var val = (heap[src + x] + half) >> shift;
-                        dst[didx + x * 4] = val;
-                      }
-                    }
-                    var didx = y * width * 4 + 3;
-                    for (var x = 0|0; x < width; x = x + 1|0)
-                      dst[didx + x * 4] = 255;
-                  }
-                }
-                else
-                  console.log('Unsupported number of components');
-                
-                release_j2c_data(j2c);
-
-                ctx.putImageData(cimg, 0, 0);
-                Module._free(buffer);
-
+                display_image(Module, this.response, 'mycanvas', 0, 0);
                 var t1 = performance.now();
-
                 document.getElementById('time').innerText = "Decode time: " + (t1 - t0) + " ms";
+
+                for (var i = 5; i >= 0; --i)
+                  setTimeout(display_image, 0, Module, this.response, 'r1c' + i, i, i);
+
+                for (var i = 5; i >= 0; --i)
+                  setTimeout(display_image, 0, Module, this.response, 'r2c' + i, i, 0);
             }
         };
         request.send(null);

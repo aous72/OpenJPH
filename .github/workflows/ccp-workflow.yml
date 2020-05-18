@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-10.12, macos-10.13, macos-10.14, macos-latest, ubuntu-16.04, ubuntu-latest]
+        os: [macos-10.14, macos-latest, ubuntu-16.04, ubuntu-latest]
         node: [8]
     steps:
     - uses: actions/checkout@v2
@@ -18,38 +18,38 @@ jobs:
       run: make
       working-directory: build
 
-  build2:
-    name: main build for Windows
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
-        node: [8]
-    steps:
-    - uses: actions/checkout@v2
-    - name: install visual studio
-      run: python install.py --clang-completer --ts-completer --msvc=14
-    - name: cmake
-      run: cmake -G "Visual Studio 14 2015 Win64" ..
-      working-directory: build
-    - name: build
-      run: cmake --build .
-      working-directory: build
-
-  build3:
-    name: main build for Windows
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
-        node: [8]
-    steps:
-    - uses: actions/checkout@v2
-    - name: install visual studio
-      run: python install.py --clang-completer --ts-completer --msvc=14
-    - name: cmake
-      run: cmake -G "Visual Studio 15 2017 Win64" ..
-      working-directory: build
-    - name: build
-      run: cmake --build .
-      working-directory: build
+#  build2:
+#    name: main build for Windows
+#    runs-on: ${{ matrix.os }}
+#    strategy:
+#      matrix:
+#        os: [windows-latest]
+#        node: [8]
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: install visual studio
+#      run: python install.py --clang-completer --ts-completer --msvc=14
+#    - name: cmake
+#      run: cmake -G "Visual Studio 14 2015 Win64" ..
+#      working-directory: build
+#    - name: build
+#      run: cmake --build .
+#      working-directory: build
+#
+#  build3:
+#    name: main build for Windows
+#    runs-on: ${{ matrix.os }}
+#    strategy:
+#      matrix:
+#        os: [windows-latest]
+#        node: [8]
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: install visual studio
+#      run: python install.py --clang-completer --ts-completer --msvc=14
+#    - name: cmake
+#      run: cmake -G "Visual Studio 15 2017 Win64" ..
+#      working-directory: build
+#    - name: build
+#      run: cmake --build .
+#      working-directory: build

@@ -1,0 +1,19 @@
+name: C/C++ CI
+on: push
+
+jobs:
+  build:
+    name: main build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-16.04, ubuntu-18.04]
+        node: [4, 6, 8, 10]
+    steps:
+    - uses: actions/checkout@v2
+    - name: cmake
+      run: cmake ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build

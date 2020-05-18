@@ -11,9 +11,9 @@ jobs:
         node: [4, 6, 8, 10]
     steps:
     - uses: actions/checkout@v2
-    - name: change directory 
-      run: cd build
     - name: cmake
       run: cmake ..
+      working-directory: build
     - name: build
       run: make
+      working-directory: build

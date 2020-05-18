@@ -91,17 +91,17 @@ namespace ojph {
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
       outfile_base* get_file() { return outfile; }
 
-      line_buf* exchange(line_buf* line, int& next_component);
+      line_buf* exchange(line_buf* line, ui32& next_component);
       void write_headers(outfile_base *file);
       void enable_resilience();
       bool is_resilient() { return resilient; }
       void read_headers(infile_base *file);
-      void restrict_input_resolution(int skipped_res_for_data,
-        int skipped_res_for_recon);
+      void restrict_input_resolution(ui32 skipped_res_for_data,
+        ui32 skipped_res_for_recon);
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);
-      line_buf* pull(int &comp_num);
+      line_buf* pull(ui32 &comp_num);
       void flush();
       void close();
 
@@ -112,27 +112,27 @@ namespace ojph {
       void check_boardcast_validity();
 
       ui8* get_precinct_scratch() { return precinct_scratch; }
-      int get_skipped_res_for_recon()
+      ui32 get_skipped_res_for_recon()
       { return skipped_res_for_recon; }
-      int get_skipped_res_for_read()
+      ui32 get_skipped_res_for_read()
       { return skipped_res_for_read; }
 
     private:
-      int precinct_scratch_needed_bytes;
+      ui32 precinct_scratch_needed_bytes;
       ui8* precinct_scratch;
 
     private:
-      int cur_line;
-      int cur_comp;
-      int cur_tile_row;
+      ui32 cur_line;
+      ui32 cur_comp;
+      ui32 cur_tile_row;
       bool resilient;
-      int skipped_res_for_read, skipped_res_for_recon;
+      ui32 skipped_res_for_read, skipped_res_for_recon;
 
     private:
       size num_tiles;
       tile *tiles;
       line_buf* line;
-      int num_comps;
+      ui32 num_comps;
       size *comp_size;       //stores full resolution no. of lines and width
       size *recon_comp_size; //stores number of lines and width of each comp
       bool employ_color_transform;
@@ -161,31 +161,31 @@ namespace ojph {
                             const rect& recon_tile_rect);
       void finalize_alloc(codestream *codestream, const rect& tile_rect,
                           const rect& recon_tile_rect, 
-                          int tile_idx, int offset);
+                          ui32 tile_idx, ui32 offset);
 
-      bool push(line_buf *line, int comp_num);
+      bool push(line_buf *line, ui32 comp_num);
       void prepare_for_flush();
       void fill_tlm(param_tlm* tlm);
       void flush(outfile_base *file);
       void parse_tile_header(const param_sot& sot, infile_base *file,
                              const ui64& tile_start_location);
-      bool pull(line_buf *, int comp_num);
+      bool pull(line_buf *, ui32 comp_num);
 
     private:
       codestream *parent;
       rect tile_rect, recon_tile_rect;
-      int num_comps;
+      ui32 num_comps;
       tile_comp *comps;
-      int num_lines;
+      ui32 num_lines;
       line_buf* lines;
       bool reversible, employ_color_transform, resilient;
       rect *comp_rects, *recon_comp_rects;
-      int *line_offsets;
-      int skipped_res_for_read;
+      ui32 *line_offsets;
+      ui32 skipped_res_for_read;
 
-      int *num_bits;
+      ui32 *num_bits;
       bool *is_signed;
-      int *cur_line;
+      ui32 *cur_line;
       int prog_order;
 
     private:
@@ -194,7 +194,7 @@ namespace ojph {
 
     private:
       int profile;
-      int *num_comp_bytes; //this for use with TLM
+      ui32 *num_comp_bytes; //this for use with TLM
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -204,29 +204,30 @@ namespace ojph {
       static void pre_alloc(codestream *codestream, const rect& comp_rect,
                             const rect& recon_comp_rect);
       void finalize_alloc(codestream *codestream, tile *parent,
-                          int comp_num, const rect& comp_rect,
+                          ui32 comp_num, const rect& comp_rect,
                           const rect& recon_comp_rect);
 
-      int get_num_resolutions() { return num_decomps + 1; }
-      int get_num_decompositions() { return num_decomps; }
+      ui32 get_num_resolutions() { return num_decomps + 1; }
+      ui32 get_num_decompositions() { return num_decomps; }
       line_buf* get_line();
       void push_line();
       line_buf* pull_line();
 
       ui32 prepare_precincts();
-      void write_precincts(int res_num, outfile_base *file);
-      bool get_top_left_precinct(int res_num, point &top_left);
-      void write_one_precinct(int res_num, outfile_base *file);
-      void parse_precincts(int res_num, ui32& data_left, infile_base *file);
-      void parse_one_precinct(int res_num, ui32& data_left, infile_base *file);
+      void write_precincts(ui32 res_num, outfile_base *file);
+      bool get_top_left_precinct(ui32 res_num, point &top_left);
+      void write_one_precinct(ui32 res_num, outfile_base *file);
+      void parse_precincts(ui32 res_num, ui32& data_left, infile_base *file);
+      void parse_one_precinct(ui32 res_num, ui32& data_left, 
+                              infile_base *file);
 
     private:
       tile *parent_tile;
       resolution *res;
       rect comp_rect;
       ojph::point comp_downsamp;
-      int num_decomps;
-      int comp_num;
+      ui32 num_decomps;
+      ui32 comp_num;
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -236,10 +237,10 @@ namespace ojph {
 
     public:
       static void pre_alloc(codestream *codestream, const rect& res_rect,
-                            const rect& recon_res_rect, int res_num);
+                            const rect& recon_res_rect, ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& res_rect,
                           const rect& recon_res_rect,
-                          int res_num, point comp_downsamp,
+                          ui32 res_num, point comp_downsamp,
                           tile_comp *parent_tile,
                           resolution *parent_res);
 
@@ -258,7 +259,8 @@ namespace ojph {
 
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
-      int num_lines, num_bands, res_num;
+      ui32 num_lines;
+      ui32 num_bands, res_num;
       point comp_downsamp;
       rect res_rect;
       line_buf *lines;
@@ -269,12 +271,12 @@ namespace ojph {
       precinct *precincts;
       size num_precincts;
       size log_PP;
-      int max_num_levels;
+      ui32 max_num_levels;
       int tag_tree_size;
-      si32 level_index[20]; //more than enough
+      ui32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
       //wavelet machinery
-      int cur_line, available_lines;
+      ui32 cur_line;
       bool vert_even, horz_even;
       mem_elastic_allocator *elastic;
     };
@@ -282,10 +284,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     struct precinct
     {
-      ui32 prepare_precinct(int tag_tree_size, si32* lev_idx,
+      ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
       void write(outfile_base *file);
-      void parse(int tag_tree_size, si32* lev_idx,
+      void parse(int tag_tree_size, ui32* lev_idx,
                  mem_elastic_allocator *elastic,
                  ui32& data_left, infile_base *file, bool skipped);
 
@@ -294,7 +296,7 @@ namespace ojph {
       rect cb_idxs[4]; //indices of codeblocks
       subband *bands;  //the subbands
       coded_lists* coded;
-      int num_bands;
+      ui32 num_bands;
       bool special_x, special_y;
       bool may_use_sop, uses_eph;
     };
@@ -305,9 +307,9 @@ namespace ojph {
       friend struct precinct;
     public:
       static void pre_alloc(codestream *codestream, const rect& band_rect,
-                            int res_num);
+                            ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& band_rect,
-                          resolution* res, int res_num, int subband_num);
+                          resolution* res, ui32 res_num, ui32 subband_num);
 
       void exchange_buf(line_buf* l);
       line_buf* get_line() { return lines; }
@@ -318,7 +320,7 @@ namespace ojph {
       line_buf* pull_line();
 
     private:
-      int res_num, band_num;
+      ui32 res_num, band_num;
       bool reversible;
       rect band_rect;
       line_buf *lines;
@@ -326,12 +328,12 @@ namespace ojph {
       codeblock* blocks;
       size num_blocks;
       size log_PP;
-      int xcb_prime, ycb_prime;
-      int cur_cb_row;
+      ui32 xcb_prime, ycb_prime;
+      ui32 cur_cb_row;
       int cur_line;
       int cur_cb_height;
       float delta, delta_inv;
-      int K_max;
+      ui32 K_max;
       coded_cb_header *coded_cbs;
       mem_elastic_allocator *elastic;
     };
@@ -345,7 +347,7 @@ namespace ojph {
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
                           coded_cb_header* coded_cb,
-                          int K_max, int tbx0);
+                          ui32 K_max, int tbx0);
       void push(line_buf *line);
       void encode(mem_elastic_allocator *elastic);
       void recreate(const size& cb_size, coded_cb_header* coded_cb);
@@ -354,13 +356,13 @@ namespace ojph {
       void pull_line(line_buf *line);
 
     private:
-      si32* buf;
+      ui32* buf;
       size nominal_size;
       size cb_size;
       subband* parent;
       int line_offset;
-      int cur_line;
-      int K_max;
+      ui32 cur_line;
+      ui32 K_max;
       int max_val;
       coded_cb_header* coded_cb;
     };
@@ -368,10 +370,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     struct coded_cb_header
     {
-      int pass_length[2];
-      int num_passes;
-      int Kmax;
-      int missing_msbs;
+      ui32 pass_length[2];
+      ui32 num_passes;
+      ui32 Kmax;
+      ui32 missing_msbs;
       coded_lists *next_coded;
 
       static const int prefix_buf_size = 8;

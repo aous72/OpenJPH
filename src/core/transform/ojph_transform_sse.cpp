@@ -53,10 +53,10 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, int repeat)
+                                  float *dst, int step_num, ui32 repeat)
     {
       __m128 factor = _mm_set1_ps(LIFTING_FACTORS::steps[step_num]);
-      for (int i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
+      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
       {
         __m128 s1 = _mm_load_ps(src1);
         __m128 s2 = _mm_load_ps(src2);
@@ -68,12 +68,12 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void sse_irrev_vert_wvlt_K(const float* src, float* dst,
-                               bool L_analysis_or_H_synthesis, int repeat)
+                               bool L_analysis_or_H_synthesis, ui32 repeat)
     {
       float f = LIFTING_FACTORS::K_inv;
       f = L_analysis_or_H_synthesis ? f : LIFTING_FACTORS::K;
       __m128 factor = _mm_set1_ps(f);
-      for (int i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src+=4)
+      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src+=4)
       {
         __m128 s = _mm_load_ps(src);
         _mm_store_ps(dst, _mm_mul_ps(factor, s));
@@ -82,12 +82,12 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void sse_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even)
+                                    ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         //extension
         src[-1] = src[1];
@@ -96,7 +96,7 @@ namespace ojph {
         const float* sp = src + (even ? 1 : 0);
         float *dph = hdst;
         __m128 factor = _mm_set1_ps(LIFTING_FACTORS::steps[0]);
-        for (int i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
+        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
         { //this is doing twice the work it needs to do
           //it can be definitely written better
           __m128 s1 = _mm_loadu_ps(sp - 1);
@@ -123,7 +123,7 @@ namespace ojph {
         sp = src + (even ? 0 : 1);
         const float* sph = hdst + (even ? 0 : 1);
         float *dpl = ldst;
-        for (int i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
         {
           __m128 s1 = _mm_loadu_ps(sph - 1);
           __m128 s2 = _mm_loadu_ps(sph);
@@ -142,7 +142,7 @@ namespace ojph {
         factor = _mm_set1_ps(LIFTING_FACTORS::steps[2]);
         const float* spl = ldst + (even ? 1 : 0);
         dph = hdst;
-        for (int i = (H_width + 3) >> 2; i > 0; --i, spl+=4, dph+=4)
+        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, spl+=4, dph+=4)
         {
           __m128 s1 = _mm_loadu_ps(spl - 1);
           __m128 s2 = _mm_loadu_ps(spl);
@@ -159,7 +159,7 @@ namespace ojph {
         factor = _mm_set1_ps(LIFTING_FACTORS::steps[3]);
         sph = hdst + (even ? 0 : 1);
         dpl = ldst;
-        for (int i = (L_width + 3) >> 2; i > 0; --i, sph+=4, dpl+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sph+=4, dpl+=4)
         {
           __m128 s1 = _mm_loadu_ps(sph - 1);
           __m128 s2 = _mm_loadu_ps(sph);
@@ -172,7 +172,7 @@ namespace ojph {
         //multipliers
         float *dp = ldst;
         factor = _mm_set1_ps(LIFTING_FACTORS::K_inv);
-        for (int i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
         {
           __m128 d = _mm_load_ps(dp);
           _mm_store_ps(dp, _mm_mul_ps(factor, d));
@@ -196,24 +196,24 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void sse_irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
-                                    int width, bool even)
+                                    ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         //multipliers
         float *dp = lsrc;
         __m128 factor = _mm_set1_ps(LIFTING_FACTORS::K);
-        for (int i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
         {
           __m128 d = _mm_load_ps(dp);
           _mm_store_ps(dp, _mm_mul_ps(factor, d));
         }
         dp = hsrc;
         factor = _mm_set1_ps(LIFTING_FACTORS::K_inv);
-        for (int i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
+        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
         {
           __m128 d = _mm_load_ps(dp);
           _mm_store_ps(dp, _mm_mul_ps(factor, d));
@@ -226,7 +226,7 @@ namespace ojph {
         factor = _mm_set1_ps(LIFTING_FACTORS::steps[7]);
         const float *sph = hsrc + (even ? 0 : 1);
         float *dpl = lsrc;
-        for (int i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
         {
           __m128 s1 = _mm_loadu_ps(sph - 1);
           __m128 s2 = _mm_loadu_ps(sph);
@@ -243,7 +243,7 @@ namespace ojph {
         factor = _mm_set1_ps(LIFTING_FACTORS::steps[6]);
         const float *spl = lsrc + (even ? 0 : -1);
         float *dph = hsrc;
-        for (int i = (H_width + 3) >> 2; i > 0; --i, dph+=4, spl+=4)
+        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4, spl+=4)
         {
           __m128 s1 = _mm_loadu_ps(spl);
           __m128 s2 = _mm_loadu_ps(spl + 1);
@@ -260,7 +260,7 @@ namespace ojph {
         factor = _mm_set1_ps(LIFTING_FACTORS::steps[5]);
         sph = hsrc + (even ? 0 : 1);
         dpl = lsrc;
-        for (int i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
+        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
         {
           __m128 s1 = _mm_loadu_ps(sph - 1);
           __m128 s2 = _mm_loadu_ps(sph);
@@ -278,8 +278,8 @@ namespace ojph {
         dp = dst + (even ? 0 : -1);
         spl = lsrc + (even ? 0 : -1);
         sph = hsrc;
-        int width = L_width + (even ? 0 : 1);
-        for (int i = (width + 3) >> 2; i > 0; --i, spl+=4, sph+=4, dp+=8)
+        ui32 width = L_width + (even ? 0 : 1);
+        for (ui32 i = (width + 3) >> 2; i > 0; --i, spl+=4, sph+=4, dp+=8)
         {
           __m128 s1 = _mm_loadu_ps(spl);
           __m128 s2 = _mm_loadu_ps(spl + 1);

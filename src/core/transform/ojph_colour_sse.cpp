@@ -53,11 +53,11 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
       __m128 shift = _mm_set1_ps(0.5f);
       __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      for (ui32 i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
         __m128i t = _mm_castps_si128(_mm_loadu_ps((float*)sp));
         __m128 s = _mm_cvtepi32_ps(t);
@@ -69,10 +69,10 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
       __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      for (ui32 i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
         __m128i t = _mm_castps_si128(_mm_loadu_ps((float*)sp));
         __m128 s = _mm_cvtepi32_ps(t);
@@ -83,13 +83,13 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
       uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
       _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
       __m128 shift = _mm_set1_ps(0.5f);
       __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4)
+      for (ui32 i = (width + 3) >> 2; i > 0; --i, sp+=4)
       {
         __m128 t = _mm_load_ps(sp);
         __m128 s = _mm_add_ps(t, shift);
@@ -110,12 +110,12 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
       uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
       _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
       __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4)
+      for (ui32 i = (width + 3) >> 2; i > 0; --i, sp+=4)
       {
         __m128 t = _mm_load_ps(sp);
         __m128 s = _mm_mul_ps(t, m);
@@ -135,14 +135,14 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat)
+                         float *y, float *cb, float *cr, ui32 repeat)
     {
       __m128 alpha_rf = _mm_set1_ps(CT_CNST::ALPHA_RF);
       __m128 alpha_gf = _mm_set1_ps(CT_CNST::ALPHA_GF);
       __m128 alpha_bf = _mm_set1_ps(CT_CNST::ALPHA_BF);
       __m128 beta_cbf = _mm_set1_ps(CT_CNST::BETA_CbF);
       __m128 beta_crf = _mm_set1_ps(CT_CNST::BETA_CrF);
-      for (int i = (repeat + 3) >> 2; i > 0; --i)
+      for (ui32 i = (repeat + 3) >> 2; i > 0; --i)
       {
         __m128 mr = _mm_load_ps(r);
         __m128 mb = _mm_load_ps(b);
@@ -160,13 +160,13 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat)
+                          float *r, float *g, float *b, ui32 repeat)
     {
       __m128 gamma_cr2g = _mm_set1_ps(CT_CNST::GAMMA_CR2G);
       __m128 gamma_cb2g = _mm_set1_ps(CT_CNST::GAMMA_CB2G);
       __m128 gamma_cr2r = _mm_set1_ps(CT_CNST::GAMMA_CR2R);
       __m128 gamma_cb2b = _mm_set1_ps(CT_CNST::GAMMA_CB2B);
-      for (int i = (repeat + 3) >> 2; i > 0; --i)
+      for (ui32 i = (repeat + 3) >> 2; i > 0; --i)
       {
         __m128 my = _mm_load_ps(y);
         __m128 mcr = _mm_load_ps(cr);

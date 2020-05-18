@@ -132,7 +132,7 @@ namespace ojph {
     }
     num_ele_per_line = num_comps * width;
     bytes_per_sample = max_val > 255 ? 2 : 1;
-    max_val_num_bits = 32 - count_leading_zeros(max_val);
+    max_val_num_bits = 32u - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
     start_of_data = ojph_ftell(fh);
 
@@ -169,14 +169,14 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
-  int ppm_in::read(const line_buf* line, int comp_num)
+  ui32 ppm_in::read(const line_buf* line, ui32 comp_num)
   {
     assert(temp_buf_byte_size != 0 && fh != 0 && comp_num < num_comps);
-    assert((int)line->size >= width);
+    assert(line->size >= width);
 
     if (planar || comp_num == 0)
     {
-      int result = (int)fread(
+      size_t result = fread(
         temp_buf, bytes_per_sample, num_ele_per_line, fh);
       if (result != num_ele_per_line)
       {
@@ -194,14 +194,14 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)temp_buf + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp+=num_comps)
+      for (ui32 i = width; i > 0; --i, sp+=num_comps)
         *dp++ = (si32)*sp;
     }
     else
     {
       const ui16* sp = (ui16*)temp_buf + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp+=num_comps)
+      for (ui32 i = width; i > 0; --i, sp+=num_comps)
         *dp++ = (si32)be2le(*sp);
     }
 
@@ -277,8 +277,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void ppm_out::configure(ui32 width, ui32 height, int num_components,
-                          int bit_depth)
+  void ppm_out::configure(ui32 width, ui32 height, ui32 num_components,
+                          ui32 bit_depth)
   {
     assert(fh == NULL); //configure before opening
     if (num_components != 1 && num_components != 3)
@@ -294,7 +294,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int ppm_out::write(const line_buf* line, int comp_num)
+  ui32 ppm_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(fh);
     if (num_components == 1)
@@ -306,7 +306,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui8* dp = buffer;
-        for (int i = width; i > 0; --i)
+        for (ui32 i = width; i > 0; --i)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -319,7 +319,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui16* dp = (ui16*)buffer;
-        for (int i = width; i > 0; --i)
+        for (ui32 i = width; i > 0; --i)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -339,7 +339,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui8* dp = buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += 3)
+        for (ui32 i = width; i > 0; --i, dp += 3)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -352,7 +352,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui16* dp = (ui16*)buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += 3)
+        for (ui32 i = width; i > 0; --i, dp += 3)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -362,7 +362,7 @@ namespace ojph {
       }
       if (comp_num == 2)
       {
-        int result = (int)fwrite(buffer,
+        size_t result = fwrite(buffer,
                                bytes_per_sample, samples_per_line, fh);
         if (result != samples_per_line)
           OJPH_ERROR(0x030000042, "error writing to file %s", fname);
@@ -390,11 +390,11 @@ namespace ojph {
     //need to extract info from filename
 
     assert(num_com == 1 || num_com == 3);
-    for (int i = 0; i < num_com; ++i)
+    for (ui32 i = 0; i < num_com; ++i)
       bytes_per_sample[i] = bit_depth[i] > 8 ? 2 : 1;
-    int max_byte_width = width[0] * bytes_per_sample[0];
+    ui32 max_byte_width = width[0] * bytes_per_sample[0];
     comp_address[0] = 0;
-    for (int i = 1; i < num_com; ++i)
+    for (ui32 i = 1; i < num_com; ++i)
     {
       comp_address[i] = comp_address[i - 1];
       comp_address[i] += width[i-1] * height[i-1] * bytes_per_sample[i-1];
@@ -405,10 +405,10 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int yuv_in::read(const line_buf* line, int comp_num)
+  ui32 yuv_in::read(const line_buf* line, ui32 comp_num)
   {
     assert(comp_num < num_com);
-    int result = (int)fread(temp_buf, bytes_per_sample[comp_num],
+    size_t result = fread(temp_buf, bytes_per_sample[comp_num],
                           width[comp_num], fh);
     if (result != width[comp_num])
     {
@@ -420,14 +420,14 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)temp_buf;
       si32* dp = line->i32;
-      for (int i = width[comp_num]; i > 0; --i, ++sp)
+      for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
         *dp++ = (si32)*sp;
     }
     else
     {
       const ui16* sp = (ui16*)temp_buf;
       si32* dp = line->i32;
-      for (int i = width[comp_num]; i > 0; --i, ++sp)
+      for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
         *dp++ = (si32)*sp;
     }
 
@@ -435,8 +435,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_in::set_img_props(const size& s, int num_components,
-                             int num_downsamplings, const point *subsampling)
+  void yuv_in::set_img_props(const size& s, ui32 num_components,
+                             ui32 num_downsamplings, const point *subsampling)
   {
     if (num_components != 1 && num_components !=3)
       OJPH_ERROR(0x03000071, "yuv_in support 1 or 3 components");
@@ -445,8 +445,8 @@ namespace ojph {
     if (num_downsamplings < 1)
       OJPH_ERROR(0x03000072, "one or more downsampling must be provided");
 
-    int last_downsamp_idx = 0;
-    for (int i = 0; i < num_components; ++i)
+    ui32 last_downsamp_idx = 0;
+    for (ui32 i = 0; i < num_components; ++i)
     {
       point cp_ds = subsampling[i<num_downsamplings ? i : last_downsamp_idx];
       last_downsamp_idx += last_downsamp_idx + 1 < num_downsamplings ? 1 : 0;
@@ -454,7 +454,7 @@ namespace ojph {
       this->subsampling[i] = cp_ds;
     }
 
-    for (int i = 0; i < num_components; ++i)
+    for (ui32 i = 0; i < num_components; ++i)
     {
       width[i] = ojph_div_ceil(s.w, this->subsampling[i].x);
       height[i] = ojph_div_ceil(s.h, this->subsampling[i].y);
@@ -462,25 +462,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_in::set_bit_depth(int num_bit_depths, int* bit_depth)
+  void yuv_in::set_bit_depth(ui32 num_bit_depths, ui32* bit_depth)
   {
     if (num_bit_depths < 1)
       OJPH_ERROR(0x03000081, "one or more bit_depths must be provided");
-    int last_bd_idx = 0;
-    for (int i = 0; i < 3; ++i)
+    ui32 last_bd_idx = 0;
+    for (ui32 i = 0; i < 3; ++i)
     {
-      int bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
+      ui32 bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
       last_bd_idx += last_bd_idx + 1 < num_bit_depths ? 1 : 0;
 
       this->bit_depth[i] = bd;
     }
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  size yuv_in::get_comp_size(int c)
-  {
-    assert(c < num_com);
-    return size(width[c], height[c]);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -519,35 +512,15 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_out::configure(int image_x_extent, int image_x_offset,
-                          int bit_depth, int num_components,
-                          point *downsampling)
-  {
-    assert(fh == NULL);
-    this->width = image_x_extent - image_x_offset;
-    this->num_components = num_components;
-    this->bit_depth = bit_depth;
-    this->comp_width = new ui32[num_components];
-    ui32 tw = 0;
-    for (int i = 0; i < num_components; ++i)
-    {
-      this->comp_width[i] = ojph_div_ceil(image_x_extent, downsampling[i].x)
-                          - ojph_div_ceil(image_x_offset, downsampling[i].x);
-      tw = ojph_max(tw, this->comp_width[i]);
-    }
-    buffer_size = tw * (bit_depth > 8 ? 2 : 1);
-    buffer = (ui8*)malloc(buffer_size);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  void yuv_out::configure(int bit_depth, int num_components, ui32* comp_width)
+  void yuv_out::configure(ui32 bit_depth, ui32 num_components, 
+                          ui32* comp_width)
   {
     assert(fh == NULL);
     this->num_components = num_components;
     this->bit_depth = bit_depth;
     this->comp_width = new ui32[num_components];
     ui32 tw = 0;
-    for (int i = 0; i < num_components; ++i)
+    for (ui32 i = 0; i < num_components; ++i)
     {
       this->comp_width[i] = comp_width[i];
       tw = ojph_max(tw, this->comp_width[i]);
@@ -558,39 +531,39 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int yuv_out::write(const line_buf* line, int comp_num)
+  ui32 yuv_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(fh);
     assert(comp_num < num_components);
 
     int max_val = (1<<bit_depth) - 1;
-    int w = comp_width[comp_num];
+    ui32 w = comp_width[comp_num];
     if (bit_depth > 8)
     {
       const si32 *sp = line->i32;
       ui16 *dp = (ui16 *)buffer;
-      for (int i = w; i > 0; --i)
+      for (ui32 i = w; i > 0; --i)
       {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
         *dp++ = (ui16)val;
       }
-      if ((int)fwrite(buffer, 2, w, fh) != w)
+      if (fwrite(buffer, 2, w, fh) != w)
         OJPH_ERROR(0x030000A1, "unable to write to file %s", fname);
     }
     else
     {
       const si32 *sp = line->i32;
       ui8 *dp = (ui8 *)buffer;
-      for (int i = w; i > 0; --i)
+      for (ui32 i = w; i > 0; --i)
       {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
         *dp++ = (ui8)val;
       }
-      if ((int)fwrite(buffer, 1, w, fh) != w)
+      if (fwrite(buffer, 1, w, fh) != w)
         OJPH_ERROR(0x030000A2, "unable to write to file %s", fname);
     }
 

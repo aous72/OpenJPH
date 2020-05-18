@@ -66,39 +66,39 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                      int width);
+                                      ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                         si32 *y, si32 *cb, si32 *cr, int repeat);
+                         si32 *y, si32 *cb, si32 *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                          si32 *r, si32 *g, si32 *b, int repeat);
+                          si32 *r, si32 *g, si32 *b, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat);
+                         float *y, float *cb, float *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat);
+                          float *r, float *g, float *b, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -110,27 +110,27 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat);
+                         float *y, float *cb, float *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat);
+                          float *r, float *g, float *b, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -142,11 +142,11 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                        int width);
+                                        ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                  int width);
+                                  ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -158,15 +158,15 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                          si32 *y, si32 *cb, si32 *cr, int repeat);
+                          si32 *y, si32 *cb, si32 *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                           si32 *r, si32 *g, si32 *b, int repeat);
+                           si32 *r, si32 *g, si32 *b, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -178,27 +178,27 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width);
+                                 ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat);
+                         float *y, float *cb, float *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat);
+                          float *r, float *g, float *b, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -210,15 +210,15 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       int width);
+                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                          si32 *y, si32 *cb, si32 *cr, int repeat);
+                          si32 *y, si32 *cb, si32 *cr, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                           si32 *r, si32 *g, si32 *b, int repeat);
+                           si32 *r, si32 *g, si32 *b, ui32 repeat);
 
 
   }

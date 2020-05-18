@@ -48,10 +48,10 @@
 #include "ojph_message.h"
 
 /////////////////////////////////////////////////////////////////////////////
-struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  si32_list_interpreter(const int max_num_elements, int& num_elements,
-                        ojph::si32* list)
+  ui32_list_interpreter(const int max_num_elements, int& num_elements,
+                        ojph::ui32* list)
   : max_num_eles(max_num_elements), si32list(list), num_eles(num_elements)
   {}
 
@@ -68,7 +68,7 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         next_char++;
       }
       char *endptr;
-      si32list[num_eles] = (int)strtol(next_char, &endptr, 10);
+      si32list[num_eles] = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "size number is improperly formatted";
       next_char = endptr;
@@ -85,22 +85,23 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
   }
 
   const int max_num_eles;
-  ojph::si32* si32list;
+  ojph::ui32* si32list;
   int& num_eles;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
-                   int& skipped_res_for_read, int& skipped_res_for_recon,
+                   ojph::ui32& skipped_res_for_read, 
+                   ojph::ui32& skipped_res_for_recon,
                    bool& resilient)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
 
-  int skipped_res[2] = {0, 0};
+  ojph::ui32 skipped_res[2] = {0, 0};
   int num_skipped_res = 0;
-  si32_list_interpreter ilist(2, num_skipped_res, skipped_res);
+  ui32_list_interpreter ilist(2, num_skipped_res, skipped_res);
 
   interpreter.reinterpret("-i", input_filename);
   interpreter.reinterpret("-o", output_filename);
@@ -142,8 +143,8 @@ int main(int argc, char *argv[]) {
 
   char *input_filename = NULL;
   char *output_filename = NULL;
-  int skipped_res_for_read = 0;
-  int skipped_res_for_recon = 0;
+  ojph::ui32 skipped_res_for_read = 0;
+  ojph::ui32 skipped_res_for_recon = 0;
   bool resilient = false;
 
   if (argc <= 1) {
@@ -214,7 +215,7 @@ int main(int argc, char *argv[]) {
             " a .ppm file\n", siz.get_num_components());
         bool all_same = true;
         ojph::point p = siz.get_downsampling(0);
-        for (int i = 1; i < siz.get_num_components(); ++i)
+        for (ojph::ui32 i = 1; i < siz.get_num_components(); ++i)
         {
           ojph::point p1 = siz.get_downsampling(i);
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
@@ -244,8 +245,8 @@ int main(int argc, char *argv[]) {
             "support saving a file when conversion from yuv to rgb is needed; "
             "In any case, this is not the normal usage of a yuv file");
         ojph::ui32 comp_widths[3];
-        int max_bit_depth = 0;
-        for (int i = 0; i < siz.get_num_components(); ++i)
+        ojph::ui32 max_bit_depth = 0;
+        for (ojph::ui32 i = 0; i < siz.get_num_components(); ++i)
         {
           comp_widths[i] = siz.get_recon_width(i);
           max_bit_depth = ojph_max(max_bit_depth, siz.get_bit_depth(i));
@@ -270,12 +271,12 @@ int main(int argc, char *argv[]) {
     if (codestream.is_planar())
     {
       ojph::param_siz siz = codestream.access_siz();
-      for (int c = 0; c < siz.get_num_components(); ++c)
+      for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
       {
-        int height = siz.get_recon_height(c);
-        for (int i = height; i > 0; --i)
+        ojph::ui32 height = siz.get_recon_height(c);
+        for (ojph::ui32 i = height; i > 0; --i)
         {
-          int comp_num;
+          ojph::ui32 comp_num;
           ojph::line_buf *line = codestream.pull(comp_num);
           assert(comp_num == c);
           base->write(line, comp_num);
@@ -285,12 +286,12 @@ int main(int argc, char *argv[]) {
     else
     {
       ojph::param_siz siz = codestream.access_siz();
-      int height = siz.get_recon_height(0);
-      for (int i = 0; i < height; ++i)
+      ojph::ui32 height = siz.get_recon_height(0);
+      for (ojph::ui32 i = 0; i < height; ++i)
       {
-        for (int c = 0; c < siz.get_num_components(); ++c)
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
         {
-          int comp_num;
+          ojph::ui32 comp_num;
           ojph::line_buf *line = codestream.pull(comp_num);
           assert(comp_num == c);
           base->write(line, comp_num);

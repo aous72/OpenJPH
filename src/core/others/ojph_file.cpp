@@ -149,7 +149,7 @@ namespace ojph {
 
     // expand buffer if needed to make sure it has room for this write
     si64 used_size = tell(); //current used size
-    size_t new_used_size = used_size + size; //needed size
+    size_t new_used_size = (size_t)used_size + size; //needed size
     if (new_used_size > this->buf_size) //only expand when there is need
     {
       size_t new_buf_size = this->buf_size;
@@ -235,11 +235,19 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size_t mem_infile::read(void *ptr, size_t size)
   {
-    size_t bytes_left = data + this->size - cur_ptr;
-    size_t bytes_to_read = ojph_min(size, bytes_left);
-    memcpy(ptr, cur_ptr, bytes_to_read);
-    cur_ptr += bytes_to_read;
-    return bytes_to_read;
+    std::ptrdiff_t bytes_left = (data + this->size) - cur_ptr;
+    if (bytes_left > 0)
+    {
+      size_t bytes_to_read = ojph_min(size, (size_t)bytes_left);
+      memcpy(ptr, cur_ptr, bytes_to_read);
+      cur_ptr += bytes_to_read;
+      return bytes_to_read;
+    }
+    else
+    {
+      assert(0);
+      return 0;
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////

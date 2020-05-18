@@ -52,7 +52,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       int width)
+                                       ui32 width)
     {
       __m256i sh = _mm256_set1_epi32(shift);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
@@ -65,7 +65,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                          si32 *y, si32 *cb, si32 *cr, int repeat)
+                          si32 *y, si32 *cb, si32 *cr, ui32 repeat)
     {
       for (int i = (repeat + 7) >> 3; i > 0; --i)
       {
@@ -87,7 +87,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                           si32 *r, si32 *g, si32 *b, int repeat)
+                           si32 *r, si32 *g, si32 *b, ui32 repeat)
     {
       for (int i = (repeat + 7) >> 3; i > 0; --i)
       {

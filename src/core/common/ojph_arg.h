@@ -74,7 +74,8 @@ namespace ojph {
       assert(avail == avail_store);
       if (argc > 128)
         avail = new ui8[(argc + 7) >> 3];
-      memset(avail, 0, ojph_max((int)sizeof(avail_store), (argc + 7) >> 3));
+      memset(avail, 0, 
+        ojph_max(sizeof(avail_store), (size_t)((argc + 7) >> 3)));
       this->argv = argv;
       this->argc = argc;
       for (int i = 0; i < argc; ++i)
@@ -148,6 +149,19 @@ namespace ojph {
         argument t2 = get_next_value(t);
         if (t2.is_valid()) {
           val = atoi(t2.arg);
+          release_argument(t);
+          release_argument(t2);
+        }
+      }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    void reinterpret(const char* str, ui32& val) {
+      argument t = find_argument(str);
+      if (t.is_valid()) {
+        argument t2 = get_next_value(t);
+        if (t2.is_valid()) {
+          val = (ui32)strtoul(t2.arg, NULL, 10);
           release_argument(t);
           release_argument(t2);
         }

@@ -66,27 +66,27 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, int repeat);
+                                      si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                  int width, bool even);
+                                  ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, int repeat);
+                                      si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                  int width, bool even);
+                                  ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     // Irreversible functions
@@ -94,19 +94,19 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, int repeat);
+                                  float *dst, int step_num, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_vert_wvlt_K(const float *src, float *dst,
-                               bool L_analysis_or_H_synthesis, int repeat);
+                               bool L_analysis_or_H_synthesis, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_horz_wvlt_bwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -122,19 +122,19 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, int repeat);
+                                  float *dst, int step_num, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irrev_vert_wvlt_K(const float *src, float *dst,
-                               bool L_analysis_or_H_synthesis, int repeat);
+                               bool L_analysis_or_H_synthesis, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irrev_horz_wvlt_bwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -150,27 +150,27 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat);
+                                        si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                   int width, bool even);
+                                   ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat);
+                                        si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                   int width, bool even);
+                                   ui32 width, bool even);
 
 
     //////////////////////////////////////////////////////////////////////////
@@ -187,19 +187,19 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, int repeat);
+                                  float *dst, int step_num, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_irrev_vert_wvlt_K(const float *src, float *dst,
-                               bool L_analysis_or_H_synthesis, int repeat);
+                               bool L_analysis_or_H_synthesis, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void avx_irrev_horz_wvlt_bwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even);
+                                    ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -215,27 +215,27 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat);
+                                        si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                   int width, bool even);
+                                   ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat);
+                                        si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat);
+                                       si32 *dst, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                   int width, bool even);
+                                   ui32 width, bool even);
 
 
   }

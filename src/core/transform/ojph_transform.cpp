@@ -50,32 +50,32 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
       = gen_rev_vert_wvlt_fwd_predict;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
       = gen_rev_vert_wvlt_fwd_update;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_fwd_tx)
-      (si32* src, si32 *ldst, si32 *hdst, int width, bool even)
+      (si32* src, si32 *ldst, si32 *hdst, ui32 width, bool even)
       = gen_rev_horz_wvlt_fwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
       = gen_rev_vert_wvlt_bwd_predict;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat)
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
       = gen_rev_vert_wvlt_bwd_update;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_bwd_tx)
-      (si32* dst, si32 *lsrc, si32 *hsrc, int width, bool even)
+      (si32* dst, si32 *lsrc, si32 *hsrc, ui32 width, bool even)
       = gen_rev_horz_wvlt_bwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
@@ -85,23 +85,23 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_step)
       (const float* src1, const float* src2, float *dst, int step_num,
-       int repeat)
+       ui32 repeat)
       = gen_irrev_vert_wvlt_step;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_K)
       (const float *src, float *dst, bool L_analysis_or_H_synthesis,
-       int repeat)
+       ui32 repeat)
       = gen_irrev_vert_wvlt_K;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_fwd_tx)
-      (float* src, float *ldst, float *hdst, int width, bool even)
+      (float* src, float *ldst, float *hdst, ui32 width, bool even)
       = gen_irrev_horz_wvlt_fwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_bwd_tx)
-      (float* src, float *ldst, float *hdst, int width, bool even)
+      (float* src, float *ldst, float *hdst, ui32 width, bool even)
       = gen_irrev_horz_wvlt_bwd_tx;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -180,28 +180,28 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat)
+                                       si32 *dst, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ -= (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, int repeat)
+                                      si32 *dst, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++ + 2) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                  int width, bool even)
+                                  ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         // extension
         src[-1] = src[1];
@@ -209,7 +209,7 @@ namespace ojph {
         // predict
         const si32* sp = src + (even ? 1 : 0);
         si32 *dph = hdst;
-        for (int i = H_width; i > 0; --i, sp+=2)
+        for (ui32 i = H_width; i > 0; --i, sp+=2)
           *dph++ = sp[0] - ((sp[-1] + sp[1]) >> 1);
 
         // extension
@@ -219,7 +219,7 @@ namespace ojph {
         sp = src + (even ? 0 : 1);
         const si32* sph = hdst + (even ? 0 : 1);
         si32 *dpl = ldst;
-        for (int i = L_width; i > 0; --i, sp+=2, sph++)
+        for (ui32 i = L_width; i > 0; --i, sp+=2, sph++)
           *dpl++ = *sp + ((2 + sph[-1] + sph[0]) >> 2);
       }
       else
@@ -233,28 +233,28 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat)
+                                       si32 *dst, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, int repeat)
+                                      si32 *dst, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ -= (2 + *src1++ + *src2++) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                  int width, bool even)
+                                  ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         // extension
         hsrc[-1] = hsrc[0];
@@ -262,7 +262,7 @@ namespace ojph {
         //inverse update
         const si32 *sph = hsrc + (even ? 0 : 1);
         si32 *spl = lsrc;
-        for (int i = L_width; i > 0; --i, sph++, spl++)
+        for (ui32 i = L_width; i > 0; --i, sph++, spl++)
           *spl -= ((2 + sph[-1] + sph[0]) >> 2);
 
         // extension
@@ -272,7 +272,7 @@ namespace ojph {
         si32 *dp = dst + (even ? 0 : -1);
         spl = lsrc + (even ? 0 : -1);
         sph = hsrc;
-        for (int i = L_width + (even ? 0 : 1); i > 0; --i, spl++, sph++)
+        for (ui32 i = L_width + (even ? 0 : 1); i > 0; --i, spl++, sph++)
         {
           *dp++ = *spl;
           *dp++ = *sph + ((spl[0] + spl[1]) >> 1);
@@ -290,32 +290,32 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, int repeat)
+                                  float *dst, int step_num, ui32 repeat)
     {
       float factor = LIFTING_FACTORS::steps[step_num];
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ += factor * (*src1++ + *src2++);
     }
 
     /////////////////////////////////////////////////////////////////////////
     void gen_irrev_vert_wvlt_K(const float* src, float* dst,
-                               bool L_analysis_or_H_synthesis, int repeat)
+                               bool L_analysis_or_H_synthesis, ui32 repeat)
     {
       float factor = LIFTING_FACTORS::K_inv;
       factor = L_analysis_or_H_synthesis ? factor : LIFTING_FACTORS::K;
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
         *dst++ = *src++ * factor;
     }
 
 
     /////////////////////////////////////////////////////////////////////////
     void gen_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    int width, bool even)
+                                    ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         //extension
         src[-1] = src[1];
@@ -324,7 +324,7 @@ namespace ojph {
         float factor = LIFTING_FACTORS::steps[0];
         const float* sp = src + (even ? 1 : 0);
         float *dph = hdst;
-        for (int i = H_width; i > 0; --i, sp+=2)
+        for (ui32 i = H_width; i > 0; --i, sp+=2)
           *dph++ = sp[0] + factor * (sp[-1] + sp[1]);
 
         // extension
@@ -335,7 +335,7 @@ namespace ojph {
         sp = src + (even ? 0 : 1);
         const float* sph = hdst + (even ? 0 : 1);
         float *dpl = ldst;
-        for (int i = L_width; i > 0; --i, sp+=2, sph++)
+        for (ui32 i = L_width; i > 0; --i, sp+=2, sph++)
           *dpl++ = sp[0] + factor * (sph[-1] + sph[0]);
 
         //extension
@@ -345,7 +345,7 @@ namespace ojph {
         factor = LIFTING_FACTORS::steps[2];
         const float* spl = ldst + (even ? 1 : 0);
         dph = hdst;
-        for (int i = H_width; i > 0; --i, spl++)
+        for (ui32 i = H_width; i > 0; --i, spl++)
           *dph++ += factor * (spl[-1] + spl[0]);
 
         // extension
@@ -355,15 +355,15 @@ namespace ojph {
         factor = LIFTING_FACTORS::steps[3];
         sph = hdst + (even ? 0 : 1);
         dpl = ldst;
-        for (int i = L_width; i > 0; --i, sph++)
+        for (ui32 i = L_width; i > 0; --i, sph++)
           *dpl++ += factor * (sph[-1] + sph[0]);
 
         //multipliers
         float *dp = ldst;
-        for (int i = L_width; i > 0; --i, dp++)
+        for (ui32 i = L_width; i > 0; --i, dp++)
           *dp *= LIFTING_FACTORS::K_inv;
         dp = hdst;
-        for (int i = H_width; i > 0; --i, dp++)
+        for (ui32 i = H_width; i > 0; --i, dp++)
           *dp *= LIFTING_FACTORS::K;
       }
       else
@@ -377,19 +377,19 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void gen_irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
-                                    int width, bool even)
+                                    ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         //multipliers
         float *dp = lsrc;
-        for (int i = L_width; i > 0; --i, dp++)
+        for (ui32 i = L_width; i > 0; --i, dp++)
           *dp *= LIFTING_FACTORS::K;
         dp = hsrc;
-        for (int i = H_width; i > 0; --i, dp++)
+        for (ui32 i = H_width; i > 0; --i, dp++)
           *dp *= LIFTING_FACTORS::K_inv;
 
         //extension
@@ -399,7 +399,7 @@ namespace ojph {
         float factor = LIFTING_FACTORS::steps[7];
         const float *sph = hsrc + (even ? 0 : 1);
         float *dpl = lsrc;
-        for (int i = L_width; i > 0; --i, dpl++, sph++)
+        for (ui32 i = L_width; i > 0; --i, dpl++, sph++)
           *dpl += factor * (sph[-1] + sph[0]);
 
         //extension
@@ -409,7 +409,7 @@ namespace ojph {
         factor = LIFTING_FACTORS::steps[6];
         const float *spl = lsrc + (even ? 0 : -1);
         float *dph = hsrc;
-        for (int i = H_width; i > 0; --i, dph++, spl++)
+        for (ui32 i = H_width; i > 0; --i, dph++, spl++)
           *dph += factor * (spl[0] + spl[1]);
 
         //extension
@@ -419,7 +419,7 @@ namespace ojph {
         factor = LIFTING_FACTORS::steps[5];
         sph = hsrc + (even ? 0 : 1);
         dpl = lsrc;
-        for (int i = L_width; i > 0; --i, dpl++, sph++)
+        for (ui32 i = L_width; i > 0; --i, dpl++, sph++)
           *dpl += factor * (sph[-1] + sph[0]);
 
         //extension
@@ -430,7 +430,7 @@ namespace ojph {
         dp = dst + (even ? 0 : -1);
         spl = lsrc + (even ? 0 : -1);
         sph = hsrc;
-        for (int i = L_width+(even?0:1); i > 0; --i, spl++, sph++)
+        for (ui32 i = L_width+(even?0:1); i > 0; --i, spl++, sph++)
         {
           *dp++ = *spl;
           *dp++ = *sph + factor * (spl[0] + spl[1]);

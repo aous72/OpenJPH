@@ -53,27 +53,27 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_vert_wvlt_fwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat);
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_vert_wvlt_fwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat);
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_horz_wvlt_fwd_tx)
-      (si32* src, si32 *ldst, si32 *hdst, int width, bool even);
+      (si32* src, si32 *ldst, si32 *hdst, ui32 width, bool even);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_vert_wvlt_bwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat);
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_vert_wvlt_bwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, int repeat);
+      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_horz_wvlt_bwd_tx)
-      (si32* dst, si32 *lsrc, si32 *hsrc, int width, bool even);
+      (si32* dst, si32 *lsrc, si32 *hsrc, ui32 width, bool even);
 
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
@@ -82,20 +82,20 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     extern void (*irrev_vert_wvlt_step)
       (const float* src1, const float* src2, float *dst, int step_num,
-       int repeat);
+       ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*irrev_vert_wvlt_K)
       (const float *src, float *dst, bool L_analysis_or_H_synthesis,
-       int repeat);
+       ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*irrev_horz_wvlt_fwd_tx)
-      (float* src, float *ldst, float *hdst, int width, bool even);
+      (float* src, float *ldst, float *hdst, ui32 width, bool even);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*irrev_horz_wvlt_bwd_tx)
-      (float* src, float *ldst, float *hdst, int width, bool even);
+      (float* src, float *ldst, float *hdst, ui32 width, bool even);
 
   }
 }

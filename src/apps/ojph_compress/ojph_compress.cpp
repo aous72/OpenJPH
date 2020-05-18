@@ -72,14 +72,14 @@ struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         throw "size must start with {";
       next_char++;
       char *endptr;
-      sizelist[num_eles].w = (int)strtol(next_char, &endptr, 10);
+      sizelist[num_eles].w = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "size number is improperly formatted";
       next_char = endptr;
       if (*next_char != ',')
         throw "size must have a "","" between the two numbers";
       next_char++;
-      sizelist[num_eles].h = (int)strtol(next_char, &endptr, 10);
+      sizelist[num_eles].h = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "number is improperly formatted";
       next_char = endptr;
@@ -107,7 +107,8 @@ struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 /////////////////////////////////////////////////////////////////////////////
 struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  point_list_interpreter(const int max_num_elements, int& num_elements,
+  point_list_interpreter(const ojph::ui32 max_num_elements, 
+                         ojph::ui32& num_elements,
                          ojph::point* list)
   : max_num_eles(max_num_elements), pointlist(list), num_eles(num_elements)
   { }
@@ -129,14 +130,14 @@ struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         throw "size must start with {";
       next_char++;
       char *endptr;
-      pointlist[num_eles].x = (int)strtol(next_char, &endptr, 10);
+      pointlist[num_eles].x = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "point number is improperly formatted";
       next_char = endptr;
       if (*next_char != ',')
         throw "point must have a "","" between the two numbers";
       next_char++;
-      pointlist[num_eles].y = (int)strtol(next_char, &endptr, 10);
+      pointlist[num_eles].y = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "number is improperly formatted";
       next_char = endptr;
@@ -156,9 +157,9 @@ struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         throw "there are too many elements in the size list";
   }
 
-  const int max_num_eles;
+  const ojph::ui32 max_num_eles;
   ojph::point* pointlist;
-  int& num_eles;
+  ojph::ui32& num_eles;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -172,14 +173,14 @@ struct size_interpreter : public ojph::cli_interpreter::arg_inter_base
       throw "size must start with {";
     next_char++;
     char *endptr;
-    val.w = (int)strtol(next_char, &endptr, 10);
+    val.w = (ojph::ui32)strtoul(next_char, &endptr, 10);
     if (endptr == next_char)
       throw "size number is improperly formatted";
     next_char = endptr;
     if (*next_char != ',')
       throw "size must have a "","" between the two numbers";
     next_char++;
-    val.h = (int)strtol(next_char, &endptr, 10);
+    val.h = (ojph::ui32)strtoul(next_char, &endptr, 10);
     if (endptr == next_char)
       throw "number is improperly formatted";
     next_char = endptr;
@@ -203,14 +204,14 @@ struct point_interpreter : public ojph::cli_interpreter::arg_inter_base
       throw "size must start with {";
     next_char++;
     char *endptr;
-    val.x = (int)strtol(next_char, &endptr, 10);
+    val.x = (ojph::ui32)strtoul(next_char, &endptr, 10);
     if (endptr == next_char)
       throw "size number is improperly formatted";
     next_char = endptr;
     if (*next_char != ',')
       throw "size must have a "","" between the two numbers";
     next_char++;
-    val.y = (int)strtol(next_char, &endptr, 10);
+    val.y = (ojph::ui32)strtoul(next_char, &endptr, 10);
     if (endptr == next_char)
       throw "number is improperly formatted";
     next_char = endptr;
@@ -225,11 +226,12 @@ struct point_interpreter : public ojph::cli_interpreter::arg_inter_base
 
 
 /////////////////////////////////////////////////////////////////////////////
-struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  si32_list_interpreter(const int max_num_elements, int& num_elements,
-                        ojph::si32* list)
-  : max_num_eles(max_num_elements), si32list(list), num_eles(num_elements)
+  ui32_list_interpreter(const ojph::ui32 max_num_elements, 
+                        ojph::ui32& num_elements,
+                        ojph::ui32* list)
+  : max_num_eles(max_num_elements), ui32list(list), num_eles(num_elements)
   {}
 
   virtual void operate(const char *str)
@@ -245,7 +247,7 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         next_char++;
       }
       char *endptr;
-      si32list[num_eles] = (int)strtol(next_char, &endptr, 10);
+      ui32list[num_eles] = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
         throw "size number is improperly formatted";
       next_char = endptr;
@@ -261,16 +263,17 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         throw "there are too many elements in the size list";
   }
 
-  const int max_num_eles;
-  ojph::si32* si32list;
-  int& num_eles;
+  const ojph::ui32 max_num_eles;
+  ojph::ui32* ui32list;
+  ojph::ui32& num_eles;
 };
 
 /////////////////////////////////////////////////////////////////////////////
 struct si32_to_bool_list_interpreter
 : public ojph::cli_interpreter::arg_inter_base
 {
-  si32_to_bool_list_interpreter(const int max_num_elements, int& num_elements,
+  si32_to_bool_list_interpreter(const ojph::ui32 max_num_elements, 
+                                ojph::ui32& num_elements,
                                 ojph::si32* list)
   : max_num_eles(max_num_elements), boollist(list), num_eles(num_elements) {}
 
@@ -310,11 +313,11 @@ struct si32_to_bool_list_interpreter
         throw "there are too many elements in the size list";
   }
 
-  int get_num_elements() { return num_eles; }
+  ojph::ui32 get_num_elements() { return num_eles; }
 
-  int max_num_eles;
+  const ojph::ui32 max_num_eles;
   ojph::si32* boollist;
-  int& num_eles;
+  ojph::ui32& num_eles;
 };
 
 
@@ -322,17 +325,17 @@ struct si32_to_bool_list_interpreter
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[], char *&input_filename,
                    char *&output_filename, char *&progression_order,
-                   char *&profile_string, int &num_decompositions,
+                   char *&profile_string, ojph::ui32 &num_decompositions,
                    float &quantization_step, bool &reversible,
                    int &employ_color_transform,
                    const int max_num_precincts, int &num_precincts,
                    ojph::size *precinct_size, ojph::size& block_size,
                    ojph::size& dims, ojph::point& image_offset,
                    ojph::size& tile_size, ojph::point& tile_offset,
-                   int& max_num_comps, int& num_comps,
-                   int& num_comp_downsamps, ojph::point*& comp_downsamp,
-                   int& num_bit_depths, ojph::si32*& bit_depth,
-                   int& num_is_signed, int*& is_signed)
+                   ojph::ui32& max_num_comps, ojph::ui32& num_comps,
+                   ojph::ui32& num_comp_downsamps, ojph::point*& comp_downsamp,
+                   ojph::ui32& num_bit_depths, ojph::ui32*& bit_depth,
+                   ojph::ui32& num_is_signed, ojph::si32*& is_signed)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -358,19 +361,19 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   {
     max_num_comps = num_comps;
     comp_downsamp = new ojph::point[num_comps];
-    bit_depth = new ojph::si32[num_comps];
-    is_signed = new int[num_comps];
-    for (int i = 0; i < num_comps; ++i)
+    bit_depth = new ojph::ui32[num_comps];
+    is_signed = new ojph::si32[num_comps];
+    for (ojph::ui32 i = 0; i < num_comps; ++i)
     {
-      comp_downsamp[i] = ojph::point(-1, -1);
-      bit_depth[i] = -1;
+      comp_downsamp[i] = ojph::point(0, 0);
+      bit_depth[i] = 0;
       is_signed[i] = -1;
     }
   }
 
   point_list_interpreter pointlist(max_num_comps, num_comp_downsamps,
                                    comp_downsamp);
-  si32_list_interpreter ilist(max_num_comps, num_bit_depths, bit_depth);
+  ui32_list_interpreter ilist(max_num_comps, num_bit_depths, bit_depth);
   si32_to_bool_list_interpreter blist(max_num_comps, num_is_signed, is_signed);
   point_interpreter img_off_interpreter(image_offset);
   size_interpreter tile_size_interpreter(tile_size);
@@ -425,8 +428,8 @@ int main(int argc, char * argv[]) {
   char *prog_order = prog_order_store;
   char profile_string_store[] = "";
   char *profile_string = profile_string_store;
-  int num_decompositions = 5;
-  float quantization_step = -1.0;
+  ojph::ui32 num_decompositions = 5;
+  float quantization_step = -1.0f;
   bool reversible = false;
   int employ_color_transform = -1;
 
@@ -435,20 +438,20 @@ int main(int argc, char * argv[]) {
   int num_precints = -1;
 
   ojph::size block_size(64,64);
-  ojph::size dims(-1, -1);
+  ojph::size dims(0, 0);
   ojph::size tile_size(0, 0);
   ojph::point tile_offset(0, 0);
   ojph::point image_offset(0, 0);
-  const int initial_num_comps = 4;
-  int max_num_comps = initial_num_comps;
-  int num_components = -1;
-  int num_is_signed = 0;
-  int is_signed_store[initial_num_comps] = {-1, -1, -1, -1};
-  int *is_signed = is_signed_store;
-  int num_bit_depths = 0;
-  ojph::si32 bit_depth_store[initial_num_comps] = {-1, -1, -1, -1};
-  ojph::si32 *bit_depth = bit_depth_store;
-  int num_comp_downsamps = 0;
+  const ojph::ui32 initial_num_comps = 4;
+  ojph::ui32 max_num_comps = initial_num_comps;
+  ojph::ui32 num_components = 0;
+  ojph::ui32 num_is_signed = 0;
+  ojph::si32 is_signed_store[initial_num_comps] = {-1, -1, -1, -1};
+  ojph::si32 *is_signed = is_signed_store;
+  ojph::ui32 num_bit_depths = 0;
+  ojph::ui32 bit_depth_store[initial_num_comps] = {0, 0, 0, 0};
+  ojph::ui32 *bit_depth = bit_depth_store;
+  ojph::ui32 num_comp_downsamps = 0;
   ojph::point downsampling_store[initial_num_comps] = { ojph::point(0,0),
     ojph::point(0,0), ojph::point(0,0), ojph::point(0,0) };
   ojph::point *comp_downsampling = downsampling_store;
@@ -533,12 +536,12 @@ int main(int argc, char * argv[]) {
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
-        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
-          image_offset.y + ppm.get_size().h));
-        int num_comps = ppm.get_num_components();
+        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_width(),
+          image_offset.y + ppm.get_height()));
+        ojph::ui32 num_comps = ppm.get_num_components();
         assert(num_comps == 1);
         siz.set_num_components(num_comps);
-        for (int c = 0; c < num_comps; ++c)
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
           siz.set_component(c, ppm.get_comp_subsampling(c),
             ppm.get_bit_depth(c), ppm.get_is_signed(c));
         siz.set_image_offset(image_offset);
@@ -553,7 +556,7 @@ int main(int argc, char * argv[]) {
         cod.set_progression_order(prog_order);
         cod.set_color_transform(false);
         cod.set_reversible(reversible);
-        if (!reversible && quantization_step != -1)
+        if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -561,16 +564,16 @@ int main(int argc, char * argv[]) {
         if (employ_color_transform != -1)
           OJPH_WARN(0x01000001,
             "-colour_trans option is not needed and was not used\n");
-        if (dims.w != -1 || dims.h != -1)
+        if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000002,
             "-dims option is not needed and was not used\n");
-        if (num_components != -1 )
+        if (num_components != 0)
           OJPH_WARN(0x01000003,
             "-num_comps is not needed and was not used\n");
         if (is_signed[0] != -1)
           OJPH_WARN(0x01000004,
             "-signed is not needed and was not used\n");
-        if (bit_depth[0] != -1)
+        if (bit_depth[0] != 0)
           OJPH_WARN(0x01000005,
             "-bit_depth is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
@@ -583,12 +586,12 @@ int main(int argc, char * argv[]) {
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
-        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_size().w,
-          image_offset.y + ppm.get_size().h));
-        int num_comps = ppm.get_num_components();
+        siz.set_image_extent(ojph::point(image_offset.x + ppm.get_width(),
+          image_offset.y + ppm.get_height()));
+        ojph::ui32 num_comps = ppm.get_num_components();
         assert(num_comps == 3);
         siz.set_num_components(num_comps);
-        for (int c = 0; c < num_comps; ++c)
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
           siz.set_component(c, ppm.get_comp_subsampling(c),
             ppm.get_bit_depth(c), ppm.get_is_signed(c));
         siz.set_image_offset(image_offset);
@@ -606,22 +609,22 @@ int main(int argc, char * argv[]) {
         else
           cod.set_color_transform(employ_color_transform == 1);
         cod.set_reversible(reversible);
-        if (!reversible && quantization_step != -1)
+        if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
 
-        if (dims.w != -1 || dims.h != -1)
+        if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000011,
             "-dims option is not needed and was not used\n");
-        if (num_components != -1)
+        if (num_components != 0)
           OJPH_WARN(0x01000012,
             "-num_comps is not needed and was not used\n");
         if (is_signed[0] != -1)
           OJPH_WARN(0x01000013,
             "-signed is not needed and was not used\n");
-        if (bit_depth[0] != -1)
+        if (bit_depth[0] != 0)
           OJPH_WARN(0x01000014,
             "-bit_depth is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
@@ -633,9 +636,9 @@ int main(int argc, char * argv[]) {
       else if (strncmp(".yuv", v, 4) == 0)
       {
         ojph::param_siz siz = codestream.access_siz();
-        if (dims.w < 0 || dims.h < 0)
+        if (dims.w == 0 || dims.h == 0)
           OJPH_ERROR(0x01000021,
-            "-dims option is missing, and need to be provided\n");
+            "-dims option must have positive dimensions\n");
         siz.set_image_extent(ojph::point(image_offset.x + dims.w,
           image_offset.y + dims.h));
         if (num_components <= 0)
@@ -655,14 +658,15 @@ int main(int argc, char * argv[]) {
           comp_downsampling);
         yuv.set_bit_depth(num_bit_depths, bit_depth);
 
-        int last_signed_idx = 0, last_bit_depth_idx = 0, last_downsamp_idx = 0;
+        ojph::ui32 last_signed_idx = 0, last_bit_depth_idx = 0;
+        ojph::ui32 last_downsamp_idx = 0;
         siz.set_num_components(num_components);
-        for (int c = 0; c < num_components; ++c)
+        for (ojph::ui32 c = 0; c < num_components; ++c)
         {
           ojph::point cp_ds = comp_downsampling
               [c < num_comp_downsamps ? c : last_downsamp_idx];
           last_downsamp_idx += last_downsamp_idx+1 < num_comp_downsamps ? 1:0;
-          int bd = bit_depth[c < num_bit_depths ? c : last_bit_depth_idx];
+          ojph::ui32 bd = bit_depth[c<num_bit_depths ? c : last_bit_depth_idx];
           last_bit_depth_idx += last_bit_depth_idx + 1 < num_bit_depths ? 1:0;
           int is = is_signed[c < num_is_signed ? c : last_signed_idx];
           last_signed_idx += last_signed_idx + 1 < num_is_signed ? 1 : 0;
@@ -689,7 +693,7 @@ int main(int argc, char * argv[]) {
             "the next component;  this requires buffering components outside"
             " of the OpenJPH library");
         cod.set_reversible(reversible);
-        if (!reversible && quantization_step != -1)
+        if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
@@ -713,17 +717,17 @@ int main(int argc, char * argv[]) {
     j2c_file.open(output_filename);
     codestream.write_headers(&j2c_file);
 
-    int next_comp;
+    ojph::ui32 next_comp;
     ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);
     if (codestream.is_planar())
     {
       ojph::param_siz siz = codestream.access_siz();
-      for (int c = 0; c < siz.get_num_components(); ++c)
+      for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
       {
         ojph::point p = siz.get_downsampling(c);
-        int height = ojph_div_ceil(siz.get_image_extent().y, p.y)
-                   - ojph_div_ceil(siz.get_image_offset().y, p.y);
-        for (int i = height; i > 0; --i)
+        ojph::ui32 height = ojph_div_ceil(siz.get_image_extent().y, p.y);
+        height -= ojph_div_ceil(siz.get_image_offset().y, p.y);
+        for (ojph::ui32 i = height; i > 0; --i)
         {
           assert(c == next_comp);
           base->read(cur_line, next_comp);
@@ -734,10 +738,11 @@ int main(int argc, char * argv[]) {
     else
     {
       ojph::param_siz siz = codestream.access_siz();
-      int height = siz.get_image_extent().y - siz.get_image_offset().y;
-      for (int i = 0; i < height; ++i)
+      ojph::ui32 height = siz.get_image_extent().y; 
+      height -= siz.get_image_offset().y;
+      for (ojph::ui32 i = 0; i < height; ++i)
       {
-        for (int c = 0; c < siz.get_num_components(); ++c)
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
         {
           assert(c == next_comp);
           base->read(cur_line, next_comp);

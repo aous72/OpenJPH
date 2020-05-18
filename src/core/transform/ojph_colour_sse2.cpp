@@ -52,7 +52,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
       uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
       _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
@@ -70,7 +70,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
       uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
       _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
@@ -87,7 +87,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       int width)
+                                       ui32 width)
     {
       __m128i sh = _mm_set1_epi32(shift);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
@@ -100,7 +100,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                          si32 *y, si32 *cb, si32 *cr, int repeat)
+                          si32 *y, si32 *cb, si32 *cr, ui32 repeat)
     {
       for (int i = (repeat + 3) >> 2; i > 0; --i)
       {
@@ -122,7 +122,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                           si32 *r, si32 *g, si32 *b, int repeat)
+                           si32 *r, si32 *g, si32 *b, ui32 repeat)
     {
       for (int i = (repeat + 3) >> 2; i > 0; --i)
       {

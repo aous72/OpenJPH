@@ -127,8 +127,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::restrict_input_resolution(int skipped_res_for_read,
-    int skipped_res_for_recon)
+  void codestream::restrict_input_resolution(ui32 skipped_res_for_read,
+                                             ui32 skipped_res_for_recon)
   {
     state->restrict_input_resolution(skipped_res_for_read,
       skipped_res_for_recon);
@@ -141,7 +141,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  line_buf* codestream::pull(int &comp_num)
+  line_buf* codestream::pull(ui32 &comp_num)
   {
     return state->pull(comp_num);
   }
@@ -160,7 +160,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  line_buf* codestream::exchange(line_buf* line, int& next_component)
+  line_buf* codestream::exchange(line_buf* line, ui32& next_component)
   {
     return state->exchange(line, next_component);
   }
@@ -251,12 +251,12 @@ namespace ojph {
 
       point index;
       rect tile_rect, recon_tile_rect;
-      int ds = 1 << skipped_res_for_recon;
+      ui32 ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
-        int y0 = sz.get_tile_offset().y
-               + index.y * sz.get_tile_size().h;
-        int y1 = y0 + sz.get_tile_size().h; //end of tile
+        ui32 y0 = sz.get_tile_offset().y
+                + index.y * sz.get_tile_size().h;
+        ui32 y1 = y0 + sz.get_tile_size().h; //end of tile
 
         tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
         tile_rect.siz.h = 
@@ -270,9 +270,9 @@ namespace ojph {
 
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
         {
-          int x0 = sz.get_tile_offset().x
-                 + index.x * sz.get_tile_size().w;
-          int x1 = x0 + sz.get_tile_size().w;
+          ui32 x0 = sz.get_tile_offset().x
+                  + index.x * sz.get_tile_size().w;
+          ui32 x1 = x0 + sz.get_tile_size().w;
 
           tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
           tile_rect.siz.w = 
@@ -292,11 +292,11 @@ namespace ojph {
       //These lines are used by codestream to exchange data with external
       // world
       allocator->pre_alloc_obj<line_buf>(1);
-      int num_comps = sz.get_num_components();
+      ui32 num_comps = sz.get_num_components();
       allocator->pre_alloc_obj<size>(num_comps); //for *comp_size
       allocator->pre_alloc_obj<size>(num_comps); //for *recon_comp_size
       ui32 width = 0;
-      for (int i = 0; i < num_comps; ++i)
+      for (ui32 i = 0; i < num_comps; ++i)
         width = ojph_max(width, siz.get_recon_width(i));
 
       allocator->pre_alloc_data<si32>(width, 0);
@@ -306,22 +306,22 @@ namespace ojph {
       {
         if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
         {
-          int num_pairs = (int)num_tiles.area() * num_comps;
+          ui32 num_pairs = (ui32)num_tiles.area() * num_comps;
           allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
         }
         else
         {
-          int num_pairs = (int)num_tiles.area();
+          ui32 num_pairs = (ui32)num_tiles.area();
           allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
         }
       }
 
       //precinct scratch buffer
-      int num_decomps = cod.get_num_decompositions();
+      ui32 num_decomps = cod.get_num_decompositions();
       size log_cb = cod.get_log_block_dims();
 
       size ratio;
-      for (int r = 0; r <= num_decomps; ++r)
+      for (ui32 r = 0; r <= num_decomps; ++r)
       {
         size log_PP = cod.get_log_precinct_size(r);
         log_PP.w -= (r ? 1 : 0);
@@ -329,7 +329,7 @@ namespace ojph {
         ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
         ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
       }
-      int max_ratio = ojph_max(ratio.w, ratio.h);
+      ui32 max_ratio = ojph_max(ratio.w, ratio.h);
       max_ratio = 1 << max_ratio;
       // assuming that we have a hierarchy of n levels.
       // This needs 4/3 times the area, rounded up
@@ -339,7 +339,7 @@ namespace ojph {
       // 1. missing msbs and 2. their flags, 
       // 3. number of layers and 4. their flags
       precinct_scratch_needed_bytes = 
-        4 * (int)((max_ratio * max_ratio * 4 + 2) / 3);
+        4 * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
     }
@@ -359,12 +359,12 @@ namespace ojph {
       point index;
       rect tile_rect, recon_tile_rect;
       ojph::param_siz sz = access_siz();
-      int ds = 1 << skipped_res_for_recon;
+      ui32 ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
-        int y0 = sz.get_tile_offset().y
-               + index.y * sz.get_tile_size().h;
-        int y1 = y0 + sz.get_tile_size().h; //end of tile
+        ui32 y0 = sz.get_tile_offset().y
+                + index.y * sz.get_tile_size().h;
+        ui32 y1 = y0 + sz.get_tile_size().h; //end of tile
 
         tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
         tile_rect.siz.h = 
@@ -376,12 +376,12 @@ namespace ojph {
           ojph_div_ceil(sz.get_image_extent().y, ds))
           - recon_tile_rect.org.y;
 
-        int offset = 0;
+        ui32 offset = 0;
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
         {
-          int x0 = sz.get_tile_offset().x
-                 + index.x * sz.get_tile_size().w;
-          int x1 = x0 + sz.get_tile_size().w;
+          ui32 x0 = sz.get_tile_offset().x
+                  + index.x * sz.get_tile_size().w;
+          ui32 x1 = x0 + sz.get_tile_size().w;
 
           tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
           tile_rect.siz.w = 
@@ -393,7 +393,7 @@ namespace ojph {
             ojph_div_ceil(sz.get_image_extent().x, ds))
             - recon_tile_rect.org.x;
 
-          int idx = index.y * num_tiles.w + index.x;
+          ui32 idx = index.y * num_tiles.w + index.x;
           tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect, 
                                     idx, offset);
           offset += recon_tile_rect.siz.w;
@@ -409,7 +409,7 @@ namespace ojph {
       recon_comp_size = allocator->post_alloc_obj<size>(this->num_comps);
       employ_color_transform = cod.is_employing_color_transform();
       ui32 width = 0;
-      for (int i = 0; i < num_comps; ++i)
+      for (ui32 i = 0; i < num_comps; ++i)
       {
         comp_size[i].w = siz.get_width(i);
         comp_size[i].h = siz.get_height(i);
@@ -429,13 +429,13 @@ namespace ojph {
       {
         if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
         {
-          int num_pairs = (int)num_tiles.area() * num_comps;
+          ui32 num_pairs = (ui32)num_tiles.area() * num_comps;
           tlm.init(num_pairs,
             allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
         }
         else
         {
-          int num_pairs = (int)num_tiles.area();
+          ui32 num_pairs = (ui32)num_tiles.area();
           tlm.init(num_pairs,
             allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
         }
@@ -495,7 +495,7 @@ namespace ojph {
           "For IMF profile, the number of components has to be less "
           " or equal to 3");
       bool test_ds1 = true, test_ds2 = true;
-      for (int i = 0; i < sz.get_num_components(); ++i)
+      for (ojph::ui32 i = 0; i < sz.get_num_components(); ++i)
       {
         point downsamping = sz.get_downsampling(i);
         test_ds1 &= downsamping.y == 1;
@@ -514,9 +514,9 @@ namespace ojph {
           " by 2.");
 
       bool test_bd = true;
-      for (int i = 0; i < sz.get_num_components(); ++i)
+      for (ojph::ui32 i = 0; i < sz.get_num_components(); ++i)
       {
-        int bit_depth = sz.get_bit_depth(i);
+        ui32 bit_depth = sz.get_bit_depth(i);
         bool is_signed = sz.is_signed(i);
         test_bd &= bit_depth >= 8 && bit_depth <= 16 && is_signed == false;
       }
@@ -530,10 +530,10 @@ namespace ojph {
           "For IMF profile, codeblock dimensions are restricted."
           " Use \"-block_size {32,32}\" at the commandline");
 
-      int num_decomps = cd.get_num_decompositions();
+      ui32 num_decomps = cd.get_num_decompositions();
       bool test_pz = cd.get_log_precinct_size(0).w == 7
                   && cd.get_log_precinct_size(0).h == 7;
-      for (int i = 1; i <= num_decomps; ++i)
+      for (ui32 i = 1; i <= num_decomps; ++i)
         test_pz = cd.get_log_precinct_size(i).w == 8
                && cd.get_log_precinct_size(i).h == 8;
       if (!test_pz)
@@ -559,11 +559,11 @@ namespace ojph {
           "Number of decompositions does not match the IMF profile"
           " dictated by wavelet reversibility and image dimensions.");
 
-      int tiles_w = sz.get_image_extent().x;
+      ui32 tiles_w = sz.get_image_extent().x;
       tiles_w = ojph_div_ceil(tiles_w, sz.get_tile_size().w);
-      int tiles_h = sz.get_image_extent().y;
+      ui32 tiles_h = sz.get_image_extent().y;
       tiles_h = ojph_div_ceil(tiles_h, sz.get_tile_size().h);
-      int total_tiles = tiles_w * tiles_h;
+      ui32 total_tiles = tiles_w * tiles_h;
 
       if (total_tiles > 1)
       {
@@ -613,7 +613,7 @@ namespace ojph {
           "For broadcast profile, the number of components has to be less "
           " or equal to 4");
       bool test_ds1 = true, test_ds2 = true;
-      for (int i = 0; i < sz.get_num_components(); ++i)
+      for (ojph::ui32 i = 0; i < sz.get_num_components(); ++i)
       {
         point downsamping = sz.get_downsampling(i);
         test_ds1 &= downsamping.y == 1;
@@ -632,9 +632,9 @@ namespace ojph {
           " by 2.");
 
       bool test_bd = true;
-      for (int i = 0; i < sz.get_num_components(); ++i)
+      for (ojph::ui32 i = 0; i < sz.get_num_components(); ++i)
       {
-        int bit_depth = sz.get_bit_depth(i);
+        ui32 bit_depth = sz.get_bit_depth(i);
         bool is_signed = sz.is_signed(i);
         test_bd &= bit_depth >= 8 && bit_depth <= 12 && is_signed == false;
       }
@@ -643,7 +643,7 @@ namespace ojph {
           "For broadcast profile, compnent bit_depth has to be between"
           " 8 and 12 bits inclusively, and the samples must be unsigned");
 
-      int num_decomps = cd.get_num_decompositions();
+      ui32 num_decomps = cd.get_num_decompositions();
       if (num_decomps == 0 || num_decomps > 5)
         OJPH_ERROR(0x000300B6,
           "For broadcast profile, number of decompositions has to be between"
@@ -661,7 +661,7 @@ namespace ojph {
 
       bool test_pz = cd.get_log_precinct_size(0).w == 7
                   && cd.get_log_precinct_size(0).h == 7;
-      for (int i = 1; i <= num_decomps; ++i)
+      for (ui32 i = 1; i <= num_decomps; ++i)
         test_pz = cd.get_log_precinct_size(i).w == 8
                && cd.get_log_precinct_size(i).h == 8;
       if (!test_pz)
@@ -674,11 +674,11 @@ namespace ojph {
           "For broadcast profile, the CPRL progression order must be used."
           " Use \"-prog_order CPRL\".");
 
-      int tiles_w = sz.get_image_extent().x;
+      ui32 tiles_w = sz.get_image_extent().x;
       tiles_w = ojph_div_ceil(tiles_w, sz.get_tile_size().w);
-      int tiles_h = sz.get_image_extent().y;
+      ui32 tiles_h = sz.get_image_extent().y;
       tiles_h = ojph_div_ceil(tiles_h, sz.get_tile_size().h);
-      int total_tiles = tiles_w * tiles_h;
+      ui32 total_tiles = tiles_w * tiles_h;
 
       if (total_tiles != 1 && total_tiles != 4)
         OJPH_ERROR(0x000300BB,
@@ -879,19 +879,16 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::restrict_input_resolution(int skipped_res_for_read,
-      int skipped_res_for_recon)
+    void codestream::restrict_input_resolution(ui32 skipped_res_for_read,
+      ui32 skipped_res_for_recon)
     {
-      if (skipped_res_for_read < 0 || skipped_res_for_recon < 0)
-        OJPH_ERROR(0x000300A1, "skipped_resolution values must be greater"
-          " than 0\n");
       if (skipped_res_for_read < skipped_res_for_recon)
-        OJPH_ERROR(0x000300A2,
+        OJPH_ERROR(0x000300A1,
           "skipped_resolution for data %d must be equal or smaller than "
           " skipped_resolution for reconstruction %d\n", 
           skipped_res_for_read, skipped_res_for_recon);
       if (skipped_res_for_read > cod.get_num_decompositions())
-        OJPH_ERROR(0x000300A3,
+        OJPH_ERROR(0x000300A2,
           "skipped_resolution for data %d must be smaller than "
           " the number of decomposition levels %d\n",
           skipped_res_for_read, cod.get_num_decompositions());
@@ -918,7 +915,7 @@ namespace ojph {
         param_sot sot;
         if (sot.read(infile, resilient))
         {
-          ui64 tile_start_location = infile->tell();
+          ui64 tile_start_location = (ui64)infile->tell();
 
           if (sot.get_tile_index() > (int)num_tiles.area())
           {
@@ -1145,7 +1142,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    line_buf* codestream::exchange(line_buf *line, int &next_component)
+    line_buf* codestream::exchange(line_buf *line, ui32 &next_component)
     {
       if (line)
       {
@@ -1153,9 +1150,9 @@ namespace ojph {
         while (!success)
         {
           success = true;
-          for (int i = 0; i < num_tiles.w; ++i)
+          for (ui32 i = 0; i < num_tiles.w; ++i)
           {
-            int idx = i + cur_tile_row * num_tiles.w;
+            ui32 idx = i + cur_tile_row * num_tiles.w;
             if ((success &= tiles[idx].push(line, cur_comp)) == false)
               break;
           }
@@ -1172,7 +1169,7 @@ namespace ojph {
             cur_tile_row = 0;
             if (++cur_comp >= num_comps)
             {
-              next_component = INT_MIN;
+              next_component = 0;
               return NULL;
             }
           }
@@ -1184,7 +1181,7 @@ namespace ojph {
             cur_comp = 0;
             if (++cur_line >= comp_size[cur_comp].h)
             {
-              next_component = INT_MIN;
+              next_component = 0;
               return NULL;
             }
           }
@@ -1196,15 +1193,15 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    line_buf* codestream::pull(int &comp_num)
+    line_buf* codestream::pull(ui32 &comp_num)
     {
       bool success = false;
       while (!success)
       {
         success = true;
-        for (int i = 0; i < num_tiles.w; ++i)
+        for (ui32 i = 0; i < num_tiles.w; ++i)
         {
-          int idx = i + cur_tile_row * num_tiles.w;
+          ui32 idx = i + cur_tile_row * num_tiles.w;
           if ((success &= tiles[idx].pull(line, cur_comp)) == false)
             break;
         }
@@ -1222,7 +1219,7 @@ namespace ojph {
           cur_tile_row = 0;
           if (cur_comp++ >= num_comps)
           {
-            comp_num = INT_MIN;
+            comp_num = 0;
             return NULL;
           }
         }
@@ -1234,7 +1231,7 @@ namespace ojph {
           cur_comp = 0;
           if (cur_line++ >= recon_comp_size[cur_comp].h)
           {
-            comp_num = INT_MIN;
+            comp_num = 0;
             return NULL;
           }
         }
@@ -1259,43 +1256,43 @@ namespace ojph {
 
       //allocate tiles_comp
       const param_siz *szp = codestream->get_siz();
-      int num_comps = szp->get_num_components();
+      ui32 num_comps = szp->get_num_components();
       allocator->pre_alloc_obj<tile_comp>(num_comps);
       allocator->pre_alloc_obj<rect>(num_comps); //for comp_rects
       allocator->pre_alloc_obj<rect>(num_comps); //for recon_comp_rects
-      allocator->pre_alloc_obj<int>(num_comps);  //for line_offsets
-      allocator->pre_alloc_obj<int>(num_comps);  //for num_bits
+      allocator->pre_alloc_obj<ui32>(num_comps);  //for line_offsets
+      allocator->pre_alloc_obj<ui32>(num_comps);  //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
-      allocator->pre_alloc_obj<int>(num_comps);  //for cur_line
+      allocator->pre_alloc_obj<ui32>(num_comps);  //for cur_line
 
       int profile = codestream->get_profile();
       if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
-        allocator->pre_alloc_obj<int>(num_comps);  //for num_comp_bytes
+        allocator->pre_alloc_obj<ui32>(num_comps);  //for num_comp_bytes
       else
-        allocator->pre_alloc_obj<int>(1);
+        allocator->pre_alloc_obj<ui32>(1);
 
-      int tx0 = tile_rect.org.x;
-      int ty0 = tile_rect.org.y;
-      int tx1 = tile_rect.org.x + tile_rect.siz.w;
-      int ty1 = tile_rect.org.y + tile_rect.siz.h;
-      int recon_tx0 = recon_tile_rect.org.x;
-      int recon_ty0 = recon_tile_rect.org.y;
-      int recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
-      int recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
+      ui32 tx0 = tile_rect.org.x;
+      ui32 ty0 = tile_rect.org.y;
+      ui32 tx1 = tile_rect.org.x + tile_rect.siz.w;
+      ui32 ty1 = tile_rect.org.y + tile_rect.siz.h;
+      ui32 recon_tx0 = recon_tile_rect.org.x;
+      ui32 recon_ty0 = recon_tile_rect.org.y;
+      ui32 recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
+      ui32 recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
 
-      int width = 0;
-      for (int i = 0; i < num_comps; ++i)
+      ui32 width = 0;
+      for (ui32 i = 0; i < num_comps; ++i)
       {
         point downsamp = szp->get_downsampling(i);
 
-        int tcx0 = ojph_div_ceil(tx0, downsamp.x);
-        int tcy0 = ojph_div_ceil(ty0, downsamp.y);
-        int tcx1 = ojph_div_ceil(tx1, downsamp.x);
-        int tcy1 = ojph_div_ceil(ty1, downsamp.y);
-        int recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
-        int recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
-        int recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
-        int recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
+        ui32 tcx0 = ojph_div_ceil(tx0, downsamp.x);
+        ui32 tcy0 = ojph_div_ceil(ty0, downsamp.y);
+        ui32 tcx1 = ojph_div_ceil(tx1, downsamp.x);
+        ui32 tcy1 = ojph_div_ceil(ty1, downsamp.y);
+        ui32 recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
+        ui32 recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
+        ui32 recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
+        ui32 recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
 
         rect comp_rect;
         comp_rect.org.x = tcx0;
@@ -1325,7 +1322,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void tile::finalize_alloc(codestream *codestream, const rect& tile_rect,
                               const rect& recon_tile_rect, 
-                              int tile_idx, int offset)
+                              ui32 tile_idx, ui32 offset)
     {
       this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -1341,43 +1338,43 @@ namespace ojph {
       comps = allocator->post_alloc_obj<tile_comp>(num_comps);
       comp_rects = allocator->post_alloc_obj<rect>(num_comps);
       recon_comp_rects = allocator->post_alloc_obj<rect>(num_comps);
-      line_offsets = allocator->post_alloc_obj<int>(num_comps);
-      num_bits = allocator->post_alloc_obj<int>(num_comps);
+      line_offsets = allocator->post_alloc_obj<ui32>(num_comps);
+      num_bits = allocator->post_alloc_obj<ui32>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
-      cur_line = allocator->post_alloc_obj<int>(num_comps);
+      cur_line = allocator->post_alloc_obj<ui32>(num_comps);
 
       profile = codestream->get_profile();
       if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
-        num_comp_bytes = allocator->post_alloc_obj<int>(num_comps);
+        num_comp_bytes = allocator->post_alloc_obj<ui32>(num_comps);
       else
-        num_comp_bytes = allocator->post_alloc_obj<int>(1);
+        num_comp_bytes = allocator->post_alloc_obj<ui32>(1);
 
       this->resilient = codestream->is_resilient();
       this->tile_rect = tile_rect;
       this->recon_tile_rect = recon_tile_rect;
 
-      int tx0 = tile_rect.org.x;
-      int ty0 = tile_rect.org.y;
-      int tx1 = tile_rect.org.x + tile_rect.siz.w;
-      int ty1 = tile_rect.org.y + tile_rect.siz.h;
-      int recon_tx0 = recon_tile_rect.org.x;
-      int recon_ty0 = recon_tile_rect.org.y;
-      int recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
-      int recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
+      ui32 tx0 = tile_rect.org.x;
+      ui32 ty0 = tile_rect.org.y;
+      ui32 tx1 = tile_rect.org.x + tile_rect.siz.w;
+      ui32 ty1 = tile_rect.org.y + tile_rect.siz.h;
+      ui32 recon_tx0 = recon_tile_rect.org.x;
+      ui32 recon_ty0 = recon_tile_rect.org.y;
+      ui32 recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
+      ui32 recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
 
-      int width = 0;
-      for (int i = 0; i < num_comps; ++i)
+      ui32 width = 0;
+      for (ui32 i = 0; i < num_comps; ++i)
       {
         point downsamp = szp->get_downsampling(i);
 
-        int tcx0 = ojph_div_ceil(tx0, downsamp.x);
-        int tcy0 = ojph_div_ceil(ty0, downsamp.y);
-        int tcx1 = ojph_div_ceil(tx1, downsamp.x);
-        int tcy1 = ojph_div_ceil(ty1, downsamp.y);
-        int recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
-        int recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
-        int recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
-        int recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
+        ui32 tcx0 = ojph_div_ceil(tx0, downsamp.x);
+        ui32 tcy0 = ojph_div_ceil(ty0, downsamp.y);
+        ui32 tcx1 = ojph_div_ceil(tx1, downsamp.x);
+        ui32 tcy1 = ojph_div_ceil(ty1, downsamp.y);
+        ui32 recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
+        ui32 recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
+        ui32 recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
+        ui32 recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
 
         line_offsets[i] = 
           recon_tcx0 - ojph_div_ceil(recon_tx0 - offset, downsamp.x);
@@ -1420,7 +1417,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool tile::push(line_buf *line, int comp_num)
+    bool tile::push(line_buf *line, ui32 comp_num)
     {
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= comp_rects[comp_num].siz.h)
@@ -1432,7 +1429,7 @@ namespace ojph {
       if (!employ_color_transform || comp_num >= 3)
       {
         assert(comp_num < num_comps);
-        int comp_width = comp_rects[comp_num].siz.w;
+        ui32 comp_width = comp_rects[comp_num].siz.w;
         line_buf *tc = comps[comp_num].get_line();
         if (reversible)
         {
@@ -1458,7 +1455,7 @@ namespace ojph {
       }
       else
       {
-        int comp_width = comp_rects[comp_num].siz.w;
+        ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible)
         {
           int shift = 1 << (num_bits[comp_num] - 1);
@@ -1505,7 +1502,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool tile::pull(line_buf* tgt_line, int comp_num)
+    bool tile::pull(line_buf* tgt_line, ui32 comp_num)
     {
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= recon_comp_rects[comp_num].siz.h)
@@ -1516,7 +1513,7 @@ namespace ojph {
       if (!employ_color_transform || num_comps == 1)
       {
         line_buf *src_line = comps[comp_num].pull_line();
-        int comp_width = recon_comp_rects[comp_num].siz.w;
+        ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (reversible)
         {
           int shift = 1 << (num_bits[comp_num] - 1);
@@ -1541,7 +1538,7 @@ namespace ojph {
       else
       {
         assert(num_comps >= 3);
-        int comp_width = recon_comp_rects[comp_num].siz.w;
+        ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (comp_num == 0)
         {
           if (reversible)
@@ -1586,12 +1583,12 @@ namespace ojph {
     {
       //prepare precinct headers
       if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
-        for (int c = 0; c < num_comps; ++c)
+        for (ui32 c = 0; c < num_comps; ++c)
           num_comp_bytes[c] = comps[c].prepare_precincts();
       else
       {
         num_comp_bytes[0] = 0;
-        for (int c = 0; c < num_comps; ++c)
+        for (ui32 c = 0; c < num_comps; ++c)
           num_comp_bytes[0] += comps[c].prepare_precincts();
       }
     }
@@ -1601,7 +1598,7 @@ namespace ojph {
     {
       if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
       {
-        for (int c = 0; c < num_comps; ++c)
+        for (ui32 c = 0; c < num_comps; ++c)
           tlm->set_next_pair(sot.get_tile_index(), num_comp_bytes[c]);
       }
       else
@@ -1612,8 +1609,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void tile::flush(outfile_base *file)
     {
-      int max_decompositions = 0;
-      for (int c = 0; c < num_comps; ++c)
+      ui32 max_decompositions = 0;
+      for (ui32 c = 0; c < num_comps; ++c)
         max_decompositions = ojph_max(max_decompositions,
           comps[c].get_num_decompositions());
 
@@ -1633,28 +1630,32 @@ namespace ojph {
       //sequence the writing of precincts according to preogression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
       {
-        for (int r = 0; r <= max_decompositions; ++r)
-          for (int c = 0; c < num_comps; ++c)
+        for (ui32 r = 0; r <= max_decompositions; ++r)
+          for (ui32 c = 0; c < num_comps; ++c)
             comps[c].write_precincts(r, file);
       }
       else if (prog_order == OJPH_PO_RPCL)
       {
-        for (int r = 0; r <= max_decompositions; ++r)
+        for (ui32 r = 0; r <= max_decompositions; ++r)
         {
           while (true)
           {
-            int comp_num = -1;
+            bool found = false;
+            ui32 comp_num = 0;
             point smallest(INT_MAX, INT_MAX), cur;
-            for (int c = 0; c < num_comps; ++c)
+            for (ui32 c = 0; c < num_comps; ++c)
             {
               if (!comps[c].get_top_left_precinct(r, cur))
                 continue;
+              else
+                found = true;
+
               if (cur.y < smallest.y)
               { smallest = cur; comp_num = c; }
               else if (cur.y == smallest.y && cur.x < smallest.x)
               { smallest = cur; comp_num = c; }
             }
-            if (comp_num >= 0)
+            if (found == true)
               comps[comp_num].write_one_precinct(r, file);
             else
               break;
@@ -1665,15 +1666,19 @@ namespace ojph {
       {
         while (true)
         {
-          int comp_num = -1;
-          int res_num = -1;
+          bool found = false;
+          ui32 comp_num = 0;
+          ui32 res_num = 0;
           point smallest(INT_MAX, INT_MAX), cur;
-          for (int c = 0; c < num_comps; ++c)
+          for (ui32 c = 0; c < num_comps; ++c)
           {
-            for (int r = 0; r <= comps[c].get_num_decompositions(); ++r)
+            for (ui32 r = 0; r <= comps[c].get_num_decompositions(); ++r)
             {
               if (!comps[c].get_top_left_precinct(r, cur))
                 continue;
+              else
+                found = true;
+
               if (cur.y < smallest.y)
               { smallest = cur; comp_num = c; res_num = r; }
               else if (cur.y == smallest.y && cur.x < smallest.x)
@@ -1686,7 +1691,7 @@ namespace ojph {
               { smallest = cur; comp_num = c; res_num = r; }
             }
           }
-          if (comp_num >= 0)
+          if (found == true)
             comps[comp_num].write_one_precinct(res_num, file);
           else
             break;
@@ -1694,7 +1699,7 @@ namespace ojph {
       }
       else if (prog_order == OJPH_PO_CPRL)
       {
-        for (int c = 0; c < num_comps; ++c)
+        for (ui32 c = 0; c < num_comps; ++c)
         {
           if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
           {
@@ -1710,18 +1715,22 @@ namespace ojph {
 
           while (true)
           {
-            int res_num = -1;
+            bool found = false;
+            ui32 res_num = 0;
             point smallest(INT_MAX, INT_MAX), cur;
-            for (int r = 0; r <= max_decompositions; ++r)
+            for (ui32 r = 0; r <= max_decompositions; ++r)
             {
               if (!comps[c].get_top_left_precinct(r, cur)) //res exist?
                 continue;
+              else
+                found = true;
+
               if (cur.y < smallest.y)
               { smallest = cur; res_num = r; }
               else if (cur.y == smallest.y && cur.x < smallest.x)
               { smallest = cur; res_num = r; }
             }
-            if (res_num >= 0)
+            if (found == true)
               comps[c].write_one_precinct(res_num, file);
             else
               break;
@@ -1750,13 +1759,13 @@ namespace ojph {
       ui64 tile_end_location = tile_start_location + sot.get_payload_length();
 
       ui32 data_left = sot.get_payload_length(); //bytes left to parse
-      data_left -= (ui32)(file->tell() - tile_start_location);
+      data_left -= (ui32)((ui64)file->tell() - tile_start_location);
 
       if (data_left == 0)
         return;
 
-      int max_decompositions = 0;
-      for (int c = 0; c < num_comps; ++c)
+      ui32 max_decompositions = 0;
+      for (ui32 c = 0; c < num_comps; ++c)
         max_decompositions = ojph_max(max_decompositions,
           comps[c].get_num_decompositions());
 
@@ -1766,30 +1775,34 @@ namespace ojph {
         if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
         {
           max_decompositions -= skipped_res_for_read;
-          for (int r = 0; r <= max_decompositions; ++r)
-            for (int c = 0; c < num_comps; ++c)
+          for (ui32 r = 0; r <= max_decompositions; ++r)
+            for (ui32 c = 0; c < num_comps; ++c)
               if (data_left > 0)
                 comps[c].parse_precincts(r, data_left, file);
         }
         else if (prog_order == OJPH_PO_RPCL)
         {
           max_decompositions -= skipped_res_for_read;
-          for (int r = 0; r <= max_decompositions; ++r)
+          for (ui32 r = 0; r <= max_decompositions; ++r)
           {
             while (true)
             {
-              int comp_num = -1;
+              bool found = false;
+              ui32 comp_num = 0;
               point smallest(INT_MAX, INT_MAX), cur;
-              for (int c = 0; c < num_comps; ++c)
+              for (ui32 c = 0; c < num_comps; ++c)
               {
                 if (!comps[c].get_top_left_precinct(r, cur))
                   continue;
+                else
+                  found = true;
+
                 if (cur.y < smallest.y)
                 { smallest = cur; comp_num = c; }
                 else if (cur.y == smallest.y && cur.x < smallest.x)
                 { smallest = cur; comp_num = c; }
               }
-              if (comp_num >= 0 && data_left > 0)
+              if (found == true && data_left > 0)
                 comps[comp_num].parse_one_precinct(r, data_left, file);
               else
                 break;
@@ -1800,15 +1813,19 @@ namespace ojph {
         {
           while (true)
           {
-            int comp_num = -1;
-            int res_num = -1;
+            bool found = false;
+            ui32 comp_num = 0;
+            ui32 res_num = 0;
             point smallest(INT_MAX, INT_MAX), cur;
-            for (int c = 0; c < num_comps; ++c)
+            for (ui32 c = 0; c < num_comps; ++c)
             {
-              for (int r = 0; r <= comps[c].get_num_decompositions(); ++r)
+              for (ui32 r = 0; r <= comps[c].get_num_decompositions(); ++r)
               {
                 if (!comps[c].get_top_left_precinct(r, cur))
                   continue;
+                else
+                  found = true;
+
                 if (cur.y < smallest.y)
                 { smallest = cur; comp_num = c; res_num = r; }
                 else if (cur.y == smallest.y && cur.x < smallest.x)
@@ -1821,7 +1838,7 @@ namespace ojph {
                 { smallest = cur; comp_num = c; res_num = r; }
               }
             }
-            if (comp_num >= 0 && data_left > 0)
+            if (found == true && data_left > 0)
               comps[comp_num].parse_one_precinct(res_num, data_left, file);
             else
               break;
@@ -1829,22 +1846,26 @@ namespace ojph {
         }
         else if (prog_order == OJPH_PO_CPRL)
         {
-          for (int c = 0; c < num_comps; ++c)
+          for (ui32 c = 0; c < num_comps; ++c)
           {
             while (true)
             {
-              int res_num = -1;
+              bool found = false;
+              ui32 res_num = 0;
               point smallest(INT_MAX, INT_MAX), cur;
-              for (int r = 0; r <= max_decompositions; ++r)
+              for (ui32 r = 0; r <= max_decompositions; ++r)
               {
                 if (!comps[c].get_top_left_precinct(r, cur)) //res exist?
                   continue;
+                else
+                  found = true;
+
                 if (cur.y < smallest.y)
                 { smallest = cur; res_num = r; }
                 else if (cur.y == smallest.y && cur.x < smallest.x)
                 { smallest = cur; res_num = r; }
               }
-              if (res_num >= 0 && data_left > 0)
+              if (found == true && data_left > 0)
                 comps[c].parse_one_precinct(res_num, data_left, file);
               else
                 break;
@@ -1862,7 +1883,7 @@ namespace ojph {
         else
           OJPH_ERROR(0x00030092, "%s\n", error)
       }
-      file->seek(tile_end_location, infile_base::OJPH_SEEK_SET);
+      file->seek((si64)tile_end_location, infile_base::OJPH_SEEK_SET);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1880,7 +1901,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      int num_decomps = codestream->access_cod().get_num_decompositions();
+      ui32 num_decomps = codestream->access_cod().get_num_decompositions();
       allocator->pre_alloc_obj<resolution>(1);
 
       resolution::pre_alloc(codestream, comp_rect, recon_comp_rect, 
@@ -1889,7 +1910,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void tile_comp::finalize_alloc(codestream *codestream, tile *parent,
-                                  int comp_num, const rect& comp_rect,
+                                  ui32 comp_num, const rect& comp_rect,
                                   const rect& recon_comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -1932,7 +1953,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::write_precincts(int res_num, outfile_base *file)
+    void tile_comp::write_precincts(ui32 res_num, outfile_base *file)
     {
       assert(res_num <= num_decomps);
       res_num = num_decomps - res_num; //how many levels to go down
@@ -1947,7 +1968,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool tile_comp::get_top_left_precinct(int res_num, point &top_left)
+    bool tile_comp::get_top_left_precinct(ui32 res_num, point &top_left)
     {
       assert(res_num <= num_decomps);
       res_num = num_decomps - res_num;
@@ -1964,7 +1985,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::write_one_precinct(int res_num, outfile_base *file)
+    void tile_comp::write_one_precinct(ui32 res_num, outfile_base *file)
     {
       assert(res_num <= num_decomps);
       res_num = num_decomps - res_num;
@@ -1979,7 +2000,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_precincts(int res_num, ui32& data_left,
+    void tile_comp::parse_precincts(ui32 res_num, ui32& data_left,
                                     infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -1996,7 +2017,7 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_one_precinct(int res_num, ui32& data_left,
+    void tile_comp::parse_one_precinct(ui32 res_num, ui32& data_left,
                                        infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -2064,12 +2085,12 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void resolution::pre_alloc(codestream *codestream, const rect &res_rect, 
-                               const rect& recon_res_rect, int res_num)
+                               const rect& recon_res_rect, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       const param_cod* cdp = codestream->get_cod();
-      int t = codestream->get_cod()->get_num_decompositions();
-      t -= codestream->get_skipped_res_for_recon();
+      ui32 t = codestream->get_cod()->get_num_decompositions()
+             - codestream->get_skipped_res_for_recon();
       bool skipped_res_for_recon = res_num > t;
 
       //create next resolution
@@ -2077,10 +2098,10 @@ namespace ojph {
       {
         //allocate a resolution
         allocator->pre_alloc_obj<resolution>(1);
-        int trx0 = ojph_div_ceil(res_rect.org.x, 2);
-        int try0 = ojph_div_ceil(res_rect.org.y, 2);
-        int trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
-        int try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
+        ui32 trx0 = ojph_div_ceil(res_rect.org.x, 2);
+        ui32 try0 = ojph_div_ceil(res_rect.org.y, 2);
+        ui32 trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
+        ui32 try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
         rect next_res_rect;
         next_res_rect.org.x = trx0;
         next_res_rect.org.y = try0;
@@ -2092,19 +2113,19 @@ namespace ojph {
       }
 
       //allocate subbands
-      int trx0 = res_rect.org.x;
-      int try0 = res_rect.org.y;
-      int trx1 = res_rect.org.x + res_rect.siz.w;
-      int try1 = res_rect.org.y + res_rect.siz.h;
+      ui32 trx0 = res_rect.org.x;
+      ui32 try0 = res_rect.org.y;
+      ui32 trx1 = res_rect.org.x + res_rect.siz.w;
+      ui32 try1 = res_rect.org.y + res_rect.siz.h;
       allocator->pre_alloc_obj<subband>(4);
       if (res_num > 0)
       {
-        for (int i = 1; i < 4; ++i)
+        for (ui32 i = 1; i < 4; ++i)
         {
-          int tbx0 = (trx0 - (i&1) + 1) >> 1;
-          int tbx1 = (trx1 - (i&1) + 1) >> 1;
-          int tby0 = (try0 - (i>>1) + 1) >> 1;
-          int tby1 = (try1 - (i>>1) + 1) >> 1;
+          ui32 tbx0 = (trx0 - (i&1) + 1) >> 1;
+          ui32 tbx1 = (trx1 - (i&1) + 1) >> 1;
+          ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
+          ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
 
           rect band_rect, valid_band_rect;
           band_rect.org.x = tbx0;
@@ -2130,11 +2151,11 @@ namespace ojph {
       if (skipped_res_for_recon == false)
       {
         bool reversible = cdp->is_reversible();
-        int num_lines = reversible ? 4 : 6;
+        ui32 num_lines = reversible ? 4 : 6;
         allocator->pre_alloc_obj<line_buf>(num_lines);
 
-        int width = res_rect.siz.w + 1;
-        for (int i = 0; i < num_lines; ++i)
+        ui32 width = res_rect.siz.w + 1;
+        for (ui32 i = 0; i < num_lines; ++i)
           allocator->pre_alloc_data<si32>(width, 1);
       }
     }
@@ -2143,14 +2164,14 @@ namespace ojph {
     void resolution::finalize_alloc(codestream *codestream, 
                                     const rect& res_rect, 
                                     const rect& recon_res_rect,
-                                    int res_num,
+                                    ui32 res_num,
                                     point comp_downsamp,
                                     tile_comp *parent_tile,
                                     resolution *parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      int t, num_decomps = codestream->get_cod()->get_num_decompositions();
+      ui32 t, num_decomps = codestream->get_cod()->get_num_decompositions();
       t = num_decomps - codestream->get_skipped_res_for_recon();
       skipped_res_for_recon = res_num > t;
       t = num_decomps - codestream->get_skipped_res_for_read();
@@ -2167,10 +2188,10 @@ namespace ojph {
       {
         //allocate a resolution
         child_res = allocator->post_alloc_obj<resolution>(1);
-        int trx0 = ojph_div_ceil(res_rect.org.x, 2);
-        int try0 = ojph_div_ceil(res_rect.org.y, 2);
-        int trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
-        int try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
+        ui32 trx0 = ojph_div_ceil(res_rect.org.x, 2);
+        ui32 try0 = ojph_div_ceil(res_rect.org.y, 2);
+        ui32 trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
+        ui32 try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
         rect next_res_rect;
         next_res_rect.org.x = trx0;
         next_res_rect.org.y = try0;
@@ -2185,20 +2206,20 @@ namespace ojph {
         child_res = NULL;
 
       //allocate subbands
-      int trx0 = res_rect.org.x;
-      int try0 = res_rect.org.y;
-      int trx1 = res_rect.org.x + res_rect.siz.w;
-      int try1 = res_rect.org.y + res_rect.siz.h;
+      ui32 trx0 = res_rect.org.x;
+      ui32 try0 = res_rect.org.y;
+      ui32 trx1 = res_rect.org.x + res_rect.siz.w;
+      ui32 try1 = res_rect.org.y + res_rect.siz.h;
       bands = allocator->post_alloc_obj<subband>(4);
       if (res_num > 0)
       {
         this->num_bands = 3;
-        for (int i = 1; i < 4; ++i)
+        for (ui32 i = 1; i < 4; ++i)
         {
-          int tbx0 = (trx0 - (i&1) + 1) >> 1;
-          int tbx1 = (trx1 - (i&1) + 1) >> 1;
-          int tby0 = (try0 - (i>>1) + 1) >> 1;
-          int tby1 = (try1 - (i>>1) + 1) >> 1;
+          ui32 tbx0 = (trx0 - (i&1) + 1) >> 1;
+          ui32 tbx1 = (trx1 - (i&1) + 1) >> 1;
+          ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
+          ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
 
           rect band_rect, valid_band_rect;
           band_rect.org.x = tbx0;
@@ -2222,8 +2243,8 @@ namespace ojph {
       precincts = allocator->post_alloc_obj<precinct>(num_precincts.area());
       memset(precincts, 0, sizeof(precinct) * num_precincts.area());
 
-      int x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
-      int y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
+      ui32 x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
+      ui32 y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
       bool test_x = x_lower_bound != trx0;
       bool test_y = y_lower_bound != try0;
 
@@ -2231,12 +2252,12 @@ namespace ojph {
       proj_factor.x = comp_downsamp.x * (1<<(num_decomps - res_num));
       proj_factor.y = comp_downsamp.y * (1<<(num_decomps - res_num));
       precinct *pp = precincts;
-      for (int y = 0; y < num_precincts.h; ++y)
+      for (ui32 y = 0; y < num_precincts.h; ++y)
       {
-        int ppy0 = y_lower_bound + (y << log_PP.h);
-        for (int x = 0; x < num_precincts.w; ++x, ++pp)
+        ui32 ppy0 = y_lower_bound + (y << log_PP.h);
+        for (ui32 x = 0; x < num_precincts.w; ++x, ++pp)
         {
-          int ppx0 = x_lower_bound + (x << log_PP.w);
+          ui32 ppx0 = x_lower_bound + (x << log_PP.w);
           pp->img_point.x = proj_factor.x * ppx0;
           pp->img_point.y = proj_factor.y * ppy0;
           pp->special_x = test_x && x == 0;
@@ -2265,7 +2286,7 @@ namespace ojph {
       tag_tree_size = (int)((val * 4 + 2) / 3);
       ++max_num_levels;
       level_index[0] = 0;
-      for (int i = 1; i <= max_num_levels; ++i, val >>= 2)
+      for (ui32 i = 1; i <= max_num_levels; ++i, val >>= 2)
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
 
@@ -2276,13 +2297,12 @@ namespace ojph {
         this->num_lines = this->reversible ? 4 : 6;
         lines = allocator->post_alloc_obj<line_buf>(num_lines);
 
-        int width = res_rect.siz.w + 1;
-        for (int i = 0; i < num_lines; ++i)
+        ui32 width = res_rect.siz.w + 1;
+        for (ui32 i = 0; i < num_lines; ++i)
           lines[i].wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
         cur_line = 0;
         vert_even = (res_rect.org.y & 1) == 0;
         horz_even = (res_rect.org.x & 1) == 0;
-        available_lines = 0;
       }
     }
 
@@ -2297,6 +2317,7 @@ namespace ojph {
         return;
       }
 
+      ui32 width = res_rect.siz.w;
       if (reversible)
       {
         //vertical transform
@@ -2305,23 +2326,23 @@ namespace ojph {
         {
           rev_vert_wvlt_fwd_predict(lines[0].i32,
                                     cur_line>1 ? lines[2].i32 : lines[0].i32,
-                                    lines[1].i32, res_rect.siz.w);
+                                    lines[1].i32, width);
           rev_vert_wvlt_fwd_update(lines[1].i32,
                                    cur_line > 2 ? lines[3].i32 : lines[1].i32,
-                                   lines[2].i32, res_rect.siz.w);
+                                   lines[2].i32, width);
 
           // push to horizontal transform lines[2](L) and lines[1] (H)
           if (cur_line >= 1)
           {
             rev_horz_wvlt_fwd_tx(lines[1].i32, bands[2].get_line()->i32,
-              bands[3].get_line()->i32, res_rect.siz.w, horz_even);
+              bands[3].get_line()->i32, width, horz_even);
             bands[2].push_line();
             bands[3].push_line();
           }
           if (cur_line >= 2)
           {
             rev_horz_wvlt_fwd_tx(lines[2].i32, child_res->get_line()->i32,
-              bands[1].get_line()->i32, res_rect.siz.w, horz_even);
+              bands[1].get_line()->i32, width, horz_even);
             bands[1].push_line();
             child_res->push_line();
           }
@@ -2334,30 +2355,30 @@ namespace ojph {
             if (vert_even)
             {
               rev_vert_wvlt_fwd_update(lines[1].i32, lines[1].i32,
-                                       lines[0].i32, res_rect.siz.w);
+                                       lines[0].i32, width);
               //push lines[0] to L
               rev_horz_wvlt_fwd_tx(lines[0].i32, child_res->get_line()->i32,
-                bands[1].get_line()->i32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->i32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
             }
             else
             {
               rev_vert_wvlt_fwd_predict(lines[1].i32, lines[1].i32,
-                                        lines[0].i32, res_rect.siz.w);
+                                        lines[0].i32, width);
               rev_vert_wvlt_fwd_update(lines[0].i32,
                                        cur_line>1?lines[2].i32:lines[0].i32,
-                                       lines[1].i32, res_rect.siz.w);
+                                       lines[1].i32, width);
 
               // push to horizontal transform lines[1](L) and line[0] (H)
               //line[0] to H
               rev_horz_wvlt_fwd_tx(lines[0].i32, bands[2].get_line()->i32,
-                bands[3].get_line()->i32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->i32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
               //line[1] to L
               rev_horz_wvlt_fwd_tx(lines[1].i32, child_res->get_line()->i32,
-                bands[1].get_line()->i32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->i32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
             }
@@ -2368,18 +2389,18 @@ namespace ojph {
             {
               //push to L
               rev_horz_wvlt_fwd_tx(lines[0].i32, child_res->get_line()->i32,
-                bands[1].get_line()->i32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->i32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
             }
             else
             {
               si32 *sp = lines[0].i32;
-              for (int i = res_rect.siz.w; i > 0; --i)
+              for (ui32 i = width; i > 0; --i)
                 *sp++ <<= 1;
               //push to H
               rev_horz_wvlt_fwd_tx(lines[0].i32, bands[2].get_line()->i32,
-                bands[3].get_line()->i32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->i32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
             }
@@ -2399,33 +2420,33 @@ namespace ojph {
         {
           irrev_vert_wvlt_step(lines[0].f32,
                                cur_line > 1 ? lines[2].f32 : lines[0].f32,
-                               lines[1].f32, 0, res_rect.siz.w);
+                               lines[1].f32, 0, width);
           irrev_vert_wvlt_step(lines[1].f32,
                                cur_line > 2 ? lines[3].f32 : lines[1].f32,
-                               lines[2].f32, 1, res_rect.siz.w);
+                               lines[2].f32, 1, width);
           irrev_vert_wvlt_step(lines[2].f32,
                                cur_line > 3 ? lines[4].f32 : lines[2].f32,
-                               lines[3].f32, 2, res_rect.siz.w);
+                               lines[3].f32, 2, width);
           irrev_vert_wvlt_step(lines[3].f32,
                                cur_line > 4 ? lines[5].f32 : lines[3].f32,
-                               lines[4].f32, 3, res_rect.siz.w);
+                               lines[4].f32, 3, width);
 
           // push to horizontal transform lines[4](L) and lines[3] (H)
           if (cur_line >= 3)
           {
             irrev_vert_wvlt_K(lines[3].f32, lines[5].f32,
-                              false, res_rect.siz.w);
+                              false, width);
             irrev_horz_wvlt_fwd_tx(lines[5].f32, bands[2].get_line()->f32,
-              bands[3].get_line()->f32, res_rect.siz.w, horz_even);
+              bands[3].get_line()->f32, width, horz_even);
             bands[2].push_line();
             bands[3].push_line();
           }
           if (cur_line >= 4)
           {
             irrev_vert_wvlt_K(lines[4].f32, lines[5].f32,
-                              true, res_rect.siz.w);
+                              true, width);
             irrev_horz_wvlt_fwd_tx(lines[5].f32, child_res->get_line()->f32,
-              bands[1].get_line()->f32, res_rect.siz.w, horz_even);
+              bands[1].get_line()->f32, width, horz_even);
             bands[1].push_line();
             child_res->push_line();
           }
@@ -2438,86 +2459,86 @@ namespace ojph {
             if (vert_even)
             {
               irrev_vert_wvlt_step(lines[1].f32, lines[1].f32,
-                                   lines[0].f32, 1, res_rect.siz.w);
+                                   lines[0].f32, 1, width);
               irrev_vert_wvlt_step(lines[0].f32,
                                    cur_line > 1 ? lines[2].f32 : lines[0].f32,
-                                   lines[1].f32, 2, res_rect.siz.w);
+                                   lines[1].f32, 2, width);
               irrev_vert_wvlt_step(lines[1].f32,
                                    cur_line > 2 ? lines[3].f32 : lines[1].f32,
-                                   lines[2].f32, 3, res_rect.siz.w);
+                                   lines[2].f32, 3, width);
               irrev_vert_wvlt_step(lines[1].f32, lines[1].f32,
-                                   lines[0].f32, 3, res_rect.siz.w);
+                                   lines[0].f32, 3, width);
               //push lines[2] to L, lines[1] to H, and lines[0] to L
               if (cur_line >= 2)
               {
                 irrev_vert_wvlt_K(lines[2].f32, lines[5].f32,
-                                  true, res_rect.siz.w);
+                                  true, width);
                 irrev_horz_wvlt_fwd_tx(lines[5].f32,
                   child_res->get_line()->f32, bands[1].get_line()->f32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
                 bands[1].push_line();
                 child_res->push_line();
               }
               irrev_vert_wvlt_K(lines[1].f32, lines[5].f32,
-                                false, res_rect.siz.w);
+                                false, width);
               irrev_horz_wvlt_fwd_tx(lines[5].f32, bands[2].get_line()->f32,
-                bands[3].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->f32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
               irrev_vert_wvlt_K(lines[0].f32, lines[5].f32,
-                                true, res_rect.siz.w);
+                                true, width);
               irrev_horz_wvlt_fwd_tx(lines[5].f32, child_res->get_line()->f32,
-                bands[1].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->f32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
             }
             else
             {
               irrev_vert_wvlt_step(lines[1].f32, lines[1].f32,
-                                   lines[0].f32, 0, res_rect.siz.w);
+                                   lines[0].f32, 0, width);
               irrev_vert_wvlt_step(lines[0].f32,
                                    cur_line > 1 ? lines[2].f32 : lines[0].f32,
-                                   lines[1].f32, 1, res_rect.siz.w);
+                                   lines[1].f32, 1, width);
               irrev_vert_wvlt_step(lines[1].f32,
                                    cur_line > 2 ? lines[3].f32 : lines[1].f32,
-                                   lines[2].f32, 2, res_rect.siz.w);
+                                   lines[2].f32, 2, width);
               irrev_vert_wvlt_step(lines[2].f32,
                                    cur_line > 3 ? lines[4].f32 : lines[2].f32,
-                                   lines[3].f32, 3, res_rect.siz.w);
+                                   lines[3].f32, 3, width);
 
               irrev_vert_wvlt_step(lines[1].f32, lines[1].f32,
-                                   lines[0].f32, 2, res_rect.siz.w);
+                                   lines[0].f32, 2, width);
               irrev_vert_wvlt_step(lines[0].f32,
                                    cur_line > 1 ? lines[2].f32 : lines[0].f32,
-                                   lines[1].f32, 3, res_rect.siz.w);
+                                   lines[1].f32, 3, width);
 
               //push lines[3] L, lines[2] H, lines[1] L, and lines[0] H
               if (cur_line >= 3)
               {
                 irrev_vert_wvlt_K(lines[3].f32, lines[5].f32,
-                                  true, res_rect.siz.w);
+                                  true, width);
                 irrev_horz_wvlt_fwd_tx(lines[5].f32,
                   child_res->get_line()->f32, bands[1].get_line()->f32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
                 bands[1].push_line();
                 child_res->push_line();
               }
               irrev_vert_wvlt_K(lines[2].f32, lines[5].f32,
-                                false, res_rect.siz.w);
+                                false, width);
               irrev_horz_wvlt_fwd_tx(lines[5].f32, bands[2].get_line()->f32,
-                bands[3].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->f32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
               irrev_vert_wvlt_K(lines[1].f32, lines[5].f32,
-                                true, res_rect.siz.w);
+                                true, width);
               irrev_horz_wvlt_fwd_tx(lines[5].f32, child_res->get_line()->f32,
-                bands[1].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->f32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
               irrev_vert_wvlt_K(lines[0].f32, lines[5].f32,
-                                false, res_rect.siz.w);
+                                false, width);
               irrev_horz_wvlt_fwd_tx(lines[5].f32, bands[2].get_line()->f32,
-                bands[3].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->f32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
             }
@@ -2528,7 +2549,7 @@ namespace ojph {
             {
               //push to L
               irrev_horz_wvlt_fwd_tx(lines[0].f32, child_res->get_line()->f32,
-                bands[1].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[1].get_line()->f32, width, horz_even);
               bands[1].push_line();
               child_res->push_line();
             }
@@ -2536,7 +2557,7 @@ namespace ojph {
             {
               //push to H
               irrev_horz_wvlt_fwd_tx(lines[0].f32, bands[2].get_line()->f32,
-                bands[3].get_line()->f32, res_rect.siz.w, horz_even);
+                bands[3].get_line()->f32, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
             }
@@ -2562,6 +2583,7 @@ namespace ojph {
       if (skipped_res_for_recon == true)
         return child_res->pull_line();
 
+      ui32 width = res_rect.siz.w;
       if (reversible)
       {
         assert(num_lines >= 4);
@@ -2575,11 +2597,11 @@ namespace ojph {
               if (vert_even)
                 rev_horz_wvlt_bwd_tx(lines[0].i32,
                   child_res->pull_line()->i32, bands[1].pull_line()->i32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
               else
                 rev_horz_wvlt_bwd_tx(lines[0].i32,
                   bands[2].pull_line()->i32, bands[3].pull_line()->i32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
             }
 
             //vertical transform
@@ -2588,11 +2610,11 @@ namespace ojph {
               rev_vert_wvlt_bwd_update(
                 cur_line > 1 ? lines[2].i32 : lines[0].i32,
                 cur_line < res_rect.siz.h ? lines[0].i32 : lines[2].i32,
-                lines[1].i32, res_rect.siz.w);
+                lines[1].i32, width);
               rev_vert_wvlt_bwd_predict(
                 cur_line > 2 ? lines[3].i32 : lines[1].i32,
                 cur_line < res_rect.siz.h + 1 ? lines[1].i32 : lines[3].i32,
-                lines[2].i32, res_rect.siz.w);
+                lines[2].i32, width);
             }
 
             vert_even = !vert_even;
@@ -2609,14 +2631,14 @@ namespace ojph {
           if (vert_even)
           {
             rev_horz_wvlt_bwd_tx(lines[0].i32, child_res->pull_line()->i32,
-              bands[1].pull_line()->i32, res_rect.siz.w, horz_even);
+              bands[1].pull_line()->i32, width, horz_even);
           }
           else
           {
             rev_horz_wvlt_bwd_tx(lines[0].i32, bands[2].pull_line()->i32,
-              bands[3].pull_line()->i32, res_rect.siz.w, horz_even);
+              bands[3].pull_line()->i32, width, horz_even);
             si32 *sp = lines[0].i32;
-            for (int i = res_rect.siz.w; i > 0; --i, ++sp)
+            for (ui32 i = width; i > 0; --i, ++sp)
               *sp++ >>= 1;
           }
           return lines;
@@ -2636,17 +2658,17 @@ namespace ojph {
               {
                 irrev_horz_wvlt_bwd_tx(lines[0].f32,
                   child_res->pull_line()->f32, bands[1].pull_line()->f32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
                 irrev_vert_wvlt_K(lines[0].f32, lines[0].f32,
-                  false, res_rect.siz.w);
+                  false, width);
               }
               else
               {
                 irrev_horz_wvlt_bwd_tx(lines[0].f32,
                   bands[2].pull_line()->f32, bands[3].pull_line()->f32,
-                  res_rect.siz.w, horz_even);
+                  width, horz_even);
                 irrev_vert_wvlt_K(lines[0].f32, lines[0].f32,
-                  true, res_rect.siz.w);
+                  true, width);
               }
             }
 
@@ -2656,19 +2678,19 @@ namespace ojph {
               irrev_vert_wvlt_step(
                 cur_line > 1 ? lines[2].f32 : lines[0].f32,
                 cur_line < res_rect.siz.h     ? lines[0].f32 : lines[2].f32,
-                lines[1].f32, 7, res_rect.siz.w);
+                lines[1].f32, 7, width);
               irrev_vert_wvlt_step(
                 cur_line > 2 ? lines[3].f32 : lines[1].f32,
                 cur_line < res_rect.siz.h + 1 ? lines[1].f32 : lines[3].f32,
-                lines[2].f32, 6, res_rect.siz.w);
+                lines[2].f32, 6, width);
               irrev_vert_wvlt_step(
                 cur_line > 3 ? lines[4].f32 : lines[2].f32,
                 cur_line < res_rect.siz.h + 2 ? lines[2].f32 : lines[4].f32,
-                lines[3].f32, 5, res_rect.siz.w);
+                lines[3].f32, 5, width);
               irrev_vert_wvlt_step(
                 cur_line > 4 ? lines[5].f32 : lines[3].f32,
                 cur_line < res_rect.siz.h + 3 ? lines[3].f32 : lines[5].f32,
-                lines[4].f32, 4, res_rect.siz.w);
+                lines[4].f32, 4, width);
             }
 
             vert_even = !vert_even;
@@ -2685,12 +2707,12 @@ namespace ojph {
           if (vert_even)
           {
             irrev_horz_wvlt_bwd_tx(lines[0].f32, child_res->pull_line()->f32,
-              bands[1].pull_line()->f32, res_rect.siz.w, horz_even);
+              bands[1].pull_line()->f32, width, horz_even);
           }
           else
           {
             irrev_horz_wvlt_bwd_tx(lines[0].f32, bands[2].pull_line()->f32,
-              bands[3].pull_line()->f32, res_rect.siz.w, horz_even);
+              bands[3].pull_line()->f32, width, horz_even);
           }
           return lines;
         }
@@ -2723,8 +2745,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool resolution::get_top_left_precinct(point &top_left)
     {
-      int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      if (idx < (int)num_precincts.area())
+      ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
+      if (idx < num_precincts.area())
       {
         point t = precincts[idx].img_point;
         top_left.x = precincts[idx].special_x ? 0 : t.x;
@@ -2737,8 +2759,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void resolution::write_one_precinct(outfile_base *file)
     {
-      int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      assert(idx < (int)num_precincts.area());
+      ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
+      assert(idx < num_precincts.area());
       precincts[idx].write(file);
 
       if (++cur_precinct_loc.x >= num_precincts.w)
@@ -2752,8 +2774,8 @@ namespace ojph {
     void resolution::parse_all_precincts(ui32& data_left, infile_base *file)
     {
       precinct *p = precincts;
-      int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      for (si32 i = idx; i < (si32)num_precincts.area(); ++i)
+      ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
+      for (ui32 i = idx; i < num_precincts.area(); ++i)
       {
         if (data_left == 0)
           break;
@@ -2770,8 +2792,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void resolution::parse_one_precinct(ui32& data_left, infile_base *file)
     {
-      int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      assert(idx < (int)num_precincts.area());
+      ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
+      assert(idx < num_precincts.area());
 
       if (data_left == 0)
         return;
@@ -2828,7 +2850,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    void bb_put_bit(bit_write_buf *bbp, int bit,
+    void bb_put_bit(bit_write_buf *bbp, ui32 bit,
                     mem_elastic_allocator *elastic,
                     coded_lists*& cur_coded_list, ui32& ph_bytes)
     {
@@ -2894,15 +2916,15 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     struct tag_tree
     {
-      void init(ui8* buf, int *lev_idx, int num_levels, size s, int init_val)
+      void init(ui8* buf, ui32 *lev_idx, ui32 num_levels, size s, int init_val)
       {
-        for (int i = 0; i <= num_levels; ++i) //on extra level
+        for (ui32 i = 0; i <= num_levels; ++i) //on extra level
           levs[i] = buf + lev_idx[i];
-        for (int i = num_levels + 1; i < 16; ++i)
+        for (ui32 i = num_levels + 1; i < 16; ++i)
           levs[i] = (ui8*)INT_MAX; //make it crash on error
         width = s.w;
         height = s.h;
-        for (int i = 0; i < num_levels; ++i)
+        for (ui32 i = 0; i < num_levels; ++i)
         {
           ui32 size = 1u << ((num_levels - 1 - i) << 1);
           memset(levs[i], init_val, size);
@@ -2911,24 +2933,24 @@ namespace ojph {
         this->num_levels = num_levels;
       }
 
-      ui8* get(int x, int y, int lev)
+      ui8* get(ui32 x, ui32 y, ui32 lev)
       {
         return levs[lev] + (x + y * ((width + (1 << lev) - 1) >> lev));
       }
 
-      int width, height, num_levels;
+      ui32 width, height, num_levels;
       ui8* levs[16]; // you cannot have this high number of levels
     };
 
     //////////////////////////////////////////////////////////////////////////
-    static inline int log2ceil(int x)
+    static inline ui32 log2ceil(ui32 x)
     {
-      int t = 31 - count_leading_zeros(x);
+      ui32 t = 31 - count_leading_zeros(x);
       return t + (x & (x - 1) ? 1 : 0);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 precinct::prepare_precinct(int tag_tree_size, si32* lev_idx,
+    ui32 precinct::prepare_precinct(int tag_tree_size, ui32* lev_idx,
                                     mem_elastic_allocator* elastic)
     {
       bit_write_buf bb;
@@ -2943,7 +2965,7 @@ namespace ojph {
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
-        int num_levels = 1 +
+        ui32 num_levels = 1 +
           ojph_max(log2ceil(cb_idxs[s].siz.w), log2ceil(cb_idxs[s].siz.h));
 
         //create quad trees for inclusion and missing msbs
@@ -2955,12 +2977,12 @@ namespace ojph {
           lev_idx, num_levels, cb_idxs[s].siz, 255);
         mmsb_tag_flags.init(scratch + (tag_tree_size<<1) + tag_tree_size,
           lev_idx, num_levels, cb_idxs[s].siz, 0);
-        int band_width = bands[s].num_blocks.w;
+        ui32 band_width = bands[s].num_blocks.w;
         coded_cb_header *cp = bands[s].coded_cbs;
         cp += cb_idxs[s].org.x + cb_idxs[s].org.y * band_width;
-        for (int y = 0; y < cb_idxs[s].siz.h; ++y)
+        for (ui32 y = 0; y < cb_idxs[s].siz.h; ++y)
         {
-          for (int x = 0; x < cb_idxs[s].siz.w; ++x)
+          for (ui32 x = 0; x < cb_idxs[s].siz.w; ++x)
           {
             coded_cb_header *p = cp + x;
             *inc_tag.get(x, y, 0) = (p->next_coded == NULL); //1 if true
@@ -2968,13 +2990,13 @@ namespace ojph {
           }
           cp += band_width;
         }
-        for (int lev = 1; lev < num_levels; ++lev)
+        for (ui32 lev = 1; lev < num_levels; ++lev)
         {
-          int height = (cb_idxs[s].siz.h + (1<<lev) - 1) >> lev;
-          int width = (cb_idxs[s].siz.w + (1<<lev) - 1) >> lev;
-          for (int y = 0; y < height; ++y)
+          ui32 height = (cb_idxs[s].siz.h + (1<<lev) - 1) >> lev;
+          ui32 width = (cb_idxs[s].siz.w + (1<<lev) - 1) >> lev;
+          for (ui32 y = 0; y < height; ++y)
           {
-            for (int x = 0; x < width; ++x)
+            for (ui32 x = 0; x < width; ++x)
             {
               ui8 t1, t2;
               t1 = ojph_min(*inc_tag.get(x<<1, y<<1, lev-1),
@@ -3019,22 +3041,22 @@ namespace ojph {
           num_skipped_subbands = 0; //this line is not needed
         }
 
-        int width = cb_idxs[s].siz.w;
-        int height = cb_idxs[s].siz.h;
-        for (int y = 0; y < height; ++y)
+        ui32 width = cb_idxs[s].siz.w;
+        ui32 height = cb_idxs[s].siz.h;
+        for (ui32 y = 0; y < height; ++y)
         {
           cp = bands[s].coded_cbs;
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (int x = 0; x < width; ++x, ++cp)
+          for (ui32 x = 0; x < width; ++x, ++cp)
           {
             //inclusion bits
-            for (int cur_lev = num_levels; cur_lev > 0; --cur_lev)
+            for (ui32 cur_lev = num_levels; cur_lev > 0; --cur_lev)
             {
-              int levm1 = cur_lev - 1;
+              ui32 levm1 = cur_lev - 1;
               //check sent
               if (*inc_tag_flags.get(x>>levm1, y>>levm1, levm1) == 0)
               {
-                int skipped = *inc_tag.get(x>>levm1, y>>levm1, levm1);
+                ui32 skipped = *inc_tag.get(x>>levm1, y>>levm1, levm1);
                 skipped -= *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev);
                 assert(skipped <= 1); // for HTJ2K, this should 0 or 1
                 bb_put_bits(&bb, 1 - skipped, 1,
@@ -3049,9 +3071,9 @@ namespace ojph {
               continue;
 
             //missing msbs
-            for (int cur_lev = num_levels; cur_lev > 0; --cur_lev)
+            for (ui32 cur_lev = num_levels; cur_lev > 0; --cur_lev)
             {
-              int levm1 = cur_lev - 1;
+              ui32 levm1 = cur_lev - 1;
               //check sent
               if (*mmsb_tag_flags.get(x>>levm1, y>>levm1, levm1) == 0)
               {
@@ -3081,14 +3103,15 @@ namespace ojph {
 
             //pass lengths
             //either one, two, or three passes, but only one or two lengths
-            int bits1 = 32 - count_leading_zeros(cp->pass_length[0]);
+            int bits1 = 32 - (int)count_leading_zeros(cp->pass_length[0]);
             int extra_bit = cp->num_passes > 2 ? 1 : 0; //for 2nd length
             int bits2 = 0;
             if (cp->num_passes > 1)
-              bits2 = 32 - count_leading_zeros(cp->pass_length[1]);
+              bits2 = 32 - (int)count_leading_zeros(cp->pass_length[1]);
             int bits = ojph_max(bits1, bits2 - extra_bit) - 3;
             bits = ojph_max(bits, 0);
-            bb_put_bits(&bb, -2, bits+1, elastic, cur_coded_list, ph_bytes);
+            bb_put_bits(&bb, 0xFFFFFFFEu, bits+1, 
+              elastic, cur_coded_list, ph_bytes);
 
             bb_put_bits(&bb, cp->pass_length[0], bits+3,
               elastic, cur_coded_list, ph_bytes);
@@ -3128,14 +3151,14 @@ namespace ojph {
         int send = num_bands == 3 ? 4 : 1;
         for (int s = sst; s < send; ++s)
         {
-          int band_width = bands[s].num_blocks.w;
-          int width = cb_idxs[s].siz.w;
-          int height = cb_idxs[s].siz.h;
-          for (int y = 0; y < height; ++y)
+          ui32 band_width = bands[s].num_blocks.w;
+          ui32 width = cb_idxs[s].siz.w;
+          ui32 height = cb_idxs[s].siz.h;
+          for (ui32 y = 0; y < height; ++y)
           {
             coded_cb_header *cp = bands[s].coded_cbs;
             cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-            for (int x = 0; x < width; ++x, ++cp)
+            for (ui32 x = 0; x < width; ++x, ++cp)
             {
               coded_lists *ccl = cp->next_coded;
               while (ccl)
@@ -3182,7 +3205,7 @@ namespace ojph {
     {
       if (bbp->bytes_left > 0)
       {
-        int t = 0;
+        ui32 t = 0;
         if (bbp->file->read(&t, 1) != 1)
           throw "error reading from file";
         bbp->tmp = t;
@@ -3323,7 +3346,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void precinct::parse(int tag_tree_size, si32* lev_idx,
+    void precinct::parse(int tag_tree_size, ui32* lev_idx,
                          mem_elastic_allocator *elastic,
                          ui32 &data_left, infile_base *file,
                          bool skipped)
@@ -3351,7 +3374,7 @@ namespace ojph {
           empty_packet = false;
         }
 
-        int num_levels = 1 +
+        ui32 num_levels = 1 +
           ojph_max(log2ceil(cb_idxs[s].siz.w), log2ceil(cb_idxs[s].siz.h));
 
         //create quad trees for inclusion and missing msbs
@@ -3369,19 +3392,20 @@ namespace ojph {
         *mmsb_tag_flags.get(0, 0, num_levels) = 0;
 
         //
-        int band_width = bands[s].num_blocks.w;
-        int width = cb_idxs[s].siz.w;
-        int height = cb_idxs[s].siz.h;
-        for (int y = 0; y < height; ++y)
+        ui32 band_width = bands[s].num_blocks.w;
+        ui32 width = cb_idxs[s].siz.w;
+        ui32 height = cb_idxs[s].siz.h;
+        for (ui32 y = 0; y < height; ++y)
         {
           coded_cb_header *cp = bands[s].coded_cbs;
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (int x = 0; x < width; ++x, ++cp)
+          for (ui32 x = 0; x < width; ++x, ++cp)
           {
             //process inclusion
             bool empty_cb = false;
-            for (int cur_lev = num_levels-1; cur_lev >= 0; --cur_lev)
+            for (ui32 cl = num_levels; cl > 0; --cl)
             {
+              ui32 cur_lev = cl - 1;
               empty_cb = *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) == 1;
               if (empty_cb)
                 break;
@@ -3403,10 +3427,10 @@ namespace ojph {
               continue;
 
             //process missing msbs
-            int mmsbs = 0;
-            for (int cur_lev = num_levels - 1; cur_lev >= 0; --cur_lev)
+            ui32 mmsbs = 0;
+            for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
             {
-              int levp1 = cur_lev + 1;
+              ui32 cur_lev = levp1 - 1;
               mmsbs = *mmsb_tag.get(x>>levp1, y>>levp1, levp1);
               //check received
               if (*mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
@@ -3485,14 +3509,14 @@ namespace ojph {
       //read codeblock data
       for (int s = sst; s < send; ++s)
       {
-        int band_width = bands[s].num_blocks.w;
-        int width = cb_idxs[s].siz.w;
-        int height = cb_idxs[s].siz.h;
-        for (int y = 0; y < height; ++y)
+        ui32 band_width = bands[s].num_blocks.w;
+        ui32 width = cb_idxs[s].siz.w;
+        ui32 height = cb_idxs[s].siz.h;
+        for (ui32 y = 0; y < height; ++y)
         {
           coded_cb_header *cp = bands[s].coded_cbs;
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (int x = 0; x < width; ++x, ++cp)
+          for (ui32 x = 0; x < width; ++x, ++cp)
           {
             ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
             if (data_left)
@@ -3538,7 +3562,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
-                            int res_num)
+                            ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -3546,15 +3570,15 @@ namespace ojph {
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
 
-      int xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
-      int ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
+      ui32 xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
+      ui32 ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
 
       size nominal(1 << xcb_prime, 1 << ycb_prime);
 
-      int tbx0 = band_rect.org.x;
-      int tby0 = band_rect.org.y;
-      int tbx1 = band_rect.org.x + band_rect.siz.w;
-      int tby1 = band_rect.org.y + band_rect.siz.h;
+      ui32 tbx0 = band_rect.org.x;
+      ui32 tby0 = band_rect.org.y;
+      ui32 tbx1 = band_rect.org.x + band_rect.siz.w;
+      ui32 tby1 = band_rect.org.y + band_rect.siz.h;
 
       size num_blocks;
       num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
@@ -3568,13 +3592,13 @@ namespace ojph {
         //allocate codeblock headers
         allocator->pre_alloc_obj<coded_cb_header>(num_blocks.area());
 
-        for (int i = 0; i < num_blocks.w; ++i)
+        for (ui32 i = 0; i < num_blocks.w; ++i)
           codeblock::pre_alloc(codestream, nominal);
 
         //allocate lines
         allocator->pre_alloc_obj<line_buf>(1);
         //allocate line_buf
-        int width = band_rect.siz.w + 1;
+        ui32 width = band_rect.siz.w + 1;
         allocator->pre_alloc_data<si32>(width, 1);
       }
     }
@@ -3582,8 +3606,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void subband::finalize_alloc(codestream *codestream,
                                  const rect &band_rect,
-                                 resolution* res, int res_num,
-                                 int subband_num)
+                                 resolution* res, ui32 res_num,
+                                 ui32 subband_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
@@ -3616,10 +3640,10 @@ namespace ojph {
         delta_inv = (1.0f/d);
       }
 
-      int tbx0 = band_rect.org.x;
-      int tby0 = band_rect.org.y;
-      int tbx1 = band_rect.org.x + band_rect.siz.w;
-      int tby1 = band_rect.org.y + band_rect.siz.h;
+      ui32 tbx0 = band_rect.org.x;
+      ui32 tby0 = band_rect.org.y;
+      ui32 tbx1 = band_rect.org.x + band_rect.siz.w;
+      ui32 tby1 = band_rect.org.y + band_rect.siz.h;
 
       num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
       num_blocks.w -= tbx0 >> xcb_prime;
@@ -3636,17 +3660,17 @@ namespace ojph {
         for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
           cp->Kmax = K_max;
 
-        int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
-        int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
+        ui32 x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
+        ui32 y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
 
         size cb_size;
         cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
-        cur_cb_height = cb_size.h;
+        cur_cb_height = (si32)cb_size.h;
         int line_offset = 0;
-        for (int i = 0; i < num_blocks.w; ++i)
+        for (ui32 i = 0; i < num_blocks.w; ++i)
         {
-          int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-          int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+          ui32 cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+          ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
           cb_size.w = cbx1 - cbx0;
           blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
                                    coded_cbs + i, K_max, line_offset);
@@ -3656,7 +3680,7 @@ namespace ojph {
         //allocate lines
         lines = allocator->post_alloc_obj<line_buf>(1);
         //allocate line_buf
-        int width = band_rect.siz.w + 1;
+        ui32 width = band_rect.siz.w + 1;
         lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
       }
     }
@@ -3668,17 +3692,17 @@ namespace ojph {
       if (num_precincts.area() == 0)
         return;
       rect res_rect = parent->get_rect();
-      int trx0 = res_rect.org.x;
-      int try0 = res_rect.org.y;
-      int trx1 = res_rect.org.x + res_rect.siz.w;
-      int try1 = res_rect.org.y + res_rect.siz.h;
+      ui32 trx0 = res_rect.org.x;
+      ui32 try0 = res_rect.org.y;
+      ui32 trx1 = res_rect.org.x + res_rect.siz.w;
+      ui32 try1 = res_rect.org.y + res_rect.siz.h;
 
-      int pc_lft = (res_rect.org.x >> log_PP.w) << log_PP.w;
-      int pc_top = (res_rect.org.y >> log_PP.h) << log_PP.h;
+      ui32 pc_lft = (res_rect.org.x >> log_PP.w) << log_PP.w;
+      ui32 pc_top = (res_rect.org.y >> log_PP.h) << log_PP.h;
 
-      int pcx0, pcx1, pcy0, pcy1, shift = (band_num != 0 ? 1 : 0);
-      int yb, xb, coly = 0, colx = 0;
-      for (int y = 0; y < num_precincts.h; ++y)
+      ui32 pcx0, pcx1, pcy0, pcy1, shift = (band_num != 0 ? 1 : 0);
+      ui32 yb, xb, coly = 0, colx = 0;
+      for (ui32 y = 0; y < num_precincts.h; ++y)
       {
         pcy0 = ojph_max(try0, pc_top + (y << log_PP.h));
         pcy1 = ojph_min(try1, pc_top + ((y + 1) << log_PP.h));
@@ -3690,7 +3714,7 @@ namespace ojph {
         yb -= (pcy0 >> ycb_prime);
         colx = 0;
 
-        for (int x = 0; x < num_precincts.w; ++x, ++p)
+        for (ui32 x = 0; x < num_precincts.w; ++x, ++p)
         {
           pcx0 = ojph_max(trx0, pc_lft + (x << log_PP.w));
           pcx1 = ojph_min(trx1, pc_lft + ((x + 1) << log_PP.w));
@@ -3726,13 +3750,13 @@ namespace ojph {
     {
       if (reversible)
       {
-        si32 shift = 31 - K_max;
+        ui32 shift = 31 - K_max;
         //convert to sign and magnitude
         si32 *sp = lines->i32;
-        for (int i = band_rect.siz.w; i > 0; --i)
+        for (ui32 i = band_rect.siz.w; i > 0; --i)
         {
           si32 val = *sp >= 0 ? *sp : -*sp;
-          si32 sign = *sp >= 0 ? 0 : 0x80000000;
+          si32 sign = *sp >= 0 ? 0 : (int)0x80000000;
           *sp++ = sign | (val << shift);
         }
       }
@@ -3741,45 +3765,45 @@ namespace ojph {
         //quantize and convert to sign and magnitude
         const float *sp = lines->f32;
         si32 *dp = lines->i32;
-        for (int i = band_rect.siz.w; i > 0; --i)
+        for (ui32 i = band_rect.siz.w; i > 0; --i)
         {
           si32 t = ojph_trunc(*sp++ * delta_inv);
           si32 val = t >= 0 ? t : -t;
-          si32 sign = t >= 0 ? 0 : 0x80000000;
+          si32 sign = t >= 0 ? 0 : (int)0x80000000;
           *dp++ = sign | val;
         }
       }
 
       //push to codeblocks
-      for (int i = 0; i < num_blocks.w; ++i)
+      for (ui32 i = 0; i < num_blocks.w; ++i)
         blocks[i].push(lines + 0);
       if (++cur_line >= cur_cb_height)
       {
-        for (int i = 0; i < num_blocks.w; ++i)
+        for (ui32 i = 0; i < num_blocks.w; ++i)
           blocks[i].encode(elastic);
 
         if (++cur_cb_row < num_blocks.h)
         {
           cur_line = 0;
 
-          int tbx0 = band_rect.org.x;
-          int tby0 = band_rect.org.y;
-          int tbx1 = band_rect.org.x + band_rect.siz.w;
-          int tby1 = band_rect.org.y + band_rect.siz.h;
+          ui32 tbx0 = band_rect.org.x;
+          ui32 tby0 = band_rect.org.y;
+          ui32 tbx1 = band_rect.org.x + band_rect.siz.w;
+          ui32 tby1 = band_rect.org.y + band_rect.siz.h;
           size nominal(1 << xcb_prime, 1 << ycb_prime);
 
-          int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
-          int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
-          int cby0 = y_lower_bound + cur_cb_row * nominal.h;
-          int cby1 = ojph_min(tby1, cby0 + nominal.h);
+          ui32 x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
+          ui32 y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
+          ui32 cby0 = y_lower_bound + cur_cb_row * nominal.h;
+          ui32 cby1 = ojph_min(tby1, cby0 + nominal.h);
 
           size cb_size;
           cb_size.h = cby1 - ojph_max(tby0, cby0);
-          cur_cb_height = cb_size.h;
-          for (int i = 0; i < num_blocks.w; ++i)
+          cur_cb_height = (int)cb_size.h;
+          for (ui32 i = 0; i < num_blocks.w; ++i)
           {
-            int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-            int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+            ui32 cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+            ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
             cb_size.w = cbx1 - cbx0;
             blocks[i].recreate(cb_size,
                                coded_cbs + i + cur_cb_row * num_blocks.w);
@@ -3796,24 +3820,24 @@ namespace ojph {
       {
         if (cur_cb_row < num_blocks.h)
         {
-          int tbx0 = band_rect.org.x;
-          int tby0 = band_rect.org.y;
-          int tbx1 = band_rect.org.x + band_rect.siz.w;
-          int tby1 = band_rect.org.y + band_rect.siz.h;
+          ui32 tbx0 = band_rect.org.x;
+          ui32 tby0 = band_rect.org.y;
+          ui32 tbx1 = band_rect.org.x + band_rect.siz.w;
+          ui32 tby1 = band_rect.org.y + band_rect.siz.h;
           size nominal(1 << xcb_prime, 1 << ycb_prime);
 
-          int x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
-          int y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
-          int cby0 = ojph_max(tby0, y_lower_bound + cur_cb_row * nominal.h);
-          int cby1 = ojph_min(tby1, y_lower_bound+(cur_cb_row+1)*nominal.h);
+          ui32 x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
+          ui32 y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
+          ui32 cby0 = ojph_max(tby0, y_lower_bound + cur_cb_row * nominal.h);
+          ui32 cby1 = ojph_min(tby1, y_lower_bound+(cur_cb_row+1)*nominal.h);
 
           size cb_size;
           cb_size.h = cby1 - cby0;
-          cur_line = cur_cb_height = cb_size.h;
-          for (int i = 0; i < num_blocks.w; ++i)
+          cur_line = cur_cb_height = (int)cb_size.h;
+          for (ui32 i = 0; i < num_blocks.w; ++i)
           {
-            int cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-            int cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+            ui32 cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+            ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
             cb_size.w = cbx1 - cbx0;
             blocks[i].recreate(cb_size,
                                coded_cbs + i + cur_cb_row * num_blocks.w);
@@ -3826,18 +3850,18 @@ namespace ojph {
       assert(cur_line >= 0);
 
       //pull from codeblocks
-      for (int i = 0; i < num_blocks.w; ++i)
+      for (ui32 i = 0; i < num_blocks.w; ++i)
         blocks[i].pull_line(lines + 0);
 
       if (reversible)
       {
-        si32 shift = 31 - K_max;
+        ui32 shift = 31 - K_max;
         //convert to sign and magnitude
         si32 *sp = lines->i32;
-        for (int i = band_rect.siz.w; i > 0; --i, ++sp)
+        for (ui32 i = band_rect.siz.w; i > 0; --i, ++sp)
         {
           si32 val = (*sp & 0x7FFFFFFF) >> shift;
-          *sp = (*sp & 0x80000000) ? -val : val;
+          *sp = ((ui32)*sp & 0x80000000) ? -val : val;
         }
       }
       else
@@ -3845,10 +3869,10 @@ namespace ojph {
         //quantize and convert to sign and magnitude
         const si32 *sp = lines->i32;
         float *dp = lines->f32;
-        for (int i = band_rect.siz.w; i > 0; --i, ++sp)
+        for (ui32 i = band_rect.siz.w; i > 0; --i, ++sp)
         {
           float val = (float)(*sp & 0x7FFFFFFF) * delta;
-          *dp++ = (*sp & 0x80000000) ? -val : val;
+          *dp++ = ((ui32)*sp & 0x80000000) ? -val : val;
         }
       }
 
@@ -3871,7 +3895,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       
       //need to allocate a some space before and after the block
-      allocator->pre_alloc_data<si32>(nominal.area(), 0);
+      allocator->pre_alloc_data<ui32>(nominal.area(), 0);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -3879,12 +3903,12 @@ namespace ojph {
                                    subband *parent, const size& nominal,
                                    const size& cb_size,
                                    coded_cb_header* coded_cb,
-                                   int K_max, int line_offset)
+                                   ui32 K_max, int line_offset)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //need to allocate a some space before and after the block
-      this->buf = allocator->post_alloc_data<si32>(nominal.area(), 0);
+      this->buf = allocator->post_alloc_data<ui32>(nominal.area(), 0);
 
       this->nominal_size = nominal;
       this->cb_size = cb_size;
@@ -3900,13 +3924,13 @@ namespace ojph {
     void codeblock::push(line_buf *line)
     {
       const si32 *sp = line->i32 + line_offset;
-      si32 *dp = buf + cur_line * cb_size.w;
+      ui32 *dp = buf + cur_line * cb_size.w;
       int tmax = max_val; //this improves speed considerably
-      for (si32 i = cb_size.w; i > 0; --i)
+      for (ui32 i = cb_size.w; i > 0; --i)
       {
         si32 t = *sp++;
         tmax = ojph_max(tmax, 0x7FFFFFFF & t);
-        *dp++ = t;
+        *dp++ = (ui32)t;
       }
       max_val = tmax;
       ++cur_line;
@@ -3921,7 +3945,7 @@ namespace ojph {
         assert(coded_cb->missing_msbs > 0);
         assert(coded_cb->missing_msbs < K_max);
         coded_cb->num_passes = 1;
-
+        
         ojph_encode_codeblock(buf, K_max-1, 1,
           cb_size.w, cb_size.h, cb_size.w, coded_cb->pass_length,
           elastic, coded_cb->next_coded);
@@ -3955,7 +3979,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::pull_line(line_buf *line)
     {
-      const si32 *sp = buf + cur_line * cb_size.w;
+      const ui32 *sp = buf + cur_line * cb_size.w;
       si32 *dp = line->i32 + line_offset;
       memcpy(dp, sp, cb_size.w * sizeof(si32));
       ++cur_line;

@@ -53,9 +53,9 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat)
+                                        si32 *dst, ui32 repeat)
     {
-      for (int i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
+      for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
         __m256i s2 = _mm256_load_si256((__m256i*)src2);
@@ -68,10 +68,10 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat)
+                                       si32 *dst, ui32 repeat)
     {
       __m256i offset = _mm256_set1_epi32(2);
-      for (int i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
+      for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
         s1 = _mm256_add_epi32(s1, offset);
@@ -85,12 +85,12 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                   int width, bool even)
+                                   ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         // extension
         src[-1] = src[1];
@@ -99,7 +99,7 @@ namespace ojph {
         const si32* sp = src + (even ? 1 : 0);
         si32 *dph = hdst;
         const __m256i mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
-        for (int i = (H_width + 7) >> 3; i > 0; --i, dph+=8)
+        for (ui32 i = (H_width + 7) >> 3; i > 0; --i, dph+=8)
         { //this is doing twice the work it needs to do
           //it can be definitely written better
           __m256i s1 = _mm256_loadu_si256((__m256i*)(sp-1));
@@ -128,7 +128,7 @@ namespace ojph {
         const si32* sph = hdst + (even ? 0 : 1);
         si32 *dpl = ldst;
         __m256i offset = _mm256_set1_epi32(2);
-        for (int i = (L_width + 7) >> 3; i > 0; --i, sp+=16, sph+=8, dpl+=8)
+        for (ui32 i = (L_width + 7) >> 3; i > 0; --i, sp+=16, sph+=8, dpl+=8)
         {
           __m256i s1 = _mm256_loadu_si256((__m256i*)(sph-1));
           s1 = _mm256_add_epi32(s1, offset);
@@ -154,9 +154,9 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, int repeat)
+                                        si32 *dst, ui32 repeat)
     {
-      for (int i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
+      for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
         __m256i s2 = _mm256_load_si256((__m256i*)src2);
@@ -169,10 +169,10 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, int repeat)
+                                       si32 *dst, ui32 repeat)
     {
       __m256i offset = _mm256_set1_epi32(2);
-      for (int i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
+      for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
         s1 = _mm256_add_epi32(s1, offset);
@@ -186,12 +186,12 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                   int width, bool even)
+                                   ui32 width, bool even)
     {
       if (width > 1)
       {
-        const int L_width = (width + (even ? 1 : 0)) >> 1;
-        const int H_width = (width + (even ? 0 : 1)) >> 1;
+        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
+        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
         // extension
         hsrc[-1] = hsrc[0];
@@ -200,7 +200,7 @@ namespace ojph {
         const si32 *sph = hsrc + (even ? 0 : 1);
         si32 *spl = lsrc;
         __m256i offset = _mm256_set1_epi32(2);
-        for (int i = (L_width + 7) >> 3; i > 0; --i, sph+=8, spl+=8)
+        for (ui32 i = (L_width + 7) >> 3; i > 0; --i, sph+=8, spl+=8)
         {
           __m256i s1 = _mm256_loadu_si256((__m256i*)(sph-1));
           s1 = _mm256_add_epi32(s1, offset);
@@ -218,8 +218,8 @@ namespace ojph {
         si32 *dp = dst + (even ? 0 : -1);
         spl = lsrc + (even ? 0 : -1);
         sph = hsrc;
-        int width = L_width + (even ? 0 : 1);
-        for (int i = (width + 7) >> 3; i > 0; --i, sph+=8, spl+=8, dp+=16)
+        ui32 width = L_width + (even ? 0 : 1);
+        for (ui32 i = (width + 7) >> 3; i > 0; --i, sph+=8, spl+=8, dp+=16)
         {
           __m256i s1 = _mm256_loadu_si256((__m256i*)spl);
           __m256i s2 = _mm256_loadu_si256((__m256i*)(spl+1));

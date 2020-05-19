@@ -577,7 +577,7 @@ namespace ojph {
         }
         lep[0] = ojph_max(lep[0], (ui8)e_q[1]); lep++;
         lep[0] = (ui8)e_q[3];
-        lcxp[0] |= (ui8)((rho[0] & 2) >> 1); lcxp++;
+        lcxp[0] = (ui8)(lcxp[0] | (ui8)((rho[0] & 2) >> 1)); lcxp++;
         lcxp[0] = (ui8)((rho[0] & 8) >> 3);
 
         ui16 tuple0 = vlc_tbl0[(c_q0 << 8) + (rho[0] << 4) + eps0];
@@ -664,7 +664,7 @@ namespace ojph {
           }
           lep[0] = ojph_max(lep[0], (ui8)e_q[5]); lep++;
           lep[0] = (ui8)e_q[7];
-          lcxp[0] |= (ui8)((rho[1] & 2) >> 1); lcxp++;
+          lcxp[0] |= (ui8)(lcxp[0] | (ui8)((rho[1] & 2) >> 1)); lcxp++;
           lcxp[0] = (ui8)((rho[1] & 8) >> 3);
           ui16 tuple1 = vlc_tbl0[(c_q1 << 8) + (rho[1] << 4) + eps1];
           vlc_encode(&vlc, tuple1 >> 8, (tuple1 >> 4) & 7);
@@ -796,7 +796,7 @@ namespace ojph {
           lep[0] = ojph_max(lep[0], (ui8)e_q[1]); lep++;
           max_e = ojph_max(lep[0], lep[1]) - 1;
           lep[0] = (ui8)e_q[3];
-          lcxp[0] |= (ui8)((rho[0] & 2) >> 1); lcxp++;
+          lcxp[0] = (ui8)(lcxp[0] | (ui8)((rho[0] & 2) >> 1)); lcxp++;
           int c_q1 = lcxp[0] + (lcxp[1] << 2);
           lcxp[0] = (ui8)((rho[0] & 8) >> 3);
           ui16 tuple0 = vlc_tbl1[(c_q0 << 8) + (rho[0] << 4) + eps0];
@@ -885,7 +885,7 @@ namespace ojph {
             lep[0] = ojph_max(lep[0], (ui8)e_q[5]); lep++;
             max_e = ojph_max(lep[0], lep[1]) - 1;
             lep[0] = (ui8)e_q[7];
-            lcxp[0] |= (ui8)((rho[1] & 2) >> 1); lcxp++;
+            lcxp[0] = (ui8)(lcxp[0] | (ui8)((rho[1] & 2) >> 1)); lcxp++;
             c_q0 = lcxp[0] + (lcxp[1] << 2);
             lcxp[0] = (ui8)((rho[1] & 8) >> 3);
             ui16 tuple1 = vlc_tbl1[(c_q1 << 8) + (rho[1] << 4) + eps1];

@@ -503,7 +503,7 @@ namespace ojph {
           Bp = 13 + (B >> 2);
         else
           Bp = 31;
-        Ccap[0] |= (ui16)Bp;
+        Ccap[0] = (ui16)(Ccap[0] | (ui16)Bp);
       }
 
       bool write(outfile_base *file);

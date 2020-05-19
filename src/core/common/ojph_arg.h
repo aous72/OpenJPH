@@ -79,7 +79,7 @@ namespace ojph {
       this->argv = argv;
       this->argc = argc;
       for (int i = 0; i < argc; ++i)
-        avail[i >> 3] |= (ui8)(1 << (i & 7));
+        avail[i >> 3] = avail[i >> 3] | (ui8)(1 << (i & 7));
     }
 
     ///////////////////////////////////////////////////////////////////////////

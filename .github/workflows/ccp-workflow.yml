@@ -3,7 +3,8 @@
 name: C/C++ CI
 on: push
 
-   build1:
+jobs:
+   build:
      name: main build for Unix-like
      runs-on: ${{ matrix.os }}
      strategy:

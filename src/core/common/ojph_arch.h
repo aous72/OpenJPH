@@ -114,7 +114,7 @@ namespace ojph {
   #ifdef OJPH_COMPILER_MSVC
     unsigned long result = 0;
     _BitScanForward(&result, val);
-    return 31 ^ (int)result;
+    return (int)result;
   #elif (defined OJPH_COMPILER_GNUC)
     return __builtin_ctz(val);
   #else

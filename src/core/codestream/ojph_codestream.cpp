@@ -1260,10 +1260,10 @@ namespace ojph {
       allocator->pre_alloc_obj<tile_comp>(num_comps);
       allocator->pre_alloc_obj<rect>(num_comps); //for comp_rects
       allocator->pre_alloc_obj<rect>(num_comps); //for recon_comp_rects
-      allocator->pre_alloc_obj<ui32>(num_comps);  //for line_offsets
-      allocator->pre_alloc_obj<ui32>(num_comps);  //for num_bits
+      allocator->pre_alloc_obj<ui32>(num_comps); //for line_offsets
+      allocator->pre_alloc_obj<ui32>(num_comps); //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
-      allocator->pre_alloc_obj<ui32>(num_comps);  //for cur_line
+      allocator->pre_alloc_obj<ui32>(num_comps); //for cur_line
 
       int profile = codestream->get_profile();
       if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
@@ -1771,7 +1771,7 @@ namespace ojph {
 
       try
       {
-        //sequence the reading of precincts according to preogression order
+        //sequence the reading of precincts according to progression order
         if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
         {
           max_decompositions -= skipped_res_for_read;

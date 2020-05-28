@@ -435,7 +435,7 @@ int main(int argc, char * argv[]) {
 
   const int max_precinct_sizes = 33; //maximum number of decompositions is 32
   ojph::size precinct_size[max_precinct_sizes];
-  int num_precints = -1;
+  int num_precincts = -1;
 
   ojph::size block_size(64,64);
   ojph::size dims(0, 0);
@@ -452,8 +452,7 @@ int main(int argc, char * argv[]) {
   ojph::ui32 bit_depth_store[initial_num_comps] = {0, 0, 0, 0};
   ojph::ui32 *bit_depth = bit_depth_store;
   ojph::ui32 num_comp_downsamps = 0;
-  ojph::point downsampling_store[initial_num_comps] = { ojph::point(0,0),
-    ojph::point(0,0), ojph::point(0,0), ojph::point(0,0) };
+  ojph::point downsampling_store[initial_num_comps];
   ojph::point *comp_downsampling = downsampling_store;
 
   if (argc <= 1) {
@@ -504,7 +503,7 @@ int main(int argc, char * argv[]) {
   if (!get_arguments(argc, argv, input_filename, output_filename,
                      prog_order, profile_string, num_decompositions,
                      quantization_step, reversible, employ_color_transform,
-                     max_precinct_sizes, num_precints, precinct_size,
+                     max_precinct_sizes, num_precincts, precinct_size,
                      block_size, dims, image_offset, tile_size, tile_offset,
                      max_num_comps, num_components,
                      num_comp_downsamps, comp_downsampling,
@@ -551,8 +550,8 @@ int main(int argc, char * argv[]) {
         ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
-        if (num_precints != -1)
-          cod.set_precinct_size(num_precints, precinct_size);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
         cod.set_progression_order(prog_order);
         cod.set_color_transform(false);
         cod.set_reversible(reversible);
@@ -601,8 +600,8 @@ int main(int argc, char * argv[]) {
         ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
-        if (num_precints != -1)
-          cod.set_precinct_size(num_precints, precinct_size);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
         cod.set_progression_order(prog_order);
         if (employ_color_transform == -1)
           cod.set_color_transform(true);
@@ -679,8 +678,8 @@ int main(int argc, char * argv[]) {
         ojph::param_cod cod = codestream.access_cod();
         cod.set_num_decomposition(num_decompositions);
         cod.set_block_dims(block_size.w, block_size.h);
-        if (num_precints != -1)
-          cod.set_precinct_size(num_precints, precinct_size);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
         cod.set_progression_order(prog_order);
         if (employ_color_transform == -1)
           cod.set_color_transform(false);

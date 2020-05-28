@@ -19,20 +19,6 @@ jobs:
        run: make
        working-directory: build
 
-
-   test:
-     name: test on linux
-     runs-on: ubuntu-latest
-     steps:
-     - uses:  actions/checkout@v2
-     - name: cmake with coverage
-       run: cmake -E env CXXFLAGS="--coverage" cmake ..
-       working-directory: build
-     - name: build
-       run: make
-       working-directory: build
- 
-
 #jobs:
 #  ci:
 #    name: ${{ matrix.name }}

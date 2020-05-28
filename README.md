@@ -1,4 +1,4 @@
-[![Join the chat at https://gitter.im/OpenJPH](https://badges.gitter.im/https://gitter.im/OpenJPH.svg)](https://gitter.im/https://gitter.im/OpenJPH?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/OpenJPH](https://badges.gitter.im/OpenJPH.svg)](https://gitter.im/OpenJPH?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Readme #
 

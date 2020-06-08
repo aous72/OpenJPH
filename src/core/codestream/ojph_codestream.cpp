@@ -1627,7 +1627,7 @@ namespace ojph {
       }
 
 
-      //sequence the writing of precincts according to preogression order
+      //sequence the writing of precincts according to progression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
       {
         for (ui32 r = 0; r <= max_decompositions; ++r)
@@ -2127,7 +2127,7 @@ namespace ojph {
           ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
           ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
 
-          rect band_rect, valid_band_rect;
+          rect band_rect;
           band_rect.org.x = tbx0;
           band_rect.org.y = tby0;
           band_rect.siz.w = tbx1 - tbx0;
@@ -2221,7 +2221,7 @@ namespace ojph {
           ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
           ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
 
-          rect band_rect, valid_band_rect;
+          rect band_rect;
           band_rect.org.x = tbx0;
           band_rect.org.y = tby0;
           band_rect.siz.w = tbx1 - tbx0;

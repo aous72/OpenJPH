@@ -40,6 +40,7 @@
 #define OJPH_TYPES_H
 
 #include <cstdint>
+#include "ojph_version.h"
 
 namespace ojph {
 
@@ -54,11 +55,6 @@ typedef uint32_t ui32;
 typedef int32_t si32;
 typedef uint64_t ui64;
 typedef int64_t si64;
-
-/////////////////////////////////////////////////////////////////////////////
-#define OJPH_CORE_VER_MAJOR    0
-#define OJPH_CORE_VER_MINOR    7
-#define OJPH_CORE_VER_SUBMINOR 1
 
 /////////////////////////////////////////////////////////////////////////////
 #define OJPH_INT_STRINGIFY(I) #I

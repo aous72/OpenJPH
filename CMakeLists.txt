@@ -40,8 +40,8 @@ if (OJPH_DISABLE_INTEL_SIMD)
 	endif()
 endif()
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 
 include_directories(src/core/common)
 include_directories(src/apps/common)
@@ -99,14 +99,14 @@ INSTALL(TARGETS ojph_expand
 INSTALL(TARGETS ojph_compress
 	DESTINATION bin)
 
-INSTALL(TARGETS openjph ARCHIVE
+INSTALL(TARGETS openjph LIBRARY
         DESTINATION lib)
 
-INSTALL (DIRECTORY src/core
+INSTALL (DIRECTORY src/core/common/
   DESTINATION include/openjph
   FILES_MATCHING
-  PATTERN "*.h"
-  PATTERN "core.xcodeproj" EXCLUDE)
+  PATTERN "*.h")
 
 INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
         DESTINATION lib/pkgconfig)
+

@@ -172,7 +172,7 @@ namespace ojph {
       bool pull(line_buf *, ui32 comp_num);
 
     private:
-      codestream *parent;
+      //codestream *parent;
       rect tile_rect, recon_tile_rect;
       ui32 num_comps;
       tile_comp *comps;

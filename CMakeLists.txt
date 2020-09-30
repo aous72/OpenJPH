@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.10.0)
 
+project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+
+################################################################################################
+# Building OpenJPH
+################################################################################################
+
 ############################################################
 # Parse version file
 # credit: https://stackoverflow.com/a/47084079
@@ -18,8 +24,6 @@ set(OPENJPH_VERSION_PATCH ${CMAKE_MATCH_1})
 
 set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}")
 ############################################################
-
-project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
@@ -113,4 +117,16 @@ INSTALL (DIRECTORY src/core/common/
 
 INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
         DESTINATION lib/pkgconfig)
+
+################################################################################################
+# Testing
+################################################################################################
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    include(CTest)
+endif()
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 

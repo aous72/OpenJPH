@@ -1324,7 +1324,7 @@ namespace ojph {
                               const rect& recon_tile_rect, 
                               ui32 tile_idx, ui32 offset)
     {
-      this->parent = codestream;
+      //this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       sot.init(0, (ui16)tile_idx, 0, 1);

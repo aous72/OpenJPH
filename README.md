@@ -113,4 +113,4 @@ Here are some usage examples:
 
 # The standard #
 
-The standard is available [here](https://www.itu.int/rec/T-REC-T.814/en).  It is currently free of charge; I do not know if this is temporary or permanent -- **Update 25/12/2019**: it is no longer available free of charge. 
+The standard is available for purchase from the [ISO website](https://www.iso.org/standard/76621.html).  Users with TIES account can purchase it from the [ITU website](https://www.itu.int/rec/T-REC-T.814/en). 

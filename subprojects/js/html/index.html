@@ -31,13 +31,13 @@ Note: Below each image, we display the number of decoded bytes
     <td style="text-align:center; vertical-align:bottom; height:512px"><canvas id='r1c0' width=512px"></canvas></td>    
   </tr>                                                       
   <tr>
-    <td style="text-align:center; width:64px"> <pre>Decoded<br/>Bytes</pre></td>
-    <td style="text-align:center; width:48px"> <pre>1152<br/>bytes</pre></td>
-    <td style="text-align:center; width:48px"> <pre>3074<br/>bytes</pre></td>
-    <td style="text-align:center; width:64px"> <pre>8173<br/>bytes</pre></td>
-    <td style="text-align:center; width:128px"><pre>19395<br/>bytes</pre></td>
-    <td style="text-align:center; width:256px"><pre>41160<br/>bytes</pre></td>
-    <td style="text-align:center; width:512px"><pre>77593<br/>bytes</pre></td>
+    <td style="text-align:center; width:64px"> <pre>Decoded<br/>Bytes<br><pre>Time</pre></br></pre></td>
+    <td style="text-align:center; width:48px"> <pre>826<br/>bytes<br><pre id='t1c5'> ms</pre></br></pre></td>
+    <td style="text-align:center; width:48px"> <pre>2312<br/>bytes<br><pre id='t1c4'> ms</pre></br></pre></td>
+    <td style="text-align:center; width:64px"> <pre>5977<br/>bytes<br><pre id='t1c3'> ms</pre></br></pre></td>
+    <td style="text-align:center; width:128px"><pre>13022<br/>bytes<br><pre id='t1c2'> ms</pre></br></pre></td>
+    <td style="text-align:center; width:256px"><pre>22005<br/>bytes<br><pre id='t1c1'> ms</pre></br></pre></td>
+    <td style="text-align:center; width:512px"><pre>32553<br/>bytes<br><pre id='t1c0'> ms</pre></br></pre></td>
   </tr>
 </table>
 
@@ -46,7 +46,7 @@ Note: Below each image, we display the number of decoded bytes
 This example shows the progressive decoding of JPEG2000. 
 Image quality improves as more data arrives. This is better than waiting for the whole image to arrive before decoding it.
 
-Note: Below each image, we display the number of decoded bytes
+Note: Below each image, we display the number of decoded bytes and PSNR.
 </pre>
 <table>
   <tr>
@@ -54,24 +54,48 @@ Note: Below each image, we display the number of decoded bytes
     <td><canvas id='r2c4' width="512px" height="512px"></canvas></td>
   </tr>
   <tr>
-    <td><pre style="text-align:center">Decoded Bytes: 1152 bytes</pre></td>
-    <td><pre style="text-align:center">Decoded Bytes: 3074 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 826 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 2312 bytes</pre></td>
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">PSNR: 16.96 dB</pre></td>
+    <td><pre style="text-align:center">PSNR: 18.25 dB</pre></td>
+  </tr>
+  <tr>
+    <td><pre id='t2c5' style="text-align:center">Decode Time: </pre></td>
+    <td><pre id='t2c4' style="text-align:center">Decode Time: </pre></td>
   </tr>
   <tr>
     <td><canvas id='r2c3' width="512px" height="512px"></canvas></td>
     <td><canvas id='r2c2' width="512px" height="512px"></canvas></td>
   </tr>
   <tr>
-    <td><pre style="text-align:center">Decoded Bytes: 8173 bytes</pre></td>
-    <td><pre style="text-align:center">Decoded Bytes: 19395 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 5977 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 13022 bytes</pre></td>
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">PSNR: 21.21 dB</pre></td>
+    <td><pre style="text-align:center">PSNR: 25.46 dB</pre></td>
+  </tr>
+  <tr>
+    <td><pre id='t2c3' style="text-align:center">Decode Time: </pre></td>
+    <td><pre id='t2c2' style="text-align:center">Decode Time: </pre></td>
   </tr>
   <tr>
     <td><canvas id='r2c1' width="512px" height="512px"></canvas></td>    
     <td><canvas id='r2c0' width="512px" height="512px"></canvas></td>    
   </tr>
   <tr>
-    <td><pre style="text-align:center">Decoded Bytes: 41160 bytes</pre></td>
-    <td><pre style="text-align:center">Decoded Bytes: 77593 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 22005 bytes</pre></td>
+    <td><pre style="text-align:center">Decoded Bytes: 32553 bytes</pre></td>
+  </tr>
+  <tr>
+    <td><pre style="text-align:center">PSNR: 30.82 dB</pre></td>
+    <td><pre style="text-align:center">PSNR: 37.13 dB</pre></td>
+  </tr>
+  <tr>
+    <td><pre id='t2c1' style="text-align:center">Decode Time: </pre></td>
+    <td><pre id='t2c0' style="text-align:center">Decode Time: </pre></td>
   </tr>
 </table>
 <script>
@@ -91,8 +115,10 @@ Note: Below each image, we display the number of decoded bytes
         pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
-        function display_image(Module, data, canvas_name, skip_res_for_data, skip_res_for_recon)
+        function display_image(Module, data, canvas_name, skip_res_for_data, skip_res_for_recon, txt_ele_name, pre_text)
         {
+          var t0 = performance.now();
+        
           j2c = create_j2c_data();
           const array = new Uint8Array(data);
           
@@ -164,7 +190,10 @@ Note: Below each image, we display the number of decoded bytes
           release_j2c_data(j2c);
 
           ctx.putImageData(cimg, 0, 0);
-          Module._free(buffer);        
+          Module._free(buffer);  
+
+          var t1 = performance.now();
+          document.getElementById(txt_ele_name).innerText = pre_text + (t1 - t0).toFixed(2) + " ms";
         }
 
         var request = new XMLHttpRequest;
@@ -173,16 +202,13 @@ Note: Below each image, we display the number of decoded bytes
         request.onload = function (event) {
             if (request.status == 200)
             {
-                var t0 = performance.now();
-                display_image(Module, this.response, 'mycanvas', 0, 0);
-                var t1 = performance.now();
-                document.getElementById('time').innerText = "Decode time: " + (t1 - t0) + " ms";
+                display_image(Module, this.response, 'mycanvas', 0, 0, 'time', 'Decode Time: ' );
 
-                for (var i = 5; i >= 0; --i)
-                  setTimeout(display_image, 0, Module, this.response, 'r1c' + i, i, i);
+                for (var i = 0; i <= 5; ++i)
+                  display_image(Module, this.response, 'r1c' + i, i, i, 't1c' + i, '');
 
-                for (var i = 5; i >= 0; --i)
-                  setTimeout(display_image, 0, Module, this.response, 'r2c' + i, i, 0);
+                for (var i = 0; i <= 5; ++i)
+                  display_image(Module, this.response, 'r2c' + i, i, 0, 't2c' + i, 'Decode Time: ');
             }
         };
         request.send(null);

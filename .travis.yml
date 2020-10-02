@@ -1,4 +1,6 @@
 language: cpp
-compiler:
-- clang
-- gcc
+  compiler:
+  - clang
+  - gcc
+
+script: cd build && cmake .. && make test

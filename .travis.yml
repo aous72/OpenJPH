@@ -3,4 +3,4 @@ language: cpp
   - clang
   - gcc
 
-script: cd build && cmake .. && make test
+script: "cd build && cmake .. && make && make test"

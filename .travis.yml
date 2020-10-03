@@ -4,4 +4,4 @@ compiler:
   - clang
   - gcc
 
-script: bash ./scripts/build_test.sh
+script: cd build && cmake .. && make && make test

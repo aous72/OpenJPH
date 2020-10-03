@@ -28,7 +28,7 @@ jobs:
        run: cmake -DOJPH_CODE_COVERAGE=ON ..
        working-directory: build
      - name: build
-       run: make
+       run: make && make test
        working-directory: build
 
 #jobs:

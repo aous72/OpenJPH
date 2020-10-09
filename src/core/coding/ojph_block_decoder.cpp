@@ -684,10 +684,10 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     //
     /////////////////////////////////////////////////////////////////////////
-    void ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-                               ui32 missing_msbs, ui32 num_passes,
-                               ui32 lengths1, ui32 lengths2,
-                               ui32 width, ui32 height, ui32 stride)
+    bool ojph_decode_codeblock(ui8* coded_data, si32* decoded_data,
+                               int missing_msbs, int num_passes,
+                               int lengths1, int lengths2,
+                               int width, int height, int stride)
     {
       //sigma: each ui32 contains flags for 32 locations, stripe high;
       // that is, 4 rows by 8 columns.  For 1024 columns, we need 32 integers.
@@ -708,7 +708,7 @@ namespace ojph {
       lcup = (int)lengths1;
       scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
       if (scup > lcup) //something is wrong
-        return;
+        return false;
 
       //init mel
       mel_struct mel;
@@ -1764,6 +1764,7 @@ namespace ojph {
           }
         }
       }
+      return true;
     }
   }
 }

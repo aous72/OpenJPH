@@ -1,5 +1,15 @@
 set(ENV{CTEST_OUTPUT_ON_FAILURE} TRUE)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+set(kakadu_name KDU805_Demo_Apps_for_Linux-x86-64_200602)
+
+file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/2020/06/${kakadu_name}.zip ./t.zip)
+execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand ${kakadu_name}/kdu_compress ${kakadu_name}/libkdu_v80R.so)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Malamute.ppm ./im1.ppm)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Rainier.ppm ./im2.ppm)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/monarch.ppm ./im3.ppm)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/lena_444.yuv ./lena_444.yuv)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/foreman_422.yuv ./foreman_422.yuv)
+file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/foreman_420.yuv ./foreman_420.yuv)
 
 add_test(NAME no_argument_ojph_compress COMMAND ojph_compress)
 set_tests_properties(no_argument_ojph_compress PROPERTIES WILL_FAIL TRUE)

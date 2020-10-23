@@ -1,6 +1,7 @@
 set(ENV{CTEST_OUTPUT_ON_FAILURE} TRUE)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 set(kakadu_name KDU805_Demo_Apps_for_Linux-x86-64_200602)
+set(images_folder ..)
 
 file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/2020/06/${kakadu_name}.zip ./t.zip)
 execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand ${kakadu_name}/kdu_compress ${kakadu_name}/libkdu_v80R.so)
@@ -13,3 +14,6 @@ file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/
 
 add_test(NAME no_argument_ojph_compress COMMAND ojph_compress)
 set_tests_properties(no_argument_ojph_compress PROPERTIES WILL_FAIL TRUE)
+
+add_test(NAME ttt COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh "-i ${images_folder}/im1.ppm -o test.jph" "-i test.jph -o test.ppm")
+set_tests_properties(ttt PROPERTIES WILL_FAIL FALSE)

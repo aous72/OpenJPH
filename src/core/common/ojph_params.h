@@ -49,6 +49,7 @@ namespace ojph {
     struct param_siz;
     struct param_cod;
     struct param_qcd;
+    struct param_qcc;
     struct param_cap;
   }
 
@@ -163,6 +164,17 @@ namespace ojph {
 
   private:
     local::param_qcd* state;
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class param_qcc
+  {
+  public:
+    OJPH_EXPORT
+    param_qcc(local::param_qcc* p) : state(p) {}
+
+  private:
+    local::param_qcc* state;
   };
 
 }

@@ -108,6 +108,7 @@ namespace ojph {
       PLT = 0xFF58, //packet length, tile-part header
       CPF = 0xFF59, //corresponding profile values
       QCD = 0xFF5C, //qunatization default (required)
+      QCC = 0xFF5D, //quantization component
       COM = 0xFF64, //comment
       SOT = 0xFF90, //start of tile-part
       SOP = 0xFF91, //start of packet
@@ -116,7 +117,6 @@ namespace ojph {
       EOC = 0xFFD9, //end of codestream (required)
 
       COC = 0xFF53, //coding style component
-      QCC = 0xFF5D, //quantization component
       RGN = 0xFF5E, //region of interest
       POC = 0xFF5F, //progression order change
       PPM = 0xFF60, //packed packet headers, main header
@@ -424,7 +424,14 @@ namespace ojph {
       friend ::ojph::param_qcd;
     public:
       param_qcd()
-      { memset(this, 0, sizeof(param_qcd)); base_delta = -1.0f; }
+      { 
+        Lqcd = 0;
+        Sqcd = 0;
+        for (int i = 0; i < 97; ++i)
+          u16_SPqcd[i] = 0;
+        num_decomps = 0;
+        base_delta = -1.0f; 
+      }
 
       void set_delta(float delta) { base_delta = delta; }
       void set_rev_quant(ui32 bit_depth, bool is_employing_color_transform);
@@ -457,7 +464,7 @@ namespace ojph {
       bool write(outfile_base *file);
       void read(infile_base *file);
 
-    private:
+    protected:
       ui16 Lqcd;
       ui8 Sqcd;
       union
@@ -467,6 +474,27 @@ namespace ojph {
       };
       ui32 num_decomps;
       float base_delta;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    struct param_qcc : public param_qcd
+    {
+      friend ::ojph::param_qcc;
+    public:
+      param_qcc() : param_qcd()
+      { comp_idx = 0; }
+
+      ui16 get_comp_num() { return comp_idx; }
+      void read(infile_base *file, int num_comps);
+
+    protected:
+        ui16 comp_idx;
     };
 
     ///////////////////////////////////////////////////////////////////////////

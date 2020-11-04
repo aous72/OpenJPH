@@ -216,8 +216,10 @@ namespace ojph {
       resilient = false;
       skipped_res_for_read = skipped_res_for_recon = 0;
 
-
       precinct_scratch_needed_bytes = 0;
+
+      used_qcc_fields = 0;
+      qcc = qcc_store;
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
@@ -229,6 +231,8 @@ namespace ojph {
     ////////////////////////////////////////////////////////////////////////////
     codestream::~codestream()
     {
+      if (qcc_store != qcc)
+        delete[] qcc;
       if (allocator)
         delete allocator;
       if (elastic_alloc)
@@ -838,8 +842,15 @@ namespace ojph {
         else if (marker_idx == 5)
         { qcd.read(file); received_markers |= 2; }
         else if (marker_idx == 6)
-          skip_marker(file, "QCC", "QCC is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
+          {
+            int num_comps = siz.get_num_components();
+            if (qcc == qcc_store && 
+                num_comps * sizeof(param_qcc) > sizeof(qcc_store))
+            {
+              qcc = new param_qcc[num_comps];
+            }
+            qcc[used_qcc_fields++].read(file, num_comps);
+          }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
             OJPH_MSG_LEVEL::WARN, false);
@@ -1903,8 +1914,8 @@ namespace ojph {
 
       this->comp_num = comp_num;
       res = allocator->post_alloc_obj<resolution>(1);
-      res->finalize_alloc(codestream, comp_rect, recon_comp_rect, num_decomps, 
-                          comp_downsamp, this, NULL);
+      res->finalize_alloc(codestream, comp_rect, recon_comp_rect, comp_num,
+                          num_decomps, comp_downsamp, this, NULL);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2143,7 +2154,7 @@ namespace ojph {
     void resolution::finalize_alloc(codestream *codestream, 
                                     const rect& res_rect, 
                                     const rect& recon_res_rect,
-                                    int res_num,
+                                    int comp_num, int res_num,
                                     point comp_downsamp,
                                     tile_comp *parent_tile,
                                     resolution *parent_res)
@@ -2161,6 +2172,7 @@ namespace ojph {
       this->parent = parent_tile;
       this->parent_res = parent_res;
       this->res_rect = res_rect;
+      this->comp_num = comp_num;
       this->res_num = res_num;
       //finalize next resolution
       if (res_num > 0)
@@ -2178,8 +2190,8 @@ namespace ojph {
         next_res_rect.siz.h = try1 - try0;
 
         child_res->finalize_alloc(codestream, next_res_rect, 
-          skipped_res_for_recon ? recon_res_rect : next_res_rect, res_num - 1,
-          comp_downsamp, parent_tile, this);
+          skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num, 
+          res_num - 1, comp_downsamp, parent_tile, this);
       }
       else
         child_res = NULL;
@@ -3390,7 +3402,7 @@ namespace ojph {
               {
                 ui32 bit;
                 if (bb_read_bit(&bb, bit) == false)
-                { data_left = 0; throw "error reading from file"; }
+                { data_left = 0; throw "error reading from file p1"; }
                 empty_cb = (bit == 0);
                 *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
                 *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
@@ -3415,7 +3427,7 @@ namespace ojph {
                 while (bit == 0)
                 {
                   if (bb_read_bit(&bb, bit) == false)
-                  { data_left = 0; throw "error reading from file"; }
+                  { data_left = 0; throw "error reading from file p2"; }
                   mmsbs += 1 - bit;
                 }
                 *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
@@ -3430,26 +3442,26 @@ namespace ojph {
             //get number of passes
             ui32 bit, num_passes = 1;
             if (bb_read_bit(&bb, bit) == false)
-            { data_left = 0; throw "error reading from file"; }
+            { data_left = 0; throw "error reading from file p3"; }
             if (bit)
             {
               num_passes = 2;
               if (bb_read_bit(&bb, bit) == false)
-              { data_left = 0; throw "error reading from file"; }
+              { data_left = 0; throw "error reading from file p4"; }
               if (bit)
               {
                 if (bb_read_bits(&bb, 2, bit) == false)
-                { data_left = 0; throw "error reading from file";  }
+                { data_left = 0; throw "error reading from file p5";  }
                 num_passes = 3 + bit;
                 if (bit == 3)
                 {
                   if (bb_read_bits(&bb, 5, bit) == false)
-                  { data_left = 0; throw "error reading from file"; }
+                  { data_left = 0; throw "error reading from file p6"; }
                   num_passes = 6 + bit;
                   if (bit == 31)
                   {
                     if (bb_read_bits(&bb, 7, bit) == false)
-                    { data_left = 0; throw "error reading from file"; }
+                    { data_left = 0; throw "error reading from file p7"; }
                     num_passes = 37 + bit;
                   }
                 }
@@ -3465,17 +3477,17 @@ namespace ojph {
             while (bit)
             {
               if (bb_read_bit(&bb, bit) == false)
-              { data_left = 0; throw "error reading from file"; }
+              { data_left = 0; throw "error reading from file p8"; }
               bits1 += bit;
             }
 
             if (bb_read_bits(&bb, bits1, bit) == false)
-            { data_left = 0; throw "error reading from file"; }
+            { data_left = 0; throw "error reading from file p9"; }
             cp->pass_length[0] = bit;
             if (num_passes > 1)
             {
               if (bb_read_bits(&bb, bits1 + extra_bit, bit) == false)
-              { data_left = 0; throw "error reading from file"; }
+              { data_left = 0; throw "error reading from file p10"; }
               cp->pass_length[1] = bit;
             }
           }
@@ -3606,11 +3618,11 @@ namespace ojph {
       cur_cb_row = 0;
       cur_line = 0;
       cur_cb_height = 0;
-      param_qcd qcd = codestream->access_qcd();
-      this->K_max = qcd.get_Kmax(this->res_num, band_num);
+      param_qcd *qcd = codestream->access_qcd(parent->get_comp_num());
+      this->K_max = qcd->get_Kmax(this->res_num, band_num);
       if (!reversible)
       {
-        float d = qcd.irrev_get_delta(res_num, subband_num);
+        float d = qcd->irrev_get_delta(res_num, subband_num);
         d /= (float)(1u << (31 - this->K_max));
         delta = d;
         delta_inv = (1.0f/d);

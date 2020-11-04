@@ -85,8 +85,14 @@ namespace ojph {
       { return ojph::param_cod(&cod); }
       const param_cod* get_cod() //return internal code
       { return &cod; }
-      param_qcd access_qcd()
-      { return qcd; }
+      param_qcd* access_qcd(int comp_num)
+      { 
+        if (used_qcc_fields > 0)
+          for (int v = 0; v < used_qcc_fields; ++v)
+            if (qcc[v].get_comp_num() == comp_num)
+              return qcc + v;
+        return &qcd; 
+      }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
       outfile_base* get_file() { return outfile; }
@@ -145,6 +151,11 @@ namespace ojph {
       param_cap cap;
       param_qcd qcd;
       param_tlm tlm;
+
+    private: // this is to handle qcc
+      int used_qcc_fields;
+      param_qcc qcc_store[4], *qcc; // we allocate 4, 
+                                    // if not enough, we allocate more
 
     private:
       mem_fixed_allocator *allocator;
@@ -238,7 +249,7 @@ namespace ojph {
       static void pre_alloc(codestream *codestream, const rect& res_rect,
                             const rect& recon_res_rect, int res_num);
       void finalize_alloc(codestream *codestream, const rect& res_rect,
-                          const rect& recon_res_rect,
+                          const rect& recon_res_rect, int comp_num,
                           int res_num, point comp_downsamp,
                           tile_comp *parent_tile,
                           resolution *parent_res);
@@ -247,6 +258,7 @@ namespace ojph {
       void push_line();
       line_buf* pull_line();
       rect get_rect() { return res_rect; }
+      int get_comp_num() { return comp_num; }
 
       ui32 prepare_precinct();
       void write_precincts(outfile_base *file);
@@ -259,6 +271,7 @@ namespace ojph {
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
       int num_lines, num_bands, res_num;
+      int comp_num;
       point comp_downsamp;
       rect res_rect;
       line_buf *lines;

@@ -944,7 +944,7 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        num_decomps = (Lqcd - 4) / 6;
+        num_decomps = (Lqcd - 5) / 6;
         if (Lqcd != 5 + 6 * num_decomps)
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
         for (int i = 0; i < 1 + 3 * num_decomps; ++i)
@@ -956,6 +956,69 @@ namespace ojph {
       }
       else
         OJPH_ERROR(0x00050088, "wrong Sqcd value in QCD marker");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcc::read(infile_base *file, int num_comps)
+    {
+      if (file->read(&Lqcd, 2) != 2)
+        OJPH_ERROR(0x000500A1, "error reading QCC marker");
+      Lqcd = swap_byte(Lqcd);
+      if (num_comps < 257)
+      {
+        ui8 v;
+        if (file->read(&v, 1) != 1)
+          OJPH_ERROR(0x000500A2, "error reading QCC marker");
+        comp_idx = v;
+      }
+      else
+      {
+        if (file->read(&comp_idx, 2) != 2)
+          OJPH_ERROR(0x000500A3, "error reading QCC marker");
+        comp_idx = swap_byte(comp_idx);
+      }
+      if (file->read(&Sqcd, 1) != 1)
+        OJPH_ERROR(0x000500A4, "error reading QCC marker");
+      if ((Sqcd & 0x1F) == 0)
+      {
+        int offset = num_comps < 257 ? 5 : 6;
+        num_decomps = (Lqcd - offset) / 3;
+        if (Lqcd != offset + 3 * num_decomps)
+          OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
+        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+          if (file->read(&u8_SPqcd[i], 1) != 1)
+            OJPH_ERROR(0x000500A6, "error reading QCC marker");
+      }
+      else if ((Sqcd & 0x1F) == 1)
+      {
+        int offset = num_comps < 257 ? 6 : 7;
+        num_decomps = -1;
+        if (Lqcd != offset)
+          OJPH_ERROR(0x000500A7, "wrong Lqcc value in QCC marker");
+      }
+      else if ((Sqcd & 0x1F) == 2)
+      {
+        int offset = num_comps < 257 ? 6 : 7;
+        num_decomps = (Lqcd - offset) / 6;
+        if (Lqcd != offset + 6 * num_decomps)
+          OJPH_ERROR(0x000500A8, "wrong Lqcd value in QCC marker");
+        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        {
+          if (file->read(&u16_SPqcd[i], 2) != 2)
+            OJPH_ERROR(0x000500A9, "error reading QCC marker");
+          u16_SPqcd[i] = swap_byte(u16_SPqcd[i]);
+        }
+      }
+      else
+        OJPH_ERROR(0x000500AA, "wrong Sqcd value in QCC marker");
     }
 
     //////////////////////////////////////////////////////////////////////////

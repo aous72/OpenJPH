@@ -85,7 +85,7 @@ namespace ojph {
       { return ojph::param_cod(&cod); }
       const param_cod* get_cod() //return internal code
       { return &cod; }
-      param_qcd* access_qcd(int comp_num)
+      param_qcd* access_qcd(ui32 comp_num)
       { 
         if (used_qcc_fields > 0)
           for (int v = 0; v < used_qcc_fields; ++v)

@@ -977,7 +977,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcc::read(infile_base *file, int num_comps)
+    void param_qcc::read(infile_base *file, ui32 num_comps)
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x000500A1, "error reading QCC marker");
@@ -999,28 +999,30 @@ namespace ojph {
         OJPH_ERROR(0x000500A4, "error reading QCC marker");
       if ((Sqcd & 0x1F) == 0)
       {
-        int offset = num_comps < 257 ? 5 : 6;
+        ui32 offset = num_comps < 257 ? 5 : 6;
         num_decomps = (Lqcd - offset) / 3;
         if (Lqcd != offset + 3 * num_decomps)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x000500A6, "error reading QCC marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        int offset = num_comps < 257 ? 6 : 7;
-        num_decomps = -1;
+        ui32 offset = num_comps < 257 ? 6 : 7;
+        num_decomps = 0;
+        OJPH_ERROR(0x000500AB, 
+          "Scalar derived quantization is not supported yet in QCC marker");
         if (Lqcd != offset)
           OJPH_ERROR(0x000500A7, "wrong Lqcc value in QCC marker");
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        int offset = num_comps < 257 ? 6 : 7;
+        ui32 offset = num_comps < 257 ? 6 : 7;
         num_decomps = (Lqcd - offset) / 6;
         if (Lqcd != offset + 6 * num_decomps)
-          OJPH_ERROR(0x000500A8, "wrong Lqcd value in QCC marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+          OJPH_ERROR(0x000500A8, "wrong Lqcc value in QCC marker");
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
@@ -1028,7 +1030,7 @@ namespace ojph {
         }
       }
       else
-        OJPH_ERROR(0x000500AA, "wrong Sqcd value in QCC marker");
+        OJPH_ERROR(0x000500AA, "wrong Sqcc value in QCC marker");
     }
 
     //////////////////////////////////////////////////////////////////////////

@@ -485,13 +485,13 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct param_qcc : public param_qcd
     {
-      friend ::ojph::param_qcc;
+      //friend ::ojph::param_qcc;
     public:
       param_qcc() : param_qcd()
       { comp_idx = 0; }
 
       ui16 get_comp_num() { return comp_idx; }
-      void read(infile_base *file, int num_comps);
+      void read(infile_base *file, ui32 num_comps);
 
     protected:
         ui16 comp_idx;

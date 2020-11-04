@@ -167,15 +167,15 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_qcc
-  {
-  public:
-    OJPH_EXPORT
-    param_qcc(local::param_qcc* p) : state(p) {}
+  //class param_qcc
+  //{
+  //public:
+  //  OJPH_EXPORT
+  //  param_qcc(local::param_qcc* p) : state(p) {}
 
-  private:
-    local::param_qcc* state;
-  };
+  //private:
+  //  local::param_qcc* state;
+  //};
 
 }
 

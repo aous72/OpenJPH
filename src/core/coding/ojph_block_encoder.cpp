@@ -35,6 +35,11 @@
 // Date: 17 September 2019
 //***************************************************************************/
 
+//***************************************************************************/
+/** @file ojph_block_encoder.cpp
+ *  @brief implements HTJ2K block encoder
+ */
+
 #include <cassert>
 #include <cstring>
 #include <cstdint>

@@ -327,8 +327,10 @@ namespace ojph {
         return;             // reading 32 bits can overflow vlcp->tmp
       ui32 val = 0;
       //the next line (the if statement) needs to be tested first
-      // if (vlcp->size > 0)      // if there are bytes left in the VLC segment
+      if (vlcp->size > 0)  // if there are bytes left in the VLC segment
       {
+        // We pad the data by 8 bytes at the beginning of the code stream 
+        // buffer
         val = *(ui32*)vlcp->data; // then read 32 bits
         vlcp->data -= 4;          // move data pointer back by 4
         vlcp->size -= 4;          // reduce available byte by 4
@@ -337,10 +339,12 @@ namespace ojph {
         // but data should not be used if the codeblock is properly generated
         //The mel code can in fact occupy zero length, if it has a small number
         // of bits and these bits overlap with the VLC code
-        
-        //if test is alright, remove this
-        if (vlcp->size < -4) // we pad the data by 8 bytes at the beginning of the code stream buffer
-          OJPH_ERROR(0x00010001, "Error in reading VLC data: vlcp size %d less than -4 before rev_read", vlcp->size);
+        ////if test is alright, remove this
+        //// We pad the data by 8 bytes at the beginning of the code stream 
+        //// buffer
+        //if (vlcp->size < -4) 
+        //  OJPH_ERROR(0x00010001, "Error in reading VLC data: vlcp size %d "
+        //             "less than -4 before rev_read", vlcp->size);
       }
 
       //accumulate in tmp, number of bits in tmp are stored in bits
@@ -411,6 +415,7 @@ namespace ojph {
         vlcp->bits += d_bits;
         vlcp->unstuff = d > 0x8F; // for next byte
       }
+      vlcp->size -= tnum;
       vlcp->data -= 3; // make ready to read 32 bits (address multiple of 4)
       rev_read(vlcp);  // read another 32 buts
     }
@@ -1417,18 +1422,18 @@ namespace ojph {
           //calculate E^max and add it to U_q, eqns 5 and 6 in ITU T.814
           if ((qinf[0] & 0xF0) & ((qinf[0] & 0xF0) - 1)) // is \gamma_q 1?
           {
-            ui32 E = (ls0 & 0x7Fu); //max(E^NW, E^N)
+            ui32 E = (ls0 & 0x7Fu);
             E = E > (lsp[1] & 0x7Fu) ? E : (lsp[1]&0x7Fu); //max(E, E^NE, E^NF)
-            E -= 2; //since U_q alread has u_q + 1, we subtract 2 instead of 1
-            U_q[0] += E > 0 ? E : 0;
+            //since U_q alread has u_q + 1, we subtract 2 instead of 1
+            U_q[0] += E > 2 ? E - 2 : 0;
           }
 
           if ((qinf[1] & 0xF0) & ((qinf[1] & 0xF0) - 1)) //is \gamma_q 1? 
           {
-            ui32 E = (lsp[1] & 0x7Fu); //max(E^NW, E^N)
+            ui32 E = (lsp[1] & 0x7Fu);
             E = E > (lsp[2] & 0x7Fu) ? E : (lsp[2]&0x7Fu); //max(E, E^NE, E^NF)
-            E -= 2; //since U_q alread has u_q + 1, we subtract 2 instead of 1
-            U_q[1] += E > 0 ? E : 0;
+            //since U_q alread has u_q + 1, we subtract 2 instead of 1
+            U_q[1] += E > 2 ? E - 2 : 0;
           }
 
           ls0 = lsp[2]; //for next double quad

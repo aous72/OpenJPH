@@ -986,7 +986,7 @@ namespace ojph {
      *  @param [in]   height is the decoded codeblock height
      *  @param [in]   stride is the decoded codeblock buffer stride 
      */
-    bool ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
+    void ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
                                ui32 missing_msbs, ui32 num_passes,
                                ui32 lengths1, ui32 lengths2,
                                ui32 width, ui32 height, ui32 stride)
@@ -1018,8 +1018,9 @@ namespace ojph {
       lcup = (int)lengths1;  // length of CUP
       //scup is the length of MEL + VLC
       scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
-      if (scup > lcup) //something is wrong
-        return false;
+      if (scup < 2 || scup > lcup || scup > 4079) {
+    	  OJPH_ERROR(0x00010001, "Invalid scup value: %d", scup);
+      }
 
       // init structures
       dec_mel_st mel;
@@ -2180,7 +2181,6 @@ namespace ojph {
           }
         }
       }
-      return true;
     }
   }
 }

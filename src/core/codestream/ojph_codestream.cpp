@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cmath>
+#include <stdexcept>
 
 #include "ojph_file.h"
 #include "ojph_mem.h"
@@ -3978,14 +3979,15 @@ namespace ojph {
     {
       if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0)
       {
-        bool result = 
+        try {
           ojph_decode_codeblock(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
             cb_size.w, cb_size.h, cb_size.w);
-        if (result == false)
-          memset(buf, 0, cb_size.area() * sizeof(si32));
+        } catch (std::runtime_error &re){
+            memset(buf, 0, cb_size.area() * sizeof(si32));
+        }
       }
       else
         memset(buf, 0, cb_size.area() * sizeof(si32));

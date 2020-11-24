@@ -3929,6 +3929,7 @@ namespace ojph {
       this->cur_line = 0;
       this->K_max = K_max;
       this->max_val = 0;
+      this->resilient = codestream->is_resilient();
       this->coded_cb = coded_cb;
     }
 
@@ -3985,7 +3986,12 @@ namespace ojph {
             coded_cb->pass_length[0], coded_cb->pass_length[1],
             cb_size.w, cb_size.h, cb_size.w);
         if (result == false)
-          memset(buf, 0, cb_size.area() * sizeof(si32));
+          {
+            if (resilient == true)
+              memset(buf, 0, cb_size.area() * sizeof(si32));
+            else
+              OJPH_ERROR(0x000300A1, "Error decoding a codeblock\n");
+          }
       }
       else
         memset(buf, 0, cb_size.area() * sizeof(si32));

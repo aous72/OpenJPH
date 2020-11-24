@@ -1011,14 +1011,20 @@ namespace ojph {
       ui32 *sip = sigma1; //pointers to arrays to be used interchangeably
       int sip_shift = 0;  //the amount of shift needed for sigma
 
+      if (missing_msbs > 29) // p < 1
+        return false;        // 32 bits are not enough to decode this
+      else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
+        num_passes = 1;
       ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
+      // There is a way to handle the case of p == 0, but a different path
+      // is required
 
       // read scup and fix the bytes there
       int lcup, scup;
       lcup = (int)lengths1;  // length of CUP
       //scup is the length of MEL + VLC
       scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
-      if (scup > lcup) //something is wrong
+      if (scup < 2 || scup > lcup || scup > 4079) //something is wrong
         return false;
 
       // init structures
@@ -1169,6 +1175,8 @@ namespace ojph {
         }
         //decode uvlc_mode to get u for both quads
         ui32 consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_q);
+        if (U_q[0] > missing_msbs && U_q[1] > missing_msbs)
+          return false;
 
         //consume u bits in the VLC code
         vlc_val = rev_advance(&vlc, consumed_bits);
@@ -1417,6 +1425,8 @@ namespace ojph {
           ui32 U_q[2];
           ui32 uvlc_mode = ((qinf[0] & 0x8) >> 3) | ((qinf[1] & 0x8) >> 2);
           ui32 consumed_bits = decode_noninit_uvlc(vlc_val, uvlc_mode, U_q);
+          if (U_q[0] > missing_msbs && U_q[1] > missing_msbs)
+            return false;
           vlc_val = rev_advance(&vlc, consumed_bits);
 
           //calculate E^max and add it to U_q, eqns 5 and 6 in ITU T.814

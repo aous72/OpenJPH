@@ -377,6 +377,7 @@ namespace ojph {
       ui32 cur_line;
       ui32 K_max;
       int max_val;
+      bool resilient;
       coded_cb_header* coded_cb;
     };
 

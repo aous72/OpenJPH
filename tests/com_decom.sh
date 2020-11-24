@@ -8,6 +8,8 @@ kdu_compress $1
 ojph_expand $2
 
 # test PSNR and maximum error
+pwd
+../psnr_pae
 
 t1=$?
 

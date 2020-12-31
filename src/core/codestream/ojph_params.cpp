@@ -1046,9 +1046,9 @@ namespace ojph {
       result &= file->write(&buf, 2) == 2;
       *(ui32*)buf = swap_byte(Psot);
       result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = TPsot;
+      *(ui16*)buf = TPsot;
       result &= file->write(&buf, 1) == 1;
-      *(ui8*)buf = TNsot;
+      *(ui16*)buf = TNsot;
       result &= file->write(&buf, 1) == 1;
 
       return result;
@@ -1056,7 +1056,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     bool param_sot::write(outfile_base *file, ui32 payload_len,
-                          ui8 TPsot, ui8 TNsot)
+                          ui16 TPsot, ui16 TNsot)
     {
       char buf[4];
       bool result = true;
@@ -1070,9 +1070,9 @@ namespace ojph {
       result &= file->write(&buf, 2) == 2;
       *(ui32*)buf = swap_byte(payload_len + 14);
       result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = TPsot;
+      *(ui16*)buf = TPsot;
       result &= file->write(&buf, 1) == 1;
-      *(ui8*)buf = TNsot;
+      *(ui16*)buf = TNsot;
       result &= file->write(&buf, 1) == 1;
 
       return result;

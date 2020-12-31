@@ -565,7 +565,7 @@ namespace ojph {
       }
 
       bool write(outfile_base *file, ui32 payload_len);
-      bool write(outfile_base *file, ui32 payload_len, ui8 TPsot, ui8 TNsot);
+      bool write(outfile_base *file, ui32 payload_len, ui16 TPsot, ui16 TNsot);
       bool read(infile_base *file, bool resilient);
 
       ui16 get_tile_index() const { return Isot; }
@@ -577,8 +577,8 @@ namespace ojph {
       ui16 Lsot;
       ui16 Isot;
       ui32 Psot;
-      ui8 TPsot;
-      ui8 TNsot;
+      ui16 TPsot;
+      ui16 TNsot;
     };
 
     ///////////////////////////////////////////////////////////////////////////

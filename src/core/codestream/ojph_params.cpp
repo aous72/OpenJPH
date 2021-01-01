@@ -1086,46 +1086,46 @@ namespace ojph {
         if (file->read(&Lsot, 2) != 2)
         {
           OJPH_INFO(0x00050091, "error reading SOT marker");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0; 
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0; 
           return false;
         }
         Lsot = swap_byte(Lsot);
         if (Lsot != 10)
         {
           OJPH_INFO(0x00050092, "error in SOT length");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
         if (file->read(&Isot, 2) != 2)
         {
           OJPH_INFO(0x00050093, "error reading tile index");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
         Isot = swap_byte(Isot);
         if (Isot == 0xFFFF)
         {
           OJPH_INFO(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
         if (file->read(&Psot, 4) != 4)
         {
           OJPH_INFO(0x00050095, "error reading SOT marker");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
         Psot = swap_byte(Psot);
         if (file->read(&TPsot, 1) != 1)
         {
           OJPH_INFO(0x00050096, "error reading SOT marker");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
         if (file->read(&TNsot, 1) != 1)
         {
           OJPH_INFO(0x00050097, "error reading SOT marker");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          ui16 Lsot = 0; ui16 Isot = 0; ui32 Psot = 0; ui8 TPsot = 0; ui8 TNsot = 0;
           return false;
         }
       }

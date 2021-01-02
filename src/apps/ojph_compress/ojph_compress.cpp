@@ -461,8 +461,9 @@ int main(int argc, char * argv[]) {
 
     "The following option has a default value (optional):\n"
     " -num_decomps  (5) number of decompositions\n"
-    " -qstep        (-1.0...1.0) quantization step size; all quantization without 0.0\n"
-    "               step sizes are derived from this. {default -1.0}\n"
+    " -qstep        (-1.0000...1.0000) quantization step size for lossy\n"
+    "               all quantization without 0.0000\n"
+    "               step sizes are derived from this. {default -1.0000 for 8bit 0.0039}\n"
     " -reversible   (false) for irreversible lossy and true for reversible lossless\n"
     " -colour_trans (true) if there are three color components that are\n"
     "               downsampled by the same amount then the color transform\n"

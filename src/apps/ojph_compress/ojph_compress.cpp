@@ -461,7 +461,7 @@ int main(int argc, char * argv[]) {
 
     "The following option has a default value (optional):\n"
     " -num_decomps  (5) number of decompositions\n"
-    " -qstep        (-0.50000...0.50000) quantization step size for lossy\n"
+    " -qstep        (0.00001...0.5) quantization step size for lossy\n"
     "               all quantization without 0.00000\n"
     "               step sizes are derived from this. {default for 8bit 0.0039}\n"
     " -reversible   (false) for irreversible; that is,\n"

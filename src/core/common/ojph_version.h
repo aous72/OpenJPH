@@ -4,8 +4,8 @@
 //
 // Copyright (c) 2019, Aous Naman 
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia 
-//
+// Copyright (c) 2019, The University of New South Wales, Australia
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,28 +30,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_block_decoder.h
-// Author: Aous Naman
-// Date: 28 August 2019
+// File: ojph_base.h
 //***************************************************************************/
 
-
-#ifndef OJPH_BLOCK_DECODER_H
-#define OJPH_BLOCK_DECODER_H
-
-#include "ojph_defs.h"
-
-namespace ojph {
-  namespace local {
-
-    //////////////////////////////////////////////////////////////////////////
-    //decodes the cleanup pass, significance propagation pass,
-    // and magnitude refinement pass
-    bool
-      ojph_decode_codeblock(ui8* coded_data, si32* decoded_data,
-        int missing_msbs, int num_passes, int lengths1, int lengths2,
-        int width, int height, int stride);
-  }
-}
-
-#endif // !OJPH_BLOCK_DECODER_H
+#define OPENJPH_VERSION_MAJOR 0
+#define OPENJPH_VERSION_MINOR 7
+#define OPENJPH_VERSION_PATCH 2

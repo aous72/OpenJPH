@@ -244,14 +244,15 @@ namespace ojph {
     }
 
     void open(char* filename);
-    void configure(int width, int height, int num_components, int bit_depth);
+    void configure(ui32 width, ui32 height, int num_components, 
+                   int bit_depth);
     virtual int write(const line_buf* line, int comp_num);
     virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
   private:
     FILE *fh;
     const char *fname;
-    int width, height, num_components;
+    ui32 width, height, num_components;
     int bit_depth, bytes_per_sample;
     ui8* buffer;
     int buffer_size;
@@ -275,7 +276,6 @@ namespace ojph {
       fname = NULL;
       width = num_components = 0;
       bit_depth = 0;
-      downsampling = NULL;
       comp_width = NULL;
       buffer = NULL;
       buffer_size = 0;
@@ -285,16 +285,17 @@ namespace ojph {
     void open(char* filename);
     void configure(int image_x_extent, int image_x_offset,
                    int bit_depth, int num_components, point *downsampling);
+    void configure(int bit_depth, int num_components, ui32 *comp_width);
     virtual int write(const line_buf* line, int comp_num);
     virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
   private:
     FILE *fh;
     const char *fname;
-    int width, num_components;
+    ui32 width;
+    int num_components;
     int bit_depth;
-    point *downsampling;
-    int *comp_width;
+    ui32 *comp_width;
     ui8 *buffer;
     int buffer_size;
   };

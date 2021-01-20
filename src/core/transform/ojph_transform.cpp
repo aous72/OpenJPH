@@ -113,7 +113,6 @@ namespace ojph {
       if (wavelet_transform_functions_initialized)
         return;
 
-      int level = cpu_ext_level();
       rev_vert_wvlt_fwd_predict = gen_rev_vert_wvlt_fwd_predict;
       rev_vert_wvlt_fwd_update  = gen_rev_vert_wvlt_fwd_update;
       rev_horz_wvlt_fwd_tx      = gen_rev_horz_wvlt_fwd_tx;
@@ -126,6 +125,8 @@ namespace ojph {
       irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
+      int level = cpu_ext_level();
+
       if (level >= 2)
       {
         irrev_vert_wvlt_step    = sse_irrev_vert_wvlt_step;

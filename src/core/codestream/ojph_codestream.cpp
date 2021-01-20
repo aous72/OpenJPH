@@ -130,9 +130,23 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  void codestream::enable_resilience()
+  {
+    state->enable_resilience();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void codestream::read_headers(infile_base *file)
   {
     state->read_headers(file);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void codestream::restrict_input_resolution(int skipped_res_for_read,
+    int skipped_res_for_recon)
+  {
+    state->restrict_input_resolution(skipped_res_for_read,
+      skipped_res_for_recon);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -183,7 +197,7 @@ namespace ojph {
     static inline
     ui16 swap_byte(ui16 t)
     {
-      return (t << 8) | (t >> 8);
+      return (ui16)((t << 8) | (t >> 8));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -196,11 +210,12 @@ namespace ojph {
 
     ////////////////////////////////////////////////////////////////////////////
     codestream::codestream()
-    : allocator(NULL), elastic_alloc(NULL), precinct_scratch(NULL)
+    : precinct_scratch(NULL), allocator(NULL), elastic_alloc(NULL)
     {
       tiles = NULL;
       line = NULL;
       comp_size = NULL;
+      recon_comp_size = NULL;
       allocator = NULL;
       outfile = NULL;
       infile = NULL;
@@ -213,8 +228,13 @@ namespace ojph {
       cur_comp = 0;
       cur_line = 0;
       cur_tile_row = 0;
+      resilient = false;
+      skipped_res_for_read = skipped_res_for_recon = 0;
 
       precinct_scratch_needed_bytes = 0;
+
+      used_qcc_fields = 0;
+      qcc = qcc_store;
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
@@ -226,6 +246,8 @@ namespace ojph {
     ////////////////////////////////////////////////////////////////////////////
     codestream::~codestream()
     {
+      if (qcc_store != qcc)
+        delete[] qcc;
       if (allocator)
         delete allocator;
       if (elastic_alloc)
@@ -247,28 +269,41 @@ namespace ojph {
       allocator->pre_alloc_obj<tile>(num_tiles.area());
 
       point index;
-      rect tile_rect;
+      rect tile_rect, recon_tile_rect;
+      int ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
-        tile_rect.org.y = sz.get_tile_offset().y;
-        tile_rect.org.y += index.y * sz.get_tile_size().h;
-        int t = tile_rect.org.y + sz.get_tile_size().h; //end of tile
-        //restrict tile to image
-        tile_rect.org.y = ojph_max(tile_rect.org.y, sz.get_image_offset().y);
-        tile_rect.siz.h = ojph_min(t, sz.get_image_extent().y);
-        tile_rect.siz.h -= tile_rect.org.y;
+        int y0 = sz.get_tile_offset().y
+               + index.y * sz.get_tile_size().h;
+        int y1 = y0 + sz.get_tile_size().h; //end of tile
+
+        tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
+        tile_rect.siz.h = 
+          ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
+
+        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds), 
+          ojph_div_ceil(sz.get_image_offset().y, ds));
+        recon_tile_rect.siz.h = ojph_min(ojph_div_ceil(y1, ds),
+          ojph_div_ceil(sz.get_image_extent().y, ds))
+          - recon_tile_rect.org.y;
 
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
         {
-          tile_rect.org.x = sz.get_tile_offset().x;
-          tile_rect.org.x += index.x * sz.get_tile_size().w;
-          t = tile_rect.org.x + sz.get_tile_size().w; //end of tile
-          //restrict tile
-          tile_rect.org.x = ojph_max(tile_rect.org.x,sz.get_image_offset().x);
-          tile_rect.siz.w = ojph_min(t, sz.get_image_extent().x);
-          tile_rect.siz.w -= tile_rect.org.x;
+          int x0 = sz.get_tile_offset().x
+                 + index.x * sz.get_tile_size().w;
+          int x1 = x0 + sz.get_tile_size().w;
 
-          tile::pre_alloc(this, tile_rect);
+          tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
+          tile_rect.siz.w = 
+            ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
+
+          recon_tile_rect.org.x = ojph_max(ojph_div_ceil(x0, ds),
+            ojph_div_ceil(sz.get_image_offset().x, ds));
+          recon_tile_rect.siz.w = ojph_min(ojph_div_ceil(x1, ds),
+            ojph_div_ceil(sz.get_image_extent().x, ds))
+            - recon_tile_rect.org.x;
+
+          tile::pre_alloc(this, tile_rect, recon_tile_rect);
         }
       }
 
@@ -277,42 +312,37 @@ namespace ojph {
       // world
       allocator->pre_alloc_obj<line_buf>(1);
       int num_comps = sz.get_num_components();
-      allocator->pre_alloc_obj<size>(num_comps);
-      int width = 0;
-      int imgx0 = sz.get_image_offset().x;
-      int imgx1 = sz.get_image_extent().x;
-      for (int i = 0; i < sz.get_num_components(); ++i)
-      {
-        point downsamp = sz.get_downsampling(i);
-        int comp_width;
-        comp_width = ojph_div_ceil(imgx1, downsamp.x);
-        comp_width -= ojph_div_ceil(imgx0, downsamp.x);
-        width = ojph_max(width, comp_width);
-      }
+      allocator->pre_alloc_obj<size>(num_comps); //for *comp_size
+      allocator->pre_alloc_obj<size>(num_comps); //for *recon_comp_size
+      ui32 width = 0;
+      for (int i = 0; i < num_comps; ++i)
+        width = ojph_max(width, siz.get_recon_width(i));
 
       allocator->pre_alloc_data<si32>(width, 0);
 
       //allocate tlm
-      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+      if (outfile != NULL)
       {
-        int num_pairs = (int)num_tiles.area() * num_comps;
-        allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
-      }
-      else
-      {
-        int num_pairs = (int)num_tiles.area();
-        allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
+        if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
+        {
+          int num_pairs = (int)num_tiles.area() * num_comps;
+          allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
+        }
+        else
+        {
+          int num_pairs = (int)num_tiles.area();
+          allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
+        }
       }
 
       //precinct scratch buffer
-      ojph::param_cod cd = access_cod();
-      int num_decomps = cd.get_num_decompositions();
-      size log_cb = cd.get_log_block_dims();
+      int num_decomps = cod.get_num_decompositions();
+      size log_cb = cod.get_log_block_dims();
 
       size ratio;
       for (int r = 0; r <= num_decomps; ++r)
       {
-        size log_PP = cd.get_log_precinct_size(r);
+        size log_PP = cod.get_log_precinct_size(r);
         log_PP.w -= (r ? 1 : 0);
         log_PP.h -= (r ? 1 : 0);
         ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
@@ -346,32 +376,46 @@ namespace ojph {
       tiles = this->allocator->post_alloc_obj<tile>(num_tiles.area());
 
       point index;
-      rect tile_rect;
+      rect tile_rect, recon_tile_rect;
       ojph::param_siz sz = access_siz();
+      int ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
-        tile_rect.org.y = sz.get_tile_offset().y;
-        tile_rect.org.y += index.y * sz.get_tile_size().h;
-        int t = tile_rect.org.y + sz.get_tile_size().h; //end of tile
-        //restrict tile to image
-        tile_rect.org.y = ojph_max(tile_rect.org.y, sz.get_image_offset().y);
-        tile_rect.siz.h = ojph_min(t, sz.get_image_extent().y);
-        tile_rect.siz.h -= tile_rect.org.y;
+        int y0 = sz.get_tile_offset().y
+               + index.y * sz.get_tile_size().h;
+        int y1 = y0 + sz.get_tile_size().h; //end of tile
+
+        tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
+        tile_rect.siz.h = 
+          ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
+
+        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds), 
+          ojph_div_ceil(sz.get_image_offset().y, ds));
+        recon_tile_rect.siz.h = ojph_min(ojph_div_ceil(y1, ds),
+          ojph_div_ceil(sz.get_image_extent().y, ds))
+          - recon_tile_rect.org.y;
 
         int offset = 0;
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
         {
-          tile_rect.org.x = sz.get_tile_offset().x;
-          tile_rect.org.x += index.x * sz.get_tile_size().w;
-          t = tile_rect.org.x + sz.get_tile_size().w; //end of tile
-          //restrict tile
-          tile_rect.org.x =ojph_max(tile_rect.org.x,sz.get_image_offset().x);
-          tile_rect.siz.w = ojph_min(t, sz.get_image_extent().x);
-          tile_rect.siz.w -= tile_rect.org.x;
+          int x0 = sz.get_tile_offset().x
+                 + index.x * sz.get_tile_size().w;
+          int x1 = x0 + sz.get_tile_size().w;
+
+          tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
+          tile_rect.siz.w = 
+            ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
+
+          recon_tile_rect.org.x = ojph_max(ojph_div_ceil(x0, ds),
+            ojph_div_ceil(sz.get_image_offset().x, ds));
+          recon_tile_rect.siz.w = ojph_min(ojph_div_ceil(x1, ds),
+            ojph_div_ceil(sz.get_image_extent().x, ds))
+            - recon_tile_rect.org.x;
 
           int idx = index.y * num_tiles.w + index.x;
-          tiles[idx].finalize_alloc(this, tile_rect, idx, offset);
-          offset += tile_rect.siz.w;
+          tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect, 
+                                    idx, offset);
+          offset += recon_tile_rect.siz.w;
         }
       }
 
@@ -381,20 +425,17 @@ namespace ojph {
       line = allocator->post_alloc_obj<line_buf>(1);
       num_comps = sz.get_num_components();
       comp_size = allocator->post_alloc_obj<size>(this->num_comps);
-      employ_color_transform = access_cod().is_using_color_transform();
-      int width = 0;
-      int imgx0 = sz.get_image_offset().x;
-      int imgy0 = sz.get_image_offset().y;
-      int imgx1 = sz.get_image_extent().x;
-      int imgy1 = sz.get_image_extent().y;
+      recon_comp_size = allocator->post_alloc_obj<size>(this->num_comps);
+      employ_color_transform = cod.is_employing_color_transform();
+      ui32 width = 0;
       for (int i = 0; i < num_comps; ++i)
       {
-        point downsamp = sz.get_downsampling(i);
-        comp_size[i].w = ojph_div_ceil(imgx1, downsamp.x);
-        comp_size[i].w -= ojph_div_ceil(imgx0, downsamp.x);
-        comp_size[i].h = ojph_div_ceil(imgy1, downsamp.y);
-        comp_size[i].h -= ojph_div_ceil(imgy0, downsamp.y);
-        width = ojph_max(width, comp_size[i].w);
+        comp_size[i].w = siz.get_width(i);
+        comp_size[i].h = siz.get_height(i);
+        ui32 cw = siz.get_recon_width(i);
+        recon_comp_size[i].w = cw;
+        recon_comp_size[i].h = siz.get_recon_height(i);
+        width = ojph_max(width, cw);
       }
 
       line->wrap(allocator->post_alloc_data<si32>(width, 0), width, 0);
@@ -403,17 +444,20 @@ namespace ojph {
       cur_line = 0;
 
       //allocate tlm
-      if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST )
+      if (outfile != NULL)
       {
-        int num_pairs = (int)num_tiles.area() * num_comps;
-        tlm.init(num_pairs,
-          allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
-      }
-      else
-      {
-        int num_pairs = (int)num_tiles.area();
-        tlm.init(num_pairs,
-          allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
+        if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
+        {
+          int num_pairs = (int)num_tiles.area() * num_comps;
+          tlm.init(num_pairs,
+            allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
+        }
+        else
+        {
+          int num_pairs = (int)num_tiles.area();
+          tlm.init(num_pairs,
+            allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
+        }
       }
     }
 
@@ -724,9 +768,9 @@ namespace ojph {
         OJPH_ERROR(0x00030026, "Error writing to file");
 
       char buf[] = "      OpenJPH Ver "
-        OJPH_INT_TO_STRING(OJPH_CORE_VER_MAJOR) "."
-        OJPH_INT_TO_STRING(OJPH_CORE_VER_MINOR) "."
-        OJPH_INT_TO_STRING(OJPH_CORE_VER_SUBMINOR) ".";
+        OJPH_INT_TO_STRING(OPENJPH_VERSION_MAJOR) "."
+        OJPH_INT_TO_STRING(OPENJPH_VERSION_MINOR) "."
+        OJPH_INT_TO_STRING(OPENJPH_VERSION_PATCH) ".";
       size_t len = strlen(buf);
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
@@ -740,18 +784,19 @@ namespace ojph {
     static
     int find_marker(infile_base *f, const ui16* char_list, int list_len)
     {
+      //returns the marker index in char_list, or -1
       while (!f->eof())
       {
         ui8 new_char;
         size_t num_bytes = f->read(&new_char, 1);
         if (num_bytes != 1)
-          OJPH_ERROR(0x00030031, "Error finding marker\n");
+            return -1;
         if (new_char == 0xFF)
         {
           size_t num_bytes = f->read(&new_char, 1);
 
           if (num_bytes != 1)
-            OJPH_ERROR(0x00030032, "Error finding marker after 0xFF\n");
+              return -1;
 
           for (int i = 0; i < list_len; ++i)
             if (new_char == (char_list[i] & 0xFF))
@@ -763,12 +808,18 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static
-    void skip_marker(infile_base *file, const char *marker,
-                     const char *msg, int msg_level)
+    int skip_marker(infile_base *file, const char *marker,
+                     const char *msg, int msg_level, bool resilient)
     {
+      ojph_unused(marker);
       ui16 com_len;
       if (file->read(&com_len, 2) != 2)
-        OJPH_ERROR(0x00030041, "error reading marker");
+      {
+        if (resilient)
+          return -1;
+        else
+          OJPH_ERROR(0x00030041, "error reading marker");
+      }
       com_len = swap_byte(com_len);
       file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
       if (msg != NULL && msg_level != OJPH_MSG_LEVEL::NO_MSG)
@@ -788,6 +839,7 @@ namespace ojph {
         else
           assert(0);
       }
+      return 0;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -807,35 +859,42 @@ namespace ojph {
           cap.read(file);
         else if (marker_idx == 1)
           //Skipping PRF marker segment; this should not cause any issues
-          skip_marker(file, "PRF", NULL, OJPH_MSG_LEVEL::NO_MSG);
+          skip_marker(file, "PRF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 2)
           //Skipping CPF marker segment; this should not cause any issues
-          skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG);
+          skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
         { cod.read(file); received_markers |= 1; }
         else if (marker_idx == 4)
           skip_marker(file, "COC", "COC is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+            OJPH_MSG_LEVEL::WARN, false);
         else if (marker_idx == 5)
         { qcd.read(file); received_markers |= 2; }
         else if (marker_idx == 6)
-          skip_marker(file, "QCC", "QCC is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+          {
+            int num_comps = siz.get_num_components();
+            if (qcc == qcc_store && 
+                num_comps * sizeof(param_qcc) > sizeof(qcc_store))
+            {
+              qcc = new param_qcc[num_comps];
+            }
+            qcc[used_qcc_fields++].read(file, num_comps);
+          }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+            OJPH_MSG_LEVEL::WARN, false);
         else if (marker_idx == 8)
           skip_marker(file, "POC", "POC is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+            OJPH_MSG_LEVEL::WARN, false);
         else if (marker_idx == 9)
           skip_marker(file, "PPM", "PPM is not supported yet",
-            OJPH_MSG_LEVEL::WARN);
+            OJPH_MSG_LEVEL::WARN, false);
         else if (marker_idx == 10)
           //Skipping TLM marker segment; this should not cause any issues
-          skip_marker(file, "TLM", NULL, OJPH_MSG_LEVEL::NO_MSG);
+          skip_marker(file, "TLM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 11)
           //Skipping PLM marker segment; this should not cause any issues
-          skip_marker(file, "PLM", NULL, OJPH_MSG_LEVEL::NO_MSG);
+          skip_marker(file, "PLM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 12)
           //Skipping CRG marker segment;
           skip_marker(file, "CRG", "CRG has been ignored; CRG is related to"
@@ -843,13 +902,13 @@ namespace ojph {
             " with respect to the Y' luma component. Perhaps, it is better"
             " to get the indivdual components and assemble the samples"
             " according to your needs",
-            OJPH_MSG_LEVEL::INFO);
+            OJPH_MSG_LEVEL::INFO, false);
         else if (marker_idx == 13)
-          skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
+          skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 14)
           break;
         else
-          OJPH_ERROR(0x00030051, "unknown marker");
+          OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
 
       if (received_markers != 3)
@@ -857,6 +916,35 @@ namespace ojph {
 
       this->infile = file;
       planar = cod.is_employing_color_transform() ? 0 : 1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::restrict_input_resolution(int skipped_res_for_read,
+      int skipped_res_for_recon)
+    {
+      if (skipped_res_for_read < 0 || skipped_res_for_recon < 0)
+        OJPH_ERROR(0x000300A1, "skipped_resolution values must be greater"
+          " than 0\n");
+      if (skipped_res_for_read < skipped_res_for_recon)
+        OJPH_ERROR(0x000300A2,
+          "skipped_resolution for data %d must be equal or smaller than "
+          " skipped_resolution for reconstruction %d\n", 
+          skipped_res_for_read, skipped_res_for_recon);
+      if (skipped_res_for_read > cod.get_num_decompositions())
+        OJPH_ERROR(0x000300A3,
+          "skipped_resolution for data %d must be smaller than "
+          " the number of decomposition levels %d\n",
+          skipped_res_for_read, cod.get_num_decompositions());
+
+      this->skipped_res_for_read = skipped_res_for_read;
+      this->skipped_res_for_recon = skipped_res_for_recon;
+      siz.set_skipped_resolutions(skipped_res_for_recon);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::enable_resilience()
+    {
+      this->resilient = true;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -868,93 +956,179 @@ namespace ojph {
       while (true)
       {
         param_sot sot;
-        sot.read(infile);
-        ui64 tile_start_location = infile->tell();
+        if (sot.read(infile, resilient))
+        {
+          ui64 tile_start_location = infile->tell();
 
-        if (sot.get_tile_index() > (int)num_tiles.area())
-          OJPH_ERROR(0x00030061, "wrong tile index");
+          if (sot.get_tile_index() > (int)num_tiles.area())
+          {
+            if (resilient)
+              OJPH_INFO(0x00030061, "wrong tile index")
+            else
+              OJPH_ERROR(0x00030061, "wrong tile index")
+          }
 
-        if (sot.get_tile_part_index())
-        { //tile part
-          if (sot.get_num_tile_parts() &&
+          if (sot.get_tile_part_index())
+          { //tile part
+            if (sot.get_num_tile_parts() &&
               sot.get_tile_part_index() >= sot.get_num_tile_parts())
-            OJPH_ERROR(0x00030062,
-              "error in tile part number, should be smaller than total"
-              " number of tile parts");
+            {
+              if (resilient)
+                OJPH_INFO(0x00030062,
+                  "error in tile part number, should be smaller than total"
+                  " number of tile parts")
+              else
+                OJPH_ERROR(0x00030062,
+                  "error in tile part number, should be smaller than total"
+                  " number of tile parts")
+            }
 
-          ui16 other_tile_part_markers[6] = { SOT, POC, PPT, PLT, COM, SOD };
-          while (true)
-          {
-            int marker_idx = 0;
-            marker_idx = find_marker(infile, other_tile_part_markers + 1, 5);
-            if (marker_idx == 0)
-              skip_marker(infile, "POC", "POC in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 1)
-              skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 2)
-              //Skipping PLT marker segment; this should not cause any issues
-              skip_marker(infile, "PLT", NULL, OJPH_MSG_LEVEL::NO_MSG);
-            else if (marker_idx == 3)
-              skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
-            else if (marker_idx == 4)
-              break;
-            else
-              OJPH_ERROR(0x00030063, "unknown marker in a tile header");
+            bool sod_found = false;
+            ui16 other_tile_part_markers[6] = { SOT, POC, PPT, PLT, COM, SOD };
+            while (true)
+            {
+              int marker_idx = 0;
+              int result = 0;
+              marker_idx = find_marker(infile, other_tile_part_markers + 1, 5);
+              if (marker_idx == 0)
+                result = skip_marker(infile, "POC",
+                  "POC in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 1)
+                result = skip_marker(infile, "PPT",
+                  "PPT in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 2)
+                //Skipping PLT marker segment;this should not cause any issues
+                result = skip_marker(infile, "PLT", NULL,
+                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+              else if (marker_idx == 3)
+                result = skip_marker(infile, "COM", NULL,
+                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+              else if (marker_idx == 4)
+              {
+                sod_found = true;
+                break;
+              }
+
+              if (marker_idx == -1) //marker not found
+              {
+                if (resilient)
+                  OJPH_INFO(0x00030063,
+                    "File terminated early before start of data is found"
+                    " for tile indexed %d and tile part %d",
+                    sot.get_tile_index(), sot.get_tile_part_index())
+                else
+                  OJPH_ERROR(0x00030063,
+                    "File terminated early before start of data is found"
+                    " for tile indexed %d and tile part %d",
+                    sot.get_tile_index(), sot.get_tile_part_index())
+                break;
+              }
+              if (result == -1) //file terminated during marker seg. skipping
+              {
+                if (resilient)
+                  OJPH_INFO(0x00030064,
+                    "File terminated during marker segment skipping")
+                else
+                  OJPH_ERROR(0x00030064,
+                    "File terminated during marker segment skipping")
+                break;
+              }
+            }
+            if (sod_found)
+              tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
+                tile_start_location);
           }
-          tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
-                                                        tile_start_location);
-        }
-        else
-        { //first tile part
-          ui16 first_tile_part_markers[11] = { SOT, COD, COC, QCD, QCC, RGN,
-            POC, PPT, PLT, COM, SOD };
-          while (true)
-          {
-            int marker_idx = 0;
-            marker_idx = find_marker(infile, first_tile_part_markers + 1, 10);
-            if (marker_idx == 0)
-              skip_marker(infile, "COD", "COD in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 1)
-              skip_marker(infile, "COC", "COC in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 2)
-              skip_marker(infile, "QCD", "QCD in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 3)
-              skip_marker(infile, "QCC", "QCC in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 4)
-              skip_marker(infile, "RGN", "RGN in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 5)
-              skip_marker(infile, "POC", "POC in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 6)
-              skip_marker(infile, "PPT", "PPT in a tile is not supported yet",
-                OJPH_MSG_LEVEL::WARN);
-            else if (marker_idx == 7)
-              //Skipping PLT marker segment; this should not cause any issues
-              skip_marker(infile, "PLT", NULL, OJPH_MSG_LEVEL::NO_MSG);
-            else if (marker_idx == 8)
-              skip_marker(infile, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG);
-            else if (marker_idx == 9)
-              break;
-            else
-              OJPH_ERROR(0x00030064, "unknown marker in a tile header");
+          else
+          { //first tile part
+            bool sod_found = false;
+            ui16 first_tile_part_markers[11] = { SOT, COD, COC, QCD, QCC, RGN,
+              POC, PPT, PLT, COM, SOD };
+            while (true)
+            {
+              int marker_idx = 0;
+              int result = 0;
+              marker_idx = find_marker(infile, first_tile_part_markers+1, 10);
+              if (marker_idx == 0)
+                result = skip_marker(infile, "COD",
+                  "COD in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 1)
+                result = skip_marker(infile, "COC",
+                  "COC in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 2)
+                result = skip_marker(infile, "QCD",
+                  "QCD in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 3)
+                result = skip_marker(infile, "QCC",
+                  "QCC in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 4)
+                result = skip_marker(infile, "RGN",
+                  "RGN in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 5)
+                result = skip_marker(infile, "POC",
+                  "POC in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 6)
+                result = skip_marker(infile, "PPT",
+                  "PPT in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 7)
+                //Skipping PLT marker segment;this should not cause any issues
+                result = skip_marker(infile, "PLT", NULL,
+                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+              else if (marker_idx == 8)
+                result = skip_marker(infile, "COM", NULL,
+                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+              else if (marker_idx == 9)
+              {
+                sod_found = true;
+                break;
+              }
+
+              if (marker_idx == -1) //marker not found
+              {
+                if (resilient)
+                  OJPH_INFO(0x00030065,
+                    "File terminated early before start of data is found"
+                    " for tile indexed %d and tile part %d",
+                    sot.get_tile_index(), sot.get_tile_part_index())
+                else
+                  OJPH_ERROR(0x00030065,
+                    "File terminated early before start of data is found"
+                    " for tile indexed %d and tile part %d",
+                    sot.get_tile_index(), sot.get_tile_part_index())
+                break;
+              }
+              if (result == -1) //file terminated during marker seg. skipping
+              {
+                if (resilient)
+                  OJPH_INFO(0x00030066,
+                    "File terminated during marker segment skipping")
+                else
+                  OJPH_ERROR(0x00030066,
+                    "File terminated during marker segment skipping")
+                break;
+              }
+            }
+            if (sod_found)
+              tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
+                tile_start_location);
           }
-          tiles[sot.get_tile_index()].parse_tile_header(sot, infile,
-                                                        tile_start_location);
         }
+
         // check the next marker; either SOT or EOC,
         // if something is broken, just an end of file
         ui16 next_markers[2] = { SOT, EOC };
         int marker_idx = find_marker(infile, next_markers, 2);
         if (marker_idx == -1)
         {
-          OJPH_INFO(0x00030021, "file terminated early");
+          OJPH_INFO(0x00030067, "File terminated early");
           break;
         }
         else if (marker_idx == 0)
@@ -1082,7 +1256,7 @@ namespace ojph {
 
       if (planar) //process one component at a time
       {
-        if (++cur_line >= comp_size[cur_comp].h)
+        if (++cur_line >= recon_comp_size[cur_comp].h)
         {
           cur_line = 0;
           cur_tile_row = 0;
@@ -1098,7 +1272,7 @@ namespace ojph {
         if (++cur_comp >= num_comps)
         {
           cur_comp = 0;
-          if (cur_line++ >= comp_size[cur_comp].h)
+          if (cur_line++ >= recon_comp_size[cur_comp].h)
           {
             comp_num = INT_MIN;
             return NULL;
@@ -1118,15 +1292,17 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void tile::pre_alloc(codestream *codestream, const rect& tile_rect)
+    void tile::pre_alloc(codestream *codestream, const rect& tile_rect,
+                         const rect& recon_tile_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate tiles_comp
-      ojph::param_siz sz = codestream->access_siz();
-      int num_comps = sz.get_num_components();
+      const param_siz *szp = codestream->get_siz();
+      int num_comps = szp->get_num_components();
       allocator->pre_alloc_obj<tile_comp>(num_comps);
       allocator->pre_alloc_obj<rect>(num_comps); //for comp_rects
+      allocator->pre_alloc_obj<rect>(num_comps); //for recon_comp_rects
       allocator->pre_alloc_obj<int>(num_comps);  //for line_offsets
       allocator->pre_alloc_obj<int>(num_comps);  //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
@@ -1142,30 +1318,43 @@ namespace ojph {
       int ty0 = tile_rect.org.y;
       int tx1 = tile_rect.org.x + tile_rect.siz.w;
       int ty1 = tile_rect.org.y + tile_rect.siz.h;
+      int recon_tx0 = recon_tile_rect.org.x;
+      int recon_ty0 = recon_tile_rect.org.y;
+      int recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
+      int recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
 
       int width = 0;
       for (int i = 0; i < num_comps; ++i)
       {
-        point downsamp = sz.get_downsampling(i);
+        point downsamp = szp->get_downsampling(i);
 
         int tcx0 = ojph_div_ceil(tx0, downsamp.x);
         int tcy0 = ojph_div_ceil(ty0, downsamp.y);
         int tcx1 = ojph_div_ceil(tx1, downsamp.x);
         int tcy1 = ojph_div_ceil(ty1, downsamp.y);
+        int recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
+        int recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
+        int recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
+        int recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
 
-        rect comp_rect, valid_comp_rect;
+        rect comp_rect;
         comp_rect.org.x = tcx0;
         comp_rect.org.y = tcy0;
         comp_rect.siz.w = tcx1 - tcx0;
         comp_rect.siz.h = tcy1 - tcy0;
 
-        tile_comp::pre_alloc(codestream, i, comp_rect);
-        width = ojph_max(width, comp_rect.siz.w);
+        rect recon_comp_rect;
+        recon_comp_rect.org.x = recon_tcx0;
+        recon_comp_rect.org.y = recon_tcy0;
+        recon_comp_rect.siz.w = recon_tcx1 - recon_tcx0;
+        recon_comp_rect.siz.h = recon_tcy1 - recon_tcy0;
+
+        tile_comp::pre_alloc(codestream, comp_rect, recon_comp_rect);
+        width = ojph_max(width, recon_comp_rect.siz.w);
       }
 
       //allocate lines
-      ojph::param_cod cd = codestream->access_cod();
-      if (cd.is_using_color_transform())
+      if (codestream->get_cod()->is_employing_color_transform())
       {
         allocator->pre_alloc_obj<line_buf>(3);
         for (int i = 0; i < 3; ++i)
@@ -1175,21 +1364,23 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void tile::finalize_alloc(codestream *codestream, const rect& tile_rect,
+                              const rect& recon_tile_rect, 
                               int tile_idx, int offset)
     {
       this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       sot.init(0, (ui16)tile_idx, 0, 1);
-      ojph::param_cod cd = codestream->access_cod();
-      prog_order = cd.get_progression_order();
+      prog_order = codestream->access_cod().get_progression_order();
 
       //allocate tiles_comp
-      ojph::param_siz sz = codestream->access_siz();
+      const param_siz *szp = codestream->get_siz();
 
-      num_comps = sz.get_num_components();
+      num_comps = szp->get_num_components();
+      skipped_res_for_read = codestream->get_skipped_res_for_read();
       comps = allocator->post_alloc_obj<tile_comp>(num_comps);
       comp_rects = allocator->post_alloc_obj<rect>(num_comps);
+      recon_comp_rects = allocator->post_alloc_obj<rect>(num_comps);
       line_offsets = allocator->post_alloc_obj<int>(num_comps);
       num_bits = allocator->post_alloc_obj<int>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
@@ -1201,41 +1392,57 @@ namespace ojph {
       else
         num_comp_bytes = allocator->post_alloc_obj<int>(1);
 
-
+      this->resilient = codestream->is_resilient();
       this->tile_rect = tile_rect;
+      this->recon_tile_rect = recon_tile_rect;
 
       int tx0 = tile_rect.org.x;
       int ty0 = tile_rect.org.y;
       int tx1 = tile_rect.org.x + tile_rect.siz.w;
       int ty1 = tile_rect.org.y + tile_rect.siz.h;
+      int recon_tx0 = recon_tile_rect.org.x;
+      int recon_ty0 = recon_tile_rect.org.y;
+      int recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
+      int recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
 
       int width = 0;
       for (int i = 0; i < num_comps; ++i)
       {
-        point downsamp = sz.get_downsampling(i);
+        point downsamp = szp->get_downsampling(i);
 
         int tcx0 = ojph_div_ceil(tx0, downsamp.x);
         int tcy0 = ojph_div_ceil(ty0, downsamp.y);
         int tcx1 = ojph_div_ceil(tx1, downsamp.x);
         int tcy1 = ojph_div_ceil(ty1, downsamp.y);
+        int recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
+        int recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
+        int recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
+        int recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
 
-        line_offsets[i] = tcx0 - ojph_div_ceil(tx0 - offset, downsamp.x);
+        line_offsets[i] = 
+          recon_tcx0 - ojph_div_ceil(recon_tx0 - offset, downsamp.x);
         comp_rects[i].org.x = tcx0;
         comp_rects[i].org.y = tcy0;
         comp_rects[i].siz.w = tcx1 - tcx0;
         comp_rects[i].siz.h = tcy1 - tcy0;
+        recon_comp_rects[i].org.x = recon_tcx0;
+        recon_comp_rects[i].org.y = recon_tcy0;
+        recon_comp_rects[i].siz.w = recon_tcx1 - recon_tcx0;
+        recon_comp_rects[i].siz.h = recon_tcy1 - recon_tcy0;
 
-        comps[i].finalize_alloc(codestream, this, i, comp_rects[i]);
-        width = ojph_max(width, comp_rects[i].siz.w);
+        comps[i].finalize_alloc(codestream, this, i, comp_rects[i], 
+          recon_comp_rects[i]);
+        width = ojph_max(width, recon_comp_rects[i].siz.w);
 
-        num_bits[i] = sz.get_bit_depth(i);
-        is_signed[i] = sz.is_signed(i);
+        num_bits[i] = szp->get_bit_depth(i);
+        is_signed[i] = szp->is_signed(i);
         cur_line[i] = 0;
       }
 
       //allocate lines
-      this->reversible = cd.is_reversible();
-      this->employ_color_transform = cd.is_using_color_transform();
+      const param_cod* cdp = codestream->get_cod();
+      this->reversible = cdp->is_reversible();
+      this->employ_color_transform = cdp->is_employing_color_transform();
       if (this->employ_color_transform)
       {
         num_lines = 3;
@@ -1279,7 +1486,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (1<<num_bits[comp_num]);
+          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           float *dp = tc->f32;
           if (is_signed[comp_num])
@@ -1314,7 +1521,7 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (1<<num_bits[comp_num]);
+          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           float *dp = lines[comp_num].f32;
           if (is_signed[comp_num])
@@ -1342,7 +1549,7 @@ namespace ojph {
     {
 
       assert(comp_num < num_comps);
-      if (cur_line[comp_num] >= comp_rects[comp_num].siz.h)
+      if (cur_line[comp_num] >= recon_comp_rects[comp_num].siz.h)
         return false;
 
       cur_line[comp_num]++;
@@ -1574,22 +1781,22 @@ namespace ojph {
                                  const ui64& tile_start_location)
     {
       if (sot.get_tile_part_index() != next_tile_part)
-        OJPH_ERROR(0x00030091, "wrong tile part index");
-      this->sot.append(sot.get_length());
+      {
+        if (resilient)
+          OJPH_INFO(0x00030091, "wrong tile part index")
+        else
+          OJPH_ERROR(0x00030091, "wrong tile part index")
+      }
       ++next_tile_part;
 
       //tile_end_location used on failure
-      ui64 tile_end_location = tile_start_location + sot.get_length();
+      ui64 tile_end_location = tile_start_location + sot.get_payload_length();
 
-      int data_left = sot.get_length(); //how many bytes left to parse
-      data_left -= file->tell() - tile_start_location;
-      data_left += 2; //2 is the size of SOD
+      ui32 data_left = sot.get_payload_length(); //bytes left to parse
+      data_left -= (ui32)(file->tell() - tile_start_location);
 
       if (data_left == 0)
         return;
-      else if (data_left < 0)
-        OJPH_ERROR(0x00030092, "a tile part that has less than 0 bytes;"
-          "something is wrong");
 
       int max_decompositions = 0;
       for (int c = 0; c < num_comps; ++c)
@@ -1598,9 +1805,10 @@ namespace ojph {
 
       try
       {
-        //sequence the writing of precincts according to preogression order
+        //sequence the reading of precincts according to preogression order
         if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
         {
+          max_decompositions -= skipped_res_for_read;
           for (int r = 0; r <= max_decompositions; ++r)
             for (int c = 0; c < num_comps; ++c)
               if (data_left > 0)
@@ -1608,6 +1816,7 @@ namespace ojph {
         }
         else if (prog_order == OJPH_PO_RPCL)
         {
+          max_decompositions -= skipped_res_for_read;
           for (int r = 0; r <= max_decompositions; ++r)
           {
             while (true)
@@ -1691,7 +1900,10 @@ namespace ojph {
       }
       catch (const char *error)
       {
-        OJPH_INFO(0x00030011, "%s\n", error);
+        if (resilient)
+          OJPH_INFO(0x00030092, "%s\n", error)
+        else
+          OJPH_ERROR(0x00030092, "%s\n", error)
       }
       file->seek(tile_end_location, infile_base::OJPH_SEEK_SET);
     }
@@ -1705,38 +1917,37 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::pre_alloc(codestream *codestream, int comp_num,
-                              const rect& comp_rect)
+    void tile_comp::pre_alloc(codestream *codestream, const rect& comp_rect,
+                              const rect& recon_comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      ojph::param_cod cd = codestream->access_cod();
-      int num_decomps = cd.get_num_decompositions();
+      int num_decomps = codestream->access_cod().get_num_decompositions();
       allocator->pre_alloc_obj<resolution>(1);
 
-      resolution::pre_alloc(codestream, comp_rect, num_decomps);
+      resolution::pre_alloc(codestream, comp_rect, recon_comp_rect, 
+                            num_decomps);
     }
 
     //////////////////////////////////////////////////////////////////////////
     void tile_comp::finalize_alloc(codestream *codestream, tile *parent,
-                                  int comp_num, const rect& comp_rect)
+                                  int comp_num, const rect& comp_rect,
+                                  const rect& recon_comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      ojph::param_cod cd = codestream->access_cod();
-      num_decomps = cd.get_num_decompositions();
+      num_decomps = codestream->get_cod()->get_num_decompositions();
 
-      ojph::param_siz sz = codestream->access_siz();
-      comp_downsamp = sz.get_downsampling(comp_num);
+      comp_downsamp = codestream->get_siz()->get_downsampling(comp_num);
       this->comp_rect = comp_rect;
       this->parent_tile = parent;
 
       this->comp_num = comp_num;
       res = allocator->post_alloc_obj<resolution>(1);
-      res->finalize_alloc(codestream, comp_rect, num_decomps, comp_downsamp,
-                          this, NULL);
+      res->finalize_alloc(codestream, comp_rect, recon_comp_rect, comp_num,
+                          num_decomps, comp_downsamp, this, NULL);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1811,7 +2022,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_precincts(int res_num, int& data_left,
+    void tile_comp::parse_precincts(int res_num, ui32& data_left,
                                     infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -1828,7 +2039,7 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_one_precinct(int res_num, int& data_left,
+    void tile_comp::parse_one_precinct(int res_num, ui32& data_left,
                                        infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -1895,11 +2106,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::pre_alloc(codestream *codestream,
-                               const rect &res_rect, int res_num)
+    void resolution::pre_alloc(codestream *codestream, const rect &res_rect, 
+                               const rect& recon_res_rect, int res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      ojph::param_cod cd = codestream->access_cod();
+      const param_cod* cdp = codestream->get_cod();
+      int t = codestream->get_cod()->get_num_decompositions();
+      t -= codestream->get_skipped_res_for_recon();
+      bool skipped_res_for_recon = res_num > t;
 
       //create next resolution
       if (res_num > 0)
@@ -1916,7 +2130,8 @@ namespace ojph {
         next_res_rect.siz.w = trx1 - trx0;
         next_res_rect.siz.h = try1 - try0;
 
-        resolution::pre_alloc(codestream, next_res_rect, res_num-1);
+        resolution::pre_alloc(codestream, next_res_rect, 
+          skipped_res_for_recon ? recon_res_rect : next_res_rect, res_num - 1);
       }
 
       //allocate subbands
@@ -1939,14 +2154,14 @@ namespace ojph {
           band_rect.org.y = tby0;
           band_rect.siz.w = tbx1 - tbx0;
           band_rect.siz.h = tby1 - tby0;
-          subband::pre_alloc(codestream, band_rect, res_num, i);
+          subband::pre_alloc(codestream, band_rect, res_num);
         }
       }
       else
-        subband::pre_alloc(codestream, res_rect, res_num, 0);
+        subband::pre_alloc(codestream, res_rect, res_num);
 
       //prealloc precincts
-      size log_PP = cd.get_log_precinct_size(res_num);
+      size log_PP = cdp->get_log_precinct_size(res_num);
       size num_precincts;
       num_precincts.w = (trx1 + (1<<log_PP.w) - 1) >> log_PP.w;
       num_precincts.w -= trx0 >> log_PP.w;
@@ -1955,31 +2170,41 @@ namespace ojph {
       allocator->pre_alloc_obj<precinct>(num_precincts.area());
 
       //allocate lines
-      bool reversible = cd.is_reversible();
-      int num_lines = reversible ? 4 : 6;
-      allocator->pre_alloc_obj<line_buf>(num_lines);
+      if (skipped_res_for_recon == false)
+      {
+        bool reversible = cdp->is_reversible();
+        int num_lines = reversible ? 4 : 6;
+        allocator->pre_alloc_obj<line_buf>(num_lines);
 
-      int width = res_rect.siz.w + 1;
-      for (int i = 0; i < num_lines; ++i)
-        allocator->pre_alloc_data<si32>(width, 1);
+        int width = res_rect.siz.w + 1;
+        for (int i = 0; i < num_lines; ++i)
+          allocator->pre_alloc_data<si32>(width, 1);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::finalize_alloc(codestream *codestream,
-                                    const rect& res_rect, int res_num,
+    void resolution::finalize_alloc(codestream *codestream, 
+                                    const rect& res_rect, 
+                                    const rect& recon_res_rect,
+                                    int comp_num, int res_num,
                                     point comp_downsamp,
                                     tile_comp *parent_tile,
                                     resolution *parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      ojph::param_cod cd = codestream->access_cod();
+      int t, num_decomps = codestream->get_cod()->get_num_decompositions();
+      t = num_decomps - codestream->get_skipped_res_for_recon();
+      skipped_res_for_recon = res_num > t;
+      t = num_decomps - codestream->get_skipped_res_for_read();
+      skipped_res_for_read = res_num > t;
+      const param_cod* cdp = codestream->get_cod();
 
-      this->num_decomps = cd.get_num_decompositions();
       this->comp_downsamp = comp_downsamp;
       this->parent = parent_tile;
       this->parent_res = parent_res;
       this->res_rect = res_rect;
+      this->comp_num = comp_num;
       this->res_num = res_num;
       //finalize next resolution
       if (res_num > 0)
@@ -1996,8 +2221,9 @@ namespace ojph {
         next_res_rect.siz.w = trx1 - trx0;
         next_res_rect.siz.h = try1 - try0;
 
-        child_res->finalize_alloc(codestream, next_res_rect, res_num - 1,
-                                  comp_downsamp, parent_tile, this);
+        child_res->finalize_alloc(codestream, next_res_rect, 
+          skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num, 
+          res_num - 1, comp_downsamp, parent_tile, this);
       }
       else
         child_res = NULL;
@@ -2032,7 +2258,7 @@ namespace ojph {
       }
 
       //finalize precincts
-      log_PP = cd.get_log_precinct_size(res_num);
+      log_PP = cdp->get_log_precinct_size(res_num);
       num_precincts.w = (trx1 + (1<<log_PP.w) - 1) >> log_PP.w;
       num_precincts.w -= trx0 >> log_PP.w;
       num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
@@ -2061,8 +2287,8 @@ namespace ojph {
           pp->special_y = test_y && y == 0;
           pp->num_bands = num_bands;
           pp->bands = bands;
-          pp->may_use_sop = cd.packets_may_use_sop();
-          pp->uses_eph = cd.packets_use_eph();
+          pp->may_use_sop = cdp->packets_may_use_sop();
+          pp->uses_eph = cdp->packets_use_eph();
           pp->scratch = codestream->get_precinct_scratch();
         }
       }
@@ -2072,7 +2298,7 @@ namespace ojph {
         for (int i = 1; i < 4; ++i)
           bands[i].get_cb_indices(num_precincts, precincts);
       
-      size log_cb = cd.get_log_block_dims();
+      size log_cb = cdp->get_log_block_dims();
       log_PP.w -= (res_num?1:0);
       log_PP.h -= (res_num?1:0);
       size ratio;
@@ -2088,17 +2314,20 @@ namespace ojph {
       cur_precinct_loc = point(0, 0);
 
       //allocate lines
-      this->reversible = cd.is_reversible();
-      this->num_lines = this->reversible ? 4 : 6;
-      lines = allocator->post_alloc_obj<line_buf>(num_lines);
+      if (skipped_res_for_recon == false)
+      {
+        this->reversible = cdp->is_reversible();
+        this->num_lines = this->reversible ? 4 : 6;
+        lines = allocator->post_alloc_obj<line_buf>(num_lines);
 
-      int width = res_rect.siz.w + 1;
-      for (int i = 0; i < num_lines; ++i)
-        lines[i].wrap(allocator->post_alloc_data<si32>(width,1),width,1);
-      cur_line = 0;
-      vert_even = (res_rect.org.y & 1) == 0;
-      horz_even = (res_rect.org.x & 1) == 0;
-      available_lines = 0;
+        int width = res_rect.siz.w + 1;
+        for (int i = 0; i < num_lines; ++i)
+          lines[i].wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        cur_line = 0;
+        vert_even = (res_rect.org.y & 1) == 0;
+        horz_even = (res_rect.org.x & 1) == 0;
+        available_lines = 0;
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2378,6 +2607,9 @@ namespace ojph {
         return bands[0].pull_line();
       }
 
+      if (skipped_res_for_recon == true)
+        return child_res->pull_line();
+
       if (reversible)
       {
         assert(num_lines >= 4);
@@ -2532,7 +2764,7 @@ namespace ojph {
     void resolution::write_precincts(outfile_base *file)
     {
       precinct *p = precincts;
-      for (size_t i = 0; i < num_precincts.area(); ++i)
+      for (si32 i = 0; i < (si32)num_precincts.area(); ++i)
         p[i].write(file);
     }
 
@@ -2565,15 +2797,16 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_all_precincts(int& data_left, infile_base *file)
+    void resolution::parse_all_precincts(ui32& data_left, infile_base *file)
     {
       precinct *p = precincts;
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
-      for (size_t i = idx; i < num_precincts.area(); ++i)
+      for (si32 i = idx; i < (si32)num_precincts.area(); ++i)
       {
-        if (data_left <= 0)
+        if (data_left == 0)
           break;
-        p[i].parse(tag_tree_size, level_index, elastic, data_left, file);
+        p[i].parse(tag_tree_size, level_index, elastic, data_left, file,
+          skipped_res_for_read);
         if (++cur_precinct_loc.x >= num_precincts.w)
         {
           cur_precinct_loc.x = 0;
@@ -2583,15 +2816,16 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_one_precinct(int& data_left, infile_base *file)
+    void resolution::parse_one_precinct(ui32& data_left, infile_base *file)
     {
       int idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < (int)num_precincts.area());
 
-      if (data_left <= 0)
+      if (data_left == 0)
         return;
       precinct *p = precincts + idx;
-      p->parse(tag_tree_size, level_index, elastic, data_left, file);
+      p->parse(tag_tree_size, level_index, elastic, data_left, file,
+        skipped_res_for_read);
       if (++cur_precinct_loc.x >= num_precincts.w)
       {
         cur_precinct_loc.x = 0;
@@ -2695,8 +2929,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    void bb_terminate(bit_write_buf *bbp, mem_elastic_allocator *elastic,
-                      coded_lists*& cur_coded_list, ui32& ph_bytes)
+    void bb_terminate(bit_write_buf *bbp)
     {
       if (bbp->avail_bits < 8) //bits have been written
       {
@@ -2718,14 +2951,17 @@ namespace ojph {
         width = s.w;
         height = s.h;
         for (int i = 0; i < num_levels; ++i)
-          memset(levs[i], init_val, 1 << ((num_levels - 1 - i) << 1));
+        {
+          ui32 size = 1u << ((num_levels - 1 - i) << 1);
+          memset(levs[i], init_val, size);
+        }
         *levs[num_levels] = 0;
         this->num_levels = num_levels;
       }
 
       ui8* get(int x, int y, int lev)
       {
-        return levs[lev] + x + y * ((width + (1 << lev) - 1) >> lev);
+        return levs[lev] + (x + y * ((width + (1 << lev) - 1) >> lev));
       }
 
       int width, height, num_levels;
@@ -2776,7 +3012,7 @@ namespace ojph {
           {
             coded_cb_header *p = cp + x;
             *inc_tag.get(x, y, 0) = (p->next_coded == NULL); //1 if true
-            *mmsb_tag.get(x, y, 0) = p->missing_msbs;
+            *mmsb_tag.get(x, y, 0) = (ui8)p->missing_msbs;
           }
           cp += band_width;
         }
@@ -2915,7 +3151,7 @@ namespace ojph {
 
       if (coded)
       {
-        bb_terminate(&bb, elastic, cur_coded_list, ph_bytes);
+        bb_terminate(&bb);
         ph_bytes += cur_coded_list->buf_size - cur_coded_list->avail_size;
       }
 
@@ -2974,16 +3210,12 @@ namespace ojph {
       ui32 tmp;
       int avail_bits;
       bool unstuff;
-      int bytes_left;
-      static const int extra_buffer_space;
+      ui32 bytes_left;
     };
 
     //////////////////////////////////////////////////////////////////////////
-    const int bit_read_buf::extra_buffer_space = 8;
-
-    //////////////////////////////////////////////////////////////////////////
     static inline
-    void bb_init(bit_read_buf *bbp, int bytes_left, infile_base* file)
+    void bb_init(bit_read_buf *bbp, ui32 bytes_left, infile_base* file)
     {
       bbp->avail_bits = 0;
       bbp->file = file;
@@ -2996,7 +3228,7 @@ namespace ojph {
     static inline
     bool bb_read(bit_read_buf *bbp)
     {
-      if (bbp->bytes_left)
+      if (bbp->bytes_left > 0)
       {
         int t = 0;
         if (bbp->file->read(&t, 1) != 1)
@@ -3049,17 +3281,19 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
-    bool bb_read_chunk(bit_read_buf *bbp, int num_bytes,
+    bool bb_read_chunk(bit_read_buf *bbp, ui32 num_bytes,
                        coded_lists*& cur_coded_list,
                        mem_elastic_allocator *elastic)
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
-      int bytes = ojph_min(num_bytes, bbp->bytes_left);
-      elastic->get_buffer(bytes + bit_read_buf::extra_buffer_space,
-                          cur_coded_list);
-      size_t bytes_read = bbp->file->read(cur_coded_list->buf, bytes);
+      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
+      elastic->get_buffer(bytes + coded_cb_header::prefix_buf_size
+        + coded_cb_header::suffix_buf_size, cur_coded_list);
+      ui32 bytes_read = (ui32)bbp->file->read(
+        cur_coded_list->buf + coded_cb_header::prefix_buf_size, bytes);
       if (num_bytes > bytes_read)
-        memset(cur_coded_list->buf + bytes, 0, num_bytes - bytes_read);
+        memset(cur_coded_list->buf + coded_cb_header::prefix_buf_size + bytes, 
+          0, num_bytes - bytes_read);
       bbp->bytes_left -= bytes_read;
       return bytes_read == bytes;
     }
@@ -3110,14 +3344,18 @@ namespace ojph {
           {
             ui16 com_len;
             if (bbp->file->read(&com_len, 2) != 2)
-              OJPH_ERROR(0x000300A1, "error reading from file");
+              throw "error reading from file";
             com_len = swap_byte(com_len);
-            if (bbp->file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR) != 0)
-              throw "error seeking file";
-            bbp->bytes_left -= com_len;
             if (com_len != 4)
               throw "something is wrong with SOP length";
+            int result = 
+              bbp->file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
+            if (result != 0)
+              throw "error seeking file";
+            bbp->bytes_left -= com_len;
           }
+          else
+            throw "precinct truncated early";
           return true;
         }
         else
@@ -3135,9 +3373,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void precinct::parse(int tag_tree_size, si32* lev_idx,
                          mem_elastic_allocator *elastic,
-                         int &data_left, infile_base *file)
+                         ui32 &data_left, infile_base *file,
+                         bool skipped)
     {
-      assert(data_left);
+      assert(data_left > 0);
       bit_read_buf bb;
       bb_init(&bb, data_left, file);
       if (may_use_sop)
@@ -3199,9 +3438,9 @@ namespace ojph {
               {
                 ui32 bit;
                 if (bb_read_bit(&bb, bit) == false)
-                { data_left = bb.bytes_left; assert(data_left == 0); return; }
+                { data_left = 0; throw "error reading from file p1"; }
                 empty_cb = (bit == 0);
-                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1 - bit;
+                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
                 *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
               }
               if (empty_cb)
@@ -3224,10 +3463,10 @@ namespace ojph {
                 while (bit == 0)
                 {
                   if (bb_read_bit(&bb, bit) == false)
-                  { data_left = bb.bytes_left; assert(data_left==0); return; }
+                  { data_left = 0; throw "error reading from file p2"; }
                   mmsbs += 1 - bit;
                 }
-                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = mmsbs;
+                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
                 *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
               }
             }
@@ -3239,26 +3478,26 @@ namespace ojph {
             //get number of passes
             ui32 bit, num_passes = 1;
             if (bb_read_bit(&bb, bit) == false)
-            { data_left = bb.bytes_left; assert(data_left == 0); return; }
+            { data_left = 0; throw "error reading from file p3"; }
             if (bit)
             {
               num_passes = 2;
               if (bb_read_bit(&bb, bit) == false)
-              { data_left = bb.bytes_left; assert(data_left == 0); return; }
+              { data_left = 0; throw "error reading from file p4"; }
               if (bit)
               {
                 if (bb_read_bits(&bb, 2, bit) == false)
-                { data_left = bb.bytes_left; assert(data_left == 0); return; }
+                { data_left = 0; throw "error reading from file p5";  }
                 num_passes = 3 + bit;
                 if (bit == 3)
                 {
                   if (bb_read_bits(&bb, 5, bit) == false)
-                  { data_left = bb.bytes_left; assert(data_left==0); return; }
+                  { data_left = 0; throw "error reading from file p6"; }
                   num_passes = 6 + bit;
                   if (bit == 31)
                   {
                     if (bb_read_bits(&bb, 7, bit) == false)
-                    { data_left=bb.bytes_left; assert(data_left==0); return; }
+                    { data_left = 0; throw "error reading from file p7"; }
                     num_passes = 37 + bit;
                   }
                 }
@@ -3274,17 +3513,17 @@ namespace ojph {
             while (bit)
             {
               if (bb_read_bit(&bb, bit) == false)
-              { data_left = bb.bytes_left; assert(data_left == 0); return; }
+              { data_left = 0; throw "error reading from file p8"; }
               bits1 += bit;
             }
 
             if (bb_read_bits(&bb, bits1, bit) == false)
-            { data_left = bb.bytes_left; assert(data_left == 0); return; }
+            { data_left = 0; throw "error reading from file p9"; }
             cp->pass_length[0] = bit;
             if (num_passes > 1)
             {
               if (bb_read_bits(&bb, bits1 + extra_bit, bit) == false)
-              { data_left = bb.bytes_left; assert(data_left == 0); return; }
+              { data_left = 0; throw "error reading from file p10"; }
               cp->pass_length[1] = bit;
             }
           }
@@ -3303,10 +3542,34 @@ namespace ojph {
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
           for (int x = 0; x < width; ++x, ++cp)
           {
-            int num_bytes = cp->pass_length[0] + cp->pass_length[1];
-            if (num_bytes)
-              if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
-              { data_left = bb.bytes_left; assert(data_left == 0); return; }
+            ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
+            if (data_left)
+            {
+              if (num_bytes)
+              {
+                if (skipped)
+                { //no need to read
+                  si64 cur_loc = file->tell();
+                  ui32 t = ojph_min(num_bytes, bb.bytes_left);
+                  file->seek(t, infile_base::OJPH_SEEK_CUR);
+                  ui32 bytes_read = (ui32)(file->tell() - cur_loc);
+                  cp->pass_length[0] = cp->pass_length[1] = 0; 
+                  bb.bytes_left -= bytes_read;
+                  assert(bytes_read == t || bb.bytes_left == 0);
+                }
+                else
+                {
+                  if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
+                  {
+                    //no need to decode a broken codeblock
+                    cp->pass_length[0] = cp->pass_length[1] = 0;
+                    data_left = 0;
+                  }
+                }
+              }
+            }
+            else
+              cp->pass_length[0] = cp->pass_length[1] = 0;
           }
         }
       }
@@ -3323,13 +3586,13 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
-                            int res_num, int subband_num)
+                            int res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
-      ojph::param_cod cd = codestream->access_cod();
-      size log_cb = cd.get_log_block_dims();
-      size log_PP = cd.get_log_precinct_size(res_num);
+      const param_cod* cdp = codestream->get_cod();
+      size log_cb = cdp->get_log_block_dims();
+      size log_PP = cdp->get_log_precinct_size(res_num);
 
       int xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
       int ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
@@ -3378,10 +3641,10 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      ojph::param_cod cd = codestream->access_cod();
-      this->reversible = cd.is_reversible();
-      size log_cb = cd.get_log_block_dims();
-      log_PP = cd.get_log_precinct_size(res_num);
+      const param_cod* cdp = codestream->get_cod();
+      this->reversible = cdp->is_reversible();
+      size log_cb = cdp->get_log_block_dims();
+      log_PP = cdp->get_log_precinct_size(res_num);
 
       xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
       ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
@@ -3391,11 +3654,11 @@ namespace ojph {
       cur_cb_row = 0;
       cur_line = 0;
       cur_cb_height = 0;
-      param_qcd qcd = codestream->access_qcd();
-      this->K_max = qcd.get_Kmax(this->res_num, band_num);
+      param_qcd *qcd = codestream->access_qcd(parent->get_comp_num());
+      this->K_max = qcd->get_Kmax(this->res_num, band_num);
       if (!reversible)
       {
-        float d = qcd.irrev_get_delta(res_num, subband_num);
+        float d = qcd->irrev_get_delta(res_num, subband_num);
         d /= (float)(1u << (31 - this->K_max));
         delta = d;
         delta_inv = (1.0f/d);
@@ -3632,7 +3895,7 @@ namespace ojph {
         float *dp = lines->f32;
         for (int i = band_rect.siz.w; i > 0; --i, ++sp)
         {
-          float val = (*sp & 0x7FFFFFFF) * delta;
+          float val = (float)(*sp & 0x7FFFFFFF) * delta;
           *dp++ = (*sp & 0x80000000) ? -val : val;
         }
       }
@@ -3725,9 +3988,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
-      if (coded_cb->num_passes > 0)
+      if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0)
       {
-        ojph_decode_codeblock(coded_cb->next_coded->buf,
+        ojph_decode_codeblock(
+          coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
           buf, coded_cb->missing_msbs, coded_cb->num_passes,
           coded_cb->pass_length[0], coded_cb->pass_length[1],
           cb_size.w, cb_size.h, cb_size.w);

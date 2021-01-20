@@ -47,15 +47,75 @@
 #include "ojph_params.h"
 #include "ojph_message.h"
 
+/////////////////////////////////////////////////////////////////////////////
+struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  si32_list_interpreter(const int max_num_elements, int& num_elements,
+                        ojph::si32* list)
+  : max_num_eles(max_num_elements), si32list(list), num_eles(num_elements)
+  {}
+
+  virtual void operate(const char *str)
+  {
+    const char *next_char = str;
+    num_eles = 0;
+    do
+    {
+      if (num_eles)
+      {
+        if (*next_char != ',') //separate sizes by a comma
+          throw "sizes in a sizes list must be separated by a comma";
+        next_char++;
+      }
+      char *endptr;
+      si32list[num_eles] = (int)strtol(next_char, &endptr, 10);
+      if (endptr == next_char)
+        throw "size number is improperly formatted";
+      next_char = endptr;
+      ++num_eles;
+    }
+    while (*next_char == ',' && num_eles < max_num_eles);
+    if (num_eles + 1 < max_num_eles)
+    {
+      if (*next_char)
+        throw "list elements must separated by a "",""";
+    }
+    else if (*next_char)
+        throw "there are too many elements in the size list";
+  }
+
+  const int max_num_eles;
+  ojph::si32* si32list;
+  int& num_eles;
+};
+
 //////////////////////////////////////////////////////////////////////////////
 bool get_arguments(int argc, char *argv[],
-                   char *&input_filename, char *&output_filename)
+                   char *&input_filename, char *&output_filename,
+                   int& skipped_res_for_read, int& skipped_res_for_recon,
+                   bool& resilient)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
 
+  int skipped_res[2] = {0, 0};
+  int num_skipped_res = 0;
+  si32_list_interpreter ilist(2, num_skipped_res, skipped_res);
+
   interpreter.reinterpret("-i", input_filename);
   interpreter.reinterpret("-o", output_filename);
+  interpreter.reinterpret("-skip_res", &ilist);
+  interpreter.reinterpret("-resilient", resilient);
+
+  //interpret skipped_string
+  if (num_skipped_res > 0)
+  {
+    skipped_res_for_read = skipped_res[0];
+    if (num_skipped_res > 1)
+      skipped_res_for_recon = skipped_res[1];
+    else
+      skipped_res_for_recon = skipped_res_for_read;
+  }
 
   if (interpreter.is_exhausted() == false) {
     printf("The following arguments were not interpreted:\n");
@@ -74,7 +134,7 @@ bool get_arguments(int argc, char *argv[],
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + ojph_max(0, len - 4);
+  return filename + (len >= 4 ? len - 4 : 0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -82,16 +142,31 @@ int main(int argc, char *argv[]) {
 
   char *input_filename = NULL;
   char *output_filename = NULL;
+  int skipped_res_for_read = 0;
+  int skipped_res_for_recon = 0;
+  bool resilient = false;
 
   if (argc <= 1) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     " -i input file name\n"
     " -o output file name (either pgm, ppm, or yuv)\n\n"
+    "The following arguments are options:\n"
+    " -skip_res  x,y a comma-separated list of two elements containing the\n"
+    "            number of resolutions to skip. You can specify 1 or 2\n"
+    "            parameters; the first specifies the number of resolution\n"
+    "            for which data reading is skipped. The second is the\n"
+    "            number of skipped resolution for reconstruction, which is\n"
+    "            either equal to the first or smaller. If the second is not\n"
+    "            specified, it is made to equal to the first.\n"
+    " -resilient true if you want the decoder to be more tolerant of errors\n"
+    "            in the codestream\n\n"
     ;
     return -1;
   }
-  if (!get_arguments(argc, argv, input_filename, output_filename))
+  if (!get_arguments(argc, argv, input_filename, output_filename,
+                     skipped_res_for_read, skipped_res_for_recon,
+                     resilient))
   {
     return -1;
   }
@@ -109,7 +184,11 @@ int main(int argc, char *argv[]) {
     const char *v = get_file_extension(output_filename);
     if (v)
     {
+      if (resilient)
+        codestream.enable_resilience();
       codestream.read_headers(&j2c_file);
+      codestream.restrict_input_resolution(skipped_res_for_read, 
+        skipped_res_for_recon);
       ojph::param_siz siz = codestream.access_siz();
 
       if (strncmp(".pgm", v, 4) == 0)
@@ -119,8 +198,7 @@ int main(int argc, char *argv[]) {
           OJPH_ERROR(0x020000001,
             "The file has more than one color component, but .pgm can "
             "contain only on color component\n");
-        ppm.configure(siz.get_image_extent().x - siz.get_image_offset().x,
-                      siz.get_image_extent().y - siz.get_image_offset().y,
+        ppm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
                       siz.get_num_components(), siz.get_bit_depth(0));
         ppm.open(output_filename);
         base = &ppm;
@@ -145,8 +223,7 @@ int main(int argc, char *argv[]) {
           OJPH_ERROR(0x020000003,
             "To save an image to ppm, all the components must have the "
             "downsampling ratio\n");
-        ppm.configure(siz.get_image_extent().x - siz.get_image_offset().x,
-                      siz.get_image_extent().y - siz.get_image_offset().y,
+        ppm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
                       siz.get_num_components(), siz.get_bit_depth(0));
         ppm.open(output_filename);
         base = &ppm;
@@ -166,16 +243,15 @@ int main(int argc, char *argv[]) {
             "The current implementation of yuv file object does not "
             "support saving a file when conversion from yuv to rgb is needed; "
             "In any case, this is not the normal usage of a yuv file");
-        ojph::point points[3];
+        ojph::ui32 comp_widths[3];
         int max_bit_depth = 0;
         for (int i = 0; i < siz.get_num_components(); ++i)
         {
-          points[i] = siz.get_downsampling(i);
+          comp_widths[i] = siz.get_recon_width(i);
           max_bit_depth = ojph_max(max_bit_depth, siz.get_bit_depth(i));
         }
         codestream.set_planar(true);
-        yuv.configure(siz.get_image_extent().x, siz.get_image_offset().x,
-          max_bit_depth, siz.get_num_components(), points);
+        yuv.configure(max_bit_depth, siz.get_num_components(), comp_widths);
         yuv.open(output_filename);
         base = &yuv;
       }
@@ -196,9 +272,7 @@ int main(int argc, char *argv[]) {
       ojph::param_siz siz = codestream.access_siz();
       for (int c = 0; c < siz.get_num_components(); ++c)
       {
-        ojph::point p = siz.get_downsampling(c);
-        int height = ojph_div_ceil(siz.get_image_extent().y, p.y)
-                   - ojph_div_ceil(siz.get_image_offset().y, p.y);
+        int height = siz.get_recon_height(c);
         for (int i = height; i > 0; --i)
         {
           int comp_num;
@@ -211,7 +285,7 @@ int main(int argc, char *argv[]) {
     else
     {
       ojph::param_siz siz = codestream.access_siz();
-      int height = siz.get_image_extent().y - siz.get_image_offset().y;
+      int height = siz.get_recon_height(0);
       for (int i = 0; i < height; ++i)
       {
         for (int c = 0; c < siz.get_num_components(); ++c)

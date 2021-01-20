@@ -89,8 +89,8 @@ struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 
       ++num_eles;
     }
-    while (*next_char == ',' && num_eles + 1 < max_num_eles);
-    if (num_eles + 1 < max_num_eles)
+    while (*next_char == ',' && num_eles < max_num_eles);
+    if (num_eles < max_num_eles)
     {
       if (*next_char)
         throw "size elements must separated by a "",""";
@@ -146,8 +146,8 @@ struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 
       ++num_eles;
     }
-    while (*next_char == ',' && num_eles + 1 < max_num_eles);
-    if (num_eles + 1 < max_num_eles)
+    while (*next_char == ',' && num_eles < max_num_eles);
+    if (num_eles < max_num_eles)
     {
       if (*next_char)
         throw "size elements must separated by a "",""";
@@ -251,11 +251,11 @@ struct si32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
       next_char = endptr;
       ++num_eles;
     }
-    while (*next_char == ',' && num_eles + 1 < max_num_eles);
-    if (num_eles + 1 < max_num_eles)
+    while (*next_char == ',' && num_eles < max_num_eles);
+    if (num_eles < max_num_eles)
     {
       if (*next_char)
-        throw "size elements must separated by a "",""";
+        throw "list elements must separated by a "",""";
     }
     else if (*next_char)
         throw "there are too many elements in the size list";
@@ -300,8 +300,8 @@ struct si32_to_bool_list_interpreter
         throw "unknown bool value";
       ++num_eles;
     }
-    while (*next_char == ',' && num_eles + 1 < max_num_eles);
-    if (num_eles + 1 < max_num_eles)
+    while (*next_char == ',' && num_eles < max_num_eles);
+    if (num_eles < max_num_eles)
     {
       if (*next_char)
         throw "size elements must separated by a "",""";
@@ -411,7 +411,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + ojph_max(0, len - 4);
+  return filename + (len >= 4 ? len - 4 : 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -461,9 +461,13 @@ int main(int argc, char * argv[]) {
 
     "The following option has a default value (optional):\n"
     " -num_decomps  (5) number of decompositions\n"
-    " -qstep        (1.0/255,0) quantization step size; all quantization\n"
-    "               step sizes are derived from this.\n"
-    " -reversible   (false) for irreversible adnd true for reversible\n"
+    " -qstep        (0.00001...0.5) quantization step size for lossy\n"
+    "               all quantization without 0.00000\n"
+    "               step sizes are derived from this. {default for 8bit 0.0039}\n"
+    " -reversible   (false) for irreversible; that is,\n"
+    "               lossy compression using the 9/7 wavelet transform;\n" 
+    "               and true for reversible compression; that is,\n"
+    "               lossless compression using the 5/3 wavelet transform.\n"
     " -colour_trans (true) if there are three color components that are\n"
     "               downsampled by the same amount then the color transform\n"
     "               is optional. This option is also available if there are\n"
@@ -489,10 +493,12 @@ int main(int argc, char * argv[]) {
     " supplied: \n"
     " -dims      {x,y} x is image width, y is height\n"
     " -num_comps number of components\n"
-    " -signed    a list of true or false parameters, one for each component\n"
-    " -bit_depth a list of bit depth values, one per component\n"
+    " -signed    a comma-separated list of true or false parameters, one\n"
+    "            for each component; for example: true,false,false\n"
+    " -bit_depth a comma-separated list of bit depth values, one per \n"
+    "            component; for example: 12,10,10\n"
     " -downsamp  {x,y},{x,y},...,{x,y} a list of x,y points, one for each\n"
-    "            component\n\n"
+    "            component; for example {1,1},{2,2},{2,2}\n\n"
     ;
     return -1;
   }

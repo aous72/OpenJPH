@@ -113,6 +113,15 @@ signed int* cpp_pull_j2c_line(j2k_struct* j2c)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+void cpp_restrict_input_resolution(j2k_struct* j2c, 
+                                   int skipped_res_for_read, 
+                                   int skipped_res_for_recon)
+{
+  j2c->codestream.restrict_input_resolution(skipped_res_for_read, 
+                                            skipped_res_for_recon);
+}
+
+//////////////////////////////////////////////////////////////////////////////
 extern "C"
 {
   ////////////////////////////////////////////////////////////////////////////
@@ -128,17 +137,17 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_width(j2k_struct* j2c)
+  int get_j2c_width(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
-    return siz.get_image_extent().x - siz.get_image_offset().x;
+    return siz.get_recon_width(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int get_j2c_height(j2k_struct* j2c)
+  int get_j2c_height(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
-    return siz.get_image_extent().y - siz.get_image_offset().y;
+    return siz.get_recon_height(comp_num);
   }
   
   ////////////////////////////////////////////////////////////////////////////
@@ -192,6 +201,15 @@ extern "C"
   void parse_j2c_data(j2k_struct *j2c)
   {
     cpp_parse_j2c_data(j2c);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void restrict_input_resolution(j2k_struct* j2c, 
+                                 int skipped_res_for_read, 
+                                 int skipped_res_for_recon)
+  {
+    cpp_restrict_input_resolution(j2c, skipped_res_for_read, 
+                                  skipped_res_for_recon);
   }
   
   ////////////////////////////////////////////////////////////////////////////

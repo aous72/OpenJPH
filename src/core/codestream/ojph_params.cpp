@@ -145,6 +145,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  ui32 param_siz::get_recon_width(int comp_num) const
+  {
+    return state->get_recon_width(comp_num);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 param_siz::get_recon_height(int comp_num) const
+  {
+    return state->get_recon_height(comp_num);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   //
   //
   //
@@ -153,12 +165,12 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod::set_num_decomposition(ui8 num_decompositions)
+  void param_cod::set_num_decomposition(ui32 num_decompositions)
   {
     if (num_decompositions > 32)
       OJPH_ERROR(0x00050001,
         "maximum number of decompositions cannot exceed 32");
-    state->SPcod.num_decomp = num_decompositions;
+    state->SPcod.num_decomp = (ui8)num_decompositions;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -171,8 +183,8 @@ namespace ojph {
       || log_width < 2 || log_height < 2
       || log_width + log_height > 12)
       OJPH_ERROR(0x00050011, "incorrect code block dimensions");
-    state->SPcod.block_width = log_width - 2;
-    state->SPcod.block_height = log_height - 2;
+    state->SPcod.block_width = (ui8)(log_width - 2);
+    state->SPcod.block_height = (ui8)(log_height - 2);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -227,7 +239,7 @@ namespace ojph {
       OJPH_ERROR(0x00050032, "improper progression order");
 
 
-    state->SGCod.prog_order = prog_order;
+    state->SGCod.prog_order = (ui8)prog_order;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -251,14 +263,13 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_block_dims() const
   {
-    return size(1 << (state->SPcod.block_width + 2),
-                1 << (state->SPcod.block_height + 2));
+    return state->get_block_dims();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_log_block_dims() const
   {
-    return size(state->SPcod.block_width + 2, state->SPcod.block_height + 2);
+    return state->get_log_block_dims();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -270,27 +281,13 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_precinct_size(int res_num) const
   {
-    assert(res_num <= state->SPcod.num_decomp);
-    size ps(1<<15, 1<<15);
-    if (state->Scod & 1)
-    {
-      ps.w = 1 << (state->SPcod.precinct_size[res_num] & 0xF);
-      ps.h = 1 << (state->SPcod.precinct_size[res_num] >> 4);
-    }
-    return ps;
+    return state->get_precinct_size(res_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
   size param_cod::get_log_precinct_size(int res_num) const
   {
-    assert(res_num <= state->SPcod.num_decomp);
-    size ps(15, 15);
-    if (state->Scod & 1)
-    {
-      ps.w = state->SPcod.precinct_size[res_num] & 0xF;
-      ps.h = state->SPcod.precinct_size[res_num] >> 4;
-    }
-    return ps;
+    return state->get_log_precinct_size(res_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -326,19 +323,19 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::is_using_color_transform() const
   {
-    return (state->SGCod.mc_trans == 0 ? false : true);
+    return state->is_employing_color_transform();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::packets_may_use_sop() const
   {
-    return (state->Scod & 2) == 2;
+    return state->packets_may_use_sop();
   }
 
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::packets_use_eph() const
   {
-    return (state->Scod & 4) == 4;
+    return state->packets_use_eph();
   }
 
 
@@ -370,7 +367,7 @@ namespace ojph {
     static inline
     ui16 swap_byte(ui16 t)
     {
-      return (t << 8) | (t >> 8);
+      return (ui16)((t << 8) | (t >> 8));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -503,7 +500,7 @@ namespace ojph {
     bool param_siz::write(outfile_base *file)
     {
       //marker size excluding header
-      Lsiz = 38 + 3 * Csiz;
+      Lsiz = (ui16)(38 + 3 * Csiz);
 
       char buf[4];
       bool result = true;
@@ -675,7 +672,7 @@ namespace ojph {
     {
       //marker size excluding header
       Lcod = 12;
-      Lcod += Scod & 1 ? 1 + SPcod.num_decomp : 0;
+      Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
       char buf[4];
       bool result = true;
@@ -755,23 +752,23 @@ namespace ojph {
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
-      Sqcd = guard_bits << 5; //one guard bit, and no quantization
+      Sqcd = (ui8)(guard_bits << 5); //one guard bit, and no quantization
       int B = bit_depth;
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       //we leave some leeway for numerical error by multiplying by 1.1f
       int X = (int) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
-      u8_SPqcd[s++] = (B + X) << 3;
+      u8_SPqcd[s++] = (ui8)((B + X) << 3);
       for (int d = num_decomps - 1; d >= 0; --d)
       {
         float bibo_l = bibo_gains::get_bibo_gain_l(d + 1, true);
         float bibo_h = bibo_gains::get_bibo_gain_h(d, true);
         X = (int) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
-        u8_SPqcd[s++] = (B + X) << 3;
-        u8_SPqcd[s++] = (B + X) << 3;
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
         X = (int) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
-        u8_SPqcd[s++] = (B + X) << 3;
+        u8_SPqcd[s++] = (ui8)((B + X) << 3);
       }
     }
 
@@ -779,7 +776,7 @@ namespace ojph {
     void param_qcd::set_irrev_quant()
     {
       int guard_bits = 1;
-      Sqcd = (guard_bits<<5)|0x2;//one guard bit, scalar quantization
+      Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
       int s = 0;
       float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
       float delta_b = base_delta / (gain_l * gain_l);
@@ -790,7 +787,7 @@ namespace ojph {
       // but that should not happen in reality
       mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
       mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-      u16_SPqcd[s++] = (exp << 11) | mantissa;
+      u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
       for (int d = num_decomps - 1; d >= 0; --d)
       {
         float gain_l = sqrt_energy_gains::get_gain_l(d + 1, false);
@@ -803,8 +800,8 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
 
         delta_b = base_delta / (gain_h * gain_h);
 
@@ -813,7 +810,7 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (exp << 11) | mantissa;
+        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
       }
     }
 
@@ -848,7 +845,7 @@ namespace ojph {
       int idx = ojph_max(resolution - 1, 0) * 3 + subband;
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
-      mantissa = ((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
+      mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
       mantissa /= (float)(1 << 11);
       mantissa /= (float)(1u << eps);
       return mantissa;
@@ -887,9 +884,9 @@ namespace ojph {
       //marker size excluding header
       Lqcd = 3;
       if (irrev == 0)
-        Lqcd += num_subbands;
+        Lqcd = (ui16)(Lqcd + num_subbands);
       else if (irrev == 2)
-        Lqcd += 2 * num_subbands;
+        Lqcd = (ui16)(Lqcd + 2 * num_subbands);
       else
         assert(0);
 
@@ -947,7 +944,7 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        num_decomps = (Lqcd - 4) / 6;
+        num_decomps = (Lqcd - 5) / 6;
         if (Lqcd != 5 + 6 * num_decomps)
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
         for (int i = 0; i < 1 + 3 * num_decomps; ++i)
@@ -959,6 +956,69 @@ namespace ojph {
       }
       else
         OJPH_ERROR(0x00050088, "wrong Sqcd value in QCD marker");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcc::read(infile_base *file, int num_comps)
+    {
+      if (file->read(&Lqcd, 2) != 2)
+        OJPH_ERROR(0x000500A1, "error reading QCC marker");
+      Lqcd = swap_byte(Lqcd);
+      if (num_comps < 257)
+      {
+        ui8 v;
+        if (file->read(&v, 1) != 1)
+          OJPH_ERROR(0x000500A2, "error reading QCC marker");
+        comp_idx = v;
+      }
+      else
+      {
+        if (file->read(&comp_idx, 2) != 2)
+          OJPH_ERROR(0x000500A3, "error reading QCC marker");
+        comp_idx = swap_byte(comp_idx);
+      }
+      if (file->read(&Sqcd, 1) != 1)
+        OJPH_ERROR(0x000500A4, "error reading QCC marker");
+      if ((Sqcd & 0x1F) == 0)
+      {
+        int offset = num_comps < 257 ? 5 : 6;
+        num_decomps = (Lqcd - offset) / 3;
+        if (Lqcd != offset + 3 * num_decomps)
+          OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
+        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+          if (file->read(&u8_SPqcd[i], 1) != 1)
+            OJPH_ERROR(0x000500A6, "error reading QCC marker");
+      }
+      else if ((Sqcd & 0x1F) == 1)
+      {
+        int offset = num_comps < 257 ? 6 : 7;
+        num_decomps = -1;
+        if (Lqcd != offset)
+          OJPH_ERROR(0x000500A7, "wrong Lqcc value in QCC marker");
+      }
+      else if ((Sqcd & 0x1F) == 2)
+      {
+        int offset = num_comps < 257 ? 6 : 7;
+        num_decomps = (Lqcd - offset) / 6;
+        if (Lqcd != offset + 6 * num_decomps)
+          OJPH_ERROR(0x000500A8, "wrong Lqcd value in QCC marker");
+        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        {
+          if (file->read(&u16_SPqcd[i], 2) != 2)
+            OJPH_ERROR(0x000500A9, "error reading QCC marker");
+          u16_SPqcd[i] = swap_byte(u16_SPqcd[i]);
+        }
+      }
+      else
+        OJPH_ERROR(0x000500AA, "wrong Sqcd value in QCC marker");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1019,25 +1079,77 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_sot::read(infile_base *file)
+    bool param_sot::read(infile_base *file, bool resilient)
     {
-      if (file->read(&Lsot, 2) != 2)
-        OJPH_ERROR(0x00050091, "error reading SOT marker");
-      Lsot = swap_byte(Lsot);
-      if (Lsot != 10)
-        OJPH_ERROR(0x00050092, "error in SOT length");
-      if (file->read(&Isot, 2) != 2)
-        OJPH_ERROR(0x00050093, "error reading SOT marker");
-      Isot = swap_byte(Isot);
-      if (Isot == 0xFFFF)
-        OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
-      if (file->read(&Psot, 4) != 4)
-        OJPH_ERROR(0x00050095, "error reading SOT marker");
-      Psot = swap_byte(Psot);
-      if (file->read(&TPsot, 1) != 1)
-        OJPH_ERROR(0x00050096, "error reading SOT marker");
-      if (file->read(&TNsot, 1) != 1)
-        OJPH_ERROR(0x00050097, "error reading SOT marker");
+      if (resilient)
+      {
+        if (file->read(&Lsot, 2) != 2)
+        {
+          OJPH_INFO(0x00050091, "error reading SOT marker");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0; 
+          return false;
+        }
+        Lsot = swap_byte(Lsot);
+        if (Lsot != 10)
+        {
+          OJPH_INFO(0x00050092, "error in SOT length");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+        if (file->read(&Isot, 2) != 2)
+        {
+          OJPH_INFO(0x00050093, "error reading tile index");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+        Isot = swap_byte(Isot);
+        if (Isot == 0xFFFF)
+        {
+          OJPH_INFO(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+        if (file->read(&Psot, 4) != 4)
+        {
+          OJPH_INFO(0x00050095, "error reading SOT marker");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+        Psot = swap_byte(Psot);
+        if (file->read(&TPsot, 1) != 1)
+        {
+          OJPH_INFO(0x00050096, "error reading SOT marker");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+        if (file->read(&TNsot, 1) != 1)
+        {
+          OJPH_INFO(0x00050097, "error reading SOT marker");
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
+          return false;
+        }
+      }
+      else
+      {
+        if (file->read(&Lsot, 2) != 2)
+          OJPH_ERROR(0x00050091, "error reading SOT marker");
+        Lsot = swap_byte(Lsot);
+        if (Lsot != 10)
+          OJPH_ERROR(0x00050092, "error in SOT length");
+        if (file->read(&Isot, 2) != 2)
+          OJPH_ERROR(0x00050093, "error reading SOT tile index");
+        Isot = swap_byte(Isot);
+        if (Isot == 0xFFFF)
+          OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
+        if (file->read(&Psot, 4) != 4)
+          OJPH_ERROR(0x00050095, "error reading SOT marker");
+        Psot = swap_byte(Psot);
+        if (file->read(&TPsot, 1) != 1)
+          OJPH_ERROR(0x00050096, "error reading SOT marker");
+        if (file->read(&TNsot, 1) != 1)
+          OJPH_ERROR(0x00050097, "error reading SOT marker");
+      }
+      return true;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1053,7 +1165,7 @@ namespace ojph {
     {
       this->num_pairs = num_pairs;
       pairs = (Ttlm_Ptlm_pair*)store;
-      Ltlm = 4 + 6 * num_pairs;
+      Ltlm = (ui16)(4 + 6 * num_pairs);
       Ztlm = 0;
       Stlm = 0x60;
     }

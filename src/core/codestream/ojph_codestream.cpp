@@ -706,7 +706,6 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     point codestream::get_resolution_at_level(int level) {
-      int currentLevel = access_cod().get_num_decompositions();
       point resolution = access_siz().get_image_extent();
       while(level > 0) {
         resolution.x = ojph_div_ceil(resolution.x, 2);
@@ -2608,7 +2607,7 @@ namespace ojph {
       }
 
       if (skipped_res_for_recon == true)
-        return child_res->pull_line();
+        return child_res->pull_line(level);
 
       if (reversible)
       {

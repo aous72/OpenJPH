@@ -3218,8 +3218,13 @@ namespace ojph {
       if (bbp->bytes_left > 0)
       {
         ui32 t = 0;
-        if (bbp->file->read(&t, 1) != 1)
-          throw "error reading from file";
+        if (bbp->file->read(&t, 1) != 1){
+          //throw "error reading from file";
+        	//ToDo : print warning message regarding truncated stream
+        	bbp->bytes_left = 0;
+        	bbp->avail_bits = 0;
+        	return false;
+        }
         bbp->tmp = t;
         bbp->avail_bits = 8 - bbp->unstuff;
         bbp->unstuff = (t == 0xFF);
@@ -3242,7 +3247,7 @@ namespace ojph {
       bool result = true;
       if (bbp->avail_bits == 0)
         result = bb_read(bbp);
-      bit = (bbp->tmp >> --bbp->avail_bits) & 1;
+      bit = bbp->avail_bits ? ((bbp->tmp >> --bbp->avail_bits) & 1) : 0;
       return result;
     }
 

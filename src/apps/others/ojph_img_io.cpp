@@ -125,7 +125,7 @@ namespace ojph {
     num_comps = t[1] == '5' ? 1 : 3;
     eat_white_spaces(fh);
 
-    if (fscanf(fh, "%d %d %d\n", &width, &height, &max_val) != 3)
+    if (fscanf(fh, "%d %d %d", &width, &height, &max_val) != 3)
     {
       close();
       OJPH_ERROR(0x030000006, "error in file format for file %s", filename);
@@ -134,6 +134,7 @@ namespace ojph {
     bytes_per_sample = max_val > 255 ? 2 : 1;
     max_val_num_bits = 32 - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
+    fgetc(fh);
     start_of_data = ojph_ftell(fh);
 
     if (temp_buf_byte_size < num_comps * width * bytes_per_sample)

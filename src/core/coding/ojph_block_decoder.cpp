@@ -1011,6 +1011,21 @@ namespace ojph {
       ui32 *sip = sigma1; //pointers to arrays to be used interchangeably
       int sip_shift = 0;  //the amount of shift needed for sigma
 
+      if (num_passes > 1 && lengths2 == 0)
+      {
+        OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
+                              "one coding pass, but zero length for "
+                              "2nd and potential 3rd pass.\n");
+        num_passes = 1;
+      }
+      if (num_passes > 3)
+      {
+        OJPH_ERROR(0x00010002, "We do not support more than 3 coding passes; "
+                               "This codeblocks has %d passes.\n",
+                               num_passes);
+        return false;
+      }
+
       if (missing_msbs > 29) // p < 1
         return false;        // 32 bits are not enough to decode this
       else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
@@ -1175,7 +1190,7 @@ namespace ojph {
         }
         //decode uvlc_mode to get u for both quads
         ui32 consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_q);
-        if (U_q[0] > missing_msbs || U_q[1] > missing_msbs)
+        if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
           return false;
 
         //consume u bits in the VLC code
@@ -1425,8 +1440,6 @@ namespace ojph {
           ui32 U_q[2];
           ui32 uvlc_mode = ((qinf[0] & 0x8) >> 3) | ((qinf[1] & 0x8) >> 2);
           ui32 consumed_bits = decode_noninit_uvlc(vlc_val, uvlc_mode, U_q);
-          if (U_q[0] > missing_msbs || U_q[1] > missing_msbs)
-            return false;
           vlc_val = rev_advance(&vlc, consumed_bits);
 
           //calculate E^max and add it to U_q, eqns 5 and 6 in ITU T.814
@@ -1445,6 +1458,9 @@ namespace ojph {
             //since U_q alread has u_q + 1, we subtract 2 instead of 1
             U_q[1] += E > 2 ? E - 2 : 0;
           }
+
+          if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
+            return false;
 
           ls0 = lsp[2]; //for next double quad
           lsp[1] = lsp[2] = 0;

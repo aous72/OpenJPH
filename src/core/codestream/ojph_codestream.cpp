@@ -1890,9 +1890,9 @@ namespace ojph {
       catch (const char *error)
       {
         if (resilient)
-          OJPH_INFO(0x00030092, "%s\n", error)
+          OJPH_INFO(0x00030092, "%s", error)
         else
-          OJPH_ERROR(0x00030092, "%s\n", error)
+          OJPH_ERROR(0x00030092, "%s", error)
       }
       file->seek((si64)tile_end_location, infile_base::OJPH_SEEK_SET);
     }
@@ -3827,7 +3827,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     line_buf *subband::pull_line()
     {
-      //push to codeblocks
+      //pull from codeblocks
       if (--cur_line <= 0)
       {
         if (cur_cb_row < num_blocks.h)

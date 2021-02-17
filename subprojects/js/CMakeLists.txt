@@ -9,7 +9,7 @@ endif()
 
 project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DOJPH_DISABLE_INTEL_SIMD")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD")
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)

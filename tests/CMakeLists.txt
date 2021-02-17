@@ -14,7 +14,7 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 set(kakadu_name KDU805_Demo_Apps_for_Linux-x86-64_200602)
 set(images_folder ..)
 
-file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/2020/06/${kakadu_name}.zip ./t.zip)
+file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/${kakadu_name}.zip ./t.zip)
 execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand ${kakadu_name}/kdu_compress ${kakadu_name}/libkdu_v80R.so)
 file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Malamute.ppm ./im1.ppm)
 file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Rainier.ppm ./im2.ppm)

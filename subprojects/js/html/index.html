@@ -112,6 +112,7 @@ Note: Below each image, we display the number of decoded bytes and PSNR.
         get_j2c_downsampling_y = Module.cwrap('get_j2c_downsampling_y', 'number', ['number', 'number']);
         parse_j2c_data = Module.cwrap('parse_j2c_data', 'void', ['number']);
         restrict_input_resolution = Module.cwrap('restrict_input_resolution', 'void', ['number', 'number', 'number']);
+        enable_resilience = Module.cwrap('enable_resilience', 'void', ['number']);
         pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
         release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
 
@@ -120,10 +121,11 @@ Note: Below each image, we display the number of decoded bytes and PSNR.
           var t0 = performance.now();
         
           j2c = create_j2c_data();
-          const array = new Uint8Array(data);
+          const array = new Uint8Array(data, 0, data.byteLength);
           
           var buffer = Module._malloc(array.length);
           writeArrayToMemory(array, buffer);
+          enable_resilience(j2c);
           init_j2c_data(j2c, buffer, array.length);
           restrict_input_resolution(j2c, skip_res_for_data, skip_res_for_recon);
           var width = get_j2c_width(j2c, 0) | 0;          //component 0

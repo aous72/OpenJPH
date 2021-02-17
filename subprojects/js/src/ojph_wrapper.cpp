@@ -36,6 +36,7 @@
 /****************************************************************************/
 
 #include <exception>
+#include <emscripten.h>
 
 #include "ojph_arch.h"
 #include "ojph_file.h"
@@ -125,18 +126,21 @@ void cpp_restrict_input_resolution(j2k_struct* j2c,
 extern "C"
 {
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   j2k_struct* create_j2c_data(void)
   {
     return cpp_create_j2c_data();
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   void init_j2c_data(j2k_struct *j2c, const uint8_t *data, size_t size)
   {
     cpp_init_j2c_data(j2c, data, size);
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_width(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -144,6 +148,7 @@ extern "C"
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_height(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -151,6 +156,7 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_bit_depth(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -161,6 +167,7 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_is_signed(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -171,6 +178,7 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_num_components(j2k_struct* j2c)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -178,6 +186,7 @@ extern "C"
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_downsampling_x(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -188,6 +197,7 @@ extern "C"
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_downsampling_y(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();
@@ -198,12 +208,14 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   void parse_j2c_data(j2k_struct *j2c)
   {
     cpp_parse_j2c_data(j2c);
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   void restrict_input_resolution(j2k_struct* j2c, 
                                  int skipped_res_for_read, 
                                  int skipped_res_for_recon)
@@ -213,12 +225,21 @@ extern "C"
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
+  void enable_resilience(j2k_struct* j2c)
+  {
+    j2c->codestream.enable_resilience();
+  }  
+  
+  ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   signed int* pull_j2c_line(j2k_struct* j2c)
   {
     return cpp_pull_j2c_line(j2c);
   }
   
   ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   void release_j2c_data(j2k_struct* j2c)
   {
     cpp_release_j2c_data(j2c);

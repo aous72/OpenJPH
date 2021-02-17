@@ -174,7 +174,7 @@ namespace ojph {
       // of 4 boundary.  It reads at 1,2,3 up to 4 bytes from the mel stream
       int num = 4 - (int)(intptr_t(melp->data) & 0x3);
       for (int i = 0; i < num; ++i) {
-        assert(melp->unstuff == false || melp->data[0] <= 0x8F);
+        //assert(melp->unstuff == false || melp->data[0] <= 0x8F);
         ui64 d = (melp->size > 0) ? *melp->data : 0xFF;
         if (melp->size == 1) d |= 0xF;
         melp->data += melp->size-- > 0;

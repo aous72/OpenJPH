@@ -115,7 +115,7 @@ namespace ojph {
       si32 get_profile() const { return profile; };
 
       void check_imf_validity();
-      void check_boardcast_validity();
+      void check_broadcast_validity();
 
       ui8* get_precinct_scratch() { return precinct_scratch; }
       int get_skipped_res_for_recon()

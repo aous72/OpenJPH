@@ -601,7 +601,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::check_boardcast_validity()
+    void codestream::check_broadcast_validity()
     {
       ojph::param_siz sz(&siz);
       ojph::param_cod cd(&cod);
@@ -700,7 +700,7 @@ namespace ojph {
       if (profile == OJPH_PN_IMF)
         check_imf_validity();
       else if (profile == OJPH_PN_BROADCAST)
-        check_boardcast_validity();
+        check_broadcast_validity();
 
       if (planar == -1) //not initialized
         planar = cod.is_employing_color_transform() ? 1 : 0;

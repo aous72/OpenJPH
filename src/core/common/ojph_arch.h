@@ -155,7 +155,7 @@ namespace ojph {
   // constants
   ////////////////////////////////////////////////////////////////////////////
   const ui32 byte_alignment = 32; //32 bytes == 256 bits
-  const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+  const ui32  log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
   const ui32 object_alignment = 8;
 
   ////////////////////////////////////////////////////////////////////////////

@@ -3906,8 +3906,8 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       
-      //need to allocate a some space before and after the block
-      allocator->pre_alloc_data<ui32>(nominal.area(), 0);
+      int stride = (nominal.w + 3) & 0xFFFFFFFC; // a multiple of 4
+      allocator->pre_alloc_data<ui32>(nominal.h * stride, 0);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -3919,8 +3919,9 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
-      //need to allocate a some space before and after the block
-      this->buf = allocator->post_alloc_data<ui32>(nominal.area(), 0);
+      this->stride = (nominal.w + 3) & 0xFFFFFFFC; // a multiple of 4
+      this->buf_size = this->stride * nominal.h;
+      this->buf = allocator->post_alloc_data<ui32>(this->buf_size, 0);
 
       this->nominal_size = nominal;
       this->cb_size = cb_size;
@@ -3937,7 +3938,7 @@ namespace ojph {
     void codeblock::push(line_buf *line)
     {
       const si32 *sp = line->i32 + line_offset;
-      ui32 *dp = buf + cur_line * cb_size.w;
+      ui32 *dp = buf + cur_line * stride;
       int tmax = max_val; //this improves speed considerably
       for (ui32 i = cb_size.w; i > 0; --i)
       {
@@ -3945,6 +3946,8 @@ namespace ojph {
         tmax = ojph_max(tmax, 0x7FFFFFFF & t);
         *dp++ = (ui32)t;
       }
+      //for (ui32 i = stride - cb_size.w; i > 0; --i)
+      //  *dp++ = 0;
       max_val = tmax;
       ++cur_line;
     }
@@ -3960,7 +3963,7 @@ namespace ojph {
         coded_cb->num_passes = 1;
         
         ojph_encode_codeblock(buf, K_max-1, 1,
-          cb_size.w, cb_size.h, cb_size.w, coded_cb->pass_length,
+          cb_size.w, cb_size.h, stride, coded_cb->pass_length,
           elastic, coded_cb->next_coded);
       }
     }
@@ -3968,6 +3971,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::recreate(const size &cb_size, coded_cb_header* coded_cb)
     {
+      assert(cb_size.h * stride <= buf_size && cb_size.w <= stride);
       this->cb_size = cb_size;
       this->coded_cb = coded_cb;
       this->cur_line = 0;
@@ -3977,30 +3981,64 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
+      static int count = 0; 
+
       if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0)
       {
+        if (++count < 0)
+        {
+          memset(buf, 0, cb_size.h * stride * sizeof(si32));
+          return;
+        }
+
+
         bool result = 
-          ojph_decode_codeblock(
+          ojph::local2::ojph_decode_codeblock2(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
-            cb_size.w, cb_size.h, cb_size.w);
+            cb_size.w, cb_size.h, stride);
+
+        ui32 buf2[4096];
+        bool result2 = 
+          ojph::local2::ojph_decode_codeblock2(
+            coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
+            buf2, coded_cb->missing_msbs, coded_cb->num_passes,
+            coded_cb->pass_length[0], coded_cb->pass_length[1],
+            cb_size.w, cb_size.h, stride);
+
+        bool error = false;
+        for (ui32 y = 0; y < cb_size.h; ++y)
+        {
+        //  //printf("0x%08x\n",  buf[i]);
+          const ui32 *sp = buf + y * stride;
+          const ui32 *dp = buf2 + y * stride;
+          for (ui32 x = 0; x < cb_size.w; ++x)
+            if (*dp++ != *sp++)
+              {
+                printf(".");
+                error = true;
+              }
+        }
+        if (error)
+          printf("\n");
+
         if (result == false)
           {
             if (resilient == true)
-              memset(buf, 0, cb_size.area() * sizeof(si32));
+              memset(buf, 0, cb_size.h * stride * sizeof(si32));
             else
               OJPH_ERROR(0x000300A1, "Error decoding a codeblock\n");
           }
       }
       else
-        memset(buf, 0, cb_size.area() * sizeof(si32));
+        memset(buf, 0, cb_size.h * stride * sizeof(si32));
     }
 
     //////////////////////////////////////////////////////////////////////////
     void codeblock::pull_line(line_buf *line)
     {
-      const ui32 *sp = buf + cur_line * cb_size.w;
+      const ui32 *sp = buf + cur_line * stride;
       si32 *dp = line->i32 + line_offset;
       memcpy(dp, sp, cb_size.w * sizeof(si32));
       ++cur_line;

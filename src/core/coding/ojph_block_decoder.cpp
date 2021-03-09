@@ -870,7 +870,7 @@ namespace ojph {
      *  @tparam       X is the value fed in when the bitstream is exhausted
      *  @param  [in]  msp is a pointer to frwd_struct structure
      *
-     */
+     */ 
     template<int X>
     void frwd_read(frwd_struct *msp)
     {

@@ -372,6 +372,8 @@ namespace ojph {
       ui32* buf;
       size nominal_size;
       size cb_size;
+      ui32 stride;
+      ui32 buf_size;
       subband* parent;
       int line_offset;
       ui32 cur_line;

@@ -29,7 +29,7 @@ if (MSVC)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wall -Wextra -Wconversion -Wunused-parameter")
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
 endif()
 
 if (OJPH_DISABLE_INTEL_SIMD)

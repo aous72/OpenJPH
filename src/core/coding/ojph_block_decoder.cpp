@@ -217,9 +217,13 @@ namespace ojph {
       //process 4 bytes at a time
       if (vlcp->bits > 32)
         return;
-      ui32 val;
-      val = *(ui32*)vlcp->data;
-      vlcp->data -= 4;
+      ui32 val = 0;
+      if (vlcp->size > 0)  // if there are bytes left in the VLC segment
+      {
+        val = *(ui32*)vlcp->data; // then read 32 bits
+        vlcp->data -= 4;          // move data pointer back by 4
+        vlcp->size -= 4;          // reduce available byte by 4
+      }
 
       //accumulate in int and then push into the registers
       ui32 tmp = val >> 24;
@@ -242,14 +246,6 @@ namespace ojph {
       vlcp->tmp |= (ui64)tmp << vlcp->bits;
       vlcp->bits += bits;
       vlcp->unstuff = unstuff;
-
-      vlcp->size -= 4;
-      //because we read ahead of time, we might in fact exceed vlc size,
-      // but data should not be used if the codeblock is properly generated
-      //The mel code can in fact occupy zero length, if it has a small number
-      // of bits and these bits overlap with the VLC code
-      if (vlcp->size < -8) //8 is based on the fact that we may read 64 bits
-        OJPH_ERROR(0x00010001, "Error in reading VLC data");
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -701,7 +697,28 @@ namespace ojph {
       //pointers to arrays to be used interchangeably
       int sip_shift = 0; //decides where data go
 
-      int p = 30 - missing_msbs; // Bit-plane index for cleanup pass
+      if (num_passes > 1 && lengths2 == 0)
+      {
+        OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
+                              "one coding pass, but zero length for "
+                              "2nd and potential 3rd pass.\n");
+        num_passes = 1;
+      }
+      if (num_passes > 3)
+      {
+        OJPH_ERROR(0x00010002, "We do not support more than 3 coding passes; "
+                               "This codeblocks has %d passes.\n",
+                               num_passes);
+        return false;
+      }
+
+      if (missing_msbs > 29) // p < 1
+        return false;        // 32 bits are not enough to decode this
+      else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
+        num_passes = 1;
+      ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
+      // There is a way to handle the case of p == 0, but a different path
+      // is required
 
       // read scup and fix the bytes there
       int lcup, scup;
@@ -797,6 +814,9 @@ namespace ojph {
             run = mel_get_run(&mel);
         }
         int consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_p);
+        if (U_p[0] > missing_msbs + 1 || U_p[1] > missing_msbs + 1)
+          return false;
+
         vlc_val = rev_advance(&vlc, consumed_bits);
 
         //decode magsgn and update line_state
@@ -1039,6 +1059,9 @@ namespace ojph {
             E -= 2;
             U_p[1] += E > 0 ? E : 0;
           }
+
+          if (U_p[0] > missing_msbs + 1 || U_p[1] > missing_msbs + 1)
+            return false;
 
           ls0 = lsp[2]; //for next double quad
           lsp[1] = lsp[2] = 0;

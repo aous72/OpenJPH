@@ -1869,9 +1869,9 @@ namespace ojph {
       catch (const char *error)
       {
         if (resilient)
-          OJPH_INFO(0x00030092, "%s\n", error)
+          OJPH_INFO(0x00030092, "%s", error)
         else
-          OJPH_ERROR(0x00030092, "%s\n", error)
+          OJPH_ERROR(0x00030092, "%s", error)
       }
       file->seek(tile_end_location, infile_base::OJPH_SEEK_SET);
     }
@@ -3250,16 +3250,23 @@ namespace ojph {
                        mem_elastic_allocator *elastic)
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
-      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
-      elastic->get_buffer(bytes + coded_cb_header::prefix_buf_size
+      if (num_bytes > bbp->bytes_left)
+      {
+        bbp->bytes_left = 0;
+        return false;
+      }
+      elastic->get_buffer(num_bytes + coded_cb_header::prefix_buf_size
         + coded_cb_header::suffix_buf_size, cur_coded_list);
       ui32 bytes_read = (ui32)bbp->file->read(
-        cur_coded_list->buf + coded_cb_header::prefix_buf_size, bytes);
-      if (num_bytes > bytes_read)
-        memset(cur_coded_list->buf + coded_cb_header::prefix_buf_size + bytes, 
-          0, num_bytes - bytes_read);
+        cur_coded_list->buf + coded_cb_header::prefix_buf_size, num_bytes);
+      if (bytes_read < num_bytes)
+      {
+        bbp->bytes_left = 0;
+        return false;
+      }
+      assert(num_bytes == bytes_read);
       bbp->bytes_left -= bytes_read;
-      return bytes_read == bytes;
+      return true;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -3527,13 +3534,17 @@ namespace ojph {
                   {
                     //no need to decode a broken codeblock
                     cp->pass_length[0] = cp->pass_length[1] = 0;
+                    cp->num_passes = 0;
                     data_left = 0;
                   }
                 }
               }
             }
             else
+            {
               cp->pass_length[0] = cp->pass_length[1] = 0;
+              cp->num_passes = 0;
+            }
           }
         }
       }
@@ -3905,6 +3916,7 @@ namespace ojph {
       this->cur_line = 0;
       this->K_max = K_max;
       this->max_val = 0;
+      this->resilient = codestream->is_resilient();
       this->coded_cb = coded_cb;
     }
 
@@ -3954,11 +3966,19 @@ namespace ojph {
     {
       if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0)
       {
-        ojph_decode_codeblock(
-          coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-          buf, coded_cb->missing_msbs, coded_cb->num_passes,
-          coded_cb->pass_length[0], coded_cb->pass_length[1],
-          cb_size.w, cb_size.h, cb_size.w);
+        bool result = 
+          ojph_decode_codeblock(
+            coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
+            buf, coded_cb->missing_msbs, coded_cb->num_passes,
+            coded_cb->pass_length[0], coded_cb->pass_length[1],
+            cb_size.w, cb_size.h, cb_size.w);
+        if (result == false)
+        {
+          if (resilient == true)
+            memset(buf, 0, cb_size.area() * sizeof(si32));
+          else
+            OJPH_ERROR(0x000300A1, "Error decoding a codeblock\n");
+        }
       }
       else
         memset(buf, 0, cb_size.area() * sizeof(si32));

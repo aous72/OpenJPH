@@ -375,6 +375,7 @@ namespace ojph {
       int cur_line;
       int K_max;
       int max_val;
+      bool resilient;
       coded_cb_header* coded_cb;
     };
 

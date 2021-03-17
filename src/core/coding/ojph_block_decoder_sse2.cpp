@@ -1064,7 +1064,7 @@ namespace ojph {
         m_n = _mm_andnot_si128(w2, m_n); // keep significants only
 
         // serialize bit extraction
-        d = _mm_cvtsi128_si64x(ms_vec);
+        d = _mm_cvtsi128_si64(ms_vec);
         nb0 = _mm_extract_epi16(m_n, 0);
         total_mn += nb0;
         m0 = (ui32)d & ((1 << nb0) - 1);
@@ -1080,7 +1080,7 @@ namespace ojph {
         ms_vec = _mm_sll_epi64(ms_vec, _mm_set1_epi64x(64 - total_mn));
         ms_vec = _mm_or_si128(w0, ms_vec);
 
-        d = _mm_cvtsi128_si64x(ms_vec);
+        d = _mm_cvtsi128_si64(ms_vec);
         nb2 = _mm_extract_epi16(m_n, 4);
         total_mn += nb2;
         m2 = (ui32)d & ((1 << nb2) - 1);

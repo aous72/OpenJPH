@@ -42,6 +42,7 @@
 		988913522352AA5600AED5EF /* ojph_transform_avx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 988913512352AA5600AED5EF /* ojph_transform_avx.cpp */; settings = {COMPILER_FLAGS = "-mavx"; }; };
 		988913542352B49700AED5EF /* ojph_transform_sse2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 988913532352B49700AED5EF /* ojph_transform_sse2.cpp */; settings = {COMPILER_FLAGS = "-msse2"; }; };
 		988913562352B4DB00AED5EF /* ojph_transform_avx2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 988913552352B4DB00AED5EF /* ojph_transform_avx2.cpp */; settings = {COMPILER_FLAGS = "-mavx2"; }; };
+		98AB89F02602C3BB002619DD /* ojph_block_decoder_sse2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 98AB89EF2602C3BB002619DD /* ojph_block_decoder_sse2.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +70,7 @@
 		988913512352AA5600AED5EF /* ojph_transform_avx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ojph_transform_avx.cpp; sourceTree = "<group>"; };
 		988913532352B49700AED5EF /* ojph_transform_sse2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ojph_transform_sse2.cpp; sourceTree = "<group>"; };
 		988913552352B4DB00AED5EF /* ojph_transform_avx2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ojph_transform_avx2.cpp; sourceTree = "<group>"; };
+		98AB89EF2602C3BB002619DD /* ojph_block_decoder_sse2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ojph_block_decoder_sse2.cpp; sourceTree = "<group>"; };
 		98B578A22298EA5E006844CD /* ojph_base.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ojph_base.h; sourceTree = "<group>"; };
 		98B578A9229951D6006844CD /* ojph_arch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ojph_arch.h; sourceTree = "<group>"; };
 		98B578AE229A5720006844CD /* ojph_arch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ojph_arch.cpp; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 		9826E1862314B38C0004C8DC /* coding */ = {
 			isa = PBXGroup;
 			children = (
+				98AB89EF2602C3BB002619DD /* ojph_block_decoder_sse2.cpp */,
 				9826E1E52315EED60004C8DC /* ojph_block_decoder.cpp */,
 				9826E1E42315EED60004C8DC /* ojph_block_decoder.h */,
 				983333B42330491300CF17FD /* ojph_block_encoder.cpp */,
@@ -280,6 +283,7 @@
 				9889135023528F2600AED5EF /* ojph_transform_sse.cpp in Sources */,
 				988913542352B49700AED5EF /* ojph_transform_sse2.cpp in Sources */,
 				988913522352AA5600AED5EF /* ojph_transform_avx.cpp in Sources */,
+				98AB89F02602C3BB002619DD /* ojph_block_decoder_sse2.cpp in Sources */,
 				98891342235046B300AED5EF /* ojph_colour_sse.cpp in Sources */,
 				988913462350481F00AED5EF /* ojph_colour_sse2.cpp in Sources */,
 				9889134823513E2F00AED5EF /* ojph_colour_avx.cpp in Sources */,

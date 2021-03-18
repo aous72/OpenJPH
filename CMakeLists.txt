@@ -12,7 +12,7 @@ project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/common/ojph_version.h" VERFILE)
 if (NOT VERFILE)
-  message(FATAL_ERROR "Failed to parse ojph_version.h!")
+    message(FATAL_ERROR "Failed to parse ojph_version.h!")
 endif()
 
 string(REGEX MATCH "OPENJPH_VERSION_MAJOR ([0-9])*" _ ${VERFILE})
@@ -122,11 +122,8 @@ INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
 # Testing
 ################################################################################################
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    include(CTest)
-endif()
-
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    include(CTest)
     add_subdirectory(tests)
 endif()
 

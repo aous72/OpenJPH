@@ -694,7 +694,7 @@ namespace ojph {
         ui32 suffix_len = ((d >> 2) & 0x7); 
         consumed_bits += suffix_len;
 
-        d = (d >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d = (d >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[0] = (mode == 1) ? d + 1 : 1; // kappa is 1 for initial line
         u[1] = (mode == 1) ? 1 : d + 1; // kappa is 1 for initial line
       }
@@ -713,7 +713,7 @@ namespace ojph {
 
           ui32 suffix_len = ((d1 >> 2) & 0x7);
           consumed_bits += suffix_len;
-          d1 = (d1 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+          d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
           u[0] = d1 + 1; //Kappa is 1 for initial line
         }
         else
@@ -725,14 +725,14 @@ namespace ojph {
           ui32 suffix_len = ((d1 >> 2) & 0x7);
           consumed_bits += suffix_len;
 
-          d1 = (d1 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+          d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
           u[0] = d1 + 1; //Kappa is 1 for initial line
           vlc >>= suffix_len;
 
           suffix_len = ((d2 >> 2) & 0x7);
           consumed_bits += suffix_len;
 
-          d2 = (d2 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+          d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
           u[1] = d2 + 1; //Kappa is 1 for initial line
         }
       }
@@ -749,14 +749,14 @@ namespace ojph {
         ui32 suffix_len = ((d1 >> 2) & 0x7);
         consumed_bits += suffix_len;
 
-        d1 = (d1 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[0] = d1 + 3; // add 2+kappa
         vlc >>= suffix_len;
 
         suffix_len = ((d2 >> 2) & 0x7);
         consumed_bits += suffix_len;
 
-        d2 = (d2 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[1] = d2 + 3; // add 2+kappa
       }
       return consumed_bits;
@@ -804,7 +804,7 @@ namespace ojph {
         ui32 suffix_len = ((d >> 2) & 0x7);
         consumed_bits += suffix_len;
 
-        d = (d >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d = (d >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[0] = (mode == 1) ? d + 1 : 1; //for kappa
         u[1] = (mode == 1) ? 1 : d + 1; //for kappa
       }
@@ -821,14 +821,14 @@ namespace ojph {
         ui32 suffix_len = ((d1 >> 2) & 0x7);
         consumed_bits += suffix_len;
 
-        d1 = (d1 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[0] = d1 + 1;  //1 for kappa
         vlc >>= suffix_len;
 
         suffix_len = ((d2 >> 2) & 0x7);
         consumed_bits += suffix_len;
 
-        d2 = (d2 >> 5) + (vlc & ((1 << suffix_len) - 1)); // u value
+        d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
         u[1] = d2 + 1;  //1 for kappa
       }
       return consumed_bits;
@@ -1214,7 +1214,7 @@ namespace ojph {
                                      // to read from bitstream), using EMB e_k
           frwd_advance(&magsgn, m_n);        //consume m_n
           ui32 val = ms_val << 31;           //get sign bit
-          v_n = ms_val & ((1 << m_n) - 1);   //keep only m_n bits
+          v_n = ms_val & ((1U << m_n) - 1);   //keep only m_n bits
           v_n |= ((qinf[0] & 0x100) >> 8) << m_n;  //add EMB e_1 as MSB
           v_n |= 1;                                //add center of bin    
           //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
@@ -1230,7 +1230,7 @@ namespace ojph {
           m_n = U_q[0] - ((qinf[0] >> 13) & 1); //m_n, uses EMB e_k
           frwd_advance(&magsgn, m_n);           //consume m_n
           ui32 val = ms_val << 31;              //get sign bit
-          v_n = ms_val & ((1 << m_n) - 1);      //keep only m_n bits
+          v_n = ms_val & ((1U << m_n) - 1);      //keep only m_n bits
           v_n |= ((qinf[0] & 0x200) >> 9) << m_n; //add EMB e_1
           v_n |= 1;                               //bin center
           //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
@@ -1256,7 +1256,7 @@ namespace ojph {
           m_n = U_q[0] - ((qinf[0] >> 14) & 1); 
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= (((qinf[0] & 0x400) >> 10) << m_n);
           v_n |= 1; 
           sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1271,7 +1271,7 @@ namespace ojph {
           m_n = U_q[0] - ((qinf[0] >> 15) & 1); //m_n
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= ((qinf[0] & 0x800) >> 11) << m_n;
           v_n |= 1; //center of bin
           sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1291,7 +1291,7 @@ namespace ojph {
           m_n = U_q[1] - ((qinf[1] >> 12) & 1); //m_n
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= (((qinf[1] & 0x100) >> 8) << m_n);
           v_n |= 1;
           sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1305,7 +1305,7 @@ namespace ojph {
           m_n = U_q[1] - ((qinf[1] >> 13) & 1); //m_n
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= (((qinf[1] & 0x200) >> 9) << m_n);
           v_n |= 1;
           sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1328,7 +1328,7 @@ namespace ojph {
           m_n = U_q[1] - ((qinf[1] >> 14) & 1); //m_n
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= (((qinf[1] & 0x400) >> 10) << m_n);
           v_n |= 1;
           sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1343,7 +1343,7 @@ namespace ojph {
           m_n = U_q[1] - ((qinf[1] >> 15) & 1); //m_n
           frwd_advance(&magsgn, m_n);
           ui32 val = ms_val << 31;
-          v_n = ms_val & ((1 << m_n) - 1);
+          v_n = ms_val & ((1U << m_n) - 1);
           v_n |= (((qinf[1] & 0x800) >> 11) << m_n);
           v_n |= 1; //center of bin
           sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1362,7 +1362,7 @@ namespace ojph {
       for (ui32 y = 2; y < height; /*done at the end of loop*/)
       {
         sip_shift ^= 0x2;  // shift sigma to the upper half od the nibble
-        sip_shift &= 0xFFFFFFEF; // move back to 0 (it might have been at 0x10)
+        sip_shift = (int)((uint32_t)sip_shift & 0xFFFFFFEF); // move back to 0 (it might have been at 0x10)
         ui32 *sip = y & 0x4 ? sigma2 : sigma1; //choose sigma array
 
         lsp = line_state;
@@ -1482,7 +1482,7 @@ namespace ojph {
             m_n = U_q[0] - ((qinf[0] >> 12) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= ((qinf[0] & 0x100) >> 8) << m_n;
             v_n |= 1; //center of bin
             sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1496,7 +1496,7 @@ namespace ojph {
             m_n = U_q[0] - ((qinf[0] >> 13) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= ((qinf[0] & 0x200) >> 9) << m_n;
             v_n |= 1; //center of bin
             sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1519,7 +1519,7 @@ namespace ojph {
             m_n = U_q[0] - ((qinf[0] >> 14) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= (((qinf[0] & 0x400) >> 10) << m_n);
             v_n |= 1;                            //center of bin
             sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1533,7 +1533,7 @@ namespace ojph {
             m_n = U_q[0] - ((qinf[0] >> 15) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= ((qinf[0] & 0x800) >> 11) << m_n;
             v_n |= 1; //center of bin
             sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1555,7 +1555,7 @@ namespace ojph {
             m_n = U_q[1] - ((qinf[1] >> 12) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= (((qinf[1] & 0x100) >> 8) << m_n);
             v_n |= 1;                            //center of bin
             sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1569,7 +1569,7 @@ namespace ojph {
             m_n = U_q[1] - ((qinf[1] >> 13) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= (((qinf[1] & 0x200) >> 9) << m_n);
             v_n |= 1; //center of bin
             sp[stride] = val | ((v_n + 2) << (p - 1));
@@ -1592,7 +1592,7 @@ namespace ojph {
             m_n = U_q[1] - ((qinf[1] >> 14) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= (((qinf[1] & 0x400) >> 10) << m_n);
             v_n |= 1;                            //center of bin
             sp[0] = val | ((v_n + 2) << (p - 1));
@@ -1606,7 +1606,7 @@ namespace ojph {
             m_n = U_q[1] - ((qinf[1] >> 15) & 1); //m_n
             frwd_advance(&magsgn, m_n);
             ui32 val = ms_val << 31;
-            v_n = ms_val & ((1 << m_n) - 1);
+            v_n = ms_val & ((1U << m_n) - 1);
             v_n |= (((qinf[1] & 0x800) >> 11) << m_n);
             v_n |= 1; //center of bin
             sp[stride] = val | ((v_n + 2) << (p - 1));

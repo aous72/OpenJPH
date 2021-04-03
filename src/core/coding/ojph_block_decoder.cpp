@@ -1009,7 +1009,7 @@ namespace ojph {
       ui32 mbr1[129] = { 0 }, mbr2[129] = { 0 };
       //a pointer to sigma
       ui32 *sip = sigma1; //pointers to arrays to be used interchangeably
-      int sip_shift = 0;  //the amount of shift needed for sigma
+      ui32 sip_shift = 0; //the amount of shift needed for sigma
 
       if (num_passes > 1 && lengths2 == 0)
       {
@@ -1362,7 +1362,7 @@ namespace ojph {
       for (ui32 y = 2; y < height; /*done at the end of loop*/)
       {
         sip_shift ^= 0x2;  // shift sigma to the upper half od the nibble
-        sip_shift = (int)((uint32_t)sip_shift & 0xFFFFFFEF); // move back to 0 (it might have been at 0x10)
+        sip_shift &= 0xFFFFFFEFU; //move back to 0 (it might have been at 0x10)
         ui32 *sip = y & 0x4 ? sigma2 : sigma1; //choose sigma array
 
         lsp = line_state;

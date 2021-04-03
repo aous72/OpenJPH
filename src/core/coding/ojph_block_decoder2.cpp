@@ -883,7 +883,7 @@ namespace ojph {
         1 | (0 << 2) | (1 << 5)  //111 == xx1, prefix codeword "1"
       };
 
-      for (int i = 0; i < 256 + 64; ++i)
+      for (ui32 i = 0; i < 256 + 64; ++i)
       { 
         ui32 mode = i >> 6;
         ui32 vlc = i & 0x3F;
@@ -957,7 +957,7 @@ namespace ojph {
         }
       }
 
-      for (int i = 0; i < 256; ++i)
+      for (ui32 i = 0; i < 256; ++i)
       {
         ui32 mode = i >> 6;
         ui32 vlc = i & 0x3F;
@@ -1215,7 +1215,7 @@ namespace ojph {
       ui16 us[9 * 512] = {0};       // 9 kB
 
       //scratch stride is a multiple of 8 + 1
-      int sstr = ((((width + 1) >> 1) + 7) & ~7u) + 1;
+      ui32 sstr = ((((width + 1) >> 1) + 7) & ~7u) + 1;
 
       // step 1 decoding VLC and MEL segments
       {
@@ -1267,7 +1267,7 @@ namespace ojph {
           x += 2;
 
           // prepare context for the next quad; eqn. 1 in ITU T.814
-          c_q = ((t0 & 0x10) << 3) | ((t0 & 0xE0) << 2);
+          c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
 
           //remove data from vlc stream (0 bits are removed if vlc is not used)
           vlc_val = rev_advance(&vlc, t0 & 0x7);
@@ -1298,7 +1298,7 @@ namespace ojph {
           x += 2;
 
           //prepare context for the next quad, eqn. 1 in ITU T.814
-          c_q = ((t1 & 0x10) << 3) | ((t1 & 0xE0) << 2);
+          c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
 
           //remove data from vlc stream, if qinf is not used, cwdlen is 0
           vlc_val = rev_advance(&vlc, t1 & 0x7);
@@ -1306,7 +1306,7 @@ namespace ojph {
           // decode u
           /////////////
           // uvlc_mode is made up of u_offset bits from the quad pair
-          ui32 uvlc_mode = ((t0 & 0x8) << 3) | ((t1 & 0x8) << 4);
+          ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
           if (uvlc_mode == 0xc0)// if both u_offset are set, get an event from
           {                     // the MEL run of events
             run -= 2; //subtract 2, since events number if multiplied by 2
@@ -1335,7 +1335,7 @@ namespace ojph {
           // quad 0 length
           len = uvlc_entry & 0x7; // quad 0 suffix length
           uvlc_entry >>= 3;
-          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFF<<len))); //kappa 1
+          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len)));//kap. 1
           *up++ = u_q;
           u_q = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
           *up++ = u_q;
@@ -1355,7 +1355,7 @@ namespace ojph {
             /////////////
 
             // sigma_q (n, ne, nf)
-            c_q |= ((psp[0] & 0xA0) << 2) | ((psp[1] & 0x20) << 4);
+            c_q |= ((psp[0] & 0xA0U) << 2) | ((psp[1] & 0x20U) << 4);
             ++psp;
 
             // first quad
@@ -1387,11 +1387,11 @@ namespace ojph {
 
             // prepare context for the next quad; eqn. 2 in ITU T.814
             // sigma_q (w, sw)
-            c_q = ((t0 & 0x40) << 2) | ((t0 & 0x80) << 1);
+            c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
             // sigma_q (nw)
             c_q |= psp[-1] & 0x80;
             // sigma_q (n, ne, nf)
-            c_q |= ((psp[0] & 0xA0) << 2) | ((psp[1] & 0x20) << 4);
+            c_q |= ((psp[0] & 0xA0U) << 2) | ((psp[1] & 0x20U) << 4);
             ++psp;
 
             //remove data from vlc stream (0 bits are removed if vlc is unused)
@@ -1424,7 +1424,7 @@ namespace ojph {
 
             // partial c_q, will be completed when we process the next quad
             // sigma_q (w, sw)
-            c_q = ((t1 & 0x40) << 2) | ((t1 & 0x80) << 1);
+            c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
             // sigma_q (nw)
             c_q |= psp[-1] & 0x80;
 
@@ -1434,7 +1434,7 @@ namespace ojph {
             // decode u
             /////////////
             // uvlc_mode is made up of u_offset bits from the quad pair
-            ui32 uvlc_mode = ((t0 & 0x8) << 3) | ((t1 & 0x8) << 4);
+            ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
             ui32 uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
             //remove total prefix length
             vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
@@ -1447,7 +1447,7 @@ namespace ojph {
             // quad 0 length
             len = uvlc_entry & 0x7; // quad 0 suffix length
             uvlc_entry >>= 3;
-            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xF << len))); // u_q
+            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFU << len))); //u_q
             *up++ = u_q;
             u_q = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
             *up++ = u_q;
@@ -1577,7 +1577,7 @@ namespace ojph {
             ui32 gamma = inf & 0xF0; gamma &= gamma - 0x10; //is gamma_q 1?
             si32 emax = up[-sstr] > up[-sstr + 1] ? up[-sstr] : up[-sstr + 1];
             emax = gamma ? emax - 1 : 0;
-            ui32 kappa = emax > 1 ? emax : 1;
+            ui32 kappa = (ui32)(emax > 1 ? emax : 1);
             ui32 U_q = u_q + kappa;
             if (U_q > mmsbp1)
               return false;

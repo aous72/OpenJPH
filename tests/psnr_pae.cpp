@@ -37,6 +37,7 @@
 //***************************************************************************/
 
 #include <cstdio>
+#include <cstdlib>
 #include "../common/ojph_img_io.h"
 
 void load_ppm(const char *filename)

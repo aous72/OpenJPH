@@ -28,6 +28,11 @@ set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+message(STATUS "Builing ${CMAKE_BUILD_TYPE}")
+
 set(CMAKE_CXX_STANDARD 11)
 if (MSVC)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")

@@ -2253,7 +2253,7 @@ namespace ojph {
       num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
       num_precincts.h -= try0 >> log_PP.h;
       precincts = allocator->post_alloc_obj<precinct>(num_precincts.area());
-      memset(precincts, 0, sizeof(precinct) * num_precincts.area());
+      // precincts will be initialized in full shortly
 
       ui32 x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
       ui32 y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
@@ -2279,6 +2279,7 @@ namespace ojph {
           pp->may_use_sop = cdp->packets_may_use_sop();
           pp->uses_eph = cdp->packets_use_eph();
           pp->scratch = codestream->get_precinct_scratch();
+          pp->coded = NULL;
         }
       }
       if (num_bands == 1)
@@ -2831,8 +2832,9 @@ namespace ojph {
     struct bit_write_buf
     {
       static const int needed;
-      coded_lists* ccl;
 
+      bit_write_buf() { ccl = NULL; avail_bits = 0; tmp = 0; }
+      coded_lists* ccl;
       int avail_bits;
       ui64 tmp;
     };
@@ -3906,7 +3908,7 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       
-      int stride = (nominal.w + 3) & 0xFFFFFFFC; // a multiple of 4
+      ui32 stride = (nominal.w + 3) & 0xFFFFFFFCU; // a multiple of 4
       allocator->pre_alloc_data<ui32>(nominal.h * stride, 0);
     }
 

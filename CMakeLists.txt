@@ -79,7 +79,7 @@ target_include_directories(openjph PUBLIC src/core/common)
 
 set_target_properties(openjph
   PROPERTIES
-    OUTPUT_NAME "openjph"
+    OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}"
 )
 
 if (OPENJPH_VERSION AND CMAKE_SYSTEM_NAME MATCHES "Linux")

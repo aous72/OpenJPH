@@ -39,14 +39,59 @@
 #include <cstdio>
 #include <cstdlib>
 #include "../common/ojph_img_io.h"
+#include "../common/ojph_mem.h"
 
-void load_ppm(const char *filename)
+using namespace ojph;
+
+enum : ui32 {
+  UNDEFINED = 0,
+  FORMAT444 = 1,
+  FORMAT422 = 2,
+  FORMAT420 = 3,
+};
+
+struct img_info {
+  img_info() { 
+    num_comps = 0; 
+    comp[0] = comp[1] = comp[2] = 0;
+  }
+  ~img_info() {
+    for (ui32 i = 0; i < num_comps; ++i)
+      if (comp[i]) delete[] comp[i];
+  }
+  
+  void init(ui32 num_comps, ui32 width, ui32 height, ui32 format)
+  {
+  }
+  
+  ui32 num_comps;
+  ui32 width, height;
+  point downsampling[3];
+  si32 *comp[3];
+};
+
+//     void open(const char* filename);
+//     void finalize_alloc();
+//     virtual ui32 read(const line_buf* line, ui32 comp_num);
+//     void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
+//     void set_plannar(bool planar) { this->planar = planar; }
+
+
+void load_ppm(const char *filename, img_info& img)
 {
+  ppm_in ppm;
+  ppm.open(filename);
+
+  //img.init(, );
+  line_buf line;
+
+
 }
 
 int main(int argc, char *argv[])
 {
-
+  (void)argc;
+  (void)argv;
   
   
   

@@ -4,7 +4,7 @@
 project (psnr_pae DESCRIPTION "A program to find PSNR and peak absolute error between two images" LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-add_executable(psnr_pae psnr_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp")
+add_executable(psnr_pae psnr_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_mem.cpp")
 
 ########################
 ## Test environment

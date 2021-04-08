@@ -106,7 +106,7 @@ namespace ojph {
     void finalize_alloc();
     virtual ui32 read(const line_buf* line, ui32 comp_num);
     void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
-    void set_plannar(bool planar) { this->planar = planar; }
+    void set_planar(bool planar) { this->planar = planar; }
 
     //size get_size() { assert(fh); return size(width, height); }
     ui32 get_width() { assert(fh); return width; }

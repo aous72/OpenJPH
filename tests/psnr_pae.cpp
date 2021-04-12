@@ -38,6 +38,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cctype>
 #include "../common/ojph_img_io.h"
 #include "../common/ojph_mem.h"
 
@@ -48,6 +49,7 @@ enum : ui32 {
   FORMAT444 = 1,
   FORMAT422 = 2,
   FORMAT420 = 3,
+  FORMAT400 = 4,
 };
 
 struct img_info {
@@ -79,11 +81,12 @@ struct img_info {
       switch (format)
       {
         case FORMAT444:
+        case FORMAT400:        
           downsampling[i].x = downsampling[i].y = 1;
           break;
         case FORMAT422:
-          downsampling[i].x = 1;
-          downsampling[i].y = i == 0 ? 1 : 2;
+          downsampling[i].x = i == 0 ? 1 : 2;
+          downsampling[i].y = 1;
           break;
         case FORMAT420:
           downsampling[i].x = i == 0 ? 1 : 2;
@@ -100,6 +103,10 @@ struct img_info {
     }
   }
   
+  bool exist() {
+    return comps[0] != NULL;
+  }
+  
   ui32 num_comps;
   size_t width, height;
   point downsampling[3];
@@ -108,12 +115,16 @@ struct img_info {
   ui32 max_val;
 };
 
-//     void open(const char* filename);
-//     void finalize_alloc();
-//     virtual ui32 read(const line_buf* line, ui32 comp_num);
-//     void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
-//     void set_plannar(bool planar) { this->planar = planar; }
-
+bool is_pnm(const char *filename)
+{
+  size_t len = strlen(filename);
+  if (len >= 4 && filename[len - 4] == '.' && 
+      toupper(filename[len - 3]) == 'P' && 
+      (toupper(filename[len - 2])== 'P' || toupper(filename[len - 2]) == 'G') &&
+      toupper(filename[len - 1]) == 'M')
+    return true;
+  return false;
+}
 
 void load_ppm(const char *filename, img_info& img)
 {
@@ -137,6 +148,128 @@ void load_ppm(const char *filename, img_info& img)
     for (ui32 h = 0; h < height; ++h)
     {
       ui32 w = ppm.read(&line, c);
+      memcpy(p, line.i32, w * sizeof(si32));
+      p += w;
+    }
+  }
+
+  delete[] buffer;
+}
+
+bool is_yuv(const char *filename)
+{
+  const char *p = strchr(filename, ':'); // p is either NULL or pointing to ':'
+  if (p != NULL && p - filename >= 4 && p[-4] == '.' && 
+      toupper(p[-3]) == 'Y' && toupper(p[-2])== 'U' && toupper(p[-1]) == 'V')
+    return true;
+  return false;
+}
+
+void load_yuv(const char *filename, img_info& img)
+{  
+  const char *p = strchr(filename, ':'); // p is either NULL or pointing to ':'
+  const char *name_end = p;
+  if (p == NULL) {
+    printf("A .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);
+  }
+  
+  size s;
+  s.w = (ui32)atoi(++p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting image height.\n");
+    printf("A .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);
+  }
+  s.h = (ui32)atoi(++p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting image bitdepth.\n");
+    printf("A .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);
+  }
+  ui32 bit_depth = (ui32)atoi(++p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting color subsampling format.\n");
+    printf("A .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);
+  }
+  // p must be pointing to color subsampling format
+  ++p;
+  size_t len = strlen(p);
+  if (len != 3)
+  {
+    printf("Image color format must have 3 characters, %s was supplied.\n", p);
+    printf("A .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);
+  }
+  ui32 num_comps;
+  point downsampling[3] = { point(1,1), point(1,1), point(1,1)};
+  ui32 format;
+  if (strcmp(p, "444") == 0)
+  {
+    num_comps = 3;
+    format = FORMAT444;
+  }
+  else if (strcmp(p, "422") == 0)
+  {
+    num_comps = 3;
+    format = FORMAT422;
+    downsampling[1].x = downsampling[2].x = 2;
+  }
+  else if (strcmp(p, "420") == 0)
+  {
+    num_comps = 3;
+    format = FORMAT420;
+    downsampling[1].x = downsampling[2].x = 2;
+    downsampling[1].y = downsampling[2].y = 2;
+  }
+  else if (strcmp(p, "400") == 0)
+  {
+    num_comps = 1;
+    format = FORMAT400;
+  }
+  else {
+    printf("Unknown image color format, %s.\n", p);
+    exit(-1);
+  }
+
+  char name_buf[2048];
+  ptrdiff_t cpy_len = name_end - filename > 2047 ? 2047 : name_end - filename;
+  strncpy(name_buf, filename, (size_t)cpy_len);
+  name_buf[cpy_len] = 0;
+  
+  yuv_in yuv;
+  ui32 depths[3] = {bit_depth, bit_depth, bit_depth};
+  yuv.set_bit_depth(num_comps, depths);
+  yuv.set_img_props(s, num_comps, num_comps, downsampling);  
+  yuv.open(name_buf);
+  
+  img.init(num_comps, s.w, s.h, (bit_depth << 1) - 1, format);
+  
+  size_t w = calc_aligned_size<si32, byte_alignment>(s.w);
+  si32 *buffer = new si32[w];
+  line_buf line;
+  line.wrap(buffer, w, 0);
+  
+  for (ui32 c = 0; c < num_comps; ++c)
+  {  
+    si32 *p = img.comps[c];
+    for (ui32 h = 0; h < s.h; ++h)
+    {
+      ui32 w = yuv.read(&line, c);
       memcpy(p, line.i32, w * sizeof(si32));
       p += w;
     }
@@ -193,8 +326,29 @@ int main(int argc, char *argv[])
   }
     
   img_info img1, img2;
-  load_ppm(argv[1], img1);
-  load_ppm(argv[2], img2);
+  if (is_pnm(argv[1]))
+    load_ppm(argv[1], img1);
+  else if (is_yuv(argv[1]))
+    load_yuv(argv[1], img1);
+  else {
+    printf("psnr_pae does not know file format of %s\n", argv[1]);
+    printf("or a .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);  
+  }
+  
+  if (is_pnm(argv[2]))
+    load_ppm(argv[2], img2);
+  else if (is_yuv(argv[2]))
+    load_yuv(argv[2], img2);
+  else {
+    printf("psnr_pae does not know file format of %s\n", argv[2]);
+    printf("or a .yuv that does not have the expected format, which is\n");
+    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+    printf("either 444, 422, or 420\n");
+    exit(-1);  
+  }
   
   float psnr; ui32 pae;
   find_psnr_pae(img1, img2, psnr, pae);

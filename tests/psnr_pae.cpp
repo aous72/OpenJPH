@@ -313,9 +313,9 @@ void find_psnr_pae(const img_info& img1, const img_info& img2,
   }
   float t = 0;
   for (ui32 c = 0; c < img1.num_comps; ++c)
-    t += mse[c];
+    t += (float)mse[c];
   t /= num_pixels;
-  psnr = 10.0f * log10f(img1.max_val * img1.max_val / t);
+  psnr = 10.0f * log10f((float)img1.max_val * (float)img1.max_val / t);
 }
 
 int main(int argc, char *argv[])

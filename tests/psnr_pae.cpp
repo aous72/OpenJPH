@@ -43,6 +43,7 @@
 #include "../common/ojph_mem.h"
 
 using namespace ojph;
+using namespace std;
 
 enum : ui32 {
   UNDEFINED = 0,

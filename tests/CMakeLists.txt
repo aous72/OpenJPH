@@ -54,5 +54,5 @@ endif()
 add_test(NAME no_argument_ojph_compress COMMAND ojph_compress)
 set_tests_properties(no_argument_ojph_compress PROPERTIES WILL_FAIL TRUE)
 
-add_test(NAME simple_64x64 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh "-i ${images_folder}/im1.ppm -o test.jph" "-i test.jph -o test.ppm")
-add_test(NAME simple_32x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh "-i ${images_folder}/im1.ppm -o test.jph Cblk=\{32,32\}" "-i test.jph -o test.ppm")
+add_test(NAME simple_64x64 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh "-i ${images_folder}/im1.ppm -o test.jph -precise Qstep=0.1"  "-i test.jph -o test1.ppm -precise" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
+add_test(NAME simple_32x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh "-i ${images_folder}/im1.ppm -o test.jph -precise Qstep=0.01 Cblk=\{32,32\}" "-i test.jph -o test1.ppm -precise" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")

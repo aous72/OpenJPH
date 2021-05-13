@@ -258,7 +258,7 @@ void load_yuv(const char *filename, img_info& img)
   yuv.set_img_props(s, num_comps, num_comps, downsampling);  
   yuv.open(name_buf);
   
-  img.init(num_comps, s.w, s.h, (bit_depth << 1) - 1, format);
+  img.init(num_comps, s.w, s.h, (1 << bit_depth) - 1, format);
   
   size_t w = calc_aligned_size<si32, byte_alignment>(s.w);
   si32 *buffer = new si32[w];
@@ -268,7 +268,8 @@ void load_yuv(const char *filename, img_info& img)
   for (ui32 c = 0; c < num_comps; ++c)
   {  
     si32 *p = img.comps[c];
-    for (ui32 h = 0; h < s.h; ++h)
+    ui32 height = (s.h + img.downsampling[c].y - 1) / img.downsampling[c].y;
+    for (ui32 h = 0; h < height; ++h)
     {
       ui32 w = yuv.read(&line, c);
       memcpy(p, line.i32, w * sizeof(si32));

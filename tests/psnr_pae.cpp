@@ -305,7 +305,7 @@ void find_psnr_pae(const img_info& img1, const img_info& img2,
       si32 *p1 = img2.comps[c] + w * v;
       for (ui32 s = 0; s < w; ++s)
       {
-        si32 err = *p0 - *p1;
+        si32 err = *p0++ - *p1++;
         ui32 ae = (ui32)(err > 0 ? err : -err);
         mse[c] += ae * ae;
         pae = ae > pae ? ae : pae;

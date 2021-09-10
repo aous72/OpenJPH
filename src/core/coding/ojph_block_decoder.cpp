@@ -1020,9 +1020,9 @@ namespace ojph {
       }
       if (num_passes > 3)
       {
-        OJPH_ERROR(0x00010002, "We do not support more than 3 coding passes; "
-                               "This codeblocks has %d passes.\n",
-                               num_passes);
+        OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
+                              "This codeblocks has %d passes.\n",
+                              num_passes);
         return false;
       }
 

@@ -39,6 +39,7 @@
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
+#include "ojph_mem.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
@@ -52,9 +53,13 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, ui32 repeat)
+    void avx2_rev_vert_wvlt_fwd_predict(const line_buf* line_src1,
+                                        const line_buf* line_src2,
+                                        line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+
       for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
@@ -67,9 +72,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, ui32 repeat)
+    void avx2_rev_vert_wvlt_fwd_update(const line_buf* line_src1,
+                                       const line_buf* line_src2,
+                                       line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+
       __m256i offset = _mm256_set1_epi32(2);
       for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
@@ -84,11 +93,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                   ui32 width, bool even)
+    void avx2_rev_horz_wvlt_fwd_tx(line_buf* line_src, line_buf *line_ldst,
+                                   line_buf *line_hdst,ui32 width, bool even)
     {
       if (width > 1)
       {
+        si32 *src = line_src->i32;
+        si32 *ldst = line_ldst->i32, *hdst = line_hdst->i32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -146,16 +158,20 @@ namespace ojph {
       else
       {
         if (even)
-          ldst[0] = src[0];
+          line_ldst->i32[0] = line_src->i32[0];
         else
-          hdst[0] = src[0] << 1;
+          line_hdst->i32[0] = line_src->i32[0] << 1;
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                        si32 *dst, ui32 repeat)
+    void avx2_rev_vert_wvlt_bwd_predict(const line_buf* line_src1,
+                                        const line_buf* line_src2,
+                                        line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+    
       for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
         __m256i s1 = _mm256_load_si256((__m256i*)src1);
@@ -168,9 +184,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                       si32 *dst, ui32 repeat)
+    void avx2_rev_vert_wvlt_bwd_update(const line_buf* line_src1,
+                                       const line_buf* line_src2,
+                                       line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+    
       __m256i offset = _mm256_set1_epi32(2);
       for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
@@ -185,11 +205,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                   ui32 width, bool even)
+    void avx2_rev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
+                                   line_buf *line_hsrc, ui32 width, bool even)
     {
       if (width > 1)
       {
+        si32 *lsrc = line_lsrc->i32, *hsrc = line_hsrc->i32;
+        si32 *dst = line_dst->i32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -237,9 +260,9 @@ namespace ojph {
       else
       {
         if (even)
-          dst[0] = lsrc[0];
+          line_dst->i32[0] = line_lsrc->i32[0];
         else
-          dst[0] = hsrc[0] >> 1;
+          line_dst->i32[0] = line_hsrc->i32[0] >> 1;
       }
     }
   }

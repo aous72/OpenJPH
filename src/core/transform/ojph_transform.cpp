@@ -38,10 +38,13 @@
 #include <cstdio>
 
 #include "ojph_arch.h"
+#include "ojph_mem.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
 namespace ojph {
+  struct line_buf;
+
   namespace local {
 
     /////////////////////////////////////////////////////////////////////////
@@ -50,32 +53,36 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
+      (const line_buf* src1, const line_buf* src2, line_buf *dst,
+       ui32 repeat)
       = gen_rev_vert_wvlt_fwd_predict;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
+      (const line_buf* src1, const line_buf* src2, line_buf *dst,
+       ui32 repeat)
       = gen_rev_vert_wvlt_fwd_update;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_fwd_tx)
-      (si32* src, si32 *ldst, si32 *hdst, ui32 width, bool even)
+      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
       = gen_rev_horz_wvlt_fwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_predict)
-      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
+      (const line_buf* src1, const line_buf* src2, line_buf *dst,
+       ui32 repeat)
       = gen_rev_vert_wvlt_bwd_predict;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_update)
-      (const si32* src1, const si32* src2, si32 *dst, ui32 repeat)
+      (const line_buf* src1, const line_buf* src2, line_buf *dst,
+       ui32 repeat)
       = gen_rev_vert_wvlt_bwd_update;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_bwd_tx)
-      (si32* dst, si32 *lsrc, si32 *hsrc, ui32 width, bool even)
+      (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even)
       = gen_rev_horz_wvlt_bwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
@@ -84,24 +91,24 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_step)
-      (const float* src1, const float* src2, float *dst, int step_num,
-       ui32 repeat)
+      (const line_buf* src1, const line_buf* src2, line_buf *dst,
+       int step_num, ui32 repeat)
       = gen_irrev_vert_wvlt_step;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_K)
-      (const float *src, float *dst, bool L_analysis_or_H_synthesis,
+      (const line_buf *src, line_buf *dst, bool L_analysis_or_H_synthesis,
        ui32 repeat)
       = gen_irrev_vert_wvlt_K;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_fwd_tx)
-      (float* src, float *ldst, float *hdst, ui32 width, bool even)
+      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
       = gen_irrev_horz_wvlt_fwd_tx;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_bwd_tx)
-      (float* src, float *ldst, float *hdst, ui32 width, bool even)
+      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
       = gen_irrev_horz_wvlt_bwd_tx;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -179,27 +186,36 @@ namespace ojph {
     const float LIFTING_FACTORS::K_inv  = (float)(1.0 / 1.230174104914001);
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, ui32 repeat)
+    void gen_rev_vert_wvlt_fwd_predict(const line_buf* line_src1,
+                                       const line_buf* line_src2,
+                                       line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
       for (ui32 i = repeat; i > 0; --i)
         *dst++ -= (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, ui32 repeat)
+    void gen_rev_vert_wvlt_fwd_update(const line_buf* line_src1,
+                                      const line_buf* line_src2,
+                                      line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
       for (ui32 i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++ + 2) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_fwd_tx(si32* src, si32 *ldst, si32 *hdst,
-                                  ui32 width, bool even)
+    void gen_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst,
+                                  line_buf *line_hdst, ui32 width, bool even)
     {
       if (width > 1)
       {
+        si32 *src = line_src->i32;
+        si32 *ldst = line_ldst->i32, *hdst = line_hdst->i32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -225,34 +241,43 @@ namespace ojph {
       else
       {
         if (even)
-          ldst[0] = src[0];
+          line_ldst->i32[0] = line_src->i32[0];
         else
-          hdst[0] = src[0] << 1;
+          line_hdst->i32[0] = line_src->i32[0] << 1;
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_predict(const si32* src1, const si32* src2,
-                                       si32 *dst, ui32 repeat)
+    void gen_rev_vert_wvlt_bwd_predict(const line_buf* line_src1,
+                                       const line_buf* line_src2,
+                                       line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
       for (ui32 i = repeat; i > 0; --i)
         *dst++ += (*src1++ + *src2++) >> 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_update(const si32* src1, const si32* src2,
-                                      si32 *dst, ui32 repeat)
+    void gen_rev_vert_wvlt_bwd_update(const line_buf* line_src1,
+                                      const line_buf* line_src2,
+                                      line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
       for (ui32 i = repeat; i > 0; --i)
         *dst++ -= (2 + *src1++ + *src2++) >> 2;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_bwd_tx(si32* dst, si32 *lsrc, si32 *hsrc,
-                                  ui32 width, bool even)
+    void gen_rev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
+                                  line_buf *line_hsrc, ui32 width, bool even)
     {
       if (width > 1)
       {
+        si32 *lsrc = line_lsrc->i32, *hsrc = line_hsrc->i32;
+        si32 *dst = line_dst->i32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -281,26 +306,33 @@ namespace ojph {
       else
       {
         if (even)
-          dst[0] = lsrc[0];
+          line_dst->i32[0] = line_lsrc->i32[0];
         else
-          dst[0] = hsrc[0] >> 1;
+          line_dst->i32[0] = line_hsrc->i32[0] >> 1;
       }
     }
 
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, ui32 repeat)
+    void gen_irrev_vert_wvlt_step(const line_buf* line_src1,
+                                  const line_buf* line_src2,
+                                  line_buf *line_dst,
+                                  int step_num, ui32 repeat)
     {
+      float *dst = line_dst->f32;
+      const float *src1 = line_src1->f32, *src2 = line_src2->f32;
       float factor = LIFTING_FACTORS::steps[step_num];
       for (ui32 i = repeat; i > 0; --i)
         *dst++ += factor * (*src1++ + *src2++);
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_K(const float* src, float* dst,
+    void gen_irrev_vert_wvlt_K(const line_buf* line_src,
+                               line_buf* line_dst,
                                bool L_analysis_or_H_synthesis, ui32 repeat)
     {
+      float *dst = line_dst->f32;
+      const float *src = line_src->f32;
       float factor = LIFTING_FACTORS::K_inv;
       factor = L_analysis_or_H_synthesis ? factor : LIFTING_FACTORS::K;
       for (ui32 i = repeat; i > 0; --i)
@@ -309,11 +341,16 @@ namespace ojph {
 
 
     /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
+    void gen_irrev_horz_wvlt_fwd_tx(line_buf* line_src,
+                                    line_buf *line_ldst,
+                                    line_buf *line_hdst,
                                     ui32 width, bool even)
     {
       if (width > 1)
       {
+        float *src = line_src->f32;
+        float *ldst = line_ldst->f32, *hdst = line_hdst->f32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -369,18 +406,22 @@ namespace ojph {
       else
       {
         if (even)
-          ldst[0] = src[0];
+          line_ldst->f32[0] = line_src->f32[0];
         else
-          hdst[0] = src[0];
+          line_hdst->f32[0] = line_src->f32[0] + line_src->f32[0];
       }
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
-                                    ui32 width, bool even)
+    void gen_irrev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
+                                    line_buf *line_hsrc, ui32 width,
+                                    bool even)
     {
       if (width > 1)
       {
+        float *lsrc = line_lsrc->f32, *hsrc = line_hsrc->f32;
+        float *dst = line_dst->f32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -439,9 +480,9 @@ namespace ojph {
       else
       {
         if (even)
-          dst[0] = lsrc[0];
+          line_dst->f32[0] = line_lsrc->f32[0];
         else
-          dst[0] = hsrc[0];
+          line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
       }
     }
   }

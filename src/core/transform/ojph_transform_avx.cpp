@@ -39,6 +39,7 @@
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
+#include "ojph_mem.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
@@ -52,9 +53,14 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void avx_irrev_vert_wvlt_step(const float* src1, const float* src2,
-                                  float *dst, int step_num, ui32 repeat)
+    void avx_irrev_vert_wvlt_step(const line_buf* line_src1,
+                                  const line_buf* line_src2,
+                                  line_buf *line_dst, int step_num,
+                                  ui32 repeat)
     {
+      float *dst = line_dst->f32;
+      const float *src1 = line_src1->f32, *src2 = line_src2->f32;
+    
       __m256 factor = _mm256_set1_ps(LIFTING_FACTORS::steps[step_num]);
       for (ui32 i = (repeat + 7) >> 3; i > 0; --i, dst+=8, src1+=8, src2+=8)
       {
@@ -67,9 +73,12 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void avx_irrev_vert_wvlt_K(const float* src, float* dst,
+    void avx_irrev_vert_wvlt_K(const line_buf* line_src, line_buf* line_dst,
                                bool L_analysis_or_H_synthesis, ui32 repeat)
     {
+      float *dst = line_dst->f32;
+      const float *src = line_src->f32;
+
       float f = LIFTING_FACTORS::K_inv;
       f = L_analysis_or_H_synthesis ? f : LIFTING_FACTORS::K;
       __m256 factor = _mm256_set1_ps(f);
@@ -82,11 +91,15 @@ namespace ojph {
 
 
     /////////////////////////////////////////////////////////////////////////
-    void avx_irrev_horz_wvlt_fwd_tx(float* src, float *ldst, float *hdst,
-                                    ui32 width, bool even)
+    void avx_irrev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst,
+                                    line_buf *line_hdst, ui32 width,
+                                    bool even)
     {
       if (width > 1)
       {
+        float *src = line_src->f32;
+        float *ldst = line_ldst->f32, *hdst = line_hdst->f32;
+
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -188,18 +201,22 @@ namespace ojph {
       else
       {
         if (even)
-          ldst[0] = src[0];
+          line_ldst->f32[0] = line_src->f32[0];
         else
-          hdst[0] = src[0];
+          line_hdst->f32[0] = line_src->f32[0] + line_src->f32[0];
       }
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void avx_irrev_horz_wvlt_bwd_tx(float* dst, float *lsrc, float *hsrc,
-                                    ui32 width, bool even)
+    void avx_irrev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
+                                    line_buf *line_hsrc, ui32 width,
+                                    bool even)
     {
       if (width > 1)
       {
+        float *lsrc = line_lsrc->f32, *hsrc = line_hsrc->f32;
+        float *dst = line_dst->f32;
+      
         const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
         const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
 
@@ -307,9 +324,9 @@ namespace ojph {
       else
       {
         if (even)
-          dst[0] = lsrc[0];
+          line_dst->f32[0] = line_lsrc->f32[0];
         else
-          dst[0] = hsrc[0];
+          line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
       }
     }
   }

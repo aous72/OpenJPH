@@ -449,9 +449,13 @@ namespace ojph {
         }
         else
         {
-          if (base_delta == -1.0f)
-            base_delta = 1.0f /
-              (float)(1 << (siz.get_bit_depth(0) + siz.is_signed(0)));
+          if (base_delta == -1.0f) {
+            ui32 bit_depth = 0;
+            for (ui32 i = 0; i < siz.get_num_components(); ++i)
+              bit_depth =
+                ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
+            base_delta = 1.0f / (float)(1 << bit_depth);
+          }
           set_irrev_quant();
          }
       }

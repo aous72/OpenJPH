@@ -1564,8 +1564,11 @@ namespace ojph {
         if (reversible)
         {
           int shift = 1 << (num_bits[comp_num] - 1);
-          const si32 *sp = comp_num < 3 ?
-            lines[comp_num].i32 : comps[comp_num].get_line()->i32;
+          const si32 *sp;
+          if (comp_num < 3)
+            sp = lines[comp_num].i32;
+          else
+            sp = comps[comp_num].pull_line()->i32;
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num])
             memcpy(dp, sp, comp_width * sizeof(si32));
@@ -1575,8 +1578,11 @@ namespace ojph {
         else
         {
           float mul = (float)(1 << num_bits[comp_num]);
-          const float *sp = comp_num < 3 ?
-            lines[comp_num].f32 : comps[comp_num].get_line()->f32;
+          const float *sp;
+          if (comp_num < 3)
+            sp = lines[comp_num].f32;
+          else
+            sp = comps[comp_num].pull_line()->f32;
           si32 *dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num])
             cnvrt_float_to_si32(sp, dp, mul, comp_width);

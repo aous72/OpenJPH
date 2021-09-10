@@ -474,12 +474,12 @@ namespace ojph {
                                ojph::coded_lists *& coded)
     {
       assert(num_passes == 1);
-      (void)num_passes;                  //currently not used
-      const int ms_size = 16384;         //more than enough
+      (void)num_passes;                      //currently not used
+      const int ms_size = (16384*16+14)/15;  //more than enough
       ui8 ms_buf[ms_size];
-      const int mel_vlc_size = 3072;     //more than enough
+      const int mel_vlc_size = 3072;         //more than enough
       ui8 mel_vlc_buf[mel_vlc_size];
-      const int mel_size = 128;
+      const int mel_size = 192;
       ui8 *mel_buf = mel_vlc_buf;
       const int vlc_size = mel_vlc_size - mel_size;
       ui8 *vlc_buf = mel_vlc_buf + mel_size;

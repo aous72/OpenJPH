@@ -1238,10 +1238,9 @@ namespace ojph {
           sp[stride] = val | ((v_n + 2) << (p - 1)); 
 
           //update line_state: bit 7 (\sigma^N), and E^N
-          ui32 s = (lsp[0] & 0x80) | 0x80; //\sigma^NW | \sigma^N
           ui32 t = lsp[0] & 0x7F;          //keep E^NW
           v_n = 32 - count_leading_zeros(v_n); 
-          lsp[0] = (ui8)(s | (t > v_n ? t : v_n)); //max(E^NW, E^N) | s
+          lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n)); //max(E^NW, E^N)|\sigma^N
         }
         else if (locs & 0x2) // if this is outside the codeblock, set the 
           sp[stride] = 0;    //no need to update line_state
@@ -1311,10 +1310,9 @@ namespace ojph {
           sp[stride] = val | ((v_n + 2) << (p - 1));
 
           //update line_state: bit 7 (\sigma^N), and E^N
-          ui32 s = (lsp[0] & 0x80) | 0x80;         //\sigma^NW | \sigma^N
           ui32 t = lsp[0] & 0x7F;                  //E^NW
           v_n = 32 - count_leading_zeros(v_n);     //E^N
-          lsp[0] = (ui8)(s | (t > v_n ? t : v_n)); //max(E^NW, E^N) | s
+          lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n)); //max(E^NW, E^N)|\sigma^N
         }
         else if (locs & 0x20)
           sp[stride] = 0;      //no need to update line_state
@@ -1502,10 +1500,9 @@ namespace ojph {
             sp[stride] = val | ((v_n + 2) << (p - 1));
 
             //update line_state: bit 7 (\sigma^N), and E^N
-            ui32 s = (lsp[0] & 0x80) | 0x80; //\sigma^NW | \sigma^N
             ui32 t = lsp[0] & 0x7F;          //E^NW
             v_n = 32 - count_leading_zeros(v_n); 
-            lsp[0] = (ui8)(s | (t > v_n ? t : v_n));
+            lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n));
           }
           else if (locs & 0x2)
             sp[stride] = 0; //no need to update line_state
@@ -1575,10 +1572,9 @@ namespace ojph {
             sp[stride] = val | ((v_n + 2) << (p - 1));
 
             //update line_state: bit 7 (\sigma^N), and E^N
-            ui32 s = (lsp[0] & 0x80) | 0x80; //\sigma^NW | \sigma^N
             ui32 t = lsp[0] & 0x7F;          //E^NW
             v_n = 32 - count_leading_zeros(v_n); 
-            lsp[0] = (ui8)(s | (t > v_n ? t : v_n));
+            lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n));
           }
           else if (locs & 0x20)
             sp[stride] = 0; //no need to update line_state

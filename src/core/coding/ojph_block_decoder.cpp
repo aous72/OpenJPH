@@ -1221,7 +1221,7 @@ namespace ojph {
           //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
           sp[0] = val | ((v_n + 2) << (p - 1)); 
         }
-        else if (locs & 0x1) // if this is outside the codeblock, set the 
+        else if (locs & 0x1) // if this is inside the codeblock, set the 
           sp[0] = 0;         // sample to zero
 
         if (qinf[0] & 0x20) //sigma_n
@@ -1243,7 +1243,7 @@ namespace ojph {
           lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n)); //max(E^NW, E^N)|\sigma^N
         }
         else if (locs & 0x2) // if this is outside the codeblock, set the 
-          sp[stride] = 0;    //no need to update line_state
+          sp[stride] = 0;    // sample to zero
 
         ++lsp; // move to next quad information
         ++sp;  // move to next column of samples
@@ -1278,7 +1278,7 @@ namespace ojph {
           //line_state: bit 7 (\sigma^NW), and E^NW for next quad
           lsp[0] = (ui8)(0x80 | (32 - count_leading_zeros(v_n)));
         }
-        else if (locs & 0x8) //if outside set to 0
+        else if (locs & 0x8) // if inside set to 0
           sp[stride] = 0;
 
         ++sp; //move to next column
@@ -1471,7 +1471,7 @@ namespace ojph {
           //locations where samples need update
           ui32 locs = 0xFF;
           if (x + 4 > width) locs >>= (x + 4 - width) << 1;
-          locs = height > 1 ? locs : (locs & 0x55);
+          locs = y + 2 <= height ? locs : (locs & 0x55);
 
 
           if (qinf[0] & 0x10) //sigma_n
@@ -1505,7 +1505,7 @@ namespace ojph {
             lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n));
           }
           else if (locs & 0x2)
-            sp[stride] = 0; //no need to update line_state
+            sp[stride] = 0; // no need to update line_state
 
           ++lsp;
           ++sp;

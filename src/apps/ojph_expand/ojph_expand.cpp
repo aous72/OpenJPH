@@ -151,7 +151,11 @@ int main(int argc, char *argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     " -i input file name\n"
-    " -o output file name (either pgm, ppm, or yuv)\n\n"
+    #ifdef OJPH_ENABLE_TIFF_SUPPORT
+    " -o output file name (either pgm, ppm, tif, or yuv)\n\n"
+    #else
+    " -o output file name (either pgm, ppm, or yuv)\n\n" 
+    #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     "The following arguments are options:\n"
     " -skip_res  x,y a comma-separated list of two elements containing the\n"
     "            number of resolutions to skip. You can specify 1 or 2\n"
@@ -184,6 +188,9 @@ int main(int argc, char *argv[]) {
     ojph::codestream codestream;
 
     ojph::ppm_out ppm;
+    #ifdef OJPH_ENABLE_TIFF_SUPPORT
+    ojph::tif_out tif;
+    #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     ojph::yuv_out yuv;
     ojph::image_out_base *base = NULL;
     const char *v = get_file_extension(output_filename);
@@ -233,6 +240,29 @@ int main(int argc, char *argv[]) {
         ppm.open(output_filename);
         base = &ppm;
       }
+      #ifdef OJPH_ENABLE_TIFF_SUPPORT
+      else if (strncmp(".tif", v, 4) == 0)
+      {
+        codestream.set_planar(false);
+        ojph::param_siz siz = codestream.access_siz();
+
+        bool all_same = true;
+        ojph::point p = siz.get_downsampling(0);
+        for (unsigned int i = 1; i < siz.get_num_components(); ++i)
+        {
+          ojph::point p1 = siz.get_downsampling(i);
+          all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
+        }
+        if (!all_same)
+          OJPH_ERROR(0x020000008,
+            "To save an image to tif, all the components must have the "
+            "downsampling ratio\n");
+        tif.configure(siz.get_recon_width(0), siz.get_recon_height(0),
+          siz.get_num_components(), siz.get_bit_depth(0));
+        tif.open(output_filename);
+        base = &tif;
+      }
+      #endif /* OJPH_ENABLE_TIFF_SUPPORT */
       else if (strncmp(".yuv", v, 4) == 0)
       {
         codestream.set_planar(true);
@@ -261,9 +291,15 @@ int main(int argc, char *argv[]) {
         base = &yuv;
       }
       else
+      #ifdef OJPH_ENABLE_TIFF_SUPPORT
+        OJPH_ERROR(0x020000006,
+          "unknown output file extension; only (pgm, ppm, tif and yuv) are"
+          " supported\n");
+          #else
         OJPH_ERROR(0x020000006,
           "unknown output file extension; only (pgm, ppm, and yuv) are"
           " supported\n");
+          #endif /*OJPH_ENABLE_TIFF_SUPPORT*/
     }
     else
       OJPH_ERROR(0x020000007,

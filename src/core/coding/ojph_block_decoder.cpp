@@ -991,6 +991,10 @@ namespace ojph {
                                ui32 lengths1, ui32 lengths2,
                                ui32 width, ui32 height, ui32 stride)
     {
+      static bool insufficient_precision = false;
+      static bool modify_code = false;
+      static bool truncate_spp_mrp = false;
+
       /*  sigma1 and sigma2 contains significant (i.e., non-zero) pixel 
        *  locations.  The buffers are used interchangeably, because we need
        *  more than 4 rows of significance information at a given time.
@@ -1018,6 +1022,7 @@ namespace ojph {
                               "2nd and potential 3rd pass.\n");
         num_passes = 1;
       }
+
       if (num_passes > 3)
       {
         OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
@@ -1026,10 +1031,41 @@ namespace ojph {
         return false;
       }
 
-      if (missing_msbs > 29) // p < 1
-        return false;        // 32 bits are not enough to decode this
+      if (missing_msbs > 30) // p < 0
+      {
+        if (insufficient_precision == false) 
+        {
+          insufficient_precision = true;
+          OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
+                                "codeblock. This message will not be "
+                                "displayed again.\n");
+        }
+        return false;
+      }       
+      else if (missing_msbs == 30) // p == 0
+      { // not enough precision to decode and set the bin center to 1
+        if (modify_code == false) {
+          modify_code = true;
+          OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
+                                "pass. The code can be modified to support "
+                                "this case. This message will not be "
+                                "displayed again.\n");
+        }
+         return false;         // 32 bits are not enough to decode this
+       }
       else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
-        num_passes = 1;
+      {
+        if (num_passes > 1) {
+          num_passes = 1;
+          if (truncate_spp_mrp == false) {
+            truncate_spp_mrp = true;
+            OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
+                                  "nor MagRef passes; both will be skipped. "
+                                  "This message will not be displayed "
+                                  "again.\n");
+          }
+        }
+      }
       ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
       // There is a way to handle the case of p == 0, but a different path
       // is required

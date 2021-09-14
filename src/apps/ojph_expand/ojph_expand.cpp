@@ -175,6 +175,10 @@ int main(int argc, char *argv[]) {
   clock_t begin = clock();
 
   try {
+    if (output_filename == NULL)
+      OJPH_ERROR(0x020000008,
+                 "Please provide and output file using the -o option\n");
+
     ojph::j2c_infile j2c_file;
     j2c_file.open(input_filename);
     ojph::codestream codestream;

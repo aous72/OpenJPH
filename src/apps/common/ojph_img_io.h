@@ -45,6 +45,10 @@
 #include "ojph_base.h"
 #include "ojph_defs.h"
 
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
+  #include "tiffio.h"
+#endif /* OJPH_ENABLE_TIFF_SUPPORT */
+
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
@@ -136,6 +140,87 @@ namespace ojph {
     bool is_signed[3];
     point subsampling[3];
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  #ifdef OJPH_ENABLE_TIFF_SUPPORT
+  class tif_in : public image_in_base
+  {
+  public:
+    tif_in()
+    {
+      tiff_handle = NULL;
+      fname = NULL;
+      line_buffer = NULL;
+      line_buffer_for_planar_support_uint8 = NULL;
+      line_buffer_for_planar_support_uint16 = NULL;
+
+      width = height = num_comps = 0;
+      bytes_per_sample = 0;
+
+      bytes_per_line = 0;
+      planar_configuration = 0;
+
+      cur_line = 0;
+
+      bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
+      is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
+      subsampling[3] = subsampling[2] = subsampling[1] = subsampling[0] = point(1, 1);
+    }
+    virtual ~tif_in()
+    {
+      close();
+      if (line_buffer)
+        free(line_buffer);
+      if (line_buffer_for_planar_support_uint8)
+        free(line_buffer_for_planar_support_uint8);
+      if (line_buffer_for_planar_support_uint16)
+        free(line_buffer_for_planar_support_uint16);
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
+
+    size get_size() { assert(tiff_handle); return size(width, height); }
+    int get_num_components() { assert(tiff_handle); return num_comps; }
+    ui32 get_bit_depth(ui32 comp_num)
+    {
+      assert(tiff_handle && comp_num < num_comps); return bit_depth[comp_num];
+    }
+    bool get_is_signed(ui32 comp_num)
+    {
+      assert(tiff_handle && comp_num < num_comps); return is_signed[comp_num];
+    }
+    point get_comp_subsampling(ui32 comp_num)
+    {
+      assert(tiff_handle && comp_num < num_comps); return subsampling[comp_num];
+    }
+
+  private:
+    
+    TIFF* tiff_handle;
+    size_t bytes_per_line;
+    unsigned short planar_configuration;
+
+    const char* fname;
+    void* line_buffer;
+    uint8_t* line_buffer_for_planar_support_uint8;
+    uint16_t* line_buffer_for_planar_support_uint16;
+    int width, height;
+    ui32 num_comps;
+    int bytes_per_sample;
+    int cur_line;
+    ui32 bit_depth[4];
+    bool is_signed[4];
+    point subsampling[4];
+  };
+  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -258,6 +343,57 @@ namespace ojph {
     ui32 buffer_size;
     ui32 cur_line, samples_per_line, bytes_per_line;
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////
+  #ifdef OJPH_ENABLE_TIFF_SUPPORT
+  class tif_out : public image_out_base
+  {
+  public:
+    tif_out()
+    {
+      tiff_handle = NULL;
+      fname = NULL;
+      buffer = NULL;
+      width = height = num_components = 0;
+      bit_depth = bytes_per_sample = 0;
+      buffer_size = 0;
+      cur_line = samples_per_line = 0;
+      bytes_per_line = 0;
+
+      planar_configuration = 0;
+    }
+    virtual ~tif_out()
+    {
+      close();
+      if (buffer)
+        free(buffer);
+    }
+
+    void open(char* filename);
+    void configure(ui32 width, ui32 height, int num_components,
+      int bit_depth);
+    virtual ui32 write(const line_buf* line, ui32 comp_num);
+    virtual void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
+
+  private:
+    TIFF* tiff_handle;
+    size_t bytes_per_line;
+    unsigned short planar_configuration;
+
+    const char* fname;
+    ui32 width, height, num_components;
+    int bit_depth, bytes_per_sample;
+    ui8* buffer;
+    int buffer_size;
+    int cur_line, samples_per_line;
+  };
+  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
 
   ////////////////////////////////////////////////////////////////////////////

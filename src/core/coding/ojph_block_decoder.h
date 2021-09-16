@@ -50,7 +50,7 @@ namespace ojph {
     bool
       ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
         ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride);
+        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
   }
   namespace local2 {
     //////////////////////////////////////////////////////////////////////////

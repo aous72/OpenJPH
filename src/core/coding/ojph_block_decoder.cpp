@@ -985,11 +985,13 @@ namespace ojph {
      *  @param [in]   width is the decoded codeblock width 
      *  @param [in]   height is the decoded codeblock height
      *  @param [in]   stride is the decoded codeblock buffer stride 
+     *  @param [in]   stripe_causal is true for stripe causal mode
      */
     bool ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
                                ui32 missing_msbs, ui32 num_passes,
                                ui32 lengths1, ui32 lengths2,
-                               ui32 width, ui32 height, ui32 stride)
+                               ui32 width, ui32 height, ui32 stride,
+                               bool stripe_causal)
     {
       static bool insufficient_precision = false;
       static bool modify_code = false;
@@ -1741,10 +1743,10 @@ namespace ojph {
             //data is processed in patches of 8 columns, each 
             // each 32 bits in sigma1 or mbr1 represent 4 rows
 
-            //integrate horizontally
             ui32 prev = 0; // previous columns
             for (ui32 i = 0; i < width; i += 8, mbr++, sig++)
             {
+              //integrate horizontally
               mbr[0] = sig[0];         //start with significant samples
               mbr[0] |= prev >> 28;    //for first column, left neighbors
               mbr[0] |= sig[0] << 4;   //left neighbors
@@ -1778,7 +1780,8 @@ namespace ojph {
               t |= nxt_sig[1] << 28;  //for last column, right neighbors
               prev = nxt_sig[0];      // for next group of columns
 
-              cur_mbr[0] |= (t & 0x11111111u) << 3; //propagate up to cur_mbr
+              if (stripe_causal == false)
+                cur_mbr[0] |= (t & 0x11111111u) << 3; //propagate up to cur_mbr
               cur_mbr[0] &= ~cur_sig[0]; //remove already significance samples
             }
 
@@ -1970,7 +1973,7 @@ namespace ojph {
               {
                 if (sig & col_mask)
                 {
-                  ui32 sample_mask = 0x11111111 & col_mask;
+                  ui32 sample_mask = 0x11111111u & col_mask;
 
                   if (sig & sample_mask)
                   {
@@ -2076,7 +2079,8 @@ namespace ojph {
               t |= nxt_sig[1] << 28;  //for last column, right neighbors
               prev = nxt_sig[0];
 
-              cur_mbr[0] |= (t & 0x11111111) << 3;
+              if (stripe_causal == false)
+                cur_mbr[0] |= (t & 0x11111111u) << 3;
               //remove already significance samples
               cur_mbr[0] &= ~cur_sig[0];
             }

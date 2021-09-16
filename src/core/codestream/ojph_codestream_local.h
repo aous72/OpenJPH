@@ -380,6 +380,7 @@ namespace ojph {
       ui32 K_max;
       int max_val;
       bool resilient;
+      bool stripe_causal;
       coded_cb_header* coded_cb;
     };
 

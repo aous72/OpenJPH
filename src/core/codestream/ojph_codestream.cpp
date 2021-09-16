@@ -3974,6 +3974,8 @@ namespace ojph {
       this->K_max = K_max;
       this->max_val = 0;
       this->resilient = codestream->is_resilient();
+      ojph::param_cod cod = codestream->access_cod();
+      this->stripe_causal = cod.get_block_vertical_causality();
       this->coded_cb = coded_cb;
     }
 
@@ -4041,7 +4043,7 @@ namespace ojph {
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
-            cb_size.w, cb_size.h, stride);
+            cb_size.w, cb_size.h, stride, stripe_causal);
 
 //        ui32 buf2[4096];
 //        bool result2 =

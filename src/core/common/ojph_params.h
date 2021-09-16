@@ -147,6 +147,8 @@ namespace ojph {
     bool packets_may_use_sop() const;
     OJPH_EXPORT
     bool packets_use_eph() const;
+    OJPH_EXPORT
+    bool get_block_vertical_causality() const;
 
   private:
     local::param_cod* state;

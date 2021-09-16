@@ -338,6 +338,12 @@ namespace ojph {
     return state->packets_use_eph();
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_cod::get_block_vertical_causality() const
+  {
+    return (state->SPcod.block_style & local::param_cod::VERT_CAUSAL_MODE)!=0;
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////
   //

@@ -302,11 +302,15 @@ namespace ojph {
     struct param_cod
     {
       friend ::ojph::param_cod;
+      enum BLOCK_CODING_STYLES {
+        VERT_CAUSAL_MODE = 0x8,
+        HT_MODE = 0x40
+      };
     public:
       param_cod()
       {
         memset(this, 0, sizeof(param_cod));
-        SPcod.block_style = 0x40;
+        SPcod.block_style = HT_MODE;
         SGCod.prog_order = 2;
         SGCod.num_layers = 1;
         SGCod.mc_trans = 0;

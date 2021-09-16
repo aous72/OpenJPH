@@ -188,7 +188,7 @@ namespace ojph {
     void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
 
     size get_size() { assert(tiff_handle); return size(width, height); }
-    int get_num_components() { assert(tiff_handle); return num_comps; }
+    ui32 get_num_components() { assert(tiff_handle); return num_comps; }
     ui32 get_bit_depth(ui32 comp_num)
     {
       assert(tiff_handle && comp_num < num_comps); return bit_depth[comp_num];
@@ -203,19 +203,18 @@ namespace ojph {
     }
 
   private:
-    
     TIFF* tiff_handle;
     size_t bytes_per_line;
-    unsigned short planar_configuration;
+    ui16 planar_configuration;
 
     const char* fname;
     void* line_buffer;
-    uint8_t* line_buffer_for_planar_support_uint8;
-    uint16_t* line_buffer_for_planar_support_uint16;
-    int width, height;
+    ui8* line_buffer_for_planar_support_uint8;
+    ui16* line_buffer_for_planar_support_uint16;
+    ui32 width, height;
     ui32 num_comps;
-    int bytes_per_sample;
-    int cur_line;
+    ui32 bytes_per_sample;
+    ui32 cur_line;
     ui32 bit_depth[4];
     bool is_signed[4];
     point subsampling[4];
@@ -376,8 +375,8 @@ namespace ojph {
     }
 
     void open(char* filename);
-    void configure(ui32 width, ui32 height, int num_components,
-      int bit_depth);
+    void configure(ui32 width, ui32 height, ui32 num_components,
+      ui32 bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
 
@@ -388,10 +387,10 @@ namespace ojph {
 
     const char* fname;
     ui32 width, height, num_components;
-    int bit_depth, bytes_per_sample;
+    ui32 bit_depth, bytes_per_sample;
     ui8* buffer;
-    int buffer_size;
-    int cur_line, samples_per_line;
+    ui32 buffer_size;
+    ui32 cur_line, samples_per_line;
   };
   #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 

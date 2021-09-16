@@ -650,9 +650,9 @@ int main(int argc, char * argv[]) {
       ojph::param_siz siz = codestream.access_siz();
       siz.set_image_extent(ojph::point(image_offset.x + tif.get_size().w,
         image_offset.y + tif.get_size().h));
-      int num_comps = tif.get_num_components();
+      ojph::ui32 num_comps = tif.get_num_components();
       siz.set_num_components(num_comps);
-      for (int c = 0; c < num_comps; ++c)
+      for (ojph::ui32 c = 0; c < num_comps; ++c)
         siz.set_component(c, tif.get_comp_subsampling(c),
           tif.get_bit_depth(c), tif.get_is_signed(c));
       siz.set_image_offset(image_offset);

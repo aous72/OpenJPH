@@ -393,37 +393,37 @@ namespace ojph {
       OJPH_ERROR(0x0300000B1, "Unable to open file %s", filename);
     fname = filename;
 
-    unsigned int tiff_width = 0;
-    unsigned int tiff_height = 0; 
+    ui32 tiff_width = 0;
+    ui32 tiff_height = 0; 
     TIFFGetField(tiff_handle, TIFFTAG_IMAGEWIDTH, &tiff_width);
     TIFFGetField(tiff_handle, TIFFTAG_IMAGELENGTH, &tiff_height);
 
-    unsigned short tiff_bits_per_sample = 0;
-    unsigned short tiff_samples_per_pixel = 0;
+    ui16 tiff_bits_per_sample = 0;
+    ui16 tiff_samples_per_pixel = 0;
     TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
     TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
     // some TIFs have tiff_samples_per_pixel=0 when it is a single channel image - set to 1
     tiff_samples_per_pixel = (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
 
-    unsigned short tiff_planar_configuration = 0;
-    unsigned short tiff_photometric = 0;
+    ui16 tiff_planar_configuration = 0;
+    ui16 tiff_photometric = 0;
     TIFFGetField(tiff_handle, TIFFTAG_PLANARCONFIG, &tiff_planar_configuration);
     TIFFGetField(tiff_handle, TIFFTAG_PHOTOMETRIC, &tiff_photometric);
 
     planar_configuration = tiff_planar_configuration;
 
-    unsigned short tiff_compression = 0;
-    unsigned int tiff_rows_per_strip = 0;
+    ui16 tiff_compression = 0;
+    ui32 tiff_rows_per_strip = 0;
     TIFFGetField(tiff_handle, TIFFTAG_COMPRESSION, &tiff_compression);
     TIFFGetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, &tiff_rows_per_strip);
 
     if (tiff_planar_configuration == PLANARCONFIG_SEPARATE)
     {
-      bytes_per_line = tiff_samples_per_pixel * TIFFScanlineSize(tiff_handle);
+      bytes_per_line = tiff_samples_per_pixel * TIFFScanlineSize64(tiff_handle);
     }
     else
     {
-      bytes_per_line = TIFFScanlineSize(tiff_handle);
+      bytes_per_line = TIFFScanlineSize64(tiff_handle);
     }
     // allocate linebuffer to hold a line of image data
     line_buffer = malloc(bytes_per_line);
@@ -494,9 +494,9 @@ namespace ojph {
         if (bytes_per_sample == 1)
         {
           TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8, cur_line, color);
-          unsigned int x = color;
+          ui32 x = color;
           uint8_t* line_buffer_of_interleaved_components = (uint8_t*)line_buffer;
-          for (int i = 0; i < width; i++, x += num_comps)
+          for (ui32 i = 0; i < width; i++, x += num_comps)
           {
             line_buffer_of_interleaved_components[x] = line_buffer_for_planar_support_uint8[i];
           }
@@ -504,9 +504,9 @@ namespace ojph {
         else if (bytes_per_sample == 2)
         {
           TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16, cur_line, color);
-          unsigned int x = color;
-          uint16_t* line_buffer_of_interleaved_components = (uint16_t*)line_buffer;
-          for (int i = 0; i < width; i++, x += num_comps)
+          ui32 x = color;
+          ui16* line_buffer_of_interleaved_components = (ui16*)line_buffer;
+          for (ui32 i = 0; i < width; i++, x += num_comps)
           {
             line_buffer_of_interleaved_components[x] = line_buffer_for_planar_support_uint16[i];
           }
@@ -528,14 +528,14 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)line_buffer + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp += num_comps)
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
         *dp++ = (si32)*sp;
     }
     else
     {
       const ui16* sp = (ui16*)line_buffer + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp += num_comps)
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
         *dp++ = (si32)*sp;
     }
 
@@ -593,7 +593,7 @@ namespace ojph {
     else if (num_components == 2)
     {
       TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
-      const uint16_t extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
       TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, &extra_samples_description);
     }
     else if (num_components == 3)
@@ -603,7 +603,7 @@ namespace ojph {
     else if (num_components == 4)
     {
       TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
-      const uint16_t extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
       TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, &extra_samples_description);
     }
       
@@ -615,8 +615,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void tif_out::configure(ui32 width, ui32 height, int num_components,
-    int bit_depth)
+  void tif_out::configure(ui32 width, ui32 height, ui32 num_components,
+    ui32 bit_depth)
   {
     assert(tiff_handle == NULL); //configure before opening
 
@@ -641,7 +641,7 @@ namespace ojph {
         int max_val = (1 << bit_depth) - 1;
         const si32* sp = line->i32;
         ui8* dp = buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -654,7 +654,7 @@ namespace ojph {
         int max_val = (1 << bit_depth) - 1;
         const si32* sp = line->i32;
         ui16* dp = (ui16*)buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -666,8 +666,7 @@ namespace ojph {
       // write scanline when the last component is reached 
       if (comp_num == num_components-1)
       {
-        int result = TIFFWriteScanline(tiff_handle, buffer,
-          cur_line++);
+        int result = TIFFWriteScanline(tiff_handle, buffer, cur_line++);
         if (result != 1)
           OJPH_ERROR(0x0300000C4, "error writing to file %s", fname);
       }

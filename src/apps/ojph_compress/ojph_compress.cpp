@@ -459,9 +459,9 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -i input file name (either pgm, ppm, tif, or yuv)\n"
+    " -i input file name (either pgm, ppm, tif, or yuv/raw)\n"
     #else
-    " -i input file name (either pgm, ppm, or yuv)\n"
+    " -i input file name (either pgm, ppm, or yuv/raw)\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     " -o output file name\n\n"
 
@@ -695,7 +695,7 @@ int main(int argc, char * argv[]) {
       base = &tif;
       }
       #endif /* OJPH_ENABLE_TIFF_SUPPORT */
-      else if (strncmp(".yuv", v, 4) == 0)
+      else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
       {
         ojph::param_siz siz = codestream.access_siz();
         if (dims.w == 0 || dims.h == 0)
@@ -748,7 +748,7 @@ int main(int argc, char * argv[]) {
           cod.set_color_transform(false);
         else
           OJPH_ERROR(0x01000031,
-            "we currently do not support color transform on yuv files."
+            "we currently do not support color transform on yuv/raw files."
             " In any case, this not a normal usage scenario.  The OpenJPH "
             "library however does support that, but ojph_compress.cpp must be "
             "modified to send all lines from one component before moving to "
@@ -766,7 +766,7 @@ int main(int argc, char * argv[]) {
       }
       else
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only (pgm, ppm, and yuv) are"
+          "unknown input file extension; only (pgm, ppm, and yuv/raw) are"
           " supported\n");
 
     }

@@ -114,10 +114,30 @@ namespace ojph {
     {
       if (melp->bits > 32)  //there are enough bits in the tmp variable
         return;             // return without reading new data
-      ui32 val = 0xFFFFFFFF;
-      //the next line (the if statement) needs to be tested first
-      //if (melp->size > 0)          // if there is data in the MEL segment
+
+      ui32 val = 0xFFFFFFFF;       // feed in 0xFF if buffer is exhausted
+      if (melp->size > 4) {        // if there is data in the MEL segment
         val = *(ui32*)melp->data;  // read 32 bits from MEL data
+        melp->data += 4;           // advance pointer
+        melp->size -= 4;           // reduce counter
+      }
+      else if (melp->size > 0)
+      { // 4 or less
+        int i = 0;
+        while (melp->size > 1) {   
+          ui32 v = *melp->data++;    // read one byte at a time
+          ui32 m = ~(0xFFu << i);    // mask of location
+          val = (val & m) | (v << i);// put one byte in its correct location
+          --melp->size;
+          i += 8;
+        }
+        // size equal to 1
+        ui32 v = *melp->data++;    // the one before the last is different 
+        v |= 0xF;                  // MEL and VLC segments can overlap
+        ui32 m = ~(0xFFu << i);
+        val = (val & m) | (v << i);
+        --melp->size;
+      }
       
       // next we unstuff them before adding them to the buffer
       int bits = 32 - melp->unstuff; // number of bits in val, subtract 1 if
@@ -126,39 +146,23 @@ namespace ojph {
 
       // data is unstuffed and accumulated in t
       // bits has the number of bits in t
-      ui32 t = (melp->size > 0) ? (val & 0xFF) : 0xFF; // feed 0xFF if the 
-                                      // MEL bitstream has been exhausted
-      if (melp->size == 1) t |= 0xF;  // if this is 1 byte before the last
-                                      // in MEL+VLC segments (remember they
-                                      // can overlap)
-      melp->data += melp->size-- > 0; // advance data by 1 byte if we have not
-                                      // reached the end of the MEL segment
-      bool unstuff = ((val & 0xFF) == 0xFF); // true if the byte
-                                             // needs unstuffing
-
+      ui32 t = val & 0xFF; 
+      bool unstuff = ((val & 0xFF) == 0xFF); // true if we need unstuffing
       bits -= unstuff; // there is one less bit in t if unstuffing is needed
       t = t << (8 - unstuff); // move up to make room for the next byte
 
       //this is a repeat of the above
-      t |= (melp->size > 0) ? ((val>>8) & 0xFF) : 0xFF;
-      if (melp->size == 1) t |= 0xF;
-      melp->data += melp->size-- > 0;
+      t |= (val>>8) & 0xFF;
       unstuff = (((val >> 8) & 0xFF) == 0xFF);
-
       bits -= unstuff;
       t = t << (8 - unstuff);
 
-      t |= (melp->size > 0) ? ((val>>16) & 0xFF) : 0xFF;
-      if (melp->size == 1) t |= 0xF;
-      melp->data += melp->size-- > 0;
+      t |= (val>>16) & 0xFF;
       unstuff = (((val >> 16) & 0xFF) == 0xFF);
-
       bits -= unstuff;
       t = t << (8 - unstuff);
 
-      t |= (melp->size > 0) ? ((val>>24) & 0xFF) : 0xFF;
-      if (melp->size == 1) t |= 0xF;
-      melp->data += melp->size-- > 0;
+      t |= (val>>24) & 0xFF;
       melp->unstuff = (((val >> 24) & 0xFF) == 0xFF);
 
       // move t to tmp, and push the result all the way up, so we read from
@@ -327,24 +331,22 @@ namespace ojph {
         return;             // reading 32 bits can overflow vlcp->tmp
       ui32 val = 0;
       //the next line (the if statement) needs to be tested first
-      if (vlcp->size > 0)  // if there are bytes left in the VLC segment
+      if (vlcp->size > 3)  // if there are more than 3 bytes left in VLC
       {
-        // We pad the data by 8 bytes at the beginning of the code stream 
-        // buffer
-        val = *(ui32*)vlcp->data; // then read 32 bits
+        // (vlcp->data - 3) move pointer back to read 32 bits at once
+        val = *(ui32*)(vlcp->data - 3); // then read 32 bits
         vlcp->data -= 4;          // move data pointer back by 4
         vlcp->size -= 4;          // reduce available byte by 4
-        
-        //because we read ahead of time, we might in fact exceed vlc size,
-        // but data should not be used if the codeblock is properly generated
-        //The mel code can in fact occupy zero length, if it has a small number
-        // of bits and these bits overlap with the VLC code
-        ////if test is alright, remove this
-        //// We pad the data by 8 bytes at the beginning of the code stream 
-        //// buffer
-        //if (vlcp->size < -4) 
-        //  OJPH_ERROR(0x00010001, "Error in reading VLC data: vlcp size %d "
-        //             "less than -4 before rev_read", vlcp->size);
+      }
+      else if (vlcp->size > 0)
+      { // 4 or less
+        int i = 24;
+        while (vlcp->size > 0) {   
+          ui32 v = *vlcp->data--; // read one byte at a time
+          val |= (v << i);        // put byte in its correct location
+          --vlcp->size;
+          i -= 8;
+        }
       }
 
       //accumulate in tmp, number of bits in tmp are stored in bits
@@ -403,7 +405,8 @@ namespace ojph {
       //This code is designed for an architecture that read address should
       // align to the read size (address multiple of 4 if read size is 4)
       //These few lines take care of the case where data is not at a multiple
-      // of 4 boundary. It reads 1,2,3 up to 4 bytes from the VLC bitstream
+      // of 4 boundary. It reads 1,2,3 up to 4 bytes from the VLC bitstream.
+      // To read 32 bits, read from (vlcp->data - 3)
       int num = 1 + (int)(intptr_t(vlcp->data) & 0x3);
       int tnum = num < vlcp->size ? num : vlcp->size;
       for (int i = 0; i < tnum; ++i) {
@@ -416,7 +419,6 @@ namespace ojph {
         vlcp->unstuff = d > 0x8F; // for next byte
       }
       vlcp->size -= tnum;
-      vlcp->data -= 3; // make ready to read 32 bits (address multiple of 4)
       rev_read(vlcp);  // read another 32 buts
     }
 
@@ -469,32 +471,40 @@ namespace ojph {
       if (mrp->bits > 32)
         return;
       ui32 val = 0;
-      //the next line (the if statement) needs to be tested first
-      //notice that second line can be simplified to mrp->data -= 4
-      // if (mrp->size > 0)
+      if (mrp->size > 3) // If there are 3 byte or more
+      { // (mrp->data - 3) move pointer back to read 32 bits at once
+        val = *(ui32*)(mrp->data - 3); // read 32 bits
+        mrp->data -= 4;                // move back pointer
+        mrp->size -= 4;                // reduce count
+      }
+      else if (mrp->size > 0)
       {
-        val = *(ui32*)mrp->data;            // read 32 bits
-        mrp->data -= mrp->size > 0 ? 4 : 0; // move back read pointer only if 
-                                            // there is data
+        int i = 24;
+        while (mrp->size > 0) {   
+          ui32 v = *mrp->data--; // read one byte at a time
+          val |= (v << i);       // put byte in its correct location
+          --mrp->size;
+          i -= 8;
+        }
       }
 
       //accumulate in tmp, and keep count in bits
-      ui32 tmp = (mrp->size-- > 0) ? (val >> 24) : 0; // fill zeros if all 
-      ui32 bits;                                       // bytes are used
+      ui32 bits, tmp = val >> 24;
+
       //test if the last byte > 0x8F (unstuff must be true) and this is 0x7F
       bits = 8 - ((mrp->unstuff && (((val >> 24) & 0x7F) == 0x7F)) ? 1 : 0);
       bool unstuff = (val >> 24) > 0x8F;
 
       //process the next byte
-      tmp |= (mrp->size-- > 0) ? (((val >> 16) & 0xFF) << bits) : 0;
+      tmp |= ((val >> 16) & 0xFF) << bits;
       bits += 8 - ((unstuff && (((val >> 16) & 0x7F) == 0x7F)) ? 1 : 0);
       unstuff = ((val >> 16) & 0xFF) > 0x8F;
 
-      tmp |= (mrp->size-- > 0) ? (((val >> 8) & 0xFF) << bits) : 0;
+      tmp |= ((val >> 8) & 0xFF) << bits;
       bits += 8 - ((unstuff && (((val >> 8) & 0x7F) == 0x7F)) ? 1 : 0);
       unstuff = ((val >> 8) & 0xFF) > 0x8F;
 
-      tmp |= (mrp->size-- > 0) ? ((val & 0xFF) << bits) : 0;
+      tmp |= (val & 0xFF) << bits;
       bits += 8 - ((unstuff && ((val & 0x7F) == 0x7F)) ? 1 : 0);
       unstuff = (val & 0xFF) > 0x8F;
 
@@ -541,7 +551,6 @@ namespace ojph {
         mrp->bits += d_bits;
         mrp->unstuff = d > 0x8F; // for next byte
       }
-      mrp->data -= 3; //make ready to read a 32 bits
       rev_read_mrp(mrp);
     }
 
@@ -876,26 +885,41 @@ namespace ojph {
     {
       assert(msp->bits <= 32); // assert that there is a space for 32 bits
 
-      ui32 val;
+      ui32 val = 0;
+      if (msp->size > 3) {
       val = *(ui32*)msp->data;            // read 32 bits
-      msp->data += msp->size > 0 ? 4 : 0; // move pointer if data is not 
-                                          // exhausted
+        msp->data += 4;           // increment pointer
+        msp->size -= 4;           // reduce size
+      }
+      else if (msp->size > 0)
+      {
+        int i = 0;
+        val = X != 0 ? 0xFFFFFFFFu : 0;
+        while (msp->size > 0) {   
+          ui32 v = *msp->data++;    // read one byte at a time
+          ui32 m = ~(0xFFu << i);    // mask of location
+          val = (val & m) | (v << i);// put one byte in its correct location
+          --msp->size;
+          i += 8;          
+        }
+      }
+      else
+        val = X != 0 ? 0xFFFFFFFFu : 0;
 
       // we accumulate in t and keep a count of the number of bits in bits
-      ui32 bits = 8 - msp->unstuff;        // if previous byte was 0xFF
-      // get next byte, if bitstream is exhausted, replace it with X
-      ui32 t = msp->size-- > 0 ? (val & 0xFF) : X;
+      ui32 bits = 8 - msp->unstuff;        
+      ui32 t = val & 0xFF;
       bool unstuff = ((val & 0xFF) == 0xFF);  // Do we need unstuffing next?
 
-      t |= (msp->size-- > 0 ? ((val >> 8) & 0xFF) : X) << bits;
+      t |= ((val >> 8) & 0xFF) << bits;
       bits += 8 - unstuff;
       unstuff = (((val >> 8) & 0xFF) == 0xFF);
 
-      t |= (msp->size-- > 0 ? ((val >> 16) & 0xFF) : X) << bits;
+      t |= ((val >> 16) & 0xFF) << bits;
       bits += 8 - unstuff;
       unstuff = (((val >> 16) & 0xFF) == 0xFF);
 
-      t |= (msp->size-- > 0 ? ((val >> 24) & 0xFF) : X) << bits;
+      t |= ((val >> 24) & 0xFF) << bits;
       bits += 8 - unstuff;
       msp->unstuff = (((val >> 24) & 0xFF) == 0xFF); // for next byte
 
@@ -1072,6 +1096,12 @@ namespace ojph {
       // There is a way to handle the case of p == 0, but a different path
       // is required
 
+      if (lengths1 < 2)
+      {
+        OJPH_WARN(0x00010006, "Wrong codeblock length.\n");
+        return false;
+      }
+
       // read scup and fix the bytes there
       int lcup, scup;
       lcup = (int)lengths1;  // length of CUP
@@ -1229,7 +1259,11 @@ namespace ojph {
         //decode uvlc_mode to get u for both quads
         ui32 consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_q);
         if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
+        {
+          OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is larger "
+                    "than missing_msbs + 1.\n");
           return false;
+        }
 
         //consume u bits in the VLC code
         vlc_val = rev_advance(&vlc, consumed_bits);
@@ -1243,6 +1277,14 @@ namespace ojph {
         ui32 locs = 0xFF;
         if (x + 4 > width) locs >>= (x + 4 - width) << 1; // limits width
         locs = height > 1 ? locs : (locs & 0x55);         // limits height
+
+        if ((((qinf[0] & 0xF0) >> 4) | (qinf[1] & 0xF0)) & ~locs)
+        {
+          OJPH_WARN(0x00010008, "Malformed codeblock bitstream. Decoded VLC "
+                    "code indicates that there are significant samples "
+                    "outside the codeblock area.\n");
+          return false;
+        }
 
         //first quad, starting at first sample in quad and moving on
         if (qinf[0] & 0x10) //is it signifcant? (sigma_n)
@@ -1496,7 +1538,11 @@ namespace ojph {
           }
 
           if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
+          {
+            OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is "
+                      "larger than missing_msbs + 1\n");
             return false;
+          }
 
           ls0 = lsp[2]; //for next double quad
           lsp[1] = lsp[2] = 0;
@@ -1511,6 +1557,13 @@ namespace ojph {
           if (x + 4 > width) locs >>= (x + 4 - width) << 1;
           locs = y + 2 <= height ? locs : (locs & 0x55);
 
+          if ((((qinf[0] & 0xF0) >> 4) | (qinf[1] & 0xF0)) & ~locs)
+          {
+            OJPH_WARN(0x00010008, "Malformed codeblock bitstream. Decoded VLC "
+                      "code indicates that there are significant samples "
+                      "outside the codeblock area.\n");
+            return false;
+          }
 
           if (qinf[0] & 0x10) //sigma_n
           {

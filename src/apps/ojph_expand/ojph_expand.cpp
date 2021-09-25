@@ -152,9 +152,9 @@ int main(int argc, char *argv[]) {
     "\nThe following arguments are necessary:\n"
     " -i input file name\n"
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -o output file name (either pgm, ppm, tif(f), or yuv/raw)\n\n"
+    " -o output file name (either pgm, ppm, tif(f), or raw(yuv))\n\n"
     #else
-    " -o output file name (either pgm, ppm, or yuv/raw)\n\n"
+    " -o output file name (either pgm, ppm, or raw(yuv))\n\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     "The following arguments are options:\n"
     " -skip_res  x,y a comma-separated list of two elements containing the\n"

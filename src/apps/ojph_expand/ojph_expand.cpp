@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
     "\nThe following arguments are necessary:\n"
     " -i input file name\n"
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -o output file name (either pgm, ppm, tif, or yuv/raw)\n\n"
+    " -o output file name (either pgm, ppm, tif(f), or yuv/raw)\n\n"
     #else
     " -o output file name (either pgm, ppm, or yuv/raw)\n\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
@@ -241,7 +241,7 @@ int main(int argc, char *argv[]) {
         base = &ppm;
       }
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0)
+      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 4) == 0)
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
@@ -255,7 +255,7 @@ int main(int argc, char *argv[]) {
         }
         if (!all_same)
           OJPH_ERROR(0x020000008,
-            "To save an image to tif, all the components must have the "
+            "To save an image to tif(f), all the components must have the "
             "downsampling ratio\n");
         tif.configure(siz.get_recon_width(0), siz.get_recon_height(0),
           siz.get_num_components(), siz.get_bit_depth(0));
@@ -271,13 +271,13 @@ int main(int argc, char *argv[]) {
         if (siz.get_num_components() != 3 && siz.get_num_components() != 1)
           OJPH_ERROR(0x020000004,
             "The file has %d color components; this cannot be saved to"
-             " a .yuv/raw file\n", siz.get_num_components());
+             " .raw(yuv) file\n", siz.get_num_components());
         ojph::param_cod cod = codestream.access_cod();
         if (cod.is_using_color_transform())
           OJPH_ERROR(0x020000005,
-            "The current implementation of yuv/raw file object does not "
-            "support saving a file when conversion from yuv/raw to rgb is needed; "
-            "In any case, this is not the normal usage of a yuv/raw file");
+            "The current implementation of raw(yuv) file object does not support"
+            " saving file when conversion from raw(yuv) to rgb is needed;"
+            "In any case, this is not the normal usage of raw(yuv) file");
         ojph::ui32 comp_widths[3];
         ojph::ui32 max_bit_depth = 0;
         for (ojph::ui32 i = 0; i < siz.get_num_components(); ++i)
@@ -293,9 +293,10 @@ int main(int argc, char *argv[]) {
       else
         OJPH_ERROR(0x020000006,
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
-          "unknown output file extension; only (pgm, ppm, tif and yuv/raw) are"
+          "unknown output file extension;"
+          "only (pgm, ppm, tif(f) and raw(yuv)) are"
       #else
-          "unknown output file extension; only (pgm, ppm, and yuv/raw) are"
+          "unknown output file extension; only (pgm, ppm, and raw(yuv)) are"
       #endif /*OJPH_ENABLE_TIFF_SUPPORT*/
           " supported\n");
     }

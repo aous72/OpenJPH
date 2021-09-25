@@ -459,7 +459,7 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -i input file name (either pgm, ppm, tif, or yuv)\n"
+    " -i input file name (either pgm, ppm, tif(f), or yuv)\n"
     #else
     " -i input file name (either pgm, ppm, or yuv)\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
@@ -644,7 +644,7 @@ int main(int argc, char * argv[]) {
         base = &ppm;
       }
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if ((strncmp(".tif", v, 4) == 0) || (strncmp("tiff", v, 4) == 0))
+      else if ((strncmp(".tif", v, 4) == 0) || (strncmp(".tiff", v, 4) == 0))
       {
       tif.open(input_filename);
       ojph::param_siz siz = codestream.access_siz();

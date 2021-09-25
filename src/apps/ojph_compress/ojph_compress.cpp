@@ -461,7 +461,7 @@ int main(int argc, char * argv[]) {
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
     " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
     #else
-    " -i input file name (either pgm, ppm, or raw(yuv)\n"
+    " -i input file name (either pgm, ppm, or raw(yuv))\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     " -o output file name\n\n"
 

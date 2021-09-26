@@ -135,7 +135,7 @@ bool get_arguments(int argc, char *argv[],
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + (len >= 4 ? len - 4 : 0);
+  return filename + (len == 10 ? len - 5 : (len == 9 ? len - 4 : 0));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -241,7 +241,7 @@ int main(int argc, char *argv[]) {
         base = &ppm;
       }
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 4) == 0)
+      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();

@@ -414,7 +414,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + (len == 10 ? len - 5 : (len == 9 ? len - 4 : 0));
+  return filename + (len == 13 ? len - 5 : (len == 21 ? len - 4 : 0));
 }
 
 //////////////////////////////////////////////////////////////////////////////

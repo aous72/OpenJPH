@@ -132,10 +132,15 @@ bool get_arguments(int argc, char *argv[],
 }
 
 /////////////////////////////////////////////////////////////////////////////
-const char *get_file_extension(const char *filename)
+const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
-  return filename + (len == 10 ? len - 5 : (len == 9 ? len - 4 : 0));
+  const char* p = strrchr(filename, '.');
+  if (p == NULL || p == filename + len - 1)
+    OJPH_ERROR(0x01000071,
+      "no file extension is found, or there are no characters "
+      "after the dot \'.\' for filename \"%s\" \n", filename);
+  return p;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -151,11 +156,11 @@ int main(int argc, char *argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     " -i input file name\n"
-    #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
     " -o output file name (either pgm, ppm, tif(f), or raw(yuv))\n\n"
-    #else
+#else
     " -o output file name (either pgm, ppm, or raw(yuv))\n\n"
-    #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     "The following arguments are options:\n"
     " -skip_res  x,y a comma-separated list of two elements containing the\n"
     "            number of resolutions to skip. You can specify 1 or 2\n"
@@ -240,7 +245,7 @@ int main(int argc, char *argv[]) {
         ppm.open(output_filename);
         base = &ppm;
       }
-      #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
       else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
       {
         codestream.set_planar(false);
@@ -262,7 +267,7 @@ int main(int argc, char *argv[]) {
         tif.open(output_filename);
         base = &tif;
       }
-      #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
       else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
       {
         codestream.set_planar(true);
@@ -275,9 +280,10 @@ int main(int argc, char *argv[]) {
         ojph::param_cod cod = codestream.access_cod();
         if (cod.is_using_color_transform())
           OJPH_ERROR(0x020000005,
-            "The current implementation of raw(yuv) file object does not support"
-            " saving file when conversion from raw(yuv) to rgb is needed;"
-            "In any case, this is not the normal usage of raw(yuv) file");
+            "The current implementation of raw(yuv) file object does not"
+            " support saving file when conversion from raw(yuv) to rgb is"
+            " needed; in any case, this is not the normal usage of raw(yuv)"
+            "file.");
         ojph::ui32 comp_widths[3];
         ojph::ui32 max_bit_depth = 0;
         for (ojph::ui32 i = 0; i < siz.get_num_components(); ++i)
@@ -291,15 +297,15 @@ int main(int argc, char *argv[]) {
         base = &yuv;
       }
       else
-      #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
         OJPH_ERROR(0x020000006,
-          "unknown output file extension; only (pgm, ppm, tif and yuv/raw) are"
-          " supported\n");
-      #else
+          "unknown output file extension; only pgm, ppm, tif(f) and yuv/raw)"
+          " are supported\n";
+#else
         OJPH_ERROR(0x020000006,
-          "unknown output file extension; only (pgm, ppm, and yuv/raw) are"
+          "unknown output file extension; only pgm, ppm, and yuv/raw are"
           " supported\n");
-      #endif /*OJPH_ENABLE_TIFF_SUPPORT*/
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     }
     else
       OJPH_ERROR(0x020000007,

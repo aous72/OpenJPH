@@ -411,10 +411,15 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 }
 
 /////////////////////////////////////////////////////////////////////////////
-const char *get_file_extension(const char *filename)
+const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
-  return filename + (len == 13 ? len - 5 : (len == 21 ? len - 4 : 0));
+  const char* p = strrchr(filename, '.');
+  if (p == NULL || p == filename + len - 1)
+    OJPH_ERROR(0x01000071,
+      "no file extension is found, or there are no characters "
+      "after the dot \'.\' for filename \"%s\" \n", filename);
+  return p;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -458,11 +463,11 @@ int main(int argc, char * argv[]) {
   if (argc <= 1) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
-    #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
     " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
-    #else
+#else
     " -i input file name (either pgm, ppm, or raw(yuv))\n"
-    #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     " -o output file name\n\n"
 
     "The following option has a default value (optional):\n"
@@ -536,9 +541,9 @@ int main(int argc, char * argv[]) {
 
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
-    #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
-    #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     ojph::image_in_base *base = NULL;
     if (input_filename == NULL)
       OJPH_ERROR(0x01000007, "please specify an input file name using"
@@ -651,58 +656,58 @@ int main(int argc, char * argv[]) {
 
         base = &ppm;
       }
-      #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
       else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
       {
-      tif.open(input_filename);
-      ojph::param_siz siz = codestream.access_siz();
-      siz.set_image_extent(ojph::point(image_offset.x + tif.get_size().w,
-        image_offset.y + tif.get_size().h));
-      ojph::ui32 num_comps = tif.get_num_components();
-      siz.set_num_components(num_comps);
-      for (ojph::ui32 c = 0; c < num_comps; ++c)
-        siz.set_component(c, tif.get_comp_subsampling(c),
-          tif.get_bit_depth(c), tif.get_is_signed(c));
-      siz.set_image_offset(image_offset);
-      siz.set_tile_size(tile_size);
-      siz.set_tile_offset(tile_offset);
+        tif.open(input_filename);
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + tif.get_size().w,
+          image_offset.y + tif.get_size().h));
+        ojph::ui32 num_comps = tif.get_num_components();
+        siz.set_num_components(num_comps);
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
+          siz.set_component(c, tif.get_comp_subsampling(c),
+            tif.get_bit_depth(c), tif.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
 
-      ojph::param_cod cod = codestream.access_cod();
-      cod.set_num_decomposition(num_decompositions);
-      cod.set_block_dims(block_size.w, block_size.h);
-      if (num_precincts != -1)
-        cod.set_precinct_size(num_precincts, precinct_size);
-      cod.set_progression_order(prog_order);
-      if (employ_color_transform == -1 && num_comps >= 3)
-        cod.set_color_transform(true);
-      else
-        cod.set_color_transform(employ_color_transform == 1);
-      cod.set_reversible(reversible);
-      if (!reversible && quantization_step != -1)
-        codestream.access_qcd().set_irrev_quant(quantization_step);
-      codestream.set_planar(false);
-      if (profile_string[0] != '\0')
-        codestream.set_profile(profile_string);
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1 && num_comps >= 3)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
 
-      if (dims.w != 0 || dims.h != 0)
-        OJPH_WARN(0x01000061,
-          "-dims option is not needed and was not used\n");
-      if (num_components != 0)
-        OJPH_WARN(0x01000062,
-          "-num_comps is not needed and was not used\n");
-      if (is_signed[0] != -1)
-        OJPH_WARN(0x01000063,
-          "-signed is not needed and was not used\n");
-      if (bit_depth[0] != 0)
-        OJPH_WARN(0x01000064,
-          "-bit_depth is not needed and was not used\n");
-      if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-        OJPH_WARN(0x01000065,
-          "-downsamp is not needed and was not used\n");
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000061,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000062,
+            "-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          OJPH_WARN(0x01000063,
+            "-signed is not needed and was not used\n");
+        if (bit_depth[0] != 0)
+          OJPH_WARN(0x01000064,
+            "-bit_depth is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000065,
+            "-downsamp is not needed and was not used\n");
 
-      base = &tif;
+        base = &tif;
       }
-      #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
       else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
       {
         ojph::param_siz siz = codestream.access_siz();
@@ -756,7 +761,7 @@ int main(int argc, char * argv[]) {
           cod.set_color_transform(false);
         else
           OJPH_ERROR(0x01000031,
-            "we currently do not support color transform on raw(yuv) files."
+            "We currently do not support color transform on raw(yuv) files."
             " In any case, this not a normal usage scenario.  The OpenJPH "
             "library however does support that, but ojph_compress.cpp must be "
             "modified to send all lines from one component before moving to "
@@ -773,10 +778,15 @@ int main(int argc, char * argv[]) {
         base = &yuv;
       }
       else
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only (pgm, ppm, and raw(yuv)) are"
+          "unknown input file extension; only pgm, ppm, tif(f), or"
+          " raw(yuv) are supported\n");
+#else
+        OJPH_ERROR(0x01000041,
+          "unknown input file extension; only pgm, ppm, and raw(yuv)) are"
           " supported\n");
-
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     }
     else
       OJPH_ERROR(0x01000051,

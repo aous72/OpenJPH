@@ -887,7 +887,7 @@ namespace ojph {
 
       ui32 val = 0;
       if (msp->size > 3) {
-      val = *(ui32*)msp->data;            // read 32 bits
+        val = *(ui32*)msp->data;  // read 32 bits
         msp->data += 4;           // increment pointer
         msp->size -= 4;           // reduce size
       }

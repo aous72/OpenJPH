@@ -3488,7 +3488,7 @@ namespace ojph {
               }
             }
 
-            if (mmsbs >= cp->Kmax)
+            if (mmsbs > cp->Kmax)
               throw "error in parsing a tile header; "
               "missing msbs are larger or equal to Kmax. The most likely "
               "cause is a corruption in the bitstream.";

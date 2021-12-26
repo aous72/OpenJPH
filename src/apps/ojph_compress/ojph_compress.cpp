@@ -414,7 +414,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 const char *get_file_extension(const char *filename)
 {
   size_t len = strlen(filename);
-  return filename + (len >= 4 ? len - 4 : 0);
+  return filename + (len == 13 ? len - 5 : (len == 21 ? len - 4 : 0));
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -459,9 +459,9 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
     #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -i input file name (either pgm, ppm, tif, or yuv/raw)\n"
+    " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
     #else
-    " -i input file name (either pgm, ppm, or yuv/raw)\n"
+    " -i input file name (either pgm, ppm, or raw(yuv))\n"
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     " -o output file name\n\n"
 
@@ -652,7 +652,7 @@ int main(int argc, char * argv[]) {
         base = &ppm;
       }
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if ((strncmp(".tif", v, 4) == 0) || (strncmp("tiff", v, 4) == 0))
+      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
       {
       tif.open(input_filename);
       ojph::param_siz siz = codestream.access_siz();
@@ -756,7 +756,7 @@ int main(int argc, char * argv[]) {
           cod.set_color_transform(false);
         else
           OJPH_ERROR(0x01000031,
-            "we currently do not support color transform on yuv/raw files."
+            "we currently do not support color transform on raw(yuv) files."
             " In any case, this not a normal usage scenario.  The OpenJPH "
             "library however does support that, but ojph_compress.cpp must be "
             "modified to send all lines from one component before moving to "
@@ -774,7 +774,7 @@ int main(int argc, char * argv[]) {
       }
       else
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only (pgm, ppm, and yuv/raw) are"
+          "unknown input file extension; only (pgm, ppm, and raw(yuv)) are"
           " supported\n");
 
     }

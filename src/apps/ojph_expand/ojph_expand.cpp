@@ -299,18 +299,17 @@ int main(int argc, char *argv[]) {
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
         OJPH_ERROR(0x020000006,
-          "unknown output file extension; only pgm, ppm, tif(f) and yuv/raw)"
-          " are supported\n";
+          "unknown output file extension; only pgm, ppm, tif(f) and raw(yuv))"
+          " are supported\n");
 #else
         OJPH_ERROR(0x020000006,
-          "unknown output file extension; only pgm, ppm, and yuv/raw are"
+          "unknown output file extension; only pgm, ppm, and raw(yuv) are"
           " supported\n");
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     }
     else
       OJPH_ERROR(0x020000007,
-        "Please supply a proper output filename with a proper three-letter"
-        " extension\n");
+        "Please supply a proper output filename with a proper extension\n");
 
     codestream.create();
 

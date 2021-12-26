@@ -170,7 +170,8 @@ namespace ojph {
 
       bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
       is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
-      subsampling[3] = subsampling[2] = subsampling[1] = subsampling[0] = point(1, 1);
+      subsampling[3] = subsampling[2] = point(1, 1);
+      subsampling[1] = subsampling[0] = point(1, 1);
     }
     virtual ~tif_in()
     {
@@ -185,7 +186,13 @@ namespace ojph {
 
     void open(const char* filename);
     virtual ui32 read(const line_buf* line, ui32 comp_num);
-    void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
+    void close() { 
+      if (tiff_handle) { 
+        TIFFClose(tiff_handle); 
+        tiff_handle = NULL; 
+      } 
+      fname = NULL; 
+    }
 
     size get_size() { assert(tiff_handle); return size(width, height); }
     ui32 get_num_components() { assert(tiff_handle); return num_comps; }
@@ -378,7 +385,13 @@ namespace ojph {
     void configure(ui32 width, ui32 height, ui32 num_components,
       ui32 bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
-    virtual void close() { if (tiff_handle) { TIFFClose(tiff_handle); tiff_handle = NULL; } fname = NULL; }
+    virtual void close() { 
+      if (tiff_handle) { 
+        TIFFClose(tiff_handle); 
+        tiff_handle = NULL; 
+      } 
+      fname = NULL; 
+    }
 
   private:
     TIFF* tiff_handle;

@@ -1215,7 +1215,7 @@ namespace ojph {
       ui16 us[9 * 512] = {0};       // 9 kB
 
       //scratch stride is a multiple of 8 + 1
-      ui32 sstr = ((((width + 1) >> 1) + 7) & ~7u) + 1;
+      si32 sstr = ((((width + 1) >> 1) + 7) & ~7u) + 1;
 
       // step 1 decoding VLC and MEL segments
       {

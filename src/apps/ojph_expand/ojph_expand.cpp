@@ -291,13 +291,15 @@ int main(int argc, char *argv[]) {
         base = &yuv;
       }
       else
-        OJPH_ERROR(0x020000006,
       #ifdef OJPH_ENABLE_TIFF_SUPPORT
+        OJPH_ERROR(0x020000006,
           "unknown output file extension; only (pgm, ppm, tif and yuv/raw) are"
-      #else
-          "unknown output file extension; only (pgm, ppm, and yuv/raw) are"
-      #endif /*OJPH_ENABLE_TIFF_SUPPORT*/
           " supported\n");
+      #else
+        OJPH_ERROR(0x020000006,
+          "unknown output file extension; only (pgm, ppm, and yuv/raw) are"
+          " supported\n");
+      #endif /*OJPH_ENABLE_TIFF_SUPPORT*/
     }
     else
       OJPH_ERROR(0x020000007,

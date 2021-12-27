@@ -121,7 +121,7 @@ namespace ojph {
     {
       close();
       OJPH_ERROR(0x030000005, "wrong file extension, a file with keyword P6 "
-        "must have a .pgm extension fir file %s", filename);
+        "must have a .ppm extension fir file %s", filename);
     }
 
     // set number of components based on file-type

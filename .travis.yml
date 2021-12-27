@@ -1,0 +1,7 @@
+---
+language: cpp
+compiler:
+  - clang
+  - gcc
+
+script: cd build && cmake -DBUILD_TESTING=ON .. && make && make test

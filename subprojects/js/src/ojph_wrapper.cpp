@@ -100,7 +100,7 @@ void cpp_release_j2c_data(j2k_struct* j2c)
 signed int* cpp_pull_j2c_line(j2k_struct* j2c)
 {
   try {
-    int comp_num;
+    ojph::ui32 comp_num;
     ojph::line_buf *line = j2c->codestream.pull(comp_num);
     return line->i32;
   }

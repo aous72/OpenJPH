@@ -95,6 +95,7 @@ namespace ojph {
       OJPH_ERROR(0x030000001, "Unable to open file %s", filename);
     fname = filename;
 
+    // read magic number
     char t[2];
     if (fread(t, 1, 2, fh) != 2)
     {
@@ -102,6 +103,7 @@ namespace ojph {
       OJPH_ERROR(0x030000002, "Error reading file %s", filename);
     }
 
+    // check magic number
     if (t[0] != 'P' || (t[1] != '5' && t[1] != '6'))
     {
       close();
@@ -122,9 +124,11 @@ namespace ojph {
         "must have a .ppm extension fir file %s", filename);
     }
 
+    // set number of components based on file-type
     num_comps = t[1] == '5' ? 1 : 3;
     eat_white_spaces(fh);
 
+    // read width, height and max value in header
     if (fscanf(fh, "%d %d %d", &width, &height, &max_val) != 3)
     {
       close();
@@ -132,11 +136,12 @@ namespace ojph {
     }
     num_ele_per_line = num_comps * width;
     bytes_per_sample = max_val > 255 ? 2 : 1;
-    max_val_num_bits = 32 - count_leading_zeros(max_val);
+    max_val_num_bits = 32u - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
     fgetc(fh);
     start_of_data = ojph_ftell(fh);
 
+    // allocate linebuffer to hold a line of image data
     if (temp_buf_byte_size < num_comps * width * bytes_per_sample)
     {
       if (alloc_p == NULL)
@@ -170,14 +175,14 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
-  int ppm_in::read(const line_buf* line, int comp_num)
+  ui32 ppm_in::read(const line_buf* line, ui32 comp_num)
   {
     assert(temp_buf_byte_size != 0 && fh != 0 && comp_num < num_comps);
-    assert((int)line->size >= width);
+    assert(line->size >= width);
 
     if (planar || comp_num == 0)
     {
-      int result = (int)fread(
+      size_t result = fread(
         temp_buf, bytes_per_sample, num_ele_per_line, fh);
       if (result != num_ele_per_line)
       {
@@ -195,14 +200,14 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)temp_buf + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp+=num_comps)
+      for (ui32 i = width; i > 0; --i, sp+=num_comps)
         *dp++ = (si32)*sp;
     }
     else
     {
       const ui16* sp = (ui16*)temp_buf + comp_num;
       si32* dp = line->i32;
-      for (int i = width; i > 0; --i, sp+=num_comps)
+      for (ui32 i = width; i > 0; --i, sp+=num_comps)
         *dp++ = (si32)be2le(*sp);
     }
 
@@ -278,8 +283,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void ppm_out::configure(ui32 width, ui32 height, int num_components,
-                          int bit_depth)
+  void ppm_out::configure(ui32 width, ui32 height, ui32 num_components,
+                          ui32 bit_depth)
   {
     assert(fh == NULL); //configure before opening
     if (num_components != 1 && num_components != 3)
@@ -295,7 +300,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int ppm_out::write(const line_buf* line, int comp_num)
+  ui32 ppm_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(fh);
     if (num_components == 1)
@@ -307,7 +312,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui8* dp = buffer;
-        for (int i = width; i > 0; --i)
+        for (ui32 i = width; i > 0; --i)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -320,7 +325,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui16* dp = (ui16*)buffer;
-        for (int i = width; i > 0; --i)
+        for (ui32 i = width; i > 0; --i)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -340,7 +345,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui8* dp = buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += 3)
+        for (ui32 i = width; i > 0; --i, dp += 3)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -353,7 +358,7 @@ namespace ojph {
         int max_val = (1<<bit_depth) - 1;
         const si32 *sp = line->i32;
         ui16* dp = (ui16*)buffer + comp_num;
-        for (int i = width; i > 0; --i, dp += 3)
+        for (ui32 i = width; i > 0; --i, dp += 3)
         {
           int val = *sp++;
           val = val >= 0 ? val : 0;
@@ -363,7 +368,7 @@ namespace ojph {
       }
       if (comp_num == 2)
       {
-        int result = (int)fwrite(buffer,
+        size_t result = fwrite(buffer,
                                bytes_per_sample, samples_per_line, fh);
         if (result != samples_per_line)
           OJPH_ERROR(0x030000042, "error writing to file %s", fname);
@@ -371,6 +376,338 @@ namespace ojph {
     }
     return 0;
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+ //
+ //
+ //
+ //
+ //
+ ////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
+ /////////////////////////////////////////////////////////////////////////////
+  void tif_in::open(const char* filename)
+  {
+    tiff_handle = NULL;
+    if ((tiff_handle = TIFFOpen(filename, "r")) == NULL)
+      OJPH_ERROR(0x0300000B1, "Unable to open file %s", filename);
+    fname = filename;
+
+    ui32 tiff_width = 0;
+    ui32 tiff_height = 0; 
+    TIFFGetField(tiff_handle, TIFFTAG_IMAGEWIDTH, &tiff_width);
+    TIFFGetField(tiff_handle, TIFFTAG_IMAGELENGTH, &tiff_height);
+
+    ui16 tiff_bits_per_sample = 0;
+    ui16 tiff_samples_per_pixel = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
+    TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
+    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel image - set to 1
+    tiff_samples_per_pixel = (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
+
+    ui16 tiff_planar_configuration = 0;
+    ui16 tiff_photometric = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_PLANARCONFIG, &tiff_planar_configuration);
+    TIFFGetField(tiff_handle, TIFFTAG_PHOTOMETRIC, &tiff_photometric);
+
+    planar_configuration = tiff_planar_configuration;
+
+    ui16 tiff_compression = 0;
+    ui32 tiff_rows_per_strip = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_COMPRESSION, &tiff_compression);
+    TIFFGetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, &tiff_rows_per_strip);
+
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE)
+    {
+      bytes_per_line = tiff_samples_per_pixel * TIFFScanlineSize64(tiff_handle);
+    }
+    else
+    {
+      bytes_per_line = TIFFScanlineSize64(tiff_handle);
+    }
+    // allocate linebuffer to hold a line of image data
+    line_buffer = malloc(bytes_per_line);
+    if (NULL == line_buffer)
+      OJPH_ERROR(0x0300000B2, "Unable to allocate %d bytes for line_buffer[] "
+        "for file %s", bytes_per_line, filename);
+      
+    cur_line = 0;
+
+    // Error on known incompatilbe input formats
+    if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 )
+    {
+      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited to file limited"
+        " to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \n"
+        "input file = %s has TIFFTAG_BITSPERSAMPLE=%d", 
+        filename, tiff_bits_per_sample);
+    }
+
+    if( TIFFIsTiled( tiff_handle ) )
+    {
+      OJPH_ERROR(0x0300000B4, "\nTIFF IO is currently limited to TIF files "
+        "without tiles. \nInput file %s has been detected as tiled", filename);
+    }
+
+    if(PHOTOMETRIC_RGB != tiff_photometric && 
+       PHOTOMETRIC_MINISBLACK != tiff_photometric )
+    {
+      OJPH_ERROR(0x0300000B5, "\nTIFF IO is currently limited to "
+        "TIFFTAG_PHOTOMETRIC=PHOTOMETRIC_MINISBLACK=%d and "
+        "PHOTOMETRIC_RGB=%d. \nInput file %s has been detected "
+        "TIFFTAG_PHOTOMETRIC=%d", 
+      PHOTOMETRIC_MINISBLACK, PHOTOMETRIC_RGB, filename, tiff_photometric);
+    }
+
+    if( tiff_samples_per_pixel > 4 )
+    {
+      OJPH_ERROR(0x0300000B6, "\nTIFF IO is currently limited to "
+        "TIFFTAG_SAMPLESPERPIXEL=4 \nInput file %s has been detected with "
+        "TIFFTAG_SAMPLESPERPIXEL=%d",
+        filename, tiff_samples_per_pixel);
+    }
+
+    // set number of components based on tiff_samples_per_pixel
+    width = tiff_width;
+    height = tiff_height;
+    num_comps = tiff_samples_per_pixel;
+    bytes_per_sample = (tiff_bits_per_sample + 7) / 8;
+    for (ui32 comp_num = 0; comp_num < num_comps; comp_num++)
+      bit_depth[comp_num] = tiff_bits_per_sample;
+
+    // allocate intermediate linebuffers to hold a line of a single component 
+    // of image data
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && 
+        bytes_per_sample == 1)
+    {
+      line_buffer_for_planar_support_uint8 = 
+        (uint8_t*)calloc(width, sizeof(uint8_t));
+      if (NULL == line_buffer_for_planar_support_uint8)
+        OJPH_ERROR(0x0300000B7, "Unable to allocate %d bytes for "
+          "line_buffer_for_planar_support_uint8[] for file %s", 
+          width * sizeof(uint8_t), filename);
+    }
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && 
+        bytes_per_sample == 2)
+    {
+      line_buffer_for_planar_support_uint16 = 
+        (uint16_t*)calloc(width, sizeof(uint16_t));
+      if (NULL == line_buffer_for_planar_support_uint16)
+        OJPH_ERROR(0x0300000B8, "Unable to allocate %d bytes for "
+          "line_buffer_for_planar_support_uint16[] for file %s", 
+          width * sizeof(uint16_t), filename);
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////////////////////////
+  ui32 tif_in::read(const line_buf* line, ui32 comp_num)
+  {
+    assert(bytes_per_line != 0 && tiff_handle != 0 && comp_num < num_comps);
+    assert((ui32)line->size >= width);
+
+    // do a read from the file if this is the first component and therefore 
+    // the first time trying to access this line
+    if (PLANARCONFIG_SEPARATE == planar_configuration && 0 == comp_num )
+    {
+      for (unsigned short color = 0; color < num_comps; color++)
+      {
+        if (bytes_per_sample == 1)
+        {
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8, 
+            cur_line, color);
+          ui32 x = color;
+          uint8_t* line_buffer_of_interleaved_components = 
+            (uint8_t*)line_buffer;
+          for (ui32 i = 0; i < width; i++, x += num_comps)
+          {
+            line_buffer_of_interleaved_components[x] = 
+              line_buffer_for_planar_support_uint8[i];
+          }
+        }
+        else if (bytes_per_sample == 2)
+        {
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16, 
+            cur_line, color);
+          ui32 x = color;
+          ui16* line_buffer_of_interleaved_components = (ui16*)line_buffer;
+          for (ui32 i = 0; i < width; i++, x += num_comps)
+          {
+            line_buffer_of_interleaved_components[x] = 
+              line_buffer_for_planar_support_uint16[i];
+          }
+        }
+      }
+      cur_line++;
+      
+    }
+    else if (planar_configuration == PLANARCONFIG_CONTIG && 0 == comp_num)
+    {
+      TIFFReadScanline(tiff_handle, line_buffer, cur_line++);
+    }
+    if (cur_line >= height)
+    {
+      cur_line = 0;
+    }
+
+    if (bytes_per_sample == 1)
+    {
+      const ui8* sp = (ui8*)line_buffer + comp_num;
+      si32* dp = line->i32;
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
+        *dp++ = (si32)*sp;
+    }
+    else
+    {
+      const ui16* sp = (ui16*)line_buffer + comp_num;
+      si32* dp = line->i32;
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
+        *dp++ = (si32)*sp;
+    }
+
+    return width;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_out::open(char* filename)
+  {
+    // Error on known incompatilbe output formats
+    if (bit_depth != 8 && bit_depth != 16)
+    {
+      OJPH_ERROR(0x0300000C2, "TIFF IO is currently limited to files with "
+        "TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16, the source "
+        "codestream has bit_depth=%d", filename, bit_depth);
+    }
+    if (num_components > 4)
+    {
+      OJPH_ERROR(0x0300000C3, "TIFF IO is currently limited to files with "
+        "num_components=1 to 4");
+    }
+
+    assert(tiff_handle == NULL && buffer == NULL);
+    if ((tiff_handle = TIFFOpen(filename, "w")) == NULL)
+    {
+      OJPH_ERROR(0x0300000C1, "unable to open file %s for writing", filename);
+    }
+
+    buffer_size = width * num_components * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+    fname = filename;
+    cur_line = 0;
+
+    // set tiff fields
+
+    // Write the tiff tags to the file
+    TIFFSetField(tiff_handle, TIFFTAG_IMAGEWIDTH, width);
+    TIFFSetField(tiff_handle, TIFFTAG_IMAGELENGTH, height);
+
+    TIFFSetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, bit_depth);
+    TIFFSetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, num_components);
+
+    planar_configuration = PLANARCONFIG_CONTIG;
+    TIFFSetField(tiff_handle, TIFFTAG_PLANARCONFIG, planar_configuration);
+
+    if (num_components == 1)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+    }
+    else if (num_components == 2)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+      // possible values are EXTRASAMPLE_UNSPECIFIED = 0; 
+      // EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; 
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, 
+        &extra_samples_description);
+    }
+    else if (num_components == 3)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+    }
+    else if (num_components == 4)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+      // possible values are EXTRASAMPLE_UNSPECIFIED = 0; 
+      // EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; 
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, 
+        &extra_samples_description);
+    }
+      
+    TIFFSetField(tiff_handle, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+    TIFFSetField(tiff_handle, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
+    //TIFFSetField(tiff_handle, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
+    TIFFSetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, height);
+    
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_out::configure(ui32 width, ui32 height, ui32 num_components,
+    ui32 bit_depth)
+  {
+    assert(tiff_handle == NULL); //configure before opening
+
+    this->width = width;
+    this->height = height;
+    this->num_components = num_components;
+    this->bit_depth = bit_depth;
+
+    bytes_per_sample = 1 + (bit_depth > 8 ? 1 : 0);
+    samples_per_line = num_components * width;
+    bytes_per_line = bytes_per_sample * samples_per_line;
+
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 tif_out::write(const line_buf* line, ui32 comp_num)
+  {
+    assert(tiff_handle);
+    
+    if (bit_depth <= 8)
+      {
+        int max_val = (1 << bit_depth) - 1;
+        const si32* sp = line->i32;
+        ui8* dp = buffer + comp_num;
+        for (ui32 i = width; i > 0; --i, dp += num_components)
+        {
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          *dp = (ui8)val;
+        }
+      }
+      else
+      {
+        int max_val = (1 << bit_depth) - 1;
+        const si32* sp = line->i32;
+        ui16* dp = (ui16*)buffer + comp_num;
+        for (ui32 i = width; i > 0; --i, dp += num_components)
+        {
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          *dp = (ui16)val;
+        }
+      }
+      
+      // write scanline when the last component is reached 
+      if (comp_num == num_components-1)
+      {
+        int result = TIFFWriteScanline(tiff_handle, buffer, cur_line++);
+        if (result != 1)
+          OJPH_ERROR(0x0300000C4, "error writing to file %s", fname);
+      }
+    return 0;
+  }
+  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -391,11 +728,11 @@ namespace ojph {
     //need to extract info from filename
 
     assert(num_com == 1 || num_com == 3);
-    for (int i = 0; i < num_com; ++i)
+    for (ui32 i = 0; i < num_com; ++i)
       bytes_per_sample[i] = bit_depth[i] > 8 ? 2 : 1;
-    int max_byte_width = width[0] * bytes_per_sample[0];
+    ui32 max_byte_width = width[0] * bytes_per_sample[0];
     comp_address[0] = 0;
-    for (int i = 1; i < num_com; ++i)
+    for (ui32 i = 1; i < num_com; ++i)
     {
       comp_address[i] = comp_address[i - 1];
       comp_address[i] += width[i-1] * height[i-1] * bytes_per_sample[i-1];
@@ -406,10 +743,10 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int yuv_in::read(const line_buf* line, int comp_num)
+  ui32 yuv_in::read(const line_buf* line, ui32 comp_num)
   {
     assert(comp_num < num_com);
-    int result = (int)fread(temp_buf, bytes_per_sample[comp_num],
+    size_t result = fread(temp_buf, bytes_per_sample[comp_num],
                           width[comp_num], fh);
     if (result != width[comp_num])
     {
@@ -421,14 +758,14 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)temp_buf;
       si32* dp = line->i32;
-      for (int i = width[comp_num]; i > 0; --i, ++sp)
+      for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
         *dp++ = (si32)*sp;
     }
     else
     {
       const ui16* sp = (ui16*)temp_buf;
       si32* dp = line->i32;
-      for (int i = width[comp_num]; i > 0; --i, ++sp)
+      for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
         *dp++ = (si32)*sp;
     }
 
@@ -436,8 +773,8 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_in::set_img_props(const size& s, int num_components,
-                             int num_downsamplings, const point *subsampling)
+  void yuv_in::set_img_props(const size& s, ui32 num_components,
+                             ui32 num_downsamplings, const point *subsampling)
   {
     if (num_components != 1 && num_components !=3)
       OJPH_ERROR(0x03000071, "yuv_in support 1 or 3 components");
@@ -446,8 +783,8 @@ namespace ojph {
     if (num_downsamplings < 1)
       OJPH_ERROR(0x03000072, "one or more downsampling must be provided");
 
-    int last_downsamp_idx = 0;
-    for (int i = 0; i < num_components; ++i)
+    ui32 last_downsamp_idx = 0;
+    for (ui32 i = 0; i < num_components; ++i)
     {
       point cp_ds = subsampling[i<num_downsamplings ? i : last_downsamp_idx];
       last_downsamp_idx += last_downsamp_idx + 1 < num_downsamplings ? 1 : 0;
@@ -455,7 +792,7 @@ namespace ojph {
       this->subsampling[i] = cp_ds;
     }
 
-    for (int i = 0; i < num_components; ++i)
+    for (ui32 i = 0; i < num_components; ++i)
     {
       width[i] = ojph_div_ceil(s.w, this->subsampling[i].x);
       height[i] = ojph_div_ceil(s.h, this->subsampling[i].y);
@@ -463,25 +800,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_in::set_bit_depth(int num_bit_depths, int* bit_depth)
+  void yuv_in::set_bit_depth(ui32 num_bit_depths, ui32* bit_depth)
   {
     if (num_bit_depths < 1)
       OJPH_ERROR(0x03000081, "one or more bit_depths must be provided");
-    int last_bd_idx = 0;
-    for (int i = 0; i < 3; ++i)
+    ui32 last_bd_idx = 0;
+    for (ui32 i = 0; i < 3; ++i)
     {
-      int bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
+      ui32 bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
       last_bd_idx += last_bd_idx + 1 < num_bit_depths ? 1 : 0;
 
       this->bit_depth[i] = bd;
     }
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  size yuv_in::get_comp_size(int c)
-  {
-    assert(c < num_com);
-    return size(width[c], height[c]);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -520,35 +850,15 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_out::configure(int image_x_extent, int image_x_offset,
-                          int bit_depth, int num_components,
-                          point *downsampling)
-  {
-    assert(fh == NULL);
-    this->width = image_x_extent - image_x_offset;
-    this->num_components = num_components;
-    this->bit_depth = bit_depth;
-    this->comp_width = new ui32[num_components];
-    ui32 tw = 0;
-    for (int i = 0; i < num_components; ++i)
-    {
-      this->comp_width[i] = ojph_div_ceil(image_x_extent, downsampling[i].x)
-                          - ojph_div_ceil(image_x_offset, downsampling[i].x);
-      tw = ojph_max(tw, this->comp_width[i]);
-    }
-    buffer_size = tw * (bit_depth > 8 ? 2 : 1);
-    buffer = (ui8*)malloc(buffer_size);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  void yuv_out::configure(int bit_depth, int num_components, ui32* comp_width)
+  void yuv_out::configure(ui32 bit_depth, ui32 num_components, 
+                          ui32* comp_width)
   {
     assert(fh == NULL);
     this->num_components = num_components;
     this->bit_depth = bit_depth;
     this->comp_width = new ui32[num_components];
     ui32 tw = 0;
-    for (int i = 0; i < num_components; ++i)
+    for (ui32 i = 0; i < num_components; ++i)
     {
       this->comp_width[i] = comp_width[i];
       tw = ojph_max(tw, this->comp_width[i]);
@@ -559,39 +869,39 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int yuv_out::write(const line_buf* line, int comp_num)
+  ui32 yuv_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(fh);
     assert(comp_num < num_components);
 
     int max_val = (1<<bit_depth) - 1;
-    int w = comp_width[comp_num];
+    ui32 w = comp_width[comp_num];
     if (bit_depth > 8)
     {
       const si32 *sp = line->i32;
       ui16 *dp = (ui16 *)buffer;
-      for (int i = w; i > 0; --i)
+      for (ui32 i = w; i > 0; --i)
       {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
         *dp++ = (ui16)val;
       }
-      if ((int)fwrite(buffer, 2, w, fh) != w)
+      if (fwrite(buffer, 2, w, fh) != w)
         OJPH_ERROR(0x030000A1, "unable to write to file %s", fname);
     }
     else
     {
       const si32 *sp = line->i32;
       ui8 *dp = (ui8 *)buffer;
-      for (int i = w; i > 0; --i)
+      for (ui32 i = w; i > 0; --i)
       {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
         *dp++ = (ui8)val;
       }
-      if ((int)fwrite(buffer, 1, w, fh) != w)
+      if (fwrite(buffer, 1, w, fh) != w)
         OJPH_ERROR(0x030000A2, "unable to write to file %s", fname);
     }
 

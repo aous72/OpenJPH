@@ -157,7 +157,7 @@ namespace ojph {
         if (cptr != store) delete[] cptr;
       }
 
-      void set_num_components(int num_comps)
+      void set_num_components(ui32 num_comps)
       {
         Csiz = (ui16)num_comps;
         if (Csiz > old_Csiz)
@@ -170,8 +170,8 @@ namespace ojph {
         memset(cptr, 0, sizeof(local::siz_comp_info) * num_comps);
       }
 
-      void set_comp_info(si32 comp_num, const point& downsampling,
-                         si32 bit_depth, bool is_signed)
+      void set_comp_info(ui32 comp_num, const point& downsampling,
+                         ui32 bit_depth, bool is_signed)
       {
         assert(comp_num < Csiz);
         assert(downsampling.x != 0 && downsampling.y != 0);
@@ -196,17 +196,17 @@ namespace ojph {
       }
 
       ui16 get_num_components() const { return Csiz; }
-      si32 get_bit_depth(si32 comp_num) const
+      ui32 get_bit_depth(ui32 comp_num) const
       {
         assert(comp_num < Csiz);
-        return (cptr[comp_num].SSiz & 0x7F) + 1;
+        return (cptr[comp_num].SSiz & 0x7F) + 1u;
       }
-      bool is_signed(si32 comp_num) const
+      bool is_signed(ui32 comp_num) const
       {
         assert(comp_num < Csiz);
         return (cptr[comp_num].SSiz & 0x80) != 0;
       }
-      point get_downsampling(si32 comp_num) const
+      point get_downsampling(ui32 comp_num) const
       {
         assert(comp_num < Csiz);
         return point(cptr[comp_num].XRsiz, cptr[comp_num].YRsiz);
@@ -215,32 +215,32 @@ namespace ojph {
       bool write(outfile_base *file);
       void read(infile_base *file);
 
-      void set_skipped_resolutions(int skipped_resolutions)
+      void set_skipped_resolutions(ui32 skipped_resolutions)
       {
         this->skipped_resolutions = skipped_resolutions;
       }
-      ui32 get_width(int comp_num) const
+      ui32 get_width(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
         ui32 ds = (ui32)cptr[comp_num].XRsiz;
         ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
         return t;
       }
-      ui32 get_height(int comp_num) const
+      ui32 get_height(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
         ui32 ds = (ui32)cptr[comp_num].YRsiz;
         ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
         return t;
       }
-      ui32 get_recon_width(int comp_num) const
+      ui32 get_recon_width(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
         ui32 ds = (ui32)cptr[comp_num].XRsiz * (1u << skipped_resolutions);
         ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
         return t;
       }
-      ui32 get_recon_height(int comp_num) const
+      ui32 get_recon_height(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
         ui32 ds = (ui32)cptr[comp_num].YRsiz * (1u << skipped_resolutions);
@@ -263,7 +263,7 @@ namespace ojph {
       siz_comp_info* cptr;
 
     private:
-      int skipped_resolutions;
+      ui32 skipped_resolutions;
       int old_Csiz;
       siz_comp_info store[4];
       param_siz(const param_siz&) = delete; //prevent copy constructor
@@ -302,11 +302,15 @@ namespace ojph {
     struct param_cod
     {
       friend ::ojph::param_cod;
+      enum BLOCK_CODING_STYLES {
+        VERT_CAUSAL_MODE = 0x8,
+        HT_MODE = 0x40
+      };
     public:
       param_cod()
       {
         memset(this, 0, sizeof(param_cod));
-        SPcod.block_style = 0x40;
+        SPcod.block_style = HT_MODE;
         SGCod.prog_order = 2;
         SGCod.num_layers = 1;
         SGCod.mc_trans = 0;
@@ -341,7 +345,7 @@ namespace ojph {
         {
           bool test = false;
           point p = siz.get_downsampling(0);
-          for (int i = 1; i < 3; ++i)
+          for (ui32 i = 1; i < 3; ++i)
           {
             point p1 = siz.get_downsampling(i);
             test = test || (p.x != p1.x || p.y != p1.y);
@@ -355,8 +359,8 @@ namespace ojph {
         //check the progression order matches downsampling
         if (SGCod.prog_order == 2 || SGCod.prog_order == 3)
         {
-          int num_comps = siz.get_num_components();
-          for (int i = 0; i < num_comps; ++i)
+          ui32 num_comps = siz.get_num_components();
+          for (ui32 i = 0; i < num_comps; ++i)
           {
             point r = siz.get_downsampling(i);
             if (r.x & (r.x - 1) || r.y & (r.y - 1))
@@ -379,14 +383,14 @@ namespace ojph {
       { return (SGCod.mc_trans == 1); }
       size get_log_block_dims() const
       { return size(SPcod.block_width + 2, SPcod.block_height + 2); }
-      size get_precinct_size(int res_num) const
+      size get_precinct_size(ui32 res_num) const
       {
         size t = get_log_precinct_size(res_num);
         t.w = 1 << t.w;
         t.h = 1 << t.h;
         return t;
       }
-      size get_log_precinct_size(int res_num) const
+      size get_log_precinct_size(ui32 res_num) const
       {
         assert(res_num <= SPcod.num_decomp);
         size ps(15, 15);
@@ -434,7 +438,7 @@ namespace ojph {
       }
 
       void set_delta(float delta) { base_delta = delta; }
-      void set_rev_quant(int bit_depth, bool is_employing_color_transform);
+      void set_rev_quant(ui32 bit_depth, bool is_employing_color_transform);
       void set_irrev_quant();
 
       void check_validity(const param_siz& siz, const param_cod& cod)
@@ -442,24 +446,28 @@ namespace ojph {
         num_decomps = cod.get_num_decompositions();
         if (cod.is_reversible())
         {
-          int bit_depth = 0;
-          for (int i = 0; i < siz.get_num_components(); ++i)
+          ui32 bit_depth = 0;
+          for (ui32 i = 0; i < siz.get_num_components(); ++i)
             bit_depth = ojph_max(bit_depth, siz.get_bit_depth(i));
           set_rev_quant(bit_depth, cod.is_employing_color_transform());
         }
         else
         {
-          if (base_delta == -1.0f)
-            base_delta = 1.0f /
-              (float)(1 << (siz.get_bit_depth(0) + siz.is_signed(0)));
+          if (base_delta == -1.0f) {
+            ui32 bit_depth = 0;
+            for (ui32 i = 0; i < siz.get_num_components(); ++i)
+              bit_depth =
+                ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
+            base_delta = 1.0f / (float)(1 << bit_depth);
+          }
           set_irrev_quant();
          }
       }
 
-      int get_num_guard_bits() const;
-      int get_MAGBp() const;
-      int get_Kmax(int resolution, int subband) const;
-      float irrev_get_delta(int resolution, int subband) const;
+      ui32 get_num_guard_bits() const;
+      ui32 get_MAGBp() const;
+      ui32 get_Kmax(ui32 resolution, ui32 subband) const;
+      float irrev_get_delta(ui32 resolution, ui32 subband) const;
 
       bool write(outfile_base *file);
       void read(infile_base *file);
@@ -472,7 +480,7 @@ namespace ojph {
         ui8 u8_SPqcd[97];
         ui16 u16_SPqcd[97];
       };
-      int num_decomps;
+      ui32 num_decomps;
       float base_delta;
     };
 
@@ -485,13 +493,13 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct param_qcc : public param_qcd
     {
-      friend ::ojph::param_qcc;
+      //friend ::ojph::param_qcc;
     public:
       param_qcc() : param_qcd()
       { comp_idx = 0; }
 
       ui16 get_comp_num() { return comp_idx; }
-      void read(infile_base *file, int num_comps);
+      void read(infile_base *file, ui32 num_comps);
 
     protected:
         ui16 comp_idx;
@@ -521,8 +529,8 @@ namespace ojph {
         else
           Ccap[0] |= 0x0020;
         Ccap[0] &= 0xFFE0;
-        int Bp = 0;
-        int B = qcd.get_MAGBp();
+        ui32 Bp = 0;
+        ui32 B = qcd.get_MAGBp();
         if (B <= 8)
           Bp = 0;
         else if (B < 28)
@@ -531,7 +539,7 @@ namespace ojph {
           Bp = 13 + (B >> 2);
         else
           Bp = 31;
-        Ccap[0] |= (ui16)Bp;
+        Ccap[0] = (ui16)(Ccap[0] | (ui16)Bp);
       }
 
       bool write(outfile_base *file);
@@ -598,7 +606,7 @@ namespace ojph {
 
     public:
       param_tlm() { pairs = NULL; num_pairs = 0; next_pair_index = 0; };
-      void init(int num_pairs, Ttlm_Ptlm_pair* store);
+      void init(ui32 num_pairs, Ttlm_Ptlm_pair* store);
 
       void set_next_pair(ui16 Ttlm, ui32 Ptlm);
       bool write(outfile_base *file);
@@ -608,8 +616,8 @@ namespace ojph {
       ui8 Ztlm;
       ui8 Stlm;
       Ttlm_Ptlm_pair* pairs;
-      int num_pairs;
-      int next_pair_index;
+      ui32 num_pairs;
+      ui32 next_pair_index;
       
     };
   }

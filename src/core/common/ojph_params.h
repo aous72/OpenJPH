@@ -70,10 +70,10 @@ namespace ojph {
     OJPH_EXPORT
     void set_tile_offset(point offset);
     OJPH_EXPORT
-    void set_num_components(int num_comps);
+    void set_num_components(ui32 num_comps);
     OJPH_EXPORT
-    void set_component(int comp_num, const point& downsampling,
-                       int bit_depth, bool is_signed);
+    void set_component(ui32 comp_num, const point& downsampling,
+                       ui32 bit_depth, bool is_signed);
 
     //getters
     OJPH_EXPORT
@@ -85,19 +85,19 @@ namespace ojph {
     OJPH_EXPORT
     point get_tile_offset() const;
     OJPH_EXPORT
-    si32 get_num_components() const;
+    ui32 get_num_components() const;
     OJPH_EXPORT
-    si32 get_bit_depth(si32 comp_num) const;
+    ui32 get_bit_depth(ui32 comp_num) const;
     OJPH_EXPORT
-    bool is_signed(si32 comp_num) const;
+    bool is_signed(ui32 comp_num) const;
     OJPH_EXPORT
-    point get_downsampling(si32 comp_num) const;
+    point get_downsampling(ui32 comp_num) const;
 
     //deeper getters
     OJPH_EXPORT
-    ui32 get_recon_width(int comp_num) const;
+    ui32 get_recon_width(ui32 comp_num) const;
     OJPH_EXPORT
-    ui32 get_recon_height(int comp_num) const;
+    ui32 get_recon_height(ui32 comp_num) const;
 
   private:
     local::param_siz* state;
@@ -113,7 +113,7 @@ namespace ojph {
     OJPH_EXPORT
     void set_num_decomposition(ui32 num_decompositions);
     OJPH_EXPORT
-    void set_block_dims(int width, int height);
+    void set_block_dims(ui32 width, ui32 height);
     OJPH_EXPORT
     void set_precinct_size(int num_levels, size* precinct_size);
     OJPH_EXPORT
@@ -124,7 +124,7 @@ namespace ojph {
     void set_reversible(bool reversible);
 
     OJPH_EXPORT
-    int get_num_decompositions() const;
+    ui32 get_num_decompositions() const;
     OJPH_EXPORT
     size get_block_dims() const;
     OJPH_EXPORT
@@ -132,9 +132,9 @@ namespace ojph {
     OJPH_EXPORT
     bool is_reversible() const;
     OJPH_EXPORT
-    size get_precinct_size(int level_num) const;
+    size get_precinct_size(ui32 level_num) const;
     OJPH_EXPORT
-    size get_log_precinct_size(int level_num) const;
+    size get_log_precinct_size(ui32 level_num) const;
     OJPH_EXPORT
     int get_progression_order() const;
     OJPH_EXPORT
@@ -147,6 +147,8 @@ namespace ojph {
     bool packets_may_use_sop() const;
     OJPH_EXPORT
     bool packets_use_eph() const;
+    OJPH_EXPORT
+    bool get_block_vertical_causality() const;
 
   private:
     local::param_cod* state;
@@ -167,15 +169,15 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_qcc
-  {
-  public:
-    OJPH_EXPORT
-    param_qcc(local::param_qcc* p) : state(p) {}
+  //class param_qcc
+  //{
+  //public:
+  //  OJPH_EXPORT
+  //  param_qcc(local::param_qcc* p) : state(p) {}
 
-  private:
-    local::param_qcc* state;
-  };
+  //private:
+  //  local::param_qcc* state;
+  //};
 
 }
 

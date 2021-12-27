@@ -24,6 +24,6 @@ endif()
 
 if (BUILD_TEST)
 else()
-    set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXTRA_EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
+    set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 endif()
 

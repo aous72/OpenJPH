@@ -67,12 +67,12 @@ namespace ojph {
   #endif
 
   /////////////////////////////////////////////////////////////////////////////
-  static inline int population_count(ui32 val)
+  static inline ui32 population_count(ui32 val)
   {
   #ifdef OJPH_COMPILER_MSVC
-    return __popcnt(val);
+    return (ui32)__popcnt(val);
   #elif (defined OJPH_COMPILER_GNUC)
-    return __builtin_popcount(val);
+    return (ui32)__builtin_popcount(val);
   #else
     val -= ((val >> 1) & 0x55555555);
     val = (((val >> 2) & 0x33333333) + (val & 0x33333333));
@@ -87,14 +87,14 @@ namespace ojph {
 #ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanReverse)
 #endif
-  static inline int count_leading_zeros(ui32 val)
+  static inline ui32 count_leading_zeros(ui32 val)
   {
   #ifdef OJPH_COMPILER_MSVC
     unsigned long result = 0;
     _BitScanReverse(&result, val);
-    return 31 ^ (int)result;
+    return 31 ^ (ui32)result;
   #elif (defined OJPH_COMPILER_GNUC)
-    return __builtin_clz(val);
+    return (ui32)__builtin_clz(val);
   #else
     val |= (val >> 1);
     val |= (val >> 2);
@@ -109,14 +109,14 @@ namespace ojph {
 #ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanForward)
 #endif
-  static inline int count_trailing_zeros(ui32 val)
+  static inline ui32 count_trailing_zeros(ui32 val)
   {
   #ifdef OJPH_COMPILER_MSVC
     unsigned long result = 0;
     _BitScanForward(&result, val);
-    return (int)result;
+    return (ui32)result;
   #elif (defined OJPH_COMPILER_GNUC)
-    return __builtin_ctz(val);
+    return (ui32)__builtin_ctz(val);
   #else
     val |= (val << 1);
     val |= (val << 2);
@@ -154,9 +154,9 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // constants
   ////////////////////////////////////////////////////////////////////////////
-  const int byte_alignment = 32; //32 bytes == 256 bits
-  const int log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
-  const int object_alignment = 8;
+  const ui32 byte_alignment = 32; //32 bytes == 256 bits
+  const ui32  log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+  const ui32 object_alignment = 8;
 
   ////////////////////////////////////////////////////////////////////////////
   // templates for alignment

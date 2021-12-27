@@ -79,7 +79,7 @@ namespace ojph {
     OJPH_EXPORT
     void write_headers(outfile_base *file);
     OJPH_EXPORT
-    line_buf* exchange(line_buf* line, int& next_component);
+    line_buf* exchange(line_buf* line, ui32& next_component);
     OJPH_EXPORT
     void flush();
 
@@ -88,12 +88,12 @@ namespace ojph {
     OJPH_EXPORT
     void read_headers(infile_base *file); // before resolution restrictions
     OJPH_EXPORT
-    void restrict_input_resolution(int skipped_res_for_data, 
-      int skipped_res_for_recon);         // before create
+    void restrict_input_resolution(ui32 skipped_res_for_data,
+      ui32 skipped_res_for_recon);         // before create
     OJPH_EXPORT
     void create(); 
     OJPH_EXPORT
-    line_buf* pull(int &comp_num);
+    line_buf* pull(ui32 &comp_num);
 
     OJPH_EXPORT
     void close();

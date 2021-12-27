@@ -53,7 +53,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
       __m256 shift = _mm256_set1_ps(0.5f);
       __m256 m = _mm256_set1_ps(mul);
@@ -69,7 +69,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
       __m256 m = _mm256_set1_ps(mul);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
@@ -83,7 +83,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
       __m256 shift = _mm256_set1_ps(0.5f);
       __m256 m = _mm256_set1_ps(mul);
@@ -99,7 +99,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
       __m256 m = _mm256_set1_ps(mul);
       for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
@@ -113,7 +113,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat)
+                         float *y, float *cb, float *cr, ui32 repeat)
     {
       __m256 alpha_rf = _mm256_set1_ps(CT_CNST::ALPHA_RF);
       __m256 alpha_gf = _mm256_set1_ps(CT_CNST::ALPHA_GF);
@@ -138,7 +138,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void avx_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat)
+                          float *r, float *g, float *b, ui32 repeat)
     {
       __m256 gamma_cr2g = _mm256_set1_ps(CT_CNST::GAMMA_CR2G);
       __m256 gamma_cb2g = _mm256_set1_ps(CT_CNST::GAMMA_CB2G);

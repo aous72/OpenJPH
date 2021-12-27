@@ -84,14 +84,14 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz::set_num_components(int num_comps)
+  void param_siz::set_num_components(ui32 num_comps)
   {
     state->set_num_components(num_comps);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_siz::set_component(int comp_num, const point& downsampling,
-                                  int bit_depth, bool is_signed)
+  void param_siz::set_component(ui32 comp_num, const point& downsampling,
+                                ui32 bit_depth, bool is_signed)
   {
     state->set_comp_info(comp_num, downsampling, bit_depth, is_signed);
   }
@@ -121,37 +121,37 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  si32 param_siz::get_num_components() const
+  ui32 param_siz::get_num_components() const
   {
     return state->Csiz;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  si32 param_siz::get_bit_depth(si32 comp_num) const
+  ui32 param_siz::get_bit_depth(ui32 comp_num) const
   {
     return state->get_bit_depth(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_siz::is_signed(si32 comp_num) const
+  bool param_siz::is_signed(ui32 comp_num) const
   {
     return state->is_signed(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  point param_siz::get_downsampling(si32 comp_num) const
+  point param_siz::get_downsampling(ui32 comp_num) const
   {
     return state->get_downsampling(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  ui32 param_siz::get_recon_width(int comp_num) const
+  ui32 param_siz::get_recon_width(ui32 comp_num) const
   {
     return state->get_recon_width(comp_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  ui32 param_siz::get_recon_height(int comp_num) const
+  ui32 param_siz::get_recon_height(ui32 comp_num) const
   {
     return state->get_recon_height(comp_num);
   }
@@ -174,12 +174,12 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_cod::set_block_dims(int width, int height)
+  void param_cod::set_block_dims(ui32 width, ui32 height)
   {
-    int log_width = 31 - count_leading_zeros(width);
-    int log_height = 31 - count_leading_zeros(height);
-    if (width == 0 || width != (1<<log_width)
-      || height == 0 || height != (1<<log_height)
+    ui32 log_width = 31 - count_leading_zeros(width);
+    ui32 log_height = 31 - count_leading_zeros(height);
+    if (width == 0 || width != (1u << log_width)
+      || height == 0 || height != (1u << log_height)
       || log_width < 2 || log_height < 2
       || log_width + log_height > 12)
       OJPH_ERROR(0x00050011, "incorrect code block dimensions");
@@ -199,11 +199,11 @@ namespace ojph {
       {
         size t = precinct_size[i < num_levels ? i : num_levels - 1];
 
-        int PPx = 31 - count_leading_zeros(t.w);
-        int PPy = 31 - count_leading_zeros(t.h);
+        ui32 PPx = 31 - count_leading_zeros(t.w);
+        ui32 PPy = 31 - count_leading_zeros(t.h);
         if (t.w == 0 || t.h == 0)
           OJPH_ERROR(0x00050021, "precinct width or height cannot be 0");
-        if (t.w != (1<<PPx) || t.h != (1<<PPy))
+        if (t.w != (1u<<PPx) || t.h != (1u<<PPy))
           OJPH_ERROR(0x00050022,
             "precinct width and height should be a power of 2");
         if (PPx > 15 || PPy > 15)
@@ -255,7 +255,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  int param_cod::get_num_decompositions() const
+  ui32 param_cod::get_num_decompositions() const
   {
     return state->get_num_decompositions();
   }
@@ -279,15 +279,15 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod::get_precinct_size(int res_num) const
+  size param_cod::get_precinct_size(ui32 level_num) const
   {
-    return state->get_precinct_size(res_num);
+    return state->get_precinct_size(level_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_cod::get_log_precinct_size(int res_num) const
+  size param_cod::get_log_precinct_size(ui32 level_num) const
   {
-    return state->get_log_precinct_size(res_num);
+    return state->get_log_precinct_size(level_num);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -338,6 +338,12 @@ namespace ojph {
     return state->packets_use_eph();
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_cod::get_block_vertical_causality() const
+  {
+    return (state->SPcod.block_style & local::param_cod::VERT_CAUSAL_MODE)!=0;
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -374,7 +380,10 @@ namespace ojph {
     static inline
     ui32 swap_byte(ui32 t)
     {
-      return (swap_byte((ui16)(t&0xFFFF))<<16) | swap_byte((ui16)(t>>16));
+      ui32 u = swap_byte((ui16)(t & 0xFFFFu));
+      u <<= 16;
+      u |= swap_byte((ui16)(t >> 16));
+      return u;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -390,9 +399,9 @@ namespace ojph {
     class sqrt_energy_gains
     {
     public:
-      static float get_gain_l(int num_decomp, bool reversible)
+      static float get_gain_l(ui32 num_decomp, bool reversible)
       { return reversible ? gain_5x3_l[num_decomp] : gain_9x7_l[num_decomp]; }
-      static float get_gain_h(int num_decomp, bool reversible)
+      static float get_gain_h(ui32 num_decomp, bool reversible)
       { return reversible ? gain_5x3_h[num_decomp] : gain_9x7_h[num_decomp]; }
 
     private:
@@ -441,9 +450,9 @@ namespace ojph {
     class bibo_gains
     {
     public:
-      static float get_bibo_gain_l(int num_decomp, bool reversible)
+      static float get_bibo_gain_l(ui32 num_decomp, bool reversible)
       { return reversible ? gain_5x3_l[num_decomp] : gain_9x7_l[num_decomp]; }
-      static float get_bibo_gain_h(int num_decomp, bool reversible)
+      static float get_bibo_gain_h(ui32 num_decomp, bool reversible)
       { return reversible ? gain_5x3_h[num_decomp] : gain_9x7_h[num_decomp]; }
 
     private:
@@ -502,7 +511,7 @@ namespace ojph {
       //marker size excluding header
       Lsiz = (ui16)(38 + 3 * Csiz);
 
-      char buf[4];
+      ui8 buf[4];
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::SIZ;
@@ -644,7 +653,7 @@ namespace ojph {
       if (file->read(&Pcap, 4) != 4)
         OJPH_ERROR(0x00050062, "error reading CAP marker");
       Pcap = swap_byte(Pcap);
-      int count = population_count(Pcap);
+      ui32 count = population_count(Pcap);
       if (Pcap & 0xFFFDFFFF)
         OJPH_ERROR(0x00050063,
           "error Pcap in CAP has options that are not supported");
@@ -652,7 +661,7 @@ namespace ojph {
         OJPH_ERROR(0x00050064,
           "error Pcap should have its 15th MSB set, Pcap^15. "
           " This is not a JPH file");
-      for (int i = 0; i < count; ++i)
+      for (ui32 i = 0; i < count; ++i)
         if (file->read(Ccap+i, 2) != 2)
           OJPH_ERROR(0x00050065, "error reading CAP marker");
       if (Lcap != 6 + 2 * count)
@@ -674,7 +683,7 @@ namespace ojph {
       Lcod = 12;
       Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
-      char buf[4];
+      ui8 buf[4];
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::COD;
@@ -748,26 +757,26 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_rev_quant(int bit_depth,
+    void param_qcd::set_rev_quant(ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
       Sqcd = (ui8)(guard_bits << 5); //one guard bit, and no quantization
-      int B = bit_depth;
+      ui32 B = bit_depth;
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       //we leave some leeway for numerical error by multiplying by 1.1f
-      int X = (int) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
+      ui32 X = (ui32) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
       u8_SPqcd[s++] = (ui8)((B + X) << 3);
-      for (int d = num_decomps - 1; d >= 0; --d)
+      for (ui32 d = num_decomps; d > 0; --d)
       {
-        float bibo_l = bibo_gains::get_bibo_gain_l(d + 1, true);
-        float bibo_h = bibo_gains::get_bibo_gain_h(d, true);
-        X = (int) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
+        float bibo_l = bibo_gains::get_bibo_gain_l(d, true);
+        float bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
+        X = (ui32) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
-        X = (int) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
+        X = (ui32) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
       }
     }
@@ -788,10 +797,10 @@ namespace ojph {
       mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
       mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
       u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
-      for (int d = num_decomps - 1; d >= 0; --d)
+      for (ui32 d = num_decomps; d > 0; --d)
       {
-        float gain_l = sqrt_energy_gains::get_gain_l(d + 1, false);
-        float gain_h = sqrt_energy_gains::get_gain_h(d, false);
+        float gain_l = sqrt_energy_gains::get_gain_l(d, false);
+        float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
         delta_b = base_delta / (gain_l * gain_h);
 
@@ -815,17 +824,17 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd::get_MAGBp() const
+    ui32 param_qcd::get_MAGBp() const
     { //this can be written better, but it is only executed once
-      int B = 0;
+      ui32 B = 0;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible
-        for (int i = 0; i < 3 * num_decomps + 1; ++i)
-          B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1);
+        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
+          B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1u);
       else if (irrev == 2) //scalar expounded
-        for (int i = 0; i < 3 * num_decomps + 1; ++i)
+        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
         {
-          int nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
+          ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
           B = ojph_max(B, (u16_SPqcd[i] >> 11) + get_num_guard_bits() - nb);
         }
       else
@@ -835,14 +844,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd::irrev_get_delta(int resolution, int subband) const
+    float param_qcd::irrev_get_delta(ui32 resolution, ui32 subband) const
     {
       assert((resolution == 0 && subband == 0) ||
              (resolution <= num_decomps && subband > 0 && subband<4));
       assert((Sqcd & 0x1F) == 2);
       float arr[] = { 1.0f, 2.0f, 2.0f, 4.0f };
 
-      int idx = ojph_max(resolution - 1, 0) * 3 + subband;
+      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
       mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
@@ -852,21 +861,26 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd::get_num_guard_bits() const
+    ui32 param_qcd::get_num_guard_bits() const
     {
       return (Sqcd >> 5);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_qcd::get_Kmax(int resolution, int subband) const
+    ui32 param_qcd::get_Kmax(ui32 resolution, ui32 subband) const
     {
       assert((resolution == 0 && subband == 0) ||
              (resolution <= num_decomps && subband > 0 && subband<4));
-      int num_bits = get_num_guard_bits();
-      int idx = ojph_max(resolution - 1, 0) * 3 + subband;
+      ui32 num_bits = get_num_guard_bits();
+      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible; this is (10.22) from the J2K book
-        num_bits = ojph_max(0, (u8_SPqcd[idx] >> 3) + num_bits - 1);
+      {
+        num_bits += u8_SPqcd[idx] >> 3;
+        num_bits = num_bits == 0 ? 0 : num_bits - 1;
+      }
+      else if (irrev == 1)
+        assert(0);
       else if (irrev == 2) //scalar expounded
         num_bits += (u16_SPqcd[idx] >> 11) - 1;
       else
@@ -879,7 +893,7 @@ namespace ojph {
     bool param_qcd::write(outfile_base *file)
     {
       int irrev = Sqcd & 0x1F;
-      int num_subbands = 1 + 3 * num_decomps;
+      ui32 num_subbands = 1 + 3 * num_decomps;
 
       //marker size excluding header
       Lqcd = 3;
@@ -902,13 +916,13 @@ namespace ojph {
       result &= file->write(&buf, 1) == 1;
 
       if (irrev == 0)
-        for (int i = 0; i < num_subbands; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           *(ui8*)buf = u8_SPqcd[i];
           result &= file->write(&buf, 1) == 1;
         }
       else if (irrev == 2)
-        for (int i = 0; i < num_subbands; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           *(ui16*)buf = swap_byte(u16_SPqcd[i]);
           result &= file->write(&buf, 2) == 2;
@@ -932,13 +946,15 @@ namespace ojph {
         num_decomps = (Lqcd - 4) / 3;
         if (Lqcd != 4 + 3 * num_decomps)
           OJPH_ERROR(0x00050083, "wrong Lqcd value in QCD marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x00050084, "error reading QCD marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        num_decomps = -1;
+        num_decomps = 0;
+        OJPH_ERROR(0x00050089, 
+          "Scalar derived quantization is not supported yet in QCD marker");
         if (Lqcd != 5)
           OJPH_ERROR(0x00050085, "wrong Lqcd value in QCD marker");
       }
@@ -947,7 +963,7 @@ namespace ojph {
         num_decomps = (Lqcd - 5) / 6;
         if (Lqcd != 5 + 6 * num_decomps)
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x00050087, "error reading QCD marker");
@@ -967,7 +983,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcc::read(infile_base *file, int num_comps)
+    void param_qcc::read(infile_base *file, ui32 num_comps)
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x000500A1, "error reading QCC marker");
@@ -989,28 +1005,30 @@ namespace ojph {
         OJPH_ERROR(0x000500A4, "error reading QCC marker");
       if ((Sqcd & 0x1F) == 0)
       {
-        int offset = num_comps < 257 ? 5 : 6;
+        ui32 offset = num_comps < 257 ? 5 : 6;
         num_decomps = (Lqcd - offset) / 3;
         if (Lqcd != offset + 3 * num_decomps)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x000500A6, "error reading QCC marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        int offset = num_comps < 257 ? 6 : 7;
-        num_decomps = -1;
+        ui32 offset = num_comps < 257 ? 6 : 7;
+        num_decomps = 0;
+        OJPH_ERROR(0x000500AB, 
+          "Scalar derived quantization is not supported yet in QCC marker");
         if (Lqcd != offset)
           OJPH_ERROR(0x000500A7, "wrong Lqcc value in QCC marker");
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        int offset = num_comps < 257 ? 6 : 7;
+        ui32 offset = num_comps < 257 ? 6 : 7;
         num_decomps = (Lqcd - offset) / 6;
         if (Lqcd != offset + 6 * num_decomps)
-          OJPH_ERROR(0x000500A8, "wrong Lqcd value in QCC marker");
-        for (int i = 0; i < 1 + 3 * num_decomps; ++i)
+          OJPH_ERROR(0x000500A8, "wrong Lqcc value in QCC marker");
+        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
@@ -1018,7 +1036,7 @@ namespace ojph {
         }
       }
       else
-        OJPH_ERROR(0x000500AA, "wrong Sqcd value in QCC marker");
+        OJPH_ERROR(0x000500AA, "wrong Sqcc value in QCC marker");
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1161,7 +1179,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_tlm::init(int num_pairs, Ttlm_Ptlm_pair *store)
+    void param_tlm::init(ui32 num_pairs, Ttlm_Ptlm_pair *store)
     {
       this->num_pairs = num_pairs;
       pairs = (Ttlm_Ptlm_pair*)store;
@@ -1193,7 +1211,7 @@ namespace ojph {
       result &= file->write(&buf, 2) == 2;
       result &= file->write(&Ztlm, 1) == 1;
       result &= file->write(&Stlm, 1) == 1;
-      for (int i = 0; i < num_pairs; ++i)
+      for (ui32 i = 0; i < num_pairs; ++i)
       {
         *(ui16*)buf = swap_byte(pairs[i].Ttlm);
         result &= file->write(&buf, 2) == 2;

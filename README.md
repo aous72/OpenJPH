@@ -93,6 +93,23 @@ To compile for platforms where x86_64 SIMD instructions are not supported, such 
 
 As I do not have an ARM board, I tested this using QEMU for aarch64 architecture, targeting a Cortex-A57 CPU. The code worked without issues, but because the ARM platform is emulated, the whole process was slow.
 
+# Compiling and Running in Docker #
+
+## Step 1 - clone repository   
+`https://github.com/aous72/OpenJPH.git`
+
+## Step 2 - build docker image  
+`cd OpenJPH`   
+`docker build --rm -f Dockerfile -t openjph:latest .`
+
+## Step 3 - run docker image
+
+### in isolated container   
+`docker run -it --rm openjph:latest`
+
+### mapping /usr/src/openjph/build directory in the container to local windows c:\temp
+`docker run -it --rm -v C:\\temp:/usr/src/openjph/build openjph:latest`
+
 # Usage Example #
 
 Here are some usage examples:

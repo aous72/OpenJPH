@@ -47,51 +47,51 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_si32_shftd)
-      (const si32 *sp, si32 *dp, int shift, int width)
+      (const si32 *sp, si32 *dp, int shift, ui32 width)
       = gen_cnvrt_si32_to_si32_shftd;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float_shftd)
-      (const si32 *sp, float *dp, float mul, int width)
+      (const si32 *sp, float *dp, float mul, ui32 width)
       = gen_cnvrt_si32_to_float_shftd;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float)
-      (const si32 *sp, float *dp, float mul, int width)
+      (const si32 *sp, float *dp, float mul, ui32 width)
       = gen_cnvrt_si32_to_float;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32_shftd)
-      (const float *sp, si32 *dp, float mul, int width)
+      (const float *sp, si32 *dp, float mul, ui32 width)
       = gen_cnvrt_float_to_si32_shftd;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32)
-      (const float *sp, si32 *dp, float mul, int width)
+      (const float *sp, si32 *dp, float mul, ui32 width)
       = gen_cnvrt_float_to_si32;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*rct_forward)
       (const si32 *r, const si32 *g, const si32 *b,
-       si32 *y, si32 *cb, si32 *cr, int repeat)
+       si32 *y, si32 *cb, si32 *cr, ui32 repeat)
       = gen_rct_forward;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*rct_backward)
       (const si32 *y, const si32 *cb, const si32 *cr,
-       si32 *r, si32 *g, si32 *b, int repeat)
+       si32 *r, si32 *g, si32 *b, ui32 repeat)
       = gen_rct_backward;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*ict_forward)
       (const float *r, const float *g, const float *b,
-       float *y, float *cb, float *cr, int repeat)
+       float *y, float *cb, float *cr, ui32 repeat)
       = gen_ict_forward;
 
     ////////////////////////////////////////////////////////////////////////////
     void (*ict_backward)
       (const float *y, const float *cb, const float *cr,
-       float *r, float *g, float *b, int repeat)
+       float *r, float *g, float *b, ui32 repeat)
       = gen_ict_backward;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -172,49 +172,49 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                      int width)
+                                      ui32 width)
     {
-      for (int i = width; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
         *dp++ = *sp++ + shift;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
-      for (int i = width; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
         *dp++ = (float)*sp++ * mul - 0.5f;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
-      for (int i = width; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
         *dp++ = (float)*sp++ * mul;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       int width)
+                                       ui32 width)
     {
-      for (int i = width; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
         *dp++ = ojph_round((*sp++ + 0.5f) * mul);
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 int width)
+                                 ui32 width)
     {
-      for (int i = width; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
         *dp++ = ojph_round(*sp++ * mul);
     }
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                         si32 *y, si32 *cb, si32 *cr, int repeat)
+                         si32 *y, si32 *cb, si32 *cr, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
       {
         *y++ = (*r + (*g << 1) + *b) >> 2;
         *cb++ = (*b++ - *g);
@@ -224,9 +224,9 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                          si32 *r, si32 *g, si32 *b, int repeat)
+                          si32 *r, si32 *g, si32 *b, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
       {
         *g = *y++ - ((*cb + *cr)>>2);
         *b++ = *cb++ + *g;
@@ -236,9 +236,9 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_ict_forward(const float *r, const float *g, const float *b,
-                         float *y, float *cb, float *cr, int repeat)
+                         float *y, float *cb, float *cr, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
       {
         *y = CT_CNST::ALPHA_RF * *r
            + CT_CNST::ALPHA_GF * *g++
@@ -250,9 +250,9 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void gen_ict_backward(const float *y, const float *cb, const float *cr,
-                          float *r, float *g, float *b, int repeat)
+                          float *r, float *g, float *b, ui32 repeat)
     {
-      for (int i = repeat; i > 0; --i)
+      for (ui32 i = repeat; i > 0; --i)
       {
         *g++ = *y - CT_CNST::GAMMA_CR2G * *cr - CT_CNST::GAMMA_CB2G * *cb;
         *r++ = *y + CT_CNST::GAMMA_CR2R * *cr++;

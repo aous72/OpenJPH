@@ -36,7 +36,7 @@
 //***************************************************************************/
 
 #ifndef OJPH_MESSAGE_H
-#define OJPH_MESSAGE_H
+#define OJPH_MESSAGE_H 
 
 #include <cstring>
 #include "ojph_arch.h"

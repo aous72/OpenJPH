@@ -1,12 +1,18 @@
 cmake_minimum_required(VERSION 3.10.0)
 
+project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+
+################################################################################################
+# Building OpenJPH
+################################################################################################
+
 ############################################################
 # Parse version file
 # credit: https://stackoverflow.com/a/47084079
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/common/ojph_version.h" VERFILE)
 if (NOT VERFILE)
-  message(FATAL_ERROR "Failed to parse ojph_version.h!")
+    message(FATAL_ERROR "Failed to parse ojph_version.h!")
 endif()
 
 string(REGEX MATCH "OPENJPH_VERSION_MAJOR ([0-9])*" _ ${VERFILE})
@@ -19,17 +25,21 @@ set(OPENJPH_VERSION_PATCH ${CMAKE_MATCH_1})
 set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}")
 ############################################################
 
-project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
-
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
+option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 
-set(CMAKE_CXX_STANDARD 11)
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+message(STATUS "Builing ${CMAKE_BUILD_TYPE}")
+
+SET(CMAKE_CXX_STANDARD 11)
 if (MSVC)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
 endif()
 
 if (OJPH_DISABLE_INTEL_SIMD)
@@ -40,8 +50,31 @@ if (OJPH_DISABLE_INTEL_SIMD)
 	endif()
 endif()
 
+if (OJPH_CODE_COVERAGE AND NOT MSVC)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+endif()
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+
+############################################################
+if( OJPH_ENABLE_TIFF_SUPPORT )
+
+  FIND_PACKAGE( TIFF )
+
+  if( TIFF_FOUND )
+    SET(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
+    include_directories( ${TIFF_INCLUDE_DIR} ) 
+    if (MSVC)
+		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_TIFF_SUPPORT\"")
+	  else()
+		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_TIFF_SUPPORT")
+	  endif()
+    #include_directories(${CMAKE_BINARY_DIR}/libtiff) # for tiffconf.h on windows
+  endif( TIFF_FOUND )
+
+endif() 
+############################################################
 
 include_directories(src/core/common)
 include_directories(src/apps/common)
@@ -66,7 +99,7 @@ target_include_directories(openjph PUBLIC src/core/common)
 
 set_target_properties(openjph
   PROPERTIES
-    OUTPUT_NAME "openjph"
+    OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}"
 )
 
 if (OPENJPH_VERSION AND CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -88,10 +121,18 @@ else()
 endif()
 
 add_executable(ojph_expand src/apps/ojph_expand/ojph_expand.cpp src/apps/others/ojph_img_io.cpp)
-target_link_libraries(ojph_expand openjph)
+IF( USE_TIFF )
+  target_link_libraries(ojph_expand openjph ${TIFF_LIBRARIES})
+ELSE()
+  target_link_libraries(ojph_expand openjph)
+ENDIF()
 
 add_executable(ojph_compress src/apps/ojph_compress/ojph_compress.cpp src/apps/others/ojph_img_io.cpp)
-target_link_libraries (ojph_compress openjph)
+IF( USE_TIFF )
+  target_link_libraries (ojph_compress openjph ${TIFF_LIBRARIES})
+ELSE()
+  target_link_libraries (ojph_compress openjph)
+ENDIF()
 
 INSTALL(TARGETS ojph_expand
         DESTINATION bin)
@@ -109,4 +150,13 @@ INSTALL (DIRECTORY src/core/common/
 
 INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
         DESTINATION lib/pkgconfig)
+
+################################################################################################
+# Testing
+################################################################################################
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    include(CTest)
+    add_subdirectory(tests)
+endif()
 

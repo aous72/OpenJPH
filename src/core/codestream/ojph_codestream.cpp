@@ -912,6 +912,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::enable_resilience()
     {
+      if (infile != NULL)
+        OJPH_ERROR(0x000300A3, "Codestream resilience must be enabled before"
+          " reading file headers.\n");
       this->resilient = true;
     }
 
@@ -2186,7 +2189,7 @@ namespace ojph {
                                     const rect& recon_res_rect,
                                     ui32 comp_num, ui32 res_num,
                                     point comp_downsamp,
-                                    tile_comp *parent_tile,
+                                    tile_comp *parent_tile_comp,
                                     resolution *parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -2199,7 +2202,7 @@ namespace ojph {
       const param_cod* cdp = codestream->get_cod();
 
       this->comp_downsamp = comp_downsamp;
-      this->parent = parent_tile;
+      this->parent_comp = parent_tile_comp;
       this->parent_res = parent_res;
       this->res_rect = res_rect;
       this->comp_num = comp_num;
@@ -2221,7 +2224,7 @@ namespace ojph {
 
         child_res->finalize_alloc(codestream, next_res_rect, 
           skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num, 
-          res_num - 1, comp_downsamp, parent_tile, this);
+          res_num - 1, comp_downsamp, parent_tile_comp, this);
       }
       else
         child_res = NULL;
@@ -2266,28 +2269,29 @@ namespace ojph {
         num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
         precincts = allocator->post_alloc_obj<precinct>(num_precincts.area());
+        memset(precincts, 0, sizeof(precinct) * num_precincts.area());
       }
       // precincts will be initialized in full shortly
 
       ui32 x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
       ui32 y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
-      bool test_x = x_lower_bound != trx0;
-      bool test_y = y_lower_bound != try0;
 
       point proj_factor;
       proj_factor.x = comp_downsamp.x * (1<<(num_decomps - res_num));
       proj_factor.y = comp_downsamp.y * (1<<(num_decomps - res_num));
       precinct *pp = precincts;
+
+      point tile_top_left = parent_tile_comp->get_tile()->get_tile_rect().org;
       for (ui32 y = 0; y < num_precincts.h; ++y)
       {
         ui32 ppy0 = y_lower_bound + (y << log_PP.h);
         for (ui32 x = 0; x < num_precincts.w; ++x, ++pp)
         {
           ui32 ppx0 = x_lower_bound + (x << log_PP.w);
-          pp->img_point.x = proj_factor.x * ppx0;
-          pp->img_point.y = proj_factor.y * ppy0;
-          pp->special_x = test_x && x == 0;
-          pp->special_y = test_y && y == 0;
+          point t(proj_factor.x * ppx0, proj_factor.y * ppy0);
+          t.x = t.x > tile_top_left.x ? t.x : tile_top_left.x;
+          t.y = t.y > tile_top_left.y ? t.y : tile_top_left.y;
+          pp->img_point = t;
           pp->num_bands = num_bands;
           pp->bands = bands;
           pp->may_use_sop = cdp->packets_may_use_sop();
@@ -2788,9 +2792,7 @@ namespace ojph {
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       if (idx < num_precincts.area())
       {
-        point t = precincts[idx].img_point;
-        top_left.x = precincts[idx].special_x ? 0 : t.x;
-        top_left.y = precincts[idx].special_y ? 0 : t.y;
+        top_left = precincts[idx].img_point;
         return true;
       }
       return false;

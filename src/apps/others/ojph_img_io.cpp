@@ -504,7 +504,7 @@ namespace ojph {
   ui32 tif_in::read(const line_buf* line, ui32 comp_num)
   {
     assert(bytes_per_line != 0 && tiff_handle != 0 && comp_num < num_comps);
-    assert((int)line->size >= width);
+    assert((ui32)line->size >= width);
 
     // do a read from the file if this is the first component and therefore 
     // the first time trying to access this line

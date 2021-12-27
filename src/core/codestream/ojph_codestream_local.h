@@ -181,6 +181,7 @@ namespace ojph {
       void parse_tile_header(const param_sot& sot, infile_base *file,
                              const ui64& tile_start_location);
       bool pull(line_buf *, ui32 comp_num);
+      rect get_tile_rect() { return tile_rect; }
 
     private:
       //codestream *parent;
@@ -220,6 +221,7 @@ namespace ojph {
 
       ui32 get_num_resolutions() { return num_decomps + 1; }
       ui32 get_num_decompositions() { return num_decomps; }
+      tile* get_tile() { return parent_tile; }
       line_buf* get_line();
       void push_line();
       line_buf* pull_line();
@@ -252,7 +254,7 @@ namespace ojph {
       void finalize_alloc(codestream *codestream, const rect& res_rect,
                           const rect& recon_res_rect, ui32 comp_num,
                           ui32 res_num, point comp_downsamp,
-                          tile_comp *parent_tile,
+                          tile_comp *parent_tile_comp,
                           resolution *parent_res);
 
       line_buf* get_line() { return lines + 0; }
@@ -278,7 +280,7 @@ namespace ojph {
       rect res_rect;
       line_buf *lines;
       subband *bands;
-      tile_comp *parent;
+      tile_comp *parent_comp;
       resolution *parent_res, *child_res;
       //precincts stuff
       precinct *precincts;
@@ -310,7 +312,6 @@ namespace ojph {
       subband *bands;  //the subbands
       coded_lists* coded;
       ui32 num_bands;
-      bool special_x, special_y;
       bool may_use_sop, uses_eph;
     };
 

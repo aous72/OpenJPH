@@ -196,6 +196,7 @@ namespace ojph {
 
     size get_size() { assert(tiff_handle); return size(width, height); }
     ui32 get_num_components() { assert(tiff_handle); return num_comps; }
+	void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
     ui32 get_bit_depth(ui32 comp_num)
     {
       assert(tiff_handle && comp_num < num_comps); return bit_depth[comp_num];
@@ -367,7 +368,8 @@ namespace ojph {
       fname = NULL;
       buffer = NULL;
       width = height = num_components = 0;
-      bit_depth = bytes_per_sample = 0;
+      bytes_per_sample = 0;
+	  bit_depth_of_data[0] = bit_depth_of_data[1] = bit_depth_of_data[2] = bit_depth_of_data[3] = 0;
       buffer_size = 0;
       cur_line = samples_per_line = 0;
       bytes_per_line = 0;
@@ -383,7 +385,7 @@ namespace ojph {
 
     void open(char* filename);
     void configure(ui32 width, ui32 height, ui32 num_components,
-      ui32 bit_depth);
+      ui32 *bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close() { 
       if (tiff_handle) { 
@@ -400,7 +402,8 @@ namespace ojph {
 
     const char* fname;
     ui32 width, height, num_components;
-    ui32 bit_depth, bytes_per_sample;
+	ui32 bit_depth_of_data[4]; 
+    ui32 bytes_per_sample;
     ui8* buffer;
     ui32 buffer_size;
     ui32 cur_line, samples_per_line;

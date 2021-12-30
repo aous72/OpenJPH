@@ -262,8 +262,13 @@ int main(int argc, char *argv[]) {
           OJPH_ERROR(0x020000008,
             "To save an image to tif(f), all the components must have the "
             "downsampling ratio\n");
+        ojph::ui32 bit_depths[4] = { 0, 0, 0, 0 };
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); c++)
+        {
+          bit_depths[c] = siz.get_bit_depth(c);
+        }
         tif.configure(siz.get_recon_width(0), siz.get_recon_height(0),
-          siz.get_num_components(), siz.get_bit_depth(0));
+          siz.get_num_components(), bit_depths);
         tif.open(output_filename);
         base = &tif;
       }

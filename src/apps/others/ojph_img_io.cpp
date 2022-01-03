@@ -147,10 +147,15 @@ namespace ojph {
       if (alloc_p == NULL)
       {
         temp_buf_byte_size = num_comps * width * bytes_per_sample;
+        void* t = temp_buf;
         if (temp_buf)
           temp_buf = realloc(temp_buf, temp_buf_byte_size);
         else
           temp_buf = malloc(temp_buf_byte_size);
+        if (temp_buf == NULL) { // failed to allocate memory
+          if (t) free(t); // the original buffer is still valid
+          OJPH_ERROR(0x030000007, "error allocating mmeory");
+        }
       }
       else
       {
@@ -402,8 +407,10 @@ namespace ojph {
     ui16 tiff_samples_per_pixel = 0;
     TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
     TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
-    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel image - set to 1
-    tiff_samples_per_pixel = (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
+    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel 
+    // image - set to 1
+    tiff_samples_per_pixel = 
+      (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
 
     ui16 tiff_planar_configuration = 0;
     ui16 tiff_photometric = 0;
@@ -513,7 +520,8 @@ namespace ojph {
 
       if (bd > 32 || bd < 1)
       {
-        OJPH_ERROR(0x0300000BA, "bit_depth = %d, this must be an integer from 1-32", bd);
+        OJPH_ERROR(0x0300000BA, 
+          "bit_depth = %d, this must be an integer from 1-32", bd);
       }
       this->bit_depth[i] = bd;
     }
@@ -775,7 +783,8 @@ namespace ojph {
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
-          // shift the decoded data so the data's MSB is aligned with the 8 bit MSB
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 8 bit MSB
           *dp = (ui8)((val & bit_mask) << bits_to_shift);
         }
       }
@@ -789,7 +798,8 @@ namespace ojph {
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
-          // shift the decoded data so the data's MSB is aligned with the 8 bit MSB
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 8 bit MSB
           *dp = (ui8)((val >> bits_to_shift) & bit_mask);
         }
       }
@@ -823,7 +833,8 @@ namespace ojph {
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
 
-          // shift the decoded data so the data's MSB is aligned with the 16 bit MSB
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 16 bit MSB
           *dp = (ui16)((val & bit_mask) << bits_to_shift);
         }
       }
@@ -838,7 +849,8 @@ namespace ojph {
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
 
-          // shift the decoded data so the data's MSB is aligned with the 16 bit MSB
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 16 bit MSB
           *dp = (ui16)((val >> bits_to_shift) & bit_mask);
         }
       }

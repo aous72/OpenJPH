@@ -148,7 +148,7 @@ namespace ojph {
   //
   //
   ////////////////////////////////////////////////////////////////////////////
-  #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
   class tif_in : public image_in_base
   {
   public:
@@ -196,7 +196,7 @@ namespace ojph {
 
     size get_size() { assert(tiff_handle); return size(width, height); }
     ui32 get_num_components() { assert(tiff_handle); return num_comps; }
-	void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
+    void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
     ui32 get_bit_depth(ui32 comp_num)
     {
       assert(tiff_handle && comp_num < num_comps); return bit_depth[comp_num];
@@ -227,7 +227,7 @@ namespace ojph {
     bool is_signed[4];
     point subsampling[4];
   };
-  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -351,14 +351,14 @@ namespace ojph {
     ui32 cur_line, samples_per_line, bytes_per_line;
   };
 
-  ////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 //
 //
 //
 //
 //
 ////////////////////////////////////////////////////////////////////////////
-  #ifdef OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
   class tif_out : public image_out_base
   {
   public:
@@ -402,13 +402,13 @@ namespace ojph {
 
     const char* fname;
     ui32 width, height, num_components;
-	ui32 bit_depth_of_data[4]; 
+    ui32 bit_depth_of_data[4]; 
     ui32 bytes_per_sample;
     ui8* buffer;
     ui32 buffer_size;
     ui32 cur_line, samples_per_line;
   };
-  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
+#endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
 
   ////////////////////////////////////////////////////////////////////////////

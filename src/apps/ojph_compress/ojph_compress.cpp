@@ -665,6 +665,8 @@ int main(int argc, char * argv[]) {
           image_offset.y + tif.get_size().h));
         ojph::ui32 num_comps = tif.get_num_components();
         siz.set_num_components(num_comps);
+        if(num_bit_depths > 0 )
+          tif.set_bit_depth(num_bit_depths, bit_depth);
         for (ojph::ui32 c = 0; c < num_comps; ++c)
           siz.set_component(c, tif.get_comp_subsampling(c),
             tif.get_bit_depth(c), tif.get_is_signed(c));
@@ -698,9 +700,6 @@ int main(int argc, char * argv[]) {
         if (is_signed[0] != -1)
           OJPH_WARN(0x01000063,
             "-signed is not needed and was not used\n");
-        if (bit_depth[0] != 0)
-          OJPH_WARN(0x01000064,
-            "-bit_depth is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
           OJPH_WARN(0x01000065,
             "-downsamp is not needed and was not used\n");

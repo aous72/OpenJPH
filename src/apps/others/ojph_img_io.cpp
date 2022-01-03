@@ -147,10 +147,15 @@ namespace ojph {
       if (alloc_p == NULL)
       {
         temp_buf_byte_size = num_comps * width * bytes_per_sample;
+        void* t = temp_buf;
         if (temp_buf)
           temp_buf = realloc(temp_buf, temp_buf_byte_size);
         else
           temp_buf = malloc(temp_buf_byte_size);
+        if (temp_buf == NULL) { // failed to allocate memory
+          if (t) free(t); // the original buffer is still valid
+          OJPH_ERROR(0x030000007, "error allocating mmeory");
+        }
       }
       else
       {
@@ -402,8 +407,10 @@ namespace ojph {
     ui16 tiff_samples_per_pixel = 0;
     TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
     TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
-    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel image - set to 1
-    tiff_samples_per_pixel = (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
+    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel 
+    // image - set to 1
+    tiff_samples_per_pixel = 
+      (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
 
     ui16 tiff_planar_configuration = 0;
     ui16 tiff_photometric = 0;
@@ -500,6 +507,26 @@ namespace ojph {
 
   /////////////////////////////////////////////////////////////////////////////
 
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_in::set_bit_depth(ui32 num_bit_depths, ui32* bit_depth)
+  {
+    if (num_bit_depths < 1)
+      OJPH_ERROR(0x030000B9, "one or more bit_depths must be provided");
+    ui32 last_bd_idx = 0;
+    for (ui32 i = 0; i < 4; ++i)
+    {
+      ui32 bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
+      last_bd_idx += last_bd_idx + 1 < num_bit_depths ? 1 : 0;
+
+      if (bd > 32 || bd < 1)
+      {
+        OJPH_ERROR(0x0300000BA, 
+          "bit_depth = %d, this must be an integer from 1-32", bd);
+      }
+      this->bit_depth[i] = bd;
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   ui32 tif_in::read(const line_buf* line, ui32 comp_num)
   {
@@ -554,15 +581,56 @@ namespace ojph {
     {
       const ui8* sp = (ui8*)line_buffer + comp_num;
       si32* dp = line->i32;
-      for (ui32 i = width; i > 0; --i, sp += num_comps)
-        *dp++ = (si32)*sp;
+      if (bit_depth[comp_num] == 8)
+      {
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32)*sp;
+      }
+      else if (bit_depth[comp_num] < 8)
+      {
+        // read the desired precision from the MSBs
+        const int bits_to_shift = 8 - bit_depth[comp_num];
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        for (int i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32) (((*sp) >> bits_to_shift) & bit_mask);
+      }
+      else if (bit_depth[comp_num] > 8)
+      {
+        const int bits_to_shift = bit_depth[comp_num] - 8;
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        for (int i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
+      }
     }
-    else
+    else if(bytes_per_sample == 2)
     {
-      const ui16* sp = (ui16*)line_buffer + comp_num;
-      si32* dp = line->i32;
-      for (ui32 i = width; i > 0; --i, sp += num_comps)
-        *dp++ = (si32)*sp;
+      if (bit_depth[comp_num] == 16)
+      {
+        const ui16* sp = (ui16*)line_buffer + comp_num;
+        si32* dp = line->i32;
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32)*sp;
+      }
+      else if (bit_depth[comp_num] < 16)
+      {
+        // read the desired precision from the MSBs
+        const int bits_to_shift = 16 - bit_depth[comp_num];
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        const ui16* sp = (ui16*)line_buffer + comp_num;
+        si32* dp = line->i32;
+        for (int i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32)(((*sp) >> bits_to_shift) & bit_mask);
+      }
+      else if (bit_depth[comp_num] > 16)
+      {
+        const int bits_to_shift = bit_depth[comp_num] - 16;
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        const ui16* sp = (ui16*)line_buffer + comp_num;
+        si32* dp = line->i32;
+        for (int i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
+      }
+      
     }
 
     return width;
@@ -580,11 +648,17 @@ namespace ojph {
   void tif_out::open(char* filename)
   {
     // Error on known incompatilbe output formats
-    if (bit_depth != 8 && bit_depth != 16)
+    ui32 max_bitdepth = 0;
+    for (ui32 c = 0; c < num_components; c++)
     {
-      OJPH_ERROR(0x0300000C2, "TIFF IO is currently limited to files with "
-        "TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16, the source "
-        "codestream has bit_depth=%d", filename, bit_depth);
+      if (bit_depth_of_data[c] > max_bitdepth)
+        max_bitdepth = bit_depth_of_data[c];
+    }
+    if (max_bitdepth > 16)
+    {
+      OJPH_WARN(0x0300000C2, "TIFF output is currently limited to files "
+        "with max_bitdepth = 16, the source codestream has max_bitdepth=%d"
+        ", the decoded data will be truncated to 16 bits", max_bitdepth);
     }
     if (num_components > 4)
     {
@@ -609,7 +683,7 @@ namespace ojph {
     TIFFSetField(tiff_handle, TIFFTAG_IMAGEWIDTH, width);
     TIFFSetField(tiff_handle, TIFFTAG_IMAGELENGTH, height);
 
-    TIFFSetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, bit_depth);
+    TIFFSetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, bytes_per_sample * 8);
     TIFFSetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, num_components);
 
     planar_configuration = PLANARCONFIG_CONTIG;
@@ -651,16 +725,28 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   void tif_out::configure(ui32 width, ui32 height, ui32 num_components,
-    ui32 bit_depth)
+    ui32 *bit_depth)
   {
     assert(tiff_handle == NULL); //configure before opening
 
     this->width = width;
     this->height = height;
     this->num_components = num_components;
-    this->bit_depth = bit_depth;
+    ui32 max_bitdepth = 0;
+    for (ui32 c = 0; c < num_components; c++)
+    {
+      this->bit_depth_of_data[c] = bit_depth[c];
+      if (bit_depth[c] > max_bitdepth)
+        max_bitdepth = bit_depth[c];
+    }
 
-    bytes_per_sample = 1 + (bit_depth > 8 ? 1 : 0);
+    bytes_per_sample = (max_bitdepth + 7) / 8;  // round up
+    if (bytes_per_sample > 2)
+    {
+      // TIFF output is currently limited to files with max_bitdepth = 16, 
+      // the decoded data will be truncated to 16 bits
+      bytes_per_sample = 2;
+    }
     samples_per_line = num_components * width;
     bytes_per_line = bytes_per_sample * samples_per_line;
 
@@ -671,33 +757,105 @@ namespace ojph {
   {
     assert(tiff_handle);
     
-    if (bit_depth <= 8)
+    if (bytes_per_sample == 1)
+    {
+      int max_val = (1 << bit_depth_of_data[comp_num]) - 1;
+      const si32* sp = line->i32;
+      ui8* dp = buffer + comp_num;
+      if (bit_depth_of_data[comp_num] == 8)
       {
-        int max_val = (1 << bit_depth) - 1;
-        const si32* sp = line->i32;
-        ui8* dp = buffer + comp_num;
-        for (ui32 i = width; i > 0; --i, dp += num_components)
+        for (int i = width; i > 0; --i, dp += num_components)
         {
+          // clamp the decoded sample to the allowed range
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
           *dp = (ui8)val;
         }
       }
-      else
+      else if (bit_depth_of_data[comp_num] < 8)
       {
-        int max_val = (1 << bit_depth) - 1;
-        const si32* sp = line->i32;
-        ui16* dp = (ui16*)buffer + comp_num;
-        for (ui32 i = width; i > 0; --i, dp += num_components)
+        const int bits_to_shift = 8 - bit_depth_of_data[comp_num];
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, dp += num_components)
         {
+          // clamp the decoded sample to the allowed range
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 8 bit MSB
+          *dp = (ui8)((val & bit_mask) << bits_to_shift);
+        }
+      }
+      else if (bit_depth_of_data[comp_num] > 8)
+      {
+        const int bits_to_shift = bit_depth_of_data[comp_num] - 8;
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, dp += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 8 bit MSB
+          *dp = (ui8)((val >> bits_to_shift) & bit_mask);
+        }
+      }
+      
+    }
+    else if(bytes_per_sample == 2)
+    {
+      int max_val = (1 << bit_depth_of_data[comp_num]) - 1;
+      const si32* sp = line->i32;
+      ui16* dp = (ui16*)buffer + comp_num;
+
+      if (bit_depth_of_data[comp_num] == 16)
+      {
+        for (int i = width; i > 0; --i, dp += num_components)
+        {
+          // clamp the decoded sample to the allowed range
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
           *dp = (ui16)val;
         }
       }
+      else if (bit_depth_of_data[comp_num] < 16)
+      {
+        const int bits_to_shift = 16 - bit_depth_of_data[comp_num];
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, dp += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 16 bit MSB
+          *dp = (ui16)((val & bit_mask) << bits_to_shift);
+        }
+      }
+      else if (bit_depth_of_data[comp_num] > 16)
+      {
+        const int bits_to_shift = bit_depth_of_data[comp_num] - 16;
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, dp += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *sp++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+
+          // shift the decoded data so the data's MSB is aligned with the 
+          // 16 bit MSB
+          *dp = (ui16)((val >> bits_to_shift) & bit_mask);
+        }
+      }
       
+    }
       // write scanline when the last component is reached 
       if (comp_num == num_components-1)
       {

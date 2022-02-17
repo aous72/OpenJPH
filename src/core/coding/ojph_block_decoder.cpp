@@ -1258,10 +1258,10 @@ namespace ojph {
         }
         //decode uvlc_mode to get u for both quads
         ui32 consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_q);
-        if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
+        if (U_q[0] > missing_msbs + 2 || U_q[1] > missing_msbs + 2)
         {
           OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is larger "
-                    "than missing_msbs + 1.\n");
+                    "than missing_msbs + 2.\n");
           return false;
         }
 
@@ -1537,10 +1537,10 @@ namespace ojph {
             U_q[1] += E > 2 ? E - 2 : 0;
           }
 
-          if (U_q[0] > missing_msbs + 1 || U_q[1] > missing_msbs + 1)
+          if (U_q[0] > missing_msbs + 2 || U_q[1] > missing_msbs + 2)
           {
             OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is "
-                      "larger than missing_msbs + 1\n");
+                      "larger than missing_msbs + 2\n");
             return false;
           }
 

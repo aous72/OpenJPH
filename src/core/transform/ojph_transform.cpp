@@ -169,7 +169,25 @@ namespace ojph {
         rev_vert_wvlt_bwd_update  = avx2_rev_vert_wvlt_bwd_update;
         rev_horz_wvlt_bwd_tx      = avx2_rev_horz_wvlt_bwd_tx;
       }
-#endif
+#endif // !OJPH_DISABLE_INTEL_SIMD
+
+#if !defined(OJPH_DISABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
+      int level = cpu_ext_level();
+      
+      if (level >= 1)
+      {
+        rev_vert_wvlt_fwd_predict = wasm_rev_vert_wvlt_fwd_predict;
+        rev_vert_wvlt_fwd_update  = wasm_rev_vert_wvlt_fwd_update;
+        rev_horz_wvlt_fwd_tx      = wasm_rev_horz_wvlt_fwd_tx;
+        rev_vert_wvlt_bwd_predict = wasm_rev_vert_wvlt_bwd_predict;
+        rev_vert_wvlt_bwd_update  = wasm_rev_vert_wvlt_bwd_update;
+        rev_horz_wvlt_bwd_tx      = wasm_rev_horz_wvlt_bwd_tx;
+        irrev_vert_wvlt_step      = wasm_irrev_vert_wvlt_step;
+        irrev_vert_wvlt_K         = wasm_irrev_vert_wvlt_K;
+        irrev_horz_wvlt_fwd_tx    = wasm_irrev_horz_wvlt_fwd_tx;
+        irrev_horz_wvlt_bwd_tx    = wasm_irrev_horz_wvlt_bwd_tx;
+      }
+#endif // !OJPH_DISABLE_WASM_SIMD
 
       wavelet_transform_functions_initialized = true;
     }

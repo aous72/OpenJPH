@@ -250,7 +250,69 @@ namespace ojph {
     void avx2_rev_horz_wvlt_bwd_tx(line_buf* dst, line_buf *lsrc,
                                    line_buf *hsrc, ui32 width, bool even);
 
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //                          WASM Functions
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
+    //////////////////////////////////////////////////////////////////////////
+    // Reversible functions
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_wvlt_fwd_predict(const line_buf *line_src1, 
+                                        const line_buf *line_src2,
+                                        line_buf *line_dst, ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_wvlt_fwd_update(const line_buf *line_src1, 
+                                       const line_buf *line_src2,
+                                       line_buf *line_dst, ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
+                                   line_buf *line_hdst, ui32 width, bool even);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_wvlt_bwd_predict(const line_buf *line_src1, 
+                                        const line_buf *line_src2,
+                                        line_buf *line_dst, ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_wvlt_bwd_update(const line_buf *line_src1, 
+                                       const line_buf *line_src2,
+                                       line_buf *line_dst, ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_wvlt_bwd_tx(line_buf *line_dst, line_buf *line_lsrc, 
+                                   line_buf *line_hsrc, ui32 width, bool even);
+
+    //////////////////////////////////////////////////////////////////////////
+    // Irreversible functions
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irrev_vert_wvlt_step(const line_buf* line_src1, 
+                                   const line_buf* line_src2,
+                                   line_buf *line_dst, int step_num, 
+                                   ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irrev_vert_wvlt_K(const line_buf *line_src, line_buf *line_dst,
+                                bool L_analysis_or_H_synthesis, ui32 repeat);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irrev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
+                                     line_buf *line_hdst, ui32 width, 
+                                     bool even);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irrev_horz_wvlt_bwd_tx(line_buf *line_src, line_buf *line_ldst, 
+                                     line_buf *line_hdst, ui32 width, 
+                                     bool even);
   }
 }
 

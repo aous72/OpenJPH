@@ -151,7 +151,24 @@ namespace ojph {
         rct_forward = avx2_rct_forward;
         rct_backward = avx2_rct_backward;
       }
-#endif
+#endif // !OJPH_DISABLE_INTEL_SIMD
+
+#if !defined(OJPH_DISABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
+      int level = cpu_ext_level();
+
+      if (level >= 1)
+      {
+        cnvrt_si32_to_si32_shftd = wasm_cnvrt_si32_to_si32_shftd;
+        cnvrt_si32_to_float_shftd = wasm_cnvrt_si32_to_float_shftd;
+        cnvrt_si32_to_float = wasm_cnvrt_si32_to_float;
+        cnvrt_float_to_si32_shftd = wasm_cnvrt_float_to_si32_shftd;
+        cnvrt_float_to_si32 = wasm_cnvrt_float_to_si32;
+        rct_forward = wasm_rct_forward;
+        rct_backward = wasm_rct_backward;
+        ict_forward = wasm_ict_forward;
+        ict_backward = wasm_ict_backward;
+      }
+#endif // !OJPH_DISABLE_WASM_SIMD
 
       colour_transform_functions_initialized = true;
     }

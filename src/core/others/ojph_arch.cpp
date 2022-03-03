@@ -38,6 +38,9 @@
 #include <cassert>
 
 #include "ojph_arch.h"
+#ifdef OJPH_EMSCRIPTEN
+#include "emscripten.h"
+#endif
 
 namespace ojph {
 
@@ -157,13 +160,31 @@ namespace ojph {
   static int cpu_level;
   static bool cpu_level_initialized = init_cpu_ext_level(cpu_level);
   
+#elif !defined(OJPH_DISABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
+
+//   bool init_wasm_cpu_ext_level(int& level) {
+//     // The code here is compiled wasm code to binary code
+//     // This code is extracted from npm of wasm-feature-detect
+//     // https://unpkg.com/wasm-feature-detect@1.2.11/dist/esm/index.js?module
+//     // for simd
+//     level = EM_ASM_INT({
+//       return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 
+//       0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 
+//       15, 253, 98, 11]));
+//     });
+//     return true;
+//   }
+//   
+  static int cpu_level = 1;
+  static bool cpu_level_initialized = 0;
+
 #else
 
   ////////////////////////////////////////////////////////////////////////////
   static int cpu_level = 0;
   static bool cpu_level_initialized = true;
 
-#endif // !OJPH_DISABLE_INTEL_SIMD
+#endif
 
 
   ////////////////////////////////////////////////////////////////////////////

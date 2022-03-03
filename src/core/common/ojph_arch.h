@@ -55,6 +55,10 @@ namespace ojph {
   #elif (defined __GNUC__)
     #define OJPH_COMPILER_GNUC
   #endif
+  
+  #ifdef __EMSCRIPTEN__
+    #define OJPH_EMSCRIPTEN
+  #endif
 
   /////////////////////////////////////////////////////////////////////////////
   //                             cpu features

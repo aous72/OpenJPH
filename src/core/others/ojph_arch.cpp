@@ -176,7 +176,7 @@ namespace ojph {
 //   }
 //   
   static int cpu_level = 1;
-  static bool cpu_level_initialized = 0;
+  static bool cpu_level_initialized = true;
 
 #else
 

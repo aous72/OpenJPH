@@ -155,10 +155,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_predict(const line_buf* src1, 
-                                        const line_buf* src2,
-                                        line_buf *dst, ui32 repeat)
+    void wasm_rev_vert_wvlt_bwd_predict(const line_buf *line_src1, 
+                                        const line_buf *line_src2,
+                                        line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+    
       for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
       {
         v128_t s1 = wasm_v128_load(src1);
@@ -171,10 +174,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_update(const line_buf* src1, 
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat)
+    void wasm_rev_vert_wvlt_bwd_update(const line_buf *line_src1, 
+                                       const line_buf *line_src2,
+                                       line_buf *line_dst, ui32 repeat)
     {
+      si32 *dst = line_dst->i32;
+      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+    
       v128_t offset = wasm_i32x4_splat(2);
       for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
       {

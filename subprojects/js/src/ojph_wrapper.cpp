@@ -106,7 +106,7 @@ signed int* cpp_pull_j2c_line(j2k_struct* j2c)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void simd_pull_j2c_buf8(j2k_struct *j2c);
+unsigned char* simd_pull_j2c_buf8(j2k_struct *j2c);
 
 //////////////////////////////////////////////////////////////////////////////
 unsigned char* cpp_pull_j2c_buf8(j2k_struct* j2c)
@@ -116,7 +116,7 @@ unsigned char* cpp_pull_j2c_buf8(j2k_struct* j2c)
 
     if (level >= 1) {
 #ifndef OJPH_DISABLE_WASM_SIMD 
-      simd_pull_j2c_buf8(j2c);
+      return simd_pull_j2c_buf8(j2c);
 #endif
     }
     else {
@@ -195,6 +195,7 @@ unsigned char* cpp_pull_j2c_buf8(j2k_struct* j2c)
     if (strncmp(p, "ojph error", 10) != 0)
       printf("%s\n", p);
   }
+  
   return NULL;
 }
 

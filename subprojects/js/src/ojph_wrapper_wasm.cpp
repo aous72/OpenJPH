@@ -48,7 +48,7 @@
 
 //////////////////////////////////////////////////////////////////////////////
 EMSCRIPTEN_KEEPALIVE
-void simd_pull_j2c_buf8(j2k_struct *j2c)
+unsigned char* simd_pull_j2c_buf8(j2k_struct *j2c)
 {
   ojph::param_siz siz = j2c->codestream.access_siz();
   int width = siz.get_recon_width(0);
@@ -65,6 +65,53 @@ void simd_pull_j2c_buf8(j2k_struct *j2c)
     j2c->buffer = new unsigned char[width * height * 4];
 
   if (num_comps == 1) {
+    for (ojph::ui32 i = 0; i < height; ++i)
+    {
+      ojph::ui32 comp_num;
+      signed int *sp0 = j2c->codestream.pull(comp_num)->i32;
+      unsigned char *dp = j2c->buffer + i * width * 4;
+      int tw = width;
+
+      v128_t zero  = wasm_i32x4_splat(0);
+      v128_t vhalf = wasm_i32x4_splat(half);
+      v128_t v255  = wasm_i32x4_splat(0x000000FF);
+      v128_t vFF   = wasm_i32x4_splat(0xFF000000);
+      v128_t *vdp  = (v128_t *)dp;
+      v128_t *vsp0 = (v128_t *)sp0;
+      int repeat = tw >> 2;
+      for (int x = repeat; x > 0; --x)
+      {
+        v128_t t0 = wasm_i32x4_add(wasm_v128_load(vsp0++), vhalf);
+        t0 = wasm_i32x4_shr(t0, shift);     // each lane has 000x bytes
+        t0 = wasm_i32x4_max(t0, zero);
+        t0 = wasm_i32x4_min(t0, v255);        
+        
+        v128_t t1 = wasm_i32x4_shl(t0, 16); // each lane has 0x00 bytes
+        t0 = wasm_v128_or(t0, t1);          // each lane has 0x0x bytes
+        
+        t1 = wasm_i32x4_shl(t0, 8);   // each lane has x0x0 bytes
+        t0 = wasm_v128_or(t0, t1);    // each lane has xxxx bytes
+        t0 = wasm_v128_or(t0, vFF);  // each lane has xxx255 bytes
+                
+        wasm_v128_store(vdp++, t0);
+      }
+     
+      dp = (unsigned char *)vdp;
+      sp0 = (signed int *)vsp0;
+      tw -= repeat << 2;
+   
+      for (int x = tw; x > 0; --x)
+      {
+        int val;
+        val = (*sp0++ + half) >> shift;
+        val = val >= 0 ? val : 0;
+        val = val <= 255 ? val : 255;
+        *dp++ = val;
+        *dp++ = val;
+        *dp++ = val;
+        *dp++ = 255u;
+      }
+    }
   
   }
   else {
@@ -77,7 +124,6 @@ void simd_pull_j2c_buf8(j2k_struct *j2c)
       unsigned char *dp = j2c->buffer + i * width * 4;
       int tw = width;
       
-      v128_t zero = wasm_i32x4_splat(0);
       v128_t vhalf = wasm_i32x4_splat(half);
       v128_t v255  = wasm_i32x4_splat(255);
       v128_t *vdp  = (v128_t *)dp;
@@ -137,4 +183,6 @@ void simd_pull_j2c_buf8(j2k_struct *j2c)
       }
     }
   }
+  
+  return j2c->buffer;
 }

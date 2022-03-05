@@ -147,11 +147,6 @@ Note: Below each image, we display the number of decoded bytes and PSNR.
           var dst = cimg.data;
           if (num_comps == 1)
           {
-//             var heap = Module["HEAPU8"];
-//             var src = pull_j2c_buf8(j2c); 
-//             var num_bytes = width * height * 4;
-//             cimg.data.set(Uint8ClampedArray.from(Module.HEAPU8.subarray(src, src + cimg.data.length)));            
-            
             for (var y = 0|0; y < height; y = y + 1|0)
             {
               //src is an address in memory, but since we are 

@@ -10,7 +10,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
 
 file(GLOB SOURCES "src/ojph_wrapper.cpp" "../../src/core/coding/*.cpp" "../../src/core/others/*.cpp" "../../src/core/codestream/*.cpp" "../../src/core/transform/ojph_colour.cpp" "../../src/core/transform/ojph_transform.cpp")
-file(GLOB WASM_SIMD_SOURCES  "../../src/core/transform/*_wasm.cpp" "src/*_wasm.cpp")
+file(GLOB WASM_SIMD_SOURCES  "../../src/core/transform/*_wasm.cpp")
 include_directories(../../src/core/common)
 
 add_executable(libopenjph ${SOURCES})

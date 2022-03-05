@@ -40,8 +40,16 @@
 
 #include "ojph_arch.h"
 #include "ojph_file.h"
-#include "ojph_wrapper.h"
+#include "ojph_mem.h"
 #include "ojph_params.h"
+#include "ojph_codestream.h"
+
+//////////////////////////////////////////////////////////////////////////////
+struct j2k_struct
+{
+  ojph::codestream codestream;
+  ojph::mem_infile mem_file;
+};
 
 //////////////////////////////////////////////////////////////////////////////
 j2k_struct* cpp_create_j2c_data(void)
@@ -102,100 +110,6 @@ signed int* cpp_pull_j2c_line(j2k_struct* j2c)
     if (strncmp(p, "ojph error", 10) != 0)
       printf("%s\n", p);
   }
-  return NULL;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-unsigned char* simd_pull_j2c_buf8(j2k_struct *j2c);
-
-//////////////////////////////////////////////////////////////////////////////
-unsigned char* cpp_pull_j2c_buf8(j2k_struct* j2c)
-{
-  try {
-    int level =  ojph::cpu_ext_level();
-
-    if (level >= 1) {
-#ifndef OJPH_DISABLE_WASM_SIMD 
-      return simd_pull_j2c_buf8(j2c);
-#endif
-    }
-    else {
-      ojph::param_siz siz = j2c->codestream.access_siz();
-      int width = siz.get_recon_width(0);
-      int height = siz.get_recon_height(0);
-      int num_comps = siz.get_num_components();
-      
-      int bit_depth = siz.get_bit_depth(0);
-      int shift = bit_depth >= 8 ? bit_depth - 8 : 0;
-      int half = shift > 0 ? (1<<(shift-1)) : 0;
-      bool is_signed = siz.is_signed(0);
-      half += is_signed ? (1 << (bit_depth - 1)) : 0;
-      
-      if (j2c->buffer == NULL)
-        j2c->buffer = new unsigned char[width * height * 4];
-      
-      if (num_comps == 1)
-      {
-        for (ojph::ui32 i = 0; i < height; ++i)
-        {
-          ojph::ui32 comp_num;
-          ojph::line_buf *line = j2c->codestream.pull(comp_num);
-          assert(comp_num == 0);
-          signed int *sp = line->i32;
-          unsigned char *dp = j2c->buffer + i * width * 4;
-          for (int x = width; x > 0; --x)
-          {
-            int val;
-            val = (*sp++ + half) >> shift;
-            val = val >= 0 ? val : 0;
-            val = val <= 255 ? val : 255;
-            *dp++ = val;
-            *dp++ = val;
-            *dp++ = val;
-            *dp++ = 255u;
-          }
-        }
-      }
-      else
-      {
-        for (ojph::ui32 i = 0; i < height; ++i)
-        {
-          ojph::ui32 comp_num;
-          signed int *sp0 = j2c->codestream.pull(comp_num)->i32;
-          signed int *sp1 = j2c->codestream.pull(comp_num)->i32;
-          signed int *sp2 = j2c->codestream.pull(comp_num)->i32;
-          unsigned char *dp = j2c->buffer + i * width * 4;
-          int tw = width;
-          
-          for (int x = tw; x > 0; --x)
-          {
-            int val;
-            val = (*sp0++ + half) >> shift;
-            val = val >= 0 ? val : 0;
-            val = val <= 255 ? val : 255;
-            *dp++ = val;
-            val = (*sp1++ + half) >> shift;
-            val = val >= 0 ? val : 0;
-            val = val <= 255 ? val : 255;
-            *dp++ = val;
-            val = (*sp2++ + half) >> shift;
-            val = val >= 0 ? val : 0;
-            val = val <= 255 ? val : 255;
-            *dp++ = val;
-            *dp++ = 255u;
-          }
-        }
-      }
-    }
-    return j2c->buffer;
-  }
-  catch (const std::exception& e)
-  {
-    const char *p = e.what();
-    if (strncmp(p, "ojph error", 10) != 0)
-      printf("%s\n", p);
-  }
-  
   return NULL;
 }
 
@@ -322,13 +236,6 @@ extern "C"
   signed int* pull_j2c_line(j2k_struct* j2c)
   {
     return cpp_pull_j2c_line(j2c);
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////
-  EMSCRIPTEN_KEEPALIVE
-  unsigned char* pull_j2c_buf8(j2k_struct* j2c)
-  {
-    return cpp_pull_j2c_buf8(j2c);
   }
   
   ////////////////////////////////////////////////////////////////////////////

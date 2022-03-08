@@ -14,10 +14,9 @@ file(GLOB WASM_SIMD_SOURCES  "../../src/core/transform/*_wasm.cpp")
 include_directories(../../src/core/common)
 
 add_executable(libopenjph ${SOURCES})
-target_compile_options(libopenjph PRIVATE -DOJPH_DISABLE_WASM_SIMD)
 set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 
 add_executable(libopenjph_simd ${SOURCES} ${WASM_SIMD_SOURCES})
-target_compile_options(libopenjph_simd PRIVATE -msimd128)
+target_compile_options(libopenjph_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
 set_target_properties(libopenjph_simd PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 

@@ -54,36 +54,32 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_predict)
       (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat)
-      = gen_rev_vert_wvlt_fwd_predict;
+       ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_fwd_update)
       (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat)
-      = gen_rev_vert_wvlt_fwd_update;
+       ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_fwd_tx)
       (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = gen_rev_horz_wvlt_fwd_tx;
+      = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_predict)
       (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat)
-      = gen_rev_vert_wvlt_bwd_predict;
+       ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_vert_wvlt_bwd_update)
       (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat)
-      = gen_rev_vert_wvlt_bwd_update;
+       ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*rev_horz_wvlt_bwd_tx)
       (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even)
-      = gen_rev_horz_wvlt_bwd_tx;
+      = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
@@ -92,24 +88,22 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_step)
       (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       int step_num, ui32 repeat)
-      = gen_irrev_vert_wvlt_step;
+       int step_num, ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_vert_wvlt_K)
       (const line_buf *src, line_buf *dst, bool L_analysis_or_H_synthesis,
-       ui32 repeat)
-      = gen_irrev_vert_wvlt_K;
+       ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_fwd_tx)
       (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = gen_irrev_horz_wvlt_fwd_tx;
+      = NULL;
 
     /////////////////////////////////////////////////////////////////////////
     void (*irrev_horz_wvlt_bwd_tx)
       (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = gen_irrev_horz_wvlt_bwd_tx;
+      = NULL;
 
     ////////////////////////////////////////////////////////////////////////////
     static bool wavelet_transform_functions_initialized = false;
@@ -119,6 +113,8 @@ namespace ojph {
     {
       if (wavelet_transform_functions_initialized)
         return;
+
+#if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
       rev_vert_wvlt_fwd_predict = gen_rev_vert_wvlt_fwd_predict;
       rev_vert_wvlt_fwd_update  = gen_rev_vert_wvlt_fwd_update;
@@ -171,23 +167,18 @@ namespace ojph {
       }
 #endif // !OJPH_DISABLE_INTEL_SIMD
 
-#if !defined(OJPH_DISABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
-      int level = cpu_ext_level();
-      
-      if (level >= 1)
-      {
-        rev_vert_wvlt_fwd_predict = wasm_rev_vert_wvlt_fwd_predict;
-        rev_vert_wvlt_fwd_update  = wasm_rev_vert_wvlt_fwd_update;
-        rev_horz_wvlt_fwd_tx      = wasm_rev_horz_wvlt_fwd_tx;
-        rev_vert_wvlt_bwd_predict = wasm_rev_vert_wvlt_bwd_predict;
-        rev_vert_wvlt_bwd_update  = wasm_rev_vert_wvlt_bwd_update;
-        rev_horz_wvlt_bwd_tx      = wasm_rev_horz_wvlt_bwd_tx;
-        irrev_vert_wvlt_step      = wasm_irrev_vert_wvlt_step;
-        irrev_vert_wvlt_K         = wasm_irrev_vert_wvlt_K;
-        irrev_horz_wvlt_fwd_tx    = wasm_irrev_horz_wvlt_fwd_tx;
-        irrev_horz_wvlt_bwd_tx    = wasm_irrev_horz_wvlt_bwd_tx;
-      }
-#endif // !OJPH_DISABLE_WASM_SIMD
+#else // OJPH_ENABLE_WASM_SIMD
+      rev_vert_wvlt_fwd_predict = wasm_rev_vert_wvlt_fwd_predict;
+      rev_vert_wvlt_fwd_update  = wasm_rev_vert_wvlt_fwd_update;
+      rev_horz_wvlt_fwd_tx      = wasm_rev_horz_wvlt_fwd_tx;
+      rev_vert_wvlt_bwd_predict = wasm_rev_vert_wvlt_bwd_predict;
+      rev_vert_wvlt_bwd_update  = wasm_rev_vert_wvlt_bwd_update;
+      rev_horz_wvlt_bwd_tx      = wasm_rev_horz_wvlt_bwd_tx;
+      irrev_vert_wvlt_step      = wasm_irrev_vert_wvlt_step;
+      irrev_vert_wvlt_K         = wasm_irrev_vert_wvlt_K;
+      irrev_horz_wvlt_fwd_tx    = wasm_irrev_horz_wvlt_fwd_tx;
+      irrev_horz_wvlt_bwd_tx    = wasm_irrev_horz_wvlt_bwd_tx;
+#endif // !OJPH_ENABLE_WASM_SIMD
 
       wavelet_transform_functions_initialized = true;
     }
@@ -202,6 +193,10 @@ namespace ojph {
     };
     const float LIFTING_FACTORS::K = 1.230174104914001f;
     const float LIFTING_FACTORS::K_inv  = (float)(1.0 / 1.230174104914001);
+
+    //////////////////////////////////////////////////////////////////////////
+
+#if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     //////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_wvlt_fwd_predict(const line_buf* line_src1,
@@ -503,5 +498,8 @@ namespace ojph {
           line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
       }
     }
+
+#endif // !OJPH_ENABLE_WASM_SIMD
+
   }
 }

@@ -160,7 +160,7 @@ namespace ojph {
   static int cpu_level;
   static bool cpu_level_initialized = init_cpu_ext_level(cpu_level);
   
-#elif !defined(OJPH_DISABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
+#elif defined(OJPH_ENABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
 
 //   bool init_wasm_cpu_ext_level(int& level) {
 //     // The code here is compiled wasm code to binary code

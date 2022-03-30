@@ -157,8 +157,9 @@ INSTALL(TARGETS ojph_expand
 INSTALL(TARGETS ojph_compress
 	DESTINATION bin)
 
+include(GNUInstallDirs)
 INSTALL(TARGETS openjph LIBRARY
-        DESTINATION lib)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 INSTALL (DIRECTORY src/core/common/
   DESTINATION include/openjph
@@ -166,7 +167,7 @@ INSTALL (DIRECTORY src/core/common/
   PATTERN "*.h")
 
 INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
-        DESTINATION lib/pkgconfig)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 ################################################################################################
 # Testing

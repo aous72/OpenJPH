@@ -114,6 +114,8 @@ endif()
 
 target_include_directories(openjph PUBLIC src/core/common)
 
+target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
+
 set_target_properties(openjph
   PROPERTIES
     OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}"

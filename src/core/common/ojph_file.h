@@ -60,12 +60,12 @@ namespace ojph {
 #else
   int inline ojph_fseek(FILE* stream, si64 offset, int origin)
   {
-    return fseek(stream, offset, origin);
+    return fseeko(stream, offset, origin);
   }
 
   si64 inline ojph_ftell(FILE* stream)
   {
-    return ftell(stream);
+    return ftello(stream);
   }
 #endif
 

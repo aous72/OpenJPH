@@ -29,17 +29,6 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
       </Testables>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "9842806C2248A4C900A6ADA3"
-            BuildableName = "ojph_compress"
-            BlueprintName = "ojph_compress"
-            ReferencedContainer = "container:../apps/apps.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
-      <AdditionalOptions>
-      </AdditionalOptions>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -88,8 +77,6 @@
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
-      <AdditionalOptions>
-      </AdditionalOptions>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

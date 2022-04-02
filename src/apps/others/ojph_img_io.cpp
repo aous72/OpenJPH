@@ -589,16 +589,16 @@ namespace ojph {
       else if (bit_depth[comp_num] < 8)
       {
         // read the desired precision from the MSBs
-        const int bits_to_shift = 8 - bit_depth[comp_num];
+        const int bits_to_shift = 8 - (int)bit_depth[comp_num];
         const int bit_mask = (1 << bit_depth[comp_num]) - 1;
-        for (int i = width; i > 0; --i, sp += num_comps)
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
           *dp++ = (si32) (((*sp) >> bits_to_shift) & bit_mask);
       }
       else if (bit_depth[comp_num] > 8)
       {
-        const int bits_to_shift = bit_depth[comp_num] - 8;
+        const int bits_to_shift = (int)bit_depth[comp_num] - 8;
         const int bit_mask = (1 << bit_depth[comp_num]) - 1;
-        for (int i = width; i > 0; --i, sp += num_comps)
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
           *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
       }
     }
@@ -614,20 +614,20 @@ namespace ojph {
       else if (bit_depth[comp_num] < 16)
       {
         // read the desired precision from the MSBs
-        const int bits_to_shift = 16 - bit_depth[comp_num];
+        const int bits_to_shift = 16 - (int)bit_depth[comp_num];
         const int bit_mask = (1 << bit_depth[comp_num]) - 1;
         const ui16* sp = (ui16*)line_buffer + comp_num;
         si32* dp = line->i32;
-        for (int i = width; i > 0; --i, sp += num_comps)
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
           *dp++ = (si32)(((*sp) >> bits_to_shift) & bit_mask);
       }
       else if (bit_depth[comp_num] > 16)
       {
-        const int bits_to_shift = bit_depth[comp_num] - 16;
+        const int bits_to_shift = (int)bit_depth[comp_num] - 16;
         const int bit_mask = (1 << bit_depth[comp_num]) - 1;
         const ui16* sp = (ui16*)line_buffer + comp_num;
         si32* dp = line->i32;
-        for (int i = width; i > 0; --i, sp += num_comps)
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
           *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
       }
       
@@ -764,7 +764,7 @@ namespace ojph {
       ui8* dp = buffer + comp_num;
       if (bit_depth_of_data[comp_num] == 8)
       {
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;
@@ -775,9 +775,9 @@ namespace ojph {
       }
       else if (bit_depth_of_data[comp_num] < 8)
       {
-        const int bits_to_shift = 8 - bit_depth_of_data[comp_num];
+        const int bits_to_shift = 8 - (int)bit_depth_of_data[comp_num];
         const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;
@@ -790,9 +790,9 @@ namespace ojph {
       }
       else if (bit_depth_of_data[comp_num] > 8)
       {
-        const int bits_to_shift = bit_depth_of_data[comp_num] - 8;
+        const int bits_to_shift = (int)bit_depth_of_data[comp_num] - 8;
         const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;
@@ -813,7 +813,7 @@ namespace ojph {
 
       if (bit_depth_of_data[comp_num] == 16)
       {
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;
@@ -824,9 +824,9 @@ namespace ojph {
       }
       else if (bit_depth_of_data[comp_num] < 16)
       {
-        const int bits_to_shift = 16 - bit_depth_of_data[comp_num];
+        const int bits_to_shift = 16 - (int)bit_depth_of_data[comp_num];
         const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;
@@ -840,9 +840,9 @@ namespace ojph {
       }
       else if (bit_depth_of_data[comp_num] > 16)
       {
-        const int bits_to_shift = bit_depth_of_data[comp_num] - 16;
+        const int bits_to_shift = (int)bit_depth_of_data[comp_num] - 16;
         const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
-        for (int i = width; i > 0; --i, dp += num_components)
+        for (ui32 i = width; i > 0; --i, dp += num_components)
         {
           // clamp the decoded sample to the allowed range
           int val = *sp++;

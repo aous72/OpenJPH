@@ -114,15 +114,21 @@ endif()
 
 target_include_directories(openjph PUBLIC src/core/common)
 
-set_target_properties(openjph
-  PROPERTIES
-    OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}"
-)
+target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
 
-if (OPENJPH_VERSION AND CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set_target_properties(openjph
-    PROPERTIES
-      SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
+if (OPENJPH_VERSION)
+  if (WIN32)
+    set_target_properties(openjph
+      PROPERTIES
+        OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
+  else()
+    set_target_properties(openjph
+      PROPERTIES
+        SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
+        VERSION "${OPENJPH_VERSION}")
+  endif()
+else()
+  message(FATAL_ERROR "OPENJPH_VERSION is not set")
 endif()
 
 if (MSVC)
@@ -157,8 +163,9 @@ INSTALL(TARGETS ojph_expand
 INSTALL(TARGETS ojph_compress
 	DESTINATION bin)
 
+include(GNUInstallDirs)
 INSTALL(TARGETS openjph LIBRARY
-        DESTINATION lib)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 INSTALL (DIRECTORY src/core/common/
   DESTINATION include/openjph
@@ -166,7 +173,7 @@ INSTALL (DIRECTORY src/core/common/
   PATTERN "*.h")
 
 INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
-        DESTINATION lib/pkgconfig)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 ################################################################################################
 # Testing

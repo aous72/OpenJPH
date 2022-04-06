@@ -87,6 +87,7 @@ namespace ojph {
         v128_t t = wasm_v128_load(sp);
         v128_t s = wasm_f32x4_add(t, shift);
         s = wasm_f32x4_mul(s, m);
+        s = wasm_f32x4_add(s, shift); // + 0.5 and followed by floor next
         wasm_v128_store(dp, wasm_i32x4_trunc_sat_f32x4(s));
       }
     }
@@ -96,11 +97,13 @@ namespace ojph {
                                   ui32 width)
     {
       // rounding mode is always set to _MM_ROUND_NEAREST
+      v128_t shift = wasm_f32x4_splat(0.5f);
       v128_t m = wasm_f32x4_splat(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
         v128_t t = wasm_v128_load(sp);
         v128_t s = wasm_f32x4_mul(t, m);
+        s = wasm_f32x4_add(s, shift); // + 0.5 and followed by floor next
         wasm_v128_store(dp, wasm_i32x4_trunc_sat_f32x4(s));
       }
     }

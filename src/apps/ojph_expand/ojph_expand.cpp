@@ -143,8 +143,24 @@ const char* get_file_extension(const char* filename)
   return p;
 }
 
+#include "Windows.h"
+#include "..\coding\tsc-measure.h"
+
+struct _counter {
+  _counter() { count = 0; num_samples = 0; }
+  ~_counter() { printf("%lld, %lld, %f\n", count, num_samples, (float)count / num_samples); }
+  uint64_t count;
+  uint64_t tmp;
+  uint64_t num_samples;
+} counter;
+
 /////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
+
+  HANDLE hProcess = GetCurrentProcess();
+  bool results = SetProcessAffinityMask(hProcess, 32);
+
+  counter.tmp = tsc_measure_start();
 
   char *input_filename = NULL;
   char *output_filename = NULL;
@@ -363,6 +379,9 @@ int main(int argc, char *argv[]) {
   clock_t end = clock();
   double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
   printf("Elapsed time = %f\n", elapsed_secs);
+
+  counter.count += tsc_measure_stop() - counter.tmp;
+  counter.num_samples = 14204480;
 
   return 0;
 }

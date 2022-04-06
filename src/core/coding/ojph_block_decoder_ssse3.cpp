@@ -30,7 +30,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_block_decoder2.cpp
+// File: ojph_block_decoder_ssse3.cpp
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
@@ -59,7 +59,7 @@ namespace ojph {
 
     struct _counter {
       _counter() { count = 0; num_samples = 0; }
-      ~_counter() { printf("%ld, %ld, %f\n", count, num_samples, (float)count / num_samples); }
+      ~_counter() { printf("%lld, %lld, %f\n", count, num_samples, (float)count / num_samples); }
       uint64_t count;
       uint64_t tmp;
       uint64_t num_samples;
@@ -1144,10 +1144,10 @@ namespace ojph {
      *  @param [in]   height is the decoded codeblock height
      *  @param [in]   stride is the decoded codeblock buffer stride 
      */
-    bool ojph_decode_codeblock_sse2(ui8* coded_data, ui32* decoded_data,
-                                    ui32 missing_msbs, ui32 num_passes,
-                                    ui32 lengths1, ui32 lengths2,
-                                    ui32 width, ui32 height, ui32 stride)
+    bool ojph_decode_codeblock_ssse3(ui8* coded_data, ui32* decoded_data,
+                                     ui32 missing_msbs, ui32 num_passes,
+                                     ui32 lengths1, ui32 lengths2,
+                                     ui32 width, ui32 height, ui32 stride)
     {
       // The cleanup pass is decoded in two steps; in step one,
       // the VLC and MEL segments are decoded, generating a record that 

@@ -53,7 +53,7 @@ namespace ojph {
 
     struct _counter {
       _counter() { count = 0; num_samples = 0; }
-      ~_counter() { printf("%ld, %ld, %f\n", count, num_samples, (float)count / num_samples); }
+      ~_counter() { printf("%lld, %lld, %f\n", count, num_samples, (float)count / num_samples); }
       uint64_t count;
       uint64_t tmp;
       uint64_t num_samples;

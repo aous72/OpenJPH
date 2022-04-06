@@ -29,52 +29,77 @@
 
 #include <stdint.h>
 
-/* See: How to Benmark Code Execution Times on Intel IA32 and IA-64
+/* See: How to Benchmark Code Execution Times on Intel IA32 and IA-64
  * Instruction Set Architectures,
  * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-32-ia-64-benchmark-code-execution-paper.pdf
  *
  * */
 
-#if !defined(__i386__) && !defined(__x86_64__)
-#error tsc-measure.h only supports x86 and x86-64
-#endif
+#ifdef OJPH_COMPILER_MSVC
+#include <intrin.h>
 
-/* -> # of cycles */
-__attribute__((gnu_inline, always_inline))
-static uint64_t __inline__ tsc_measure_start(void)
+uint64_t inline tsc_measure_start(void)
 {
-	uint32_t tl, th;
-	__asm__ volatile ("cpuid;"
-			"rdtsc;"
-			"movl %%edx, %[th];"
-			"movl %%eax, %[tl];"
-			: /* outputs */
-			[th] "=r" (th),
-			[tl] "=r" (tl)
-			: /* inputs */
-			: /* clobbers */
-			"rax", "rbx", "rcx", "rdx"
-			);
-	return (((uint64_t)(th)) << 32) | tl;
+  int cpuInfo[4];
+  uint64_t i;
+
+  __cpuid(cpuInfo, 0);
+  i = __rdtsc();
+  return i;
+}
+
+uint64_t inline tsc_measure_stop(void)
+{
+  int cpuInfo[4], function_id = 0;
+  uint64_t i;
+  unsigned int ui;
+
+  i = __rdtscp(&ui);
+  __cpuid(cpuInfo, 0);
+
+  return i;
+}
+
+#else
+
+ /* -> # of cycles */
+__attribute__((gnu_inline, always_inline))
+uint64_t __inline__ tsc_measure_start(void)
+{
+  uint32_t tl, th;
+  __asm__ volatile ("cpuid;"
+    "rdtsc;"
+    "movl %%edx, %[th];"
+    "movl %%eax, %[tl];"
+    : /* outputs */
+  [th] "=r" (th),
+    [tl] "=r" (tl)
+    : /* inputs */
+    : /* clobbers */
+    "rax", "rbx", "rcx", "rdx"
+    );
+  return (((uint64_t)(th)) << 32) | tl;
 }
 
 /* -> # of cycles */
 __attribute__((gnu_inline, always_inline))
-static uint64_t __inline__ tsc_measure_stop(void)
+uint64_t __inline__ tsc_measure_stop(void)
 {
-	uint32_t tl, th;
-	__asm__ volatile ("rdtscp;"
-			"movl %%edx, %[th];"
-			"movl %%eax, %[tl];"
-			"cpuid;"
-			: /* outputs */
-			[th] "=r" (th),
-			[tl] "=r" (tl)
-			: /* inputs */
-			: /* clobbers */
-			"rax", "rbx", "rcx", "rdx"
-			);
-	return (((uint64_t)th) << 32) | tl;
+  uint32_t tl, th;
+  __asm__ volatile ("rdtscp;"
+    "movl %%edx, %[th];"
+    "movl %%eax, %[tl];"
+    "cpuid;"
+    : /* outputs */
+  [th] "=r" (th),
+    [tl] "=r" (tl)
+    : /* inputs */
+    : /* clobbers */
+    "rax", "rbx", "rcx", "rdx"
+    );
+  return (((uint64_t)th) << 32) | tl;
 }
+
+#endif 
 
 #endif

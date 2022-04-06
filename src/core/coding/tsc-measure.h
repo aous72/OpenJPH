@@ -38,7 +38,7 @@
 #ifdef OJPH_COMPILER_MSVC
 #include <intrin.h>
 
-uint64_t inline tsc_measure_start(void)
+static uint64_t inline tsc_measure_start(void)
 {
   int cpuInfo[4];
   uint64_t i;
@@ -48,7 +48,7 @@ uint64_t inline tsc_measure_start(void)
   return i;
 }
 
-uint64_t inline tsc_measure_stop(void)
+static uint64_t inline tsc_measure_stop(void)
 {
   int cpuInfo[4], function_id = 0;
   uint64_t i;
@@ -64,7 +64,7 @@ uint64_t inline tsc_measure_stop(void)
 
  /* -> # of cycles */
 __attribute__((gnu_inline, always_inline))
-uint64_t __inline__ tsc_measure_start(void)
+static uint64_t __inline__ tsc_measure_start(void)
 {
   uint32_t tl, th;
   __asm__ volatile ("cpuid;"
@@ -83,7 +83,7 @@ uint64_t __inline__ tsc_measure_start(void)
 
 /* -> # of cycles */
 __attribute__((gnu_inline, always_inline))
-uint64_t __inline__ tsc_measure_stop(void)
+static uint64_t __inline__ tsc_measure_stop(void)
 {
   uint32_t tl, th;
   __asm__ volatile ("rdtscp;"

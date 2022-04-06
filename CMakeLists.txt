@@ -98,7 +98,6 @@ include_directories(src/apps/common)
 file(GLOB SOURCES "src/core/coding/*.cpp" "src/core/others/*.cpp" "src/core/codestream/*.cpp" "src/core/transform/ojph_colour.cpp" "src/core/transform/ojph_transform.cpp")
 file(GLOB SSE_SOURCES "src/core/transform/*_sse.cpp")
 file(GLOB SSE2_SOURCES "src/core/transform/*_sse2.cpp")
-file(GLOB SSSE3_SOURCES "src/core/coding/*_ssse3.cpp")
 file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
 file(GLOB AVX2_SOURCES "src/core/transform/*_avx2.cpp")
 
@@ -110,7 +109,7 @@ CONFIGURE_FILE(
 if (OJPH_DISABLE_INTEL_SIMD)
     add_library(openjph ${SOURCES})
 else()
-    add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${SSSE3_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+    add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
 endif()
 
 target_include_directories(openjph PUBLIC src/core/common)

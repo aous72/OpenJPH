@@ -4028,48 +4028,15 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
-//      static int count = 2;
-
       if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0 &&
           coded_cb->next_coded != NULL)
       {
-//        if (count > 0)
-//        {
-//          --count;
-//          memset(buf, 0, cb_size.h * stride * sizeof(si32));
-//          return;
-//        }
-
         bool result =
           ojph::local::ojph_decode_codeblock(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-            buf, coded_cb->missing_msbs, 1, //coded_cb->num_passes,
+            buf, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
             cb_size.w, cb_size.h, stride, stripe_causal);
-
-        ui32 buf2[4096];
-        bool result2 =
-          ojph::local2::ojph_decode_codeblock2(
-            coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-            buf2, coded_cb->missing_msbs, 1, //coded_cb->num_passes,
-            coded_cb->pass_length[0], coded_cb->pass_length[1],
-            cb_size.w, cb_size.h, stride);
-
-        bool error = false;
-        for (ui32 y = 0; y < cb_size.h; ++y)
-        {
-        //  //printf("0x%08x\n",  buf[i]);
-          const ui32 *sp = buf + y * stride;
-          const ui32 *dp = buf2 + y * stride;
-          for (ui32 x = 0; x < cb_size.w; ++x)
-            if (*dp++ != *sp++)
-              {
-                printf(".");
-                error = true;
-              }
-        }
-        if (error)
-          printf("\n");
 
         if (result == false)
           {

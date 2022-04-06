@@ -46,18 +46,8 @@
 #include "ojph_arch.h"
 #include "ojph_message.h"
 
-#include "tsc-measure.h"
-
 namespace ojph {
   namespace local {
-
-    struct _counter {
-      _counter() { count = 0; num_samples = 0; }
-      ~_counter() { printf("%lld, %lld, %f\n", count, num_samples, (float)count / num_samples); }
-      uint64_t count;
-      uint64_t tmp;
-      uint64_t num_samples;
-    } counter;
 
     //************************************************************************/
     /** @defgroup vlc_decoding_tables_grp VLC decoding tables
@@ -1119,8 +1109,6 @@ namespace ojph {
       scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
       if (scup < 2 || scup > lcup || scup > 4079) //something is wrong
         return false;
-
-      counter.tmp = tsc_measure_start();
 
       // init structures
       dec_mel_st mel;
@@ -2307,8 +2295,6 @@ namespace ojph {
           }
         }
       }
-      counter.count += tsc_measure_stop() - counter.tmp;
-      counter.num_samples += width * height;
       return true;
     }
   }

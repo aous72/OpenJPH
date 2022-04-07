@@ -100,16 +100,27 @@ file(GLOB SSE_SOURCES "src/core/transform/*_sse.cpp")
 file(GLOB SSE2_SOURCES "src/core/transform/*_sse2.cpp")
 file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
 file(GLOB AVX2_SOURCES "src/core/transform/*_avx2.cpp")
+file(GLOB WASM_SIMD_SOURCES  "src/core/transform/*_wasm.cpp")
 
 CONFIGURE_FILE(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
   "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
 )
 
-if (OJPH_DISABLE_INTEL_SIMD)
-    add_library(openjph ${SOURCES})
+if(EMSCRIPTEN)
+  set(OJPH_DISABLE_INTEL_SIMD OFF)
+  set(BUILD_SHARED_LIBS OFF)
+  set(OJPH_ENABLE_TIFF_SUPPORT OFF)
+  add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD)
+  add_library(openjph ${SOURCES})
+  add_library(openjphsimd ${SOURCES} ${WASM_SIMD_SOURCES})
+  target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
 else()
-    add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+  if (OJPH_DISABLE_INTEL_SIMD)
+      add_library(openjph ${SOURCES})
+  else()
+      add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+  endif()
 endif()
 
 target_include_directories(openjph PUBLIC src/core/common)

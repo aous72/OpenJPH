@@ -14,9 +14,9 @@ file(GLOB WASM_SIMD_SOURCES  "../../src/core/transform/*_wasm.cpp")
 include_directories(../../src/core/common)
 
 add_executable(libopenjph ${SOURCES})
-set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
+set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-O3 -s WASM=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 
 add_executable(libopenjph_simd ${SOURCES} ${WASM_SIMD_SOURCES})
 target_compile_options(libopenjph_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
-set_target_properties(libopenjph_simd PROPERTIES SUFFIX ".js" LINK_FLAGS "-s WASM=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
+set_target_properties(libopenjph_simd PROPERTIES SUFFIX ".js" LINK_FLAGS "-O3 -s WASM=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 

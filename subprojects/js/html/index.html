@@ -1,11 +1,18 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+<title>HTJ2K decoding in the browser using Webassembly</title>
 <meta charset="UTF-8"> 
-<!-- This is a test of libopenjph javascript -->
-<script type="text/javascript" src="libopenjph.js"></script>
+<!-- This is a test of libopenjph javascript 
+<script type="text/javascript" src="libopenjph_simd.js"></script>
+-->
+<script src="https://unpkg.com/wasm-feature-detect/dist/umd/index.js"></script>
 </head>
 <body>
-<h1>HTJ2K decoding in a browser</h1>
+<h1>HTJ2K decoding in the browser using WASM (with or without SIMD)</h1>
+<pre style="font-size:16px" id='simd_message'>
+This webpage employs WASM SIMD if your browser supports it --> 
+</pre>
 <pre style="font-size:16px">
 Decoding the full resolution image.
 </pre>
@@ -99,122 +106,147 @@ Note: Below each image, we display the number of decoded bytes and PSNR.
   </tr>
 </table>
 <script>
+  function display_image(Module, data, canvas_name, skip_res_for_data, skip_res_for_recon, txt_ele_name, pre_text)
+  {
+    create_j2c_data = Module.cwrap('create_j2c_data', 'number');
+    init_j2c_data = Module.cwrap('init_j2c_data', 'void', ['number', 'number', 'number']);
+    get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number', 'number']);
+    get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number', 'number']);
+    get_j2c_bit_depth = Module.cwrap('get_j2c_bit_depth', 'number', ['number', 'number']);
+    get_j2c_is_signed = Module.cwrap('get_j2c_is_signed', 'number', ['number', 'number']);
+    get_j2c_num_components = Module.cwrap('get_j2c_num_components', 'number', ['number']);
+    get_j2c_downsampling_x = Module.cwrap('get_j2c_downsampling_x', 'number', ['number', 'number']);
+    get_j2c_downsampling_y = Module.cwrap('get_j2c_downsampling_y', 'number', ['number', 'number']);
+    parse_j2c_data = Module.cwrap('parse_j2c_data', 'void', ['number']);
+    restrict_input_resolution = Module.cwrap('restrict_input_resolution', 'void', ['number', 'number', 'number']);
+    enable_resilience = Module.cwrap('enable_resilience', 'void', ['number']);
+    pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
+    release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);  
+  
+    var t0 = performance.now();
 
-     Module.onRuntimeInitialized = async _ => {
-        create_j2c_data = Module.cwrap('create_j2c_data', 'number');
-        init_j2c_data = Module.cwrap('init_j2c_data', 'void', ['number', 'number', 'number']);
-        get_j2c_width = Module.cwrap('get_j2c_width', 'number', ['number', 'number']);
-        get_j2c_height = Module.cwrap('get_j2c_height', 'number', ['number', 'number']);
-        get_j2c_bit_depth = Module.cwrap('get_j2c_bit_depth', 'number', ['number', 'number']);
-        get_j2c_is_signed = Module.cwrap('get_j2c_is_signed', 'number', ['number', 'number']);
-        get_j2c_num_components = Module.cwrap('get_j2c_num_components', 'number', ['number']);
-        get_j2c_downsampling_x = Module.cwrap('get_j2c_downsampling_x', 'number', ['number', 'number']);
-        get_j2c_downsampling_y = Module.cwrap('get_j2c_downsampling_y', 'number', ['number', 'number']);
-        parse_j2c_data = Module.cwrap('parse_j2c_data', 'void', ['number']);
-        restrict_input_resolution = Module.cwrap('restrict_input_resolution', 'void', ['number', 'number', 'number']);
-        enable_resilience = Module.cwrap('enable_resilience', 'void', ['number']);
-        pull_j2c_line = Module.cwrap('pull_j2c_line', 'number', ['number']);
-        release_j2c_data = Module.cwrap('release_j2c_data', 'void', ['number']);
+    j2c = create_j2c_data();
+    const array = new Uint8Array(data, 0, data.byteLength);
+    
+    var buffer = Module._malloc(array.length);
+    Module.writeArrayToMemory(array, buffer);
+    enable_resilience(j2c);
+    init_j2c_data(j2c, buffer, array.length);
+    restrict_input_resolution(j2c, skip_res_for_data, skip_res_for_recon);
+    var width = get_j2c_width(j2c, 0) | 0;          //component 0
+    var height = get_j2c_height(j2c, 0) | 0;        //component 0
+    var num_comps = get_j2c_num_components(j2c) | 0;
+    var bit_depth = get_j2c_bit_depth(j2c, 0) | 0;  //component 0
+    var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
+    parse_j2c_data(j2c);
+    
+    var canvas = document.getElementById(canvas_name);
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext("2d");
+    var cimg = ctx.createImageData(width, height);
 
-        function display_image(Module, data, canvas_name, skip_res_for_data, skip_res_for_recon, txt_ele_name, pre_text)
+    var shift = (bit_depth >= 8 ? bit_depth - 8 : 0) | 0;
+    var half = (bit_depth > 8 ? (1<<(shift-1)) : 0) | 0;
+    var heap = Module["HEAP32"];
+    var dst = cimg.data;
+    if (num_comps == 1)
+    {
+      for (var y = 0|0; y < height; y = y + 1|0)
+      {
+        //src is an address in memory, but since we are 
+        // dealing with integers (i.e, each entry is 4 bytes 
+        // away from the previous sample, we need to divide by 4
+        var src = pull_j2c_line(j2c) >> 2; 
+        var didx = y * width * 4;
+        for (var x = 0|0; x < width; x = x + 1|0)
         {
-          var t0 = performance.now();
-        
-          j2c = create_j2c_data();
-          const array = new Uint8Array(data, 0, data.byteLength);
-          
-          var buffer = Module._malloc(array.length);
-          writeArrayToMemory(array, buffer);
-          enable_resilience(j2c);
-          init_j2c_data(j2c, buffer, array.length);
-          restrict_input_resolution(j2c, skip_res_for_data, skip_res_for_recon);
-          var width = get_j2c_width(j2c, 0) | 0;          //component 0
-          var height = get_j2c_height(j2c, 0) | 0;        //component 0
-          var num_comps = get_j2c_num_components(j2c) | 0;
-          var bit_depth = get_j2c_bit_depth(j2c, 0) | 0;  //component 0
-          var is_signed = get_j2c_is_signed(j2c, 0) == 1; //component 0
-          parse_j2c_data(j2c);
-          
-          var canvas = document.getElementById(canvas_name);
-          canvas.width = width;
-          canvas.height = height;
-          var ctx = canvas.getContext("2d");
-          var cimg = ctx.createImageData(width, height);
-
-          var shift = (bit_depth >= 8 ? bit_depth - 8 : 0) | 0;
-          var half = (bit_depth > 8 ? (1<<(shift-1)) : 0) | 0;
-          var heap = Module["HEAP32"];
-          var dst = cimg.data;
-          if (num_comps == 1)
-          {
-            for (var y = 0|0; y < height; y = y + 1|0)
-            {
-              //src is an address in memory, but since we are 
-              // dealing with integers (i.e, each entry is 4 bytes 
-              // away from the previous sample, we need to divide by 4
-              var src = pull_j2c_line(j2c) >> 2; 
-              var didx = y * width * 4;
-              for (var x = 0|0; x < width; x = x + 1|0)
-              {
-                var val = (heap[src + x] + half) >> shift;
-                dst[didx + x * 4    ] = val;
-                dst[didx + x * 4 + 1] = val;
-                dst[didx + x * 4 + 2] = val;
-                dst[didx + x * 4 + 3] = 255;
-              }
-            }
-          }
-          else if (num_comps == 3)
-          {
-            for (var y = 0|0; y < height; y = y + 1|0)
-            {
-              for (var c = 0|0; c < num_comps; c = c + 1|0)
-              {
-                //src is an address in memory, but since we are 
-                // dealing with integers (i.e, each entry is 4 bytes 
-                // away from the previous sample, we need to divide by 4
-                var src = pull_j2c_line(j2c) >> 2; 
-                var didx = y * width * 4 + c;
-                for (var x = 0|0; x < width; x = x + 1|0)
-                {
-                  var val = (heap[src + x] + half) >> shift;
-                  dst[didx + x * 4] = val;
-                }
-              }
-              var didx = y * width * 4 + 3;
-              for (var x = 0|0; x < width; x = x + 1|0)
-                dst[didx + x * 4] = 255;
-            }
-          }
-          else
-            console.log('Unsupported number of components');
-          
-          release_j2c_data(j2c);
-
-          ctx.putImageData(cimg, 0, 0);
-          Module._free(buffer);  
-
-          var t1 = performance.now();
-          document.getElementById(txt_ele_name).innerText = pre_text + (t1 - t0).toFixed(2) + " ms";
+          var val = (heap[src + x] + half) >> shift;
+          dst[didx + x * 4    ] = val;
+          dst[didx + x * 4 + 1] = val;
+          dst[didx + x * 4 + 2] = val;
+          dst[didx + x * 4 + 3] = 255;
         }
+      }
+    }
+    else if (num_comps == 3)
+    {
+      for (var y = 0|0; y < height; y = y + 1|0)
+      {
+        for (var c = 0|0; c < num_comps; c = c + 1|0)
+        {
+          //src is an address in memory, but since we are 
+          // dealing with integers (i.e, each entry is 4 bytes 
+          // away from the previous sample, we need to divide by 4
+          var src = pull_j2c_line(j2c) >> 2; 
+          var didx = y * width * 4 + c;
+          for (var x = 0|0; x < width; x = x + 1|0)
+          {
+            var val = (heap[src + x] + half) >> shift;
+            dst[didx + x * 4] = val;
+          }
+        }
+        var didx = y * width * 4 + 3;
+        for (var x = 0|0; x < width; x = x + 1|0)
+          dst[didx + x * 4] = 255;
+      }
+    }
+    else
+      console.log('Unsupported number of components');
+    
+    release_j2c_data(j2c);
 
-        var request = new XMLHttpRequest;
-        request.open("GET", "test.j2c" , true);
-        request.responseType = "arraybuffer";
-        request.onload = function (event) {
-            if (request.status == 200)
-            {
-                display_image(Module, this.response, 'mycanvas', 0, 0, 'time', 'Decode Time: ' );
+    ctx.putImageData(cimg, 0, 0);
+    Module._free(buffer);  
 
-                for (var i = 0; i <= 5; ++i)
-                  display_image(Module, this.response, 'r1c' + i, i, i, 't1c' + i, '');
+    var t1 = performance.now();
+    document.getElementById(txt_ele_name).innerText = pre_text + (t1 - t0).toFixed(2) + " ms";
+  }
+  
+  async function load_and_display_images(Module)
+  {
+    var request = new XMLHttpRequest;
+    request.open("GET", "test.j2c", true);
+    request.responseType = "arraybuffer";
+    request.onload = function (event) {
+        if (request.status == 200)
+        {
+            display_image(Module, this.response, 'mycanvas', 0, 0, 'time', 'Decode Time: ' );
 
-                for (var i = 0; i <= 5; ++i)
-                  display_image(Module, this.response, 'r2c' + i, i, 0, 't2c' + i, 'Decode Time: ');
-            }
-        };
-        request.send(null);
-     }
+            for (var i = 0; i <= 5; ++i)
+              display_image(Module, this.response, 'r1c' + i, i, i, 't1c' + i, '');
+
+            for (var i = 0; i <= 5; ++i)
+              display_image(Module, this.response, 'r2c' + i, i, 0, 't2c' + i, 'Decode Time: ');
+        }
+    };
+    request.send(null);
+  }
+  
+  async function load_simd_module() {
+    const openjph = await import('./libopenjph_simd.js');
+    const Module = await openjph.default();
+    load_and_display_images(Module);
+  }
+
+  async function load_generic_module() {
+    const openjph = await import('./libopenjph.js');
+    const Module = await openjph.default();    
+    load_and_display_images(Module);
+  }
+
+  wasmFeatureDetect.simd().then(simdSupported => {
+    txt = document.getElementById('simd_message').innerText.slice(0, -1);
+    
+    if (simdSupported) {
+      document.getElementById('simd_message').innerText = txt + "SIMD is detected. \n";
+      load_simd_module();
+    } else {
+      document.getElementById('simd_message').innerText = txt + "SIMD is not detected. \n";
+      load_generic_module();
+    }
+  });
+
 </script>
 </body>
 </html>

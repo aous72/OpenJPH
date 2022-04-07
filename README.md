@@ -130,4 +130,5 @@ Here are some usage examples:
 
 # The standard #
 
-The standard is available for purchase from the [ISO website](https://www.iso.org/standard/76621.html).  Users with TIES account can purchase it from the [ITU website](https://www.itu.int/rec/T-REC-T.814/en). 
+The standard is available free of charge from [ITU website](https://www.itu.int/rec/T-REC-T.814/en). It can also be purchased from the [ISO website](https://www.iso.org/standard/76621.html). 
+

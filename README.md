@@ -63,8 +63,8 @@ before compilation.  Alternatively, if you are a docker user, the you can launch
 The javascript decoder can be compiled using
 
     cd subprojects/js/build
-    emmake cmake ..
-    make
+    emcmake cmake ..
+    emmake make
 
 The compilation creates libopenjph.js and libopenjph.wasm in subprojects/js/html folder.  That html folder also has the demo webpage index.html and a compressed image test.j2c which the script in index.html decodes.  To run the demo webpage on your machine, you need a webserver running on the machine -- Due to security reasons, javascript engines running in a browser cannot access local files on the machine.  You can use the ```emrun``` command, provided with the emscripten
 tools, by issuing the command
@@ -74,9 +74,9 @@ tools, by issuing the command
 from inside the html folder; the default port is 6931.
 Alternatively, a simple python webserver can be run using
 
-    python -m SimpleHTTPServer 8000
+    python -m http.server 8000
   
-also from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open 127.0.0.1:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
+also from inside the html folder.  Here, 8000 is the port number at which the webserver will be listening.  The webpage can then be accessed by open localhost:8000 in you browser.   Any browser supporting webassembly can be used to view this webpage; examples include Firefox, Chrome, Safari, and Edge, on a desktop, mobile, or tablet.
 
 # Visual Studio Code Remote Containers #
 

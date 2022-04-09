@@ -11,10 +11,9 @@ The [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) provides the tools to co
 We hope that wasienv is update in the coming months.
 
 To compile, I am using 
-```
-/home/aous/wasi-sdk-14.0/bin/clang --sysroot=/home/aous/wasi-sdk-14.0/share/
-wasi-sysroot/ ...
-```
+
+    /home/aous/wasi-sdk-14.0/bin/clang --sysroot=/home/aous/wasi-sdk-14.0/share/wasi-sysroot/ ...
+
 
 It is worth nothing that as of this writing wasi-sdk and wasmer do not 
 support C++ exceptions.  This is a complication, because it requires the 
@@ -29,26 +28,28 @@ This folder has the ```build.sh``` script; put this script in the ```OpenJPH/bin
 ## Runtime Environment (RTE)
 
 For RTE, There are two executables that I am aware of, wasmtime and wasmer. The former is from a nonprofit organization while the latter from a startup.  The authors of wasmer claim that their implementation is faster -- I will go with this. The wasmer RTE, which installs by default to ```.wasmer```, can obtained from https://github.com/wasmerio/wasmer.  To install, use
-```
-curl https://get.wasmer.io -sSfL | sh
-```
+
+    curl https://get.wasmer.io -sSfL | sh
+
 
 To run I am using 
-```
-~/.wasmer/bin/wasmer run --dir=. --enable-all helloworld.wasm -- arguments
-```
+
+    ~/.wasmer/bin/wasmer run --dir=. --enable-all helloworld.wasm -- arguments
+
 Of course, you can include this in the execution path.
 
 ## Testing the WASM code
 
 To test the WASM subroutines, I would like to use the same test subroutines for the library.  To do so, move the com_decom.sh and com_decom_yuv.sh files in this folder to ```OpenJPH/tests``` folder, and build the library as usual using 
-```
-cd build
-cmake -DBUILD_TESTING=yes ..
-make
-make test
-```
+
+    cd build
+    cmake -DBUILD_TESTING=yes ..
+    make
+    make test
+
 This is a standard build without any modifications. The modified com_decom.sh and com_decom_yuv.sh files should invoke the WASM versions of the code.  You can modify these files to test with or without WASM SIMD.
+
+There is a small complication with the test.  The test reads uncompressed images from ```..\```, and writes compressed images to ```.\```, while wasmer has access to ```..``` only with the command ```--dir ..```.  It would be convenient if I can specify two folders, but I do not know how to do that.   To overcome this, I also use ```--mapdir ./:./``` that maps the ```.\``` folder to the same location in wasmer, thus giving wasmer access to this folder.
 
 
 

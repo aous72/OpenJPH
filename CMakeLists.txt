@@ -34,75 +34,52 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Builing ${CMAKE_BUILD_TYPE}")
 
-SET(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
 if (MSVC)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
 endif()
 
 if (OJPH_DISABLE_INTEL_SIMD)
 	if (MSVC)
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_DISABLE_INTEL_SIMD\"")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_DISABLE_INTEL_SIMD\"")
 	else()
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_DISABLE_INTEL_SIMD")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_DISABLE_INTEL_SIMD")
 	endif()
 endif()
 
 if (OJPH_CODE_COVERAGE AND NOT MSVC)
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 
-############################################################
-if( OJPH_ENABLE_TIFF_SUPPORT )
-
-  if( WIN32 )
-
-    set(TIFF_INCLUDE_DIR "C:\\Program Files\\tiff\\include" CACHE PATH "the directory containing the TIFF headers")
-    set(TIFF_LIBRARY_DEBUG   "C:\\Program Files\\tiff\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
-    set(TIFF_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
-    set(TIFFXX_LIBRARY_DEBUG  "C:\\Program Files\\tiff\\lib\\tiffxxd.lib" CACHE FILEPATH "the path to the TIFFXX  library for debug configurations")
-    set(TIFFXX_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiffxx.lib" CACHE FILEPATH "the path to the TIFFXX  library for release configurations")
-
-    MESSAGE( STATUS "WIN32 detected: Setting CMakeCache TIFF values as follows, use CMake-gui Advanced to modify them" )
-    MESSAGE( STATUS "   TIFF_INCLUDE_DIR : \"${TIFF_INCLUDE_DIR}\"  " )
-    MESSAGE( STATUS "   TIFF_LIBRARY_DEBUG : \"${TIFF_LIBRARY_DEBUG}\"  " )
-    MESSAGE( STATUS "   TIFF_LIBRARY_RELEASE : \"${TIFF_LIBRARY_RELEASE}\"  " )
-    MESSAGE( STATUS "   TIFFXX_LIBRARY_DEBUG : \"${TIFFXX_LIBRARY_DEBUG}\"  " )
-    MESSAGE( STATUS "   TIFFXX_LIBRARY_RELEASE : \"${TIFFXX_LIBRARY_RELEASE}\"  " )
-
-  endif( WIN32 )
-
-  FIND_PACKAGE( TIFF )
-
-  if( TIFF_FOUND )
-    SET(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
-    include_directories( ${TIFF_INCLUDE_DIR} ) 
-    if (MSVC)
-		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_TIFF_SUPPORT\"")
-	  else()
-		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_TIFF_SUPPORT")
-	  endif()
-    #include_directories(${CMAKE_BINARY_DIR}/libtiff) # for tiffconf.h on windows
-  endif( TIFF_FOUND )
-
-endif() 
-############################################################
-
 include_directories(src/core/common)
 include_directories(src/apps/common)
-file(GLOB SOURCES "src/core/coding/*.cpp" "src/core/others/*.cpp" "src/core/codestream/*.cpp" "src/core/transform/ojph_colour.cpp" "src/core/transform/ojph_transform.cpp")
-file(GLOB SSE_SOURCES "src/core/transform/*_sse.cpp")
-file(GLOB SSE2_SOURCES "src/core/transform/*_sse2.cpp")
-file(GLOB AVX_SOURCES "src/core/transform/*_avx.cpp")
-file(GLOB AVX2_SOURCES "src/core/transform/*_avx2.cpp")
-file(GLOB WASM_SIMD_SOURCES  "src/core/transform/*_wasm.cpp")
 
-CONFIGURE_FILE(
+file(GLOB CODESTREAM "src/core/codestream/*.cpp" "src/core/codestream/*.h")
+file(GLOB CODING "src/core/coding/*.cpp" "coding/*.h")
+file(GLOB COMMON "src/core/common/*.h")
+file(GLOB OTHERS "src/core/others/*.cpp")
+file(GLOB TX_SSE "src/core/transform/*_sse.cpp")
+file(GLOB TX_SSE2 "src/core/transform/*_sse2.cpp")
+file(GLOB TX_AVX "src/core/transform/*_avx.cpp")
+file(GLOB TX_AVX2 "src/core/transform/*_avx2.cpp")
+file(GLOB TX_WASM "src/core/transform/*_wasm.cpp")
+file(GLOB TRANSFORM "src/core/transform/*.cpp" "src/core/transform/*.h")
+list(REMOVE_ITEM TRANSFORM ${TX_SSE} ${TX_SSE2} ${TX_AVX} ${TX_AVX2} ${TX_WASM})
+list(APPEND SOURCES ${CODESTREAM} ${CODING} ${COMMON} ${OTHERS} ${TRANSFORM})
+
+source_group("codestream"        FILES ${CODESTREAM})
+source_group("coding"            FILES ${CODING})
+source_group("common"            FILES ${COMMON})
+source_group("others"            FILES ${OTHERS})
+source_group("transform"         FILES ${TRANSFORM})
+
+configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
   "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
 )
@@ -113,12 +90,14 @@ if(EMSCRIPTEN)
   set(OJPH_ENABLE_TIFF_SUPPORT OFF)
   add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD)
   add_library(openjph ${SOURCES})
-  add_library(openjphsimd ${SOURCES} ${WASM_SIMD_SOURCES})
+  add_library(openjphsimd ${SOURCES} ${TX_WASM})
   target_include_directories(openjph PUBLIC src/core/common)
   target_include_directories(openjphsimd PUBLIC src/core/common)
   target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
+  source_group("transform" FILES ${TX_WASM})  
 elseif(NOT OJPH_DISABLE_INTEL_SIMD)
-  add_library(openjph ${SOURCES} ${SSE_SOURCES} ${SSE2_SOURCES} ${AVX_SOURCES} ${AVX2_SOURCES})
+  add_library(openjph ${SOURCES} ${TX_SSE} ${TX_SSE2} ${TX_AVX} ${TX_AVX2})
+  source_group("transform" FILES ${TX_SSE} ${TX_SSE2} ${TX_AVX} ${TX_AVX2})
 else()
   add_library(openjph ${SOURCES})
 endif()
@@ -154,40 +133,78 @@ else()
 	set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif()
 
+############################################################
+if( OJPH_ENABLE_TIFF_SUPPORT )
+
+  if( WIN32 )
+
+    set(TIFF_INCLUDE_DIR "C:\\Program Files\\tiff\\include" CACHE PATH "the directory containing the TIFF headers")
+    set(TIFF_LIBRARY_DEBUG   "C:\\Program Files\\tiff\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
+    set(TIFF_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
+    set(TIFFXX_LIBRARY_DEBUG  "C:\\Program Files\\tiff\\lib\\tiffxxd.lib" CACHE FILEPATH "the path to the TIFFXX  library for debug configurations")
+    set(TIFFXX_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiffxx.lib" CACHE FILEPATH "the path to the TIFFXX  library for release configurations")
+
+    message( STATUS "WIN32 detected: Setting CMakeCache TIFF values as follows, use CMake-gui Advanced to modify them" )
+    message( STATUS "   TIFF_INCLUDE_DIR : \"${TIFF_INCLUDE_DIR}\"  " )
+    message( STATUS "   TIFF_LIBRARY_DEBUG : \"${TIFF_LIBRARY_DEBUG}\"  " )
+    message( STATUS "   TIFF_LIBRARY_RELEASE : \"${TIFF_LIBRARY_RELEASE}\"  " )
+    message( STATUS "   TIFFXX_LIBRARY_DEBUG : \"${TIFFXX_LIBRARY_DEBUG}\"  " )
+    message( STATUS "   TIFFXX_LIBRARY_RELEASE : \"${TIFFXX_LIBRARY_RELEASE}\"  " )
+
+  endif( WIN32 )
+
+  FIND_PACKAGE( TIFF )
+
+  if( TIFF_FOUND )
+    set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
+    include_directories( ${TIFF_INCLUDE_DIR} ) 
+    if (MSVC)
+		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_TIFF_SUPPORT\"")
+	  else()
+		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_TIFF_SUPPORT")
+	  endif()
+    #include_directories(${CMAKE_BINARY_DIR}/libtiff) # for tiffconf.h on windows
+  endif( TIFF_FOUND )
+
+endif() 
+############################################################
+
 add_executable(ojph_expand src/apps/ojph_expand/ojph_expand.cpp src/apps/others/ojph_img_io.cpp)
-IF( USE_TIFF )
-  target_link_libraries(ojph_expand openjph ${TIFF_LIBRARIES})
-ELSE()
-  target_link_libraries(ojph_expand openjph)
-ENDIF()
-
 add_executable(ojph_compress src/apps/ojph_compress/ojph_compress.cpp src/apps/others/ojph_img_io.cpp)
-IF( USE_TIFF )
+
+if( USE_TIFF )
+  target_link_libraries(ojph_expand openjph ${TIFF_LIBRARIES})
   target_link_libraries (ojph_compress openjph ${TIFF_LIBRARIES})
-ELSE()
+else()
+  target_link_libraries(ojph_expand openjph)
   target_link_libraries (ojph_compress openjph)
-ENDIF()
+endif()
 
-INSTALL(TARGETS ojph_expand
-        DESTINATION bin)
 
-INSTALL(TARGETS ojph_compress
+################################################################################################
+# Install
+################################################################################################
+
+install(TARGETS ojph_expand
+  DESTINATION bin)
+
+install(TARGETS ojph_compress
 	DESTINATION bin)
 
 include(GNUInstallDirs)
-INSTALL(TARGETS openjph LIBRARY
-        DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS openjph LIBRARY
+  DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-INSTALL (DIRECTORY src/core/common/
+install (DIRECTORY src/core/common/
   DESTINATION include/openjph
   FILES_MATCHING
   PATTERN "*.h")
 
-INSTALL(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+install(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 ################################################################################################
-# Testing
+# Testing (BUILD_TESTING)
 ################################################################################################
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)

@@ -153,23 +153,27 @@ namespace ojph {
     return true;
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  static int cpu_level;
-  static bool cpu_level_initialized = init_cpu_ext_level(cpu_level);
-  
 #elif defined(OJPH_ENABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
 
-  static int cpu_level = 1;
-  static bool cpu_level_initialized = true;
+  ////////////////////////////////////////////////////////////////////////////
+  bool init_cpu_ext_level(int& level) {
+    level = 1;
+    return true;
+  }
 
 #else
 
   ////////////////////////////////////////////////////////////////////////////
-  static int cpu_level = 0;
-  static bool cpu_level_initialized = true;
+  bool init_cpu_ext_level(int& level) {
+    level = 0;
+    return true;
+  }
 
 #endif
 
+  ////////////////////////////////////////////////////////////////////////////
+  static int cpu_level;
+  static bool cpu_level_initialized = init_cpu_ext_level(cpu_level);
 
   ////////////////////////////////////////////////////////////////////////////
   int cpu_ext_level()

@@ -1181,14 +1181,14 @@ namespace ojph {
                       0x0100, 0x0100, 0x0100, 0x0100));
       // we keeps e_k, e_1, and rho in w2
       flags = _mm_and_si128(w0, 
-        _mm_set_epi16((si16)0x8880, (si16)0x4440, (si16)0x2220, (si16)0x1110,
-                      (si16)0x8880, (si16)0x4440, (si16)0x2220, (si16)0x1110));
+        _mm_set_epi16((si16)0x8880, 0x4440, 0x2220, 0x1110,
+                      (si16)0x8880, 0x4440, 0x2220, 0x1110));
       insig = _mm_cmpeq_epi16(flags, _mm_setzero_si128());
       if (_mm_movemask_epi8(insig) != 0xFFFF) //are all insignificant?
       {
         U_q = _mm_shuffle_epi8(U_q, 
-          _mm_set_epi16((si16)0x0504, (si16)0x0504, (si16)0x0504, (si16)0x0504,
-                        (si16)0x0100, (si16)0x0100, (si16)0x0100u, (si16)0x0100u));
+          _mm_set_epi16(0x0504, 0x0504, 0x0504, 0x0504,
+                        0x0100, 0x0100, 0x0100, 0x0100));
         flags = _mm_mullo_epi16(flags, _mm_set_epi16(1,2,4,8,1,2,4,8));
         __m128i ms_vec = frwd_fetch<0xFF>(magsgn); 
 
@@ -1226,7 +1226,7 @@ namespace ojph {
         __m128i bit_shift = _mm_shuffle_epi8(
           _mm_set_epi8(1, 3, 7, 15, 31, 63, 127, -1,
                        1, 3, 7, 15, 31, 63, 127, -1), bit_idx);
-        bit_shift = _mm_add_epi16(bit_shift, _mm_set1_epi16(0x0101u));
+        bit_shift = _mm_add_epi16(bit_shift, _mm_set1_epi16(0x0101));
         d0 = _mm_mullo_epi16(d0, bit_shift);
         d0 = _mm_srli_epi16(d0, 8); // we should have 8 bits in the LSB
         d1 = _mm_mullo_epi16(d1, bit_shift);
@@ -1272,10 +1272,10 @@ namespace ojph {
 
         ms_vec = _mm_andnot_si128(insig, tvn); // significant only
         w0 = _mm_shuffle_epi8(ms_vec, 
-          _mm_set_epi16(-1, -1, -1, -1, -1, -1, (si16)0x0706, (si16)0x0302));
+          _mm_set_epi16(-1, -1, -1, -1, -1, -1, 0x0706, 0x0302));
         vn = _mm_or_si128(vn, w0);
         w0 = _mm_shuffle_epi8(ms_vec, 
-              _mm_set_epi16(-1, -1, -1, -1, -1, (si16)0x0F0E, (si16)0x0B0A, -1));
+          _mm_set_epi16(-1, -1, -1, -1, -1, 0x0F0E, 0x0B0A, -1));
         vn = _mm_or_si128(vn, w0);
 
         // printf("%04x %04x %04x", _mm_extract_epi16(vn, 0), _mm_extract_epi16(vn, 1),
@@ -1826,12 +1826,12 @@ namespace ojph {
 
             //interleave in ssse3 style 
             w0 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0D0Cu, -1, 0x0908u, -1,
-                            0x0504u, -1, 0x0100u, -1));
+              _mm_set_epi16(0x0D0C, -1, 0x0908, -1,
+                            0x0504, -1, 0x0100, -1));
             _mm_store_si128((__m128i*)dp, w0);
             w1 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0F0Eu, -1, 0x0B0Au, -1,
-                            0x0706u, -1, 0x0302u, -1));
+              _mm_set_epi16(0x0F0E, -1, 0x0B0A, -1,
+                            0x0706, -1, 0x0302, -1));
             _mm_store_si128((__m128i*)(dp + stride), w1);
           }
         }
@@ -1894,8 +1894,8 @@ namespace ojph {
               w0 = _mm_bsrli_si128(emax, 2);
               emax = _mm_max_epi16(w0, emax); // no max_epi32 in ssse3
               emax = _mm_shuffle_epi8(emax, 
-                _mm_set_epi16(-1, 0x0706u, -1, 0x0504u, 
-                              -1, 0x0302u, -1, 0x0100u));
+                _mm_set_epi16(-1, 0x0706, -1, 0x0504, 
+                              -1, 0x0302, -1, 0x0100));
               emax = _mm_andnot_si128(gamma, emax);
 
               kappa = _mm_set1_epi32(1);
@@ -1921,12 +1921,12 @@ namespace ojph {
             //printf("\n");
 
             w0 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0D0Cu, -1, 0x0908u, -1,
-                            0x0504u, -1, 0x0100u, -1));
+              _mm_set_epi16(0x0D0C, -1, 0x0908, -1,
+                            0x0504, -1, 0x0100, -1));
             _mm_store_si128((__m128i*)dp, w0);
             w1 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0F0Eu, -1, 0x0B0Au, -1,
-                            0x0706u, -1, 0x0302u, -1));
+              _mm_set_epi16(0x0F0E, -1, 0x0B0A, -1,
+                            0x0706, -1, 0x0302, -1));
             _mm_store_si128((__m128i*)(dp + stride), w1);
           }
         }

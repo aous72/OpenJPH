@@ -1089,13 +1089,13 @@ namespace ojph {
         // shift samples values to correct location
         bit_idx = _mm_or_si128(bit_idx, _mm_slli_epi32(bit_idx, 16));
         __m128i bit_shift = _mm_shuffle_epi8(
-          _mm_set_epi8(1u, 3u, 7u, 15u, 31u, 63u, 127u, 255u,
-                       1u, 3u, 7u, 15u, 31u, 63u, 127u, 255u), bit_idx);
+          _mm_set_epi8(1, 3, 7, 15, 31, 63, 127, -1,
+                       1, 3, 7, 15, 31, 63, 127, -1), bit_idx);
         bit_shift = _mm_add_epi16(bit_shift, _mm_set1_epi16(0x0101));
         d0 = _mm_mullo_epi16(d0, bit_shift);
         d0 = _mm_srli_epi16(d0, 8); // we should have 8 bits in the LSB
         d1 = _mm_mullo_epi16(d1, bit_shift);
-        d1 = _mm_and_si128(d1, _mm_set1_epi32(0xFF00FF00)); // 8 in MSB
+        d1 = _mm_and_si128(d1, _mm_set1_epi32((si32)0xFF00FF00)); // 8 in MSB
         d0 = _mm_or_si128(d0, d1);
 
         // ui32 v0 = _mm_extract_epi32(d, 0);
@@ -1122,18 +1122,17 @@ namespace ojph {
         ms_vec = _mm_or_si128(ms_vec, ones); // bin center
         __m128i tvn = ms_vec;
         ms_vec = _mm_add_epi32(ms_vec, twos);// + 2
-        ms_vec = _mm_slli_epi32(ms_vec, p - 1);
+        ms_vec = _mm_slli_epi32(ms_vec, (si32)p - 1);
         ms_vec = _mm_or_si128(ms_vec, w0); // sign
         row = _mm_andnot_si128(insig, ms_vec); // significant only
 
         ms_vec = _mm_andnot_si128(insig, tvn); // significant only
-        tvn = _mm_or_si128(ms_vec, twos); // twos for easy emax calculation
         if (N == 0) // the compiler should remove one
-          tvn = _mm_shuffle_epi8(tvn, 
-            _mm_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0x0F0E0D0C, 0x07060504));
+          tvn = _mm_shuffle_epi8(ms_vec, 
+            _mm_set_epi32(-1, -1, 0x0F0E0D0C, 0x07060504));
         else if (N == 1)
-          tvn = _mm_shuffle_epi8(tvn, 
-            _mm_set_epi32(0xFFFFFFFF, 0x0F0E0D0C, 0x07060504, 0xFFFFFFFF));
+          tvn = _mm_shuffle_epi8(ms_vec, 
+            _mm_set_epi32(-1, 0x0F0E0D0C, 0x07060504, -1));
         else
           assert(0);
         vn = _mm_or_si128(vn, tvn);
@@ -1178,18 +1177,18 @@ namespace ojph {
 
       row = _mm_setzero_si128();
       w0 = _mm_shuffle_epi8(inf_u_q, 
-        _mm_set_epi16(0x0504u, 0x0504u, 0x0504u, 0x0504u,
-                      0x0100u, 0x0100u, 0x0100u, 0x0100u));
+        _mm_set_epi16(0x0504, 0x0504, 0x0504, 0x0504,
+                      0x0100, 0x0100, 0x0100, 0x0100));
       // we keeps e_k, e_1, and rho in w2
       flags = _mm_and_si128(w0, 
-        _mm_set_epi16(0x8880u, 0x4440u, 0x2220u, 0x1110u,
-                      0x8880u, 0x4440u, 0x2220u, 0x1110u));
+        _mm_set_epi16((si16)0x8880, (si16)0x4440, (si16)0x2220, (si16)0x1110,
+                      (si16)0x8880, (si16)0x4440, (si16)0x2220, (si16)0x1110));
       insig = _mm_cmpeq_epi16(flags, _mm_setzero_si128());
       if (_mm_movemask_epi8(insig) != 0xFFFF) //are all insignificant?
       {
         U_q = _mm_shuffle_epi8(U_q, 
-          _mm_set_epi16(0x0504u, 0x0504u, 0x0504u, 0x0504u,
-                        0x0100u, 0x0100u, 0x0100u, 0x0100u));
+          _mm_set_epi16((si16)0x0504, (si16)0x0504, (si16)0x0504, (si16)0x0504,
+                        (si16)0x0100, (si16)0x0100, (si16)0x0100u, (si16)0x0100u));
         flags = _mm_mullo_epi16(flags, _mm_set_epi16(1,2,4,8,1,2,4,8));
         __m128i ms_vec = frwd_fetch<0xFF>(magsgn); 
 
@@ -1225,13 +1224,13 @@ namespace ojph {
 
         // shift samples values to correct location
         __m128i bit_shift = _mm_shuffle_epi8(
-          _mm_set_epi8(1u, 3u, 7u, 15u, 31u, 63u, 127u, 255u,
-                       1u, 3u, 7u, 15u, 31u, 63u, 127u, 255u), bit_idx);
+          _mm_set_epi8(1, 3, 7, 15, 31, 63, 127, -1,
+                       1, 3, 7, 15, 31, 63, 127, -1), bit_idx);
         bit_shift = _mm_add_epi16(bit_shift, _mm_set1_epi16(0x0101u));
         d0 = _mm_mullo_epi16(d0, bit_shift);
         d0 = _mm_srli_epi16(d0, 8); // we should have 8 bits in the LSB
         d1 = _mm_mullo_epi16(d1, bit_shift);
-        d1 = _mm_and_si128(d1, _mm_set1_epi16(0xFF00u)); // 8 in MSB
+        d1 = _mm_and_si128(d1, _mm_set1_epi16((si16)0xFF00)); // 8 in MSB
         d0 = _mm_or_si128(d0, d1);
 
         // ui32 v0 = _mm_extract_epi16(d0, 0);
@@ -1267,19 +1266,16 @@ namespace ojph {
         ms_vec = _mm_or_si128(ms_vec, ones); // bin center
         __m128i tvn = ms_vec;
         ms_vec = _mm_add_epi16(ms_vec, twos);// + 2
-        ms_vec = _mm_slli_epi16(ms_vec, p - 1);
+        ms_vec = _mm_slli_epi16(ms_vec, (si32)p - 1);
         ms_vec = _mm_or_si128(ms_vec, w0); // sign
         row = _mm_andnot_si128(insig, ms_vec); // significant only
 
         ms_vec = _mm_andnot_si128(insig, tvn); // significant only
-        tvn = _mm_or_si128(ms_vec, twos); // twos for easy emax calculation
-        w0 = _mm_shuffle_epi8(tvn, 
-              _mm_set_epi16(0xFFFFu, 0xFFFFu, 0xFFFFu, 0xFFFFu, 
-                             0xFFFFu, 0xFFFFu, 0x0706u, 0x0302u));
+        w0 = _mm_shuffle_epi8(ms_vec, 
+          _mm_set_epi16(-1, -1, -1, -1, -1, -1, (si16)0x0706, (si16)0x0302));
         vn = _mm_or_si128(vn, w0);
-        w0 = _mm_shuffle_epi8(tvn, 
-              _mm_set_epi16(0xFFFFu, 0xFFFFu, 0xFFFFu, 0xFFFFu, 
-                             0xFFFFu, 0x0F0Eu, 0x0B0Au, 0xFFFFu));
+        w0 = _mm_shuffle_epi8(ms_vec, 
+              _mm_set_epi16(-1, -1, -1, -1, -1, (si16)0x0F0E, (si16)0x0B0A, -1));
         vn = _mm_or_si128(vn, w0);
 
         // printf("%04x %04x %04x", _mm_extract_epi16(vn, 0), _mm_extract_epi16(vn, 1),
@@ -1385,7 +1381,7 @@ namespace ojph {
       // We added an extra row, should we need a few more entries.
       ui16 scratch[8 * 513] = {0};          // 8+ kB
 
-      si32 sstr = ((width + 2) + 7) & ~7; // multiples of 8
+      ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
       assert((stride & 0x3) == 0);
 
@@ -1527,8 +1523,8 @@ namespace ojph {
             /////////////
 
             // sigma_q (n, ne, nf)
-            c_q |= ((sp[0 - sstr] & 0xA0U) << 2);
-            c_q |= ((sp[2 - sstr] & 0x20U) << 4);
+            c_q |= ((sp[0 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
 
             // first quad
             vlc_val = rev_fetch(&vlc);
@@ -1561,10 +1557,10 @@ namespace ojph {
             // sigma_q (w, sw)
             c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
             // sigma_q (nw)
-            c_q |= sp[0 - sstr] & 0x80;
+            c_q |= sp[0 - (si32)sstr] & 0x80;
             // sigma_q (n, ne, nf)
-            c_q |= ((sp[2 - sstr] & 0xA0U) << 2);
-            c_q |= ((sp[4 - sstr] & 0x20U) << 4);
+            c_q |= ((sp[2 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
 
             //remove data from vlc stream (0 bits are removed if vlc is unused)
             vlc_val = rev_advance(&vlc, t0 & 0x7);
@@ -1598,7 +1594,7 @@ namespace ojph {
             // sigma_q (w, sw)
             c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
             // sigma_q (nw)
-            c_q |= sp[2 - sstr] & 0x80;
+            c_q |= sp[2 - (si32)sstr] & 0x80;
 
             //remove data from vlc stream, if qinf is not used, cwdlen is 0
             vlc_val = rev_advance(&vlc, t1 & 0x7);
@@ -1668,7 +1664,7 @@ namespace ojph {
             __m128i row0 = one_quad_decode32<0>(inf_u_q, U_q, &magsgn, p, vn);
             __m128i row1 = one_quad_decode32<1>(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
-            w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,0xFFFFFFFF));
+            w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);            
 
@@ -1765,7 +1761,7 @@ namespace ojph {
             __m128i row0 = one_quad_decode32<0>(inf_u_q, U_q, &magsgn, p, vn);
             __m128i row1 = one_quad_decode32<1>(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
-            w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,0xFFFFFFFF));
+            w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
 
@@ -1822,7 +1818,7 @@ namespace ojph {
             __m128i vn = _mm_set1_epi16(2);
             __m128i row = one_quad_decode16(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
-            w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,0xFFFFu));
+            w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
 
@@ -1830,12 +1826,12 @@ namespace ojph {
 
             //interleave in ssse3 style 
             w0 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0D0Cu, 0x8080u, 0x0908u, 0x8080u,
-                            0x0504u, 0x8080u, 0x0100u, 0x8080u));
+              _mm_set_epi16(0x0D0Cu, -1, 0x0908u, -1,
+                            0x0504u, -1, 0x0100u, -1));
             _mm_store_si128((__m128i*)dp, w0);
             w1 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0F0Eu, 0x8080u, 0x0B0Au, 0x8080u,
-                            0x0706u, 0x8080u, 0x0302u, 0x8080u));
+              _mm_set_epi16(0x0F0Eu, -1, 0x0B0Au, -1,
+                            0x0706u, -1, 0x0302u, -1));
             _mm_store_si128((__m128i*)(dp + stride), w1);
           }
         }
@@ -1843,12 +1839,8 @@ namespace ojph {
         for (ui32 y = 2; y < height; y += 2)
         {
           {
-            // perform 31 - count_leading_zeros(*vp) here
+            // perform 15 - count_leading_zeros(*vp) here
             ui16 *vp = v_n_scratch;
-            // for (ui32 x = 0; x <= width; x += 2, ++vp)
-            // {
-            //   vp[v_n_size] = 31 - count_leading_zeros(*vp | 2);
-            // }
             const __m128i lut_lo = _mm_set_epi8(
               4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 7, 15
             );
@@ -1902,8 +1894,8 @@ namespace ojph {
               w0 = _mm_bsrli_si128(emax, 2);
               emax = _mm_max_epi16(w0, emax); // no max_epi32 in ssse3
               emax = _mm_shuffle_epi8(emax, 
-                _mm_set_epi16(0x8080u, 0x0706u, 0x8080u, 0x0504u, 
-                              0x8080u, 0x0302u, 0x8080u, 0x0100u));
+                _mm_set_epi16(-1, 0x0706u, -1, 0x0504u, 
+                              -1, 0x0302u, -1, 0x0100u));
               emax = _mm_andnot_si128(gamma, emax);
 
               kappa = _mm_set1_epi32(1);
@@ -1922,19 +1914,19 @@ namespace ojph {
             __m128i vn = _mm_set1_epi16(2);
             __m128i row = one_quad_decode16(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
-            w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,0xFFFFu));
+            w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
 
             //printf("\n");
 
             w0 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0D0Cu, 0x8080u, 0x0908u, 0x8080u,
-                            0x0504u, 0x8080u, 0x0100u, 0x8080u));
+              _mm_set_epi16(0x0D0Cu, -1, 0x0908u, -1,
+                            0x0504u, -1, 0x0100u, -1));
             _mm_store_si128((__m128i*)dp, w0);
             w1 = _mm_shuffle_epi8(row, 
-              _mm_set_epi16(0x0F0Eu, 0x8080u, 0x0B0Au, 0x8080u,
-                            0x0706u, 0x8080u, 0x0302u, 0x8080u));
+              _mm_set_epi16(0x0F0Eu, -1, 0x0B0Au, -1,
+                            0x0706u, -1, 0x0302u, -1));
             _mm_store_si128((__m128i*)(dp + stride), w1);
           }
         }

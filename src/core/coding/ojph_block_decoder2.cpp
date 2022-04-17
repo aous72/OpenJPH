@@ -1233,7 +1233,7 @@ namespace ojph {
       const int v_n_size = 512 + 4;
       ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
 
-      si32 sstr = ((width + 2) + 7) & ~7; // multiples of 8
+      ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
       counter.tmp = tsc_measure_start();
 
@@ -1373,8 +1373,8 @@ namespace ojph {
             /////////////
 
             // sigma_q (n, ne, nf)
-            c_q |= ((sp[0 - sstr] & 0xA0U) << 2);
-            c_q |= ((sp[2 - sstr] & 0x20U) << 4);
+            c_q |= ((sp[0 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
 
             // first quad
             vlc_val = rev_fetch(&vlc);
@@ -1407,10 +1407,10 @@ namespace ojph {
             // sigma_q (w, sw)
             c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
             // sigma_q (nw)
-            c_q |= sp[0 - sstr] & 0x80;
+            c_q |= sp[0 - (si32)sstr] & 0x80;
             // sigma_q (n, ne, nf)
-            c_q |= ((sp[2 - sstr] & 0xA0U) << 2);
-            c_q |= ((sp[4 - sstr] & 0x20U) << 4);
+            c_q |= ((sp[2 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
 
             //remove data from vlc stream (0 bits are removed if vlc is unused)
             vlc_val = rev_advance(&vlc, t0 & 0x7);
@@ -1444,7 +1444,7 @@ namespace ojph {
             // sigma_q (w, sw)
             c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
             // sigma_q (nw)
-            c_q |= sp[2 - sstr] & 0x80;
+            c_q |= sp[2 - (si32)sstr] & 0x80;
 
             //remove data from vlc stream, if qinf is not used, cwdlen is 0
             vlc_val = rev_advance(&vlc, t1 & 0x7);
@@ -1499,9 +1499,9 @@ namespace ojph {
             //get 32 bits of magsgn data
             ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
-            frwd_advance(&magsgn, m_n);         //consume m_n
+            frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                // get sign bit
+            val = ms_val << 31;                     // get sign bit
             v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
             v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
             v_n |= 1;                               // add center of bin    
@@ -1521,7 +1521,7 @@ namespace ojph {
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                // get sign bit
+            val = ms_val << 31;                      // get sign bit
             v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
             v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
             v_n |= 1;                               // add center of bin    
@@ -1545,7 +1545,7 @@ namespace ojph {
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                // get sign bit
+            val = ms_val << 31;                     // get sign bit
             v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
             v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
             v_n |= 1;                               // add center of bin    
@@ -1565,7 +1565,7 @@ namespace ojph {
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                // get sign bit
+            val = ms_val << 31;                     // get sign bit
             v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
             v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
             v_n |= 1;                               // add center of bin    
@@ -1593,7 +1593,7 @@ namespace ojph {
             ui32 u_q = sp[1];
 
             ui32 gamma = inf & 0xF0; gamma &= gamma - 0x10; //is gamma_q 1?
-            si32 emax = vp[0] | vp[1];
+            ui32 emax = vp[0] | vp[1];
             emax = 31 - count_leading_zeros(emax | 2); // emax - 1            
             ui32 kappa = gamma ? emax : 1;
 
@@ -1609,9 +1609,9 @@ namespace ojph {
               //get 32 bits of magsgn data
               ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
-              frwd_advance(&magsgn, m_n);         //consume m_n
+              frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                // get sign bit
+              val = ms_val << 31;                     // get sign bit
               v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
               v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
               v_n |= 1;                               // add center of bin    
@@ -1629,9 +1629,9 @@ namespace ojph {
               //get 32 bits of magsgn data
               ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
-              frwd_advance(&magsgn, m_n);         //consume m_n
+              frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                // get sign bit
+              val = ms_val << 31;                     // get sign bit
               v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
               v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
               v_n |= 1;                               // add center of bin    
@@ -1653,9 +1653,9 @@ namespace ojph {
               //get 32 bits of magsgn data
               ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
-              frwd_advance(&magsgn, m_n);         //consume m_n
+              frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                // get sign bit
+              val = ms_val << 31;                     // get sign bit
               v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
               v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
               v_n |= 1;                               // add center of bin    
@@ -1673,9 +1673,9 @@ namespace ojph {
               //get 32 bits of magsgn data
               ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
-              frwd_advance(&magsgn, m_n);         //consume m_n
+              frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                // get sign bit
+              val = ms_val << 31;                     // get sign bit
               v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
               v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
               v_n |= 1;                               // add center of bin    

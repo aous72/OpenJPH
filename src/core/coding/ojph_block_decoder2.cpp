@@ -1228,11 +1228,20 @@ namespace ojph {
       ui16 scratch[8 * 512] = {0};       // 8+ kB
 
       // We allocate a scratch row for storing v_n values.
-      // We allocated enough 512 entries for 512 qauds.
-      // The 4 is to make it a multipled of 16 bytes
+      // We have 512 quads horizontally.
+      // We need an extra entry to handle the case of vp[1]
+      // when vp is at the last column.
+      // Here, we allocate 4 insttead of 1 to make the buffer size 
+      // a multipled of 16 bytes.
       const int v_n_size = 512 + 4;
       ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
 
+      // We need an extra two entries (one inf and one u_q) beyond
+      // the last column. 
+      // If the block width is 4 (2 quads), then we use sstr of 8 
+      // (enough for 4 quads). If width is 8 (4 quads) we use 
+      // sstr is 16 (enough for 8 quads). For a width of 16 (8 
+      // quads), we use 24 (enough for 12 quads).
       ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
       counter.tmp = tsc_measure_start();

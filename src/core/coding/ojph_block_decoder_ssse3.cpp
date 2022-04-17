@@ -1378,9 +1378,17 @@ namespace ojph {
       // from MSB
       // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
       // Each entry in UVLC contains u_q
-      // We added an extra row, should we need a few more entries.
+      // It is possible, we may read up to 4 entries beyond the end of the
+      // buffer; therefore, we allocated an extra 8 enries to make the 
+      // buffer size a multiple of 8.
       ui16 scratch[8 * 513] = {0};          // 8+ kB
 
+      // We need an extra two entries (one inf and one u_q) beyond
+      // the last column. 
+      // If the block width is 4 (2 quads), then we use sstr of 8 
+      // (enough for 4 quads). If width is 8 (4 quads) we use 
+      // sstr is 16 (enough for 8 quads). For a width of 16 (8 
+      // quads), we use 24 (enough for 12 quads).
       ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
       assert((stride & 0x3) == 0);
@@ -1628,9 +1636,11 @@ namespace ojph {
       if (mmsbp2 >= 16)
       {
         // We allocate a scratch row for storing v_n values.
-        // We allocated enough 512 entries for 512 qauds.
-        // The 8 leaves 16 bytes before the buffer and 16 after 
-        // This is enough for SSE family of SIMD
+        // We have 512 quads horizontally.
+        // We may go beyond the last entry by up to 4 entries.
+        // Here we allocate additional 8 entries.
+        // There are two rows in this structure, the bottom
+        // row is used to store processed entries.
         const int v_n_size = 512 + 8;
         ui32 v_n_scratch[2 * v_n_size] = {0}; // 4+ kB
 
@@ -1783,10 +1793,12 @@ namespace ojph {
         p -= 16;
 
         // We allocate a scratch row for storing v_n values.
-        // We allocated enough 512 entries for 512 qauds.
-        // The 8 leaves 16 bytes before the buffer and 16 after 
-        // This is enough for SSE family of SIMD
-        const int v_n_size = 512 + 16;
+        // We have 512 quads horizontally.
+        // We may go beyond the last entry by up to 6 entries.
+        // Here we allocate additional 8 entries.
+        // There are two rows in this structure, the bottom
+        // row is used to store processed entries.
+        const int v_n_size = 512 + 8;
         ui16 v_n_scratch[2 * v_n_size] = {0}; // 2+ kB
 
         frwd_struct magsgn;

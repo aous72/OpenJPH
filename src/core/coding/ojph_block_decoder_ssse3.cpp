@@ -2001,7 +2001,7 @@ namespace ojph {
             for (ui32 x = 0; x < width; x += 4, dpp += 4, ++cur_sig, ++prev_sig)
             {
               // only rows and columns inside the stripe are included
-              si32 s = x + 4 - (si32)width;
+              si32 s = (si32)x + 4 - (si32)width;
               s = ojph_max(s, 0);
               pattern = pattern >> (s * 4);
 
@@ -2044,7 +2044,7 @@ namespace ojph {
               if (new_sig)
               {
                 __m128i cwd_vec = frwd_fetch<0>(&sigprop);
-                ui32 cwd = _mm_extract_epi16(cwd_vec, 0);
+                ui32 cwd = (ui32)_mm_extract_epi16(cwd_vec, 0);
 
                 ui32 cnt = 0;
                 ui32 col_mask = 0xFu;
@@ -2110,13 +2110,13 @@ namespace ojph {
 
                   // Spread new_sig, such that each bit is in one byte with a
                   // value of 0 if new_sig bit is 0, and 0xFF if new_sig is 1
-                  __m128i new_sig_vec = _mm_set1_epi16((ui16)new_sig);
+                  __m128i new_sig_vec = _mm_set1_epi16((si16)new_sig);
                   new_sig_vec = _mm_shuffle_epi8(new_sig_vec,
                     _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
                   new_sig_vec = _mm_and_si128(new_sig_vec,
-                    _mm_set1_epi64x(0x8040201008040201ul));
+                    _mm_set1_epi64x((si64)0x8040201008040201));
                   new_sig_vec = _mm_cmpeq_epi8(new_sig_vec,
-                    _mm_set1_epi64x(0x8040201008040201ul));
+                    _mm_set1_epi64x((si64)0x8040201008040201));
 
                   // find cumulative sums
                   // to find which bit in cwd we should extract
@@ -2126,19 +2126,19 @@ namespace ojph {
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 2));
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 4));
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 8));
-                  cnt += _mm_extract_epi16(inc_sum, 7) >> 8;
+                  cnt += (ui32)_mm_extract_epi16(inc_sum, 7) >> 8;
                   // exclusive scan
                   __m128i ex_sum = _mm_bslli_si128(inc_sum, 1);
 
                   // Spread cwd, such that each bit is in one byte
                   // with a value of 0 or 1.
-                  cwd_vec = _mm_set1_epi16((ui16)cwd);
+                  cwd_vec = _mm_set1_epi16((si16)cwd);
                   cwd_vec = _mm_shuffle_epi8(cwd_vec,
                     _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
                   cwd_vec = _mm_and_si128(cwd_vec,
-                    _mm_set1_epi64x(0x8040201008040201ul));
+                    _mm_set1_epi64x((si64)0x8040201008040201));
                   cwd_vec = _mm_cmpeq_epi8(cwd_vec,
-                    _mm_set1_epi64x(0x8040201008040201ul));
+                    _mm_set1_epi64x((si64)0x8040201008040201));
                   cwd_vec = _mm_sign_epi8(cwd_vec, cwd_vec);
 
                   // Obtain bit from cwd_vec correspondig to ex_sum
@@ -2148,7 +2148,7 @@ namespace ojph {
                   // load data and set spp coefficients
                   __m128i m =
                     _mm_set_epi8(-1,-1,-1,12,-1,-1,-1,8,-1,-1,-1,4,-1,-1,-1,0);
-                  __m128i val = _mm_set1_epi32(3u << (p - 2));
+                  __m128i val = _mm_set1_epi32(3 << (p - 2));
                   ui32 *dp = dpp;
                   for (int c = 0; c < 4; ++ c) {
                     __m128i s0, s0_ns, s0_val;
@@ -2216,13 +2216,13 @@ namespace ojph {
                 // data is 32 bit (4 bytes)
 
                 // spread the 16 bits in sig to 0 or 1 bytes in sig_vec
-                __m128i sig_vec = _mm_set1_epi16(sig);
+                __m128i sig_vec = _mm_set1_epi16((si16)sig);
                 sig_vec = _mm_shuffle_epi8(sig_vec,
                   _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
                 sig_vec = _mm_and_si128(sig_vec,
-                  _mm_set1_epi64x(0x8040201008040201ul));
+                  _mm_set1_epi64x((si64)0x8040201008040201));
                 sig_vec = _mm_cmpeq_epi8(sig_vec,
-                  _mm_set1_epi64x(0x8040201008040201ul));
+                  _mm_set1_epi64x((si64)0x8040201008040201));
                 sig_vec = _mm_sign_epi8(sig_vec, sig_vec);
 
                 // find cumulative sums
@@ -2244,9 +2244,9 @@ namespace ojph {
                 cwd_vec = _mm_shuffle_epi8(cwd_vec,
                   _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
                 cwd_vec = _mm_and_si128(cwd_vec, 
-                  _mm_set1_epi64x(0x8040201008040201ul));
+                  _mm_set1_epi64x((si64)0x8040201008040201));
                 cwd_vec = _mm_cmpeq_epi8(cwd_vec, 
-                  _mm_set1_epi64x(0x8040201008040201ul));
+                  _mm_set1_epi64x((si64)0x8040201008040201));
                 cwd_vec = _mm_add_epi8(cwd_vec, _mm_set1_epi8(1));
                 cwd_vec = _mm_add_epi8(cwd_vec, cwd_vec);
                 cwd_vec = _mm_or_si128(cwd_vec, _mm_set1_epi8(1));
@@ -2268,7 +2268,7 @@ namespace ojph {
                   // keep data from significant samples only
                   s0_val = _mm_andnot_si128(s0_sig, s0_val);
                   // move mrp bits to correct position, and employ
-                  s0_val = _mm_slli_epi32(s0_val, p - 2);
+                  s0_val = _mm_slli_epi32(s0_val, (si32)p - 2);
                   s0 = _mm_xor_si128(s0, s0_val);
                   // store coefficients
                   _mm_store_si128((__m128i*)dp, s0);
@@ -2278,7 +2278,7 @@ namespace ojph {
                 }
               }
               // consume data according to the number of bits set
-              rev_advance_mrp(&magref, total_bits);
+              rev_advance_mrp(&magref, (ui32)total_bits);
             }
           }
         }

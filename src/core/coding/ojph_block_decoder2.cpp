@@ -1719,10 +1719,10 @@ namespace ojph {
             ui16* dp = sigma + (y >> 2) * mstr;
             for (ui32 x = 0; x < width; x += 4, sp += 4, ++dp) {
               ui32 t0 = 0, t1 = 0;
-              t0  = ((sp[0     ] & 0x30) >> 4)  | ((sp[0     ] & 0xC0) >> 2);
-              t0 |= ((sp[2     ] & 0x30) << 4)  | ((sp[2     ] & 0xC0) << 6);
-              t1  = ((sp[0+sstr] & 0x30) >> 2)  | ((sp[0+sstr] & 0xC0)     );
-              t1 |= ((sp[2+sstr] & 0x30) << 6)  | ((sp[2+sstr] & 0xC0) << 8);
+              t0  = ((sp[0     ] & 0x30u) >> 4)  | ((sp[0     ] & 0xC0u) >> 2);
+              t0 |= ((sp[2     ] & 0x30u) << 4)  | ((sp[2     ] & 0xC0u) << 6);
+              t1  = ((sp[0+sstr] & 0x30u) >> 2)  | ((sp[0+sstr] & 0xC0u)     );
+              t1 |= ((sp[2+sstr] & 0x30u) << 6)  | ((sp[2+sstr] & 0xC0u) << 8);
               dp[0] = (ui16)(t0 | t1);
             }
             dp[0] = 0; // set an extra entry on the right with 0
@@ -1772,7 +1772,7 @@ namespace ojph {
             for (ui32 x = 0; x < width; x += 4, ++cur_sig, ++prev_sig)
             {
               // only rows and columns inside the stripe are included
-              si32 s = x + 4 - (si32)width;
+              si32 s = (si32)x + 4 - (si32)width;
               s = ojph_max(s, 0);
               pattern = pattern >> (s * 4);
 

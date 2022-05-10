@@ -40,30 +40,19 @@
  *  @brief implements a faster HTJ2K block decoder using ssse3
  */
 
+#include <string>
+#include <iostream>
+
 #include <cassert>
 #include <cstring>
 #include "ojph_block_decoder.h"
 #include "ojph_arch.h"
 #include "ojph_message.h"
 
-#ifdef OJPH_COMPILER_MSVC
-#include <intrin.h>
-#else
-#include <x86intrin.h>
-#endif
-
-#include "tsc-measure.h"
+#include <immintrin.h>
 
 namespace ojph {
   namespace local_ssse3 {
-
-    struct _counter {
-      _counter() { count = 0; num_samples = 0; }
-      ~_counter() { printf("%ld, %ld, %f\n", count, num_samples, (float)count / (float)num_samples); }
-      uint64_t count;
-      uint64_t tmp;
-      uint64_t num_samples;
-    } counter;
 
     //************************************************************************/
     /** @defgroup vlc_decoding_tables_grp VLC decoding tables
@@ -1036,10 +1025,21 @@ namespace ojph {
       return t;
     }
 
-
+    //************************************************************************/
+    /** @brief decodes one quad, using 32 bit data
+     *
+     *  @tparam N       0 for the first quad and 1 for the second quad in an
+     *                  octet
+     *  @param inf_u_q  decoded VLC code, with interleaved u values
+     *  @param U_q      U values
+     *  @param magsgn   structure for forward data buffer
+     *  @param p        bitplane at which we are decoding
+     *  @param vn       used for handling E values (stores v_n values)
+     *  @return __m128i decoded quad
+     */
     template <int N>
     static inline 
-    __m128i one_quad_decode32(const __m128i inf_u_q, __m128i U_q, 
+    __m128i decode_one_quad32(const __m128i inf_u_q, __m128i U_q,
                               frwd_struct* magsgn, ui32 p, __m128i& vn)
     {
       __m128i w0;    // workers
@@ -1070,11 +1070,11 @@ namespace ojph {
 
         // find cumulative sums
         // to find at which bit in ms_vec the sample starts
-        __m128i inc_sum = m_n; // inclusive scane
+        __m128i inc_sum = m_n; // inclusive scan
         inc_sum = _mm_add_epi32(inc_sum, _mm_bslli_si128(inc_sum, 4));
         inc_sum = _mm_add_epi32(inc_sum, _mm_bslli_si128(inc_sum, 8));
         int total_mn = _mm_extract_epi16(inc_sum, 6);
-        __m128i ex_sum = _mm_bslli_si128(inc_sum, 4); // exclusive scane
+        __m128i ex_sum = _mm_bslli_si128(inc_sum, 4); // exclusive scan
 
         // find the starting byte and starting bit
         __m128i byte_idx = _mm_srli_epi32(ex_sum, 3);
@@ -1098,11 +1098,6 @@ namespace ojph {
         d1 = _mm_and_si128(d1, _mm_set1_epi32((si32)0xFF00FF00)); // 8 in MSB
         d0 = _mm_or_si128(d0, d1);
 
-        // ui32 v0 = _mm_extract_epi32(d, 0);
-        // ui32 v1 = _mm_extract_epi32(d, 1);
-        // ui32 v2 = _mm_extract_epi32(d, 2);
-        // ui32 v3 = _mm_extract_epi32(d, 3);
-        
         // find location of e_k and mask
         __m128i shift;
         __m128i ones = _mm_set1_epi32(1);
@@ -1137,37 +1132,24 @@ namespace ojph {
           assert(0);
         vn = _mm_or_si128(vn, tvn);
 
-        // if (N == 1)
-        //   printf("%04x %04x %04x", _mm_extract_epi32(vn, 0), _mm_extract_epi32(vn, 1),
-        //           _mm_extract_epi32(vn, 2));        
-
-        // e0 = _mm_extract_epi32(ms_vec, 1);
-        // e1 = _mm_extract_epi32(ms_vec, 3);
-        // e0 = _mm_extract_epi16(ms_vec, 3);
-        // e0 <<= 16;
-        // e0 |= _mm_extract_epi16(ms_vec, 2);
-        // e1 = _mm_extract_epi16(ms_vec, 7);
-        // e1 <<= 16;
-        // e1 |= _mm_extract_epi16(ms_vec, 6);
-
-        // ui32 r0 = _mm_extract_epi32(row, 0);
-        // ui32 r1 = _mm_extract_epi32(row, 1);
-        // ui32 r2 = _mm_extract_epi32(row, 2);
-        // ui32 r3 = _mm_extract_epi32(row, 3);
-
-        // printf("%08x %08x ", v0, r0);
-        // printf("%08x %08x ", v1, r1);
-        // printf("%08x %08x ", v2, r2);
-        // printf("%08x %08x ", v3, r3);
-
         if (total_mn)
           frwd_advance(magsgn, (ui32)total_mn);
       }
       return row;
     }
 
+   //************************************************************************/
+    /** @brief decodes twos consecutive quads (one octet), using 16 bit data
+     *
+     *  @param inf_u_q  decoded VLC code, with interleaved u values
+     *  @param U_q      U values
+     *  @param magsgn   structure for forward data buffer
+     *  @param p        bitplane at which we are decoding
+     *  @param vn       used for handling E values (stores v_n values)
+     *  @return __m128i decoded quad
+     */
     static inline 
-    __m128i one_quad_decode16(const __m128i inf_u_q, __m128i U_q, 
+    __m128i decode_two_quad16(const __m128i inf_u_q, __m128i U_q, 
                               frwd_struct* magsgn, ui32 p, __m128i& vn)
     {
       __m128i w0;     // workers
@@ -1204,12 +1186,12 @@ namespace ojph {
 
         // find cumulative sums
         // to find at which bit in ms_vec the sample starts
-        __m128i inc_sum = m_n; // inclusive scane
+        __m128i inc_sum = m_n; // inclusive scan
         inc_sum = _mm_add_epi16(inc_sum, _mm_bslli_si128(inc_sum, 2));
         inc_sum = _mm_add_epi16(inc_sum, _mm_bslli_si128(inc_sum, 4));
         inc_sum = _mm_add_epi16(inc_sum, _mm_bslli_si128(inc_sum, 8));
         int total_mn = _mm_extract_epi16(inc_sum, 7);
-        __m128i ex_sum = _mm_bslli_si128(inc_sum, 2); // exclusive scane
+        __m128i ex_sum = _mm_bslli_si128(inc_sum, 2); // exclusive scan
 
         // find the starting byte and starting bit
         __m128i byte_idx = _mm_srli_epi16(ex_sum, 3);
@@ -1233,15 +1215,6 @@ namespace ojph {
         d1 = _mm_and_si128(d1, _mm_set1_epi16((si16)0xFF00)); // 8 in MSB
         d0 = _mm_or_si128(d0, d1);
 
-        // ui32 v0 = _mm_extract_epi16(d0, 0);
-        // ui32 v1 = _mm_extract_epi16(d0, 1);
-        // ui32 v2 = _mm_extract_epi16(d0, 2);
-        // ui32 v3 = _mm_extract_epi16(d0, 3);
-        // ui32 v4 = _mm_extract_epi16(d0, 4);
-        // ui32 v5 = _mm_extract_epi16(d0, 5);
-        // ui32 v6 = _mm_extract_epi16(d0, 6);
-        // ui32 v7 = _mm_extract_epi16(d0, 7);
-        
         // find location of e_k and mask
         __m128i shift, t0, t1, Uq0, Uq1;
         __m128i ones = _mm_set1_epi16(1);
@@ -1278,27 +1251,6 @@ namespace ojph {
           _mm_set_epi16(-1, -1, -1, -1, -1, 0x0F0E, 0x0B0A, -1));
         vn = _mm_or_si128(vn, w0);
 
-        // printf("%04x %04x %04x", _mm_extract_epi16(vn, 0), _mm_extract_epi16(vn, 1),
-        //         _mm_extract_epi16(vn, 2));
-
-        // ui32 r0 = _mm_extract_epi16(row, 0);
-        // ui32 r1 = _mm_extract_epi16(row, 1);
-        // ui32 r2 = _mm_extract_epi16(row, 2);
-        // ui32 r3 = _mm_extract_epi16(row, 3);
-        // ui32 r4 = _mm_extract_epi16(row, 4);
-        // ui32 r5 = _mm_extract_epi16(row, 5);
-        // ui32 r6 = _mm_extract_epi16(row, 6);
-        // ui32 r7 = _mm_extract_epi16(row, 7);
-
-        // printf("%08x %08x ", v0, r0);
-        // printf("%08x %08x ", v1, r1);
-        // printf("%08x %08x ", v2, r2);
-        // printf("%08x %08x ", v3, r3);
-        // printf("%08x %08x ", v4, r4);
-        // printf("%08x %08x ", v5, r5);
-        // printf("%08x %08x ", v6, r6);
-        // printf("%08x %08x ", v7, r7);
-
         if (total_mn)
           frwd_advance(magsgn, (ui32)total_mn);
       }
@@ -1321,11 +1273,13 @@ namespace ojph {
      *  @param [in]   width is the decoded codeblock width 
      *  @param [in]   height is the decoded codeblock height
      *  @param [in]   stride is the decoded codeblock buffer stride 
+     *  @param [in]   stripe_causal is true for stripe causal mode
      */
     bool ojph_decode_codeblock_ssse3(ui8* coded_data, ui32* decoded_data,
                                      ui32 missing_msbs, ui32 num_passes,
                                      ui32 lengths1, ui32 lengths2,
-                                     ui32 width, ui32 height, ui32 stride)
+                                     ui32 width, ui32 height, ui32 stride,
+                                     bool stripe_causal)
     {
       // The cleanup pass is decoded in two steps; in step one,
       // the VLC and MEL segments are decoded, generating a record that 
@@ -1378,9 +1332,8 @@ namespace ojph {
       // from MSB
       // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
       // Each entry in UVLC contains u_q
-      // It is possible, we may read up to 4 entries beyond the end of the
-      // buffer; therefore, we allocated an extra 8 enries to make the 
-      // buffer size a multiple of 8.
+      // One extra row to handle the case of SPP propagating downwards
+      // when codeblock width is 4
       ui16 scratch[8 * 513] = {0};          // 8+ kB
 
       // We need an extra two entries (one inf and one u_q) beyond
@@ -1392,8 +1345,6 @@ namespace ojph {
       ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
       assert((stride & 0x3) == 0);
-
-      counter.tmp = tsc_measure_start();
 
       // step 1 decoding VLC and MEL segments
       {
@@ -1633,6 +1584,13 @@ namespace ojph {
       }
 
       // step2 we decode magsgn
+      // mmsbp2 equals K_max + 1 (we decode up to K_max bits + 1 sign bit)
+      // The 32 bit path decode 16 bits data, for which one would think
+      // 16 bits are enough, because we want to put in the center of the
+      // bin.
+      // If you have mmsbp2 equals 16 bit, and reversible coding, and
+      // no bitplanes are missing, then we can decoding using the 16 bit
+      // path, but we are not doing this here.
       if (mmsbp2 >= 16)
       {
         // We allocate a scratch row for storing v_n values.
@@ -1671,8 +1629,8 @@ namespace ojph {
             // printf("%2d  0 ", x);
 
             __m128i vn = _mm_set1_epi32(2);
-            __m128i row0 = one_quad_decode32<0>(inf_u_q, U_q, &magsgn, p, vn);
-            __m128i row1 = one_quad_decode32<1>(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row0 = decode_one_quad32<0>(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row1 = decode_one_quad32<1>(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
             w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
@@ -1768,8 +1726,8 @@ namespace ojph {
             // printf("%2d %2d ", x, y);
 
             __m128i vn = _mm_set1_epi32(2);
-            __m128i row0 = one_quad_decode32<0>(inf_u_q, U_q, &magsgn, p, vn);
-            __m128i row1 = one_quad_decode32<1>(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row0 = decode_one_quad32<0>(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row1 = decode_one_quad32<1>(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
             w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
@@ -1794,8 +1752,8 @@ namespace ojph {
 
         // We allocate a scratch row for storing v_n values.
         // We have 512 quads horizontally.
-        // We may go beyond the last entry by up to 6 entries.
-        // Here we allocate additional 8 entries.
+        // We may go beyond the last entry by up to 8 entries.
+        // Therefore we allocate additional 8 entries.
         // There are two rows in this structure, the bottom
         // row is used to store processed entries.
         const int v_n_size = 512 + 8;
@@ -1828,7 +1786,7 @@ namespace ojph {
             //printf("%2d  0 ", x);
 
             __m128i vn = _mm_set1_epi16(2);
-            __m128i row = one_quad_decode16(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row = decode_two_quad16(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
             w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
@@ -1924,7 +1882,7 @@ namespace ojph {
             //printf("%2d %2d ", x, y);
 
             __m128i vn = _mm_set1_epi16(2);
-            __m128i row = one_quad_decode16(inf_u_q, U_q, &magsgn, p, vn);
+            __m128i row = decode_two_quad16(inf_u_q, U_q, &magsgn, p, vn);
             w0 = _mm_loadu_si128((__m128i*)vp);
             w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
@@ -1942,10 +1900,390 @@ namespace ojph {
             _mm_store_si128((__m128i*)(dp + stride), w1);
           }
         }
+
+        // increase bitplane back by 16 because we need to process 32 bits
+        p += 16;
       }
 
-      counter.count += tsc_measure_stop() - counter.tmp;
-      counter.num_samples += width * height;
+      if (num_passes > 1)
+      {
+        // We use scratch again, we can divide it into multiple regions
+        // sigma holds all the significant samples, and it cannot
+        // be modified after it is set.  it will be used during the 
+        // Magnitude Refinement Pass
+        ui16* const sigma = scratch;
+
+        ui32 mstr = (width + 3u) >> 2;   // divide by 4, since each
+                                         // ui16 contains 4 columns
+        mstr = ((mstr + 2u) + 7u) & ~7u; // multiples of 8
+
+        // We re-arrange quad significance, where each 4 consecutive
+        // bits represent one quad, into column significance, where,
+        // each 4 consequtive bits represent one column of 4 rows
+        {
+          ui32 y;
+
+          const __m128i mask_3 = _mm_set1_epi32(0x30);
+          const __m128i mask_C = _mm_set1_epi32(0xC0);
+          const __m128i shuffle_mask = _mm_set_epi32(-1, -1, -1, 0x0C080400);
+          for (y = 0; y < height; y += 4) 
+          {
+            ui16* sp = scratch + (y >> 1) * sstr;
+            ui16* dp = sigma + (y >> 2) * mstr;
+            for (ui32 x = 0; x < width; x += 8, sp += 8, dp += 2) 
+            {
+              __m128i s0, s1, u3, uC, t0, t1;
+
+              s0 = _mm_loadu_si128((__m128i*)(sp));
+              u3 = _mm_and_si128(s0, mask_3);
+              u3 = _mm_srli_epi32(u3, 4);
+              uC = _mm_and_si128(s0, mask_C);
+              uC = _mm_srli_epi32(uC, 2);
+              t0 = _mm_or_si128(u3, uC);
+
+              s1 = _mm_loadu_si128((__m128i*)(sp + sstr));
+              u3 = _mm_and_si128(s1, mask_3);
+              u3 = _mm_srli_epi32(u3, 2);
+              uC = _mm_and_si128(s1, mask_C);
+              t1 = _mm_or_si128(u3, uC);
+
+              __m128i r = _mm_or_si128(t0, t1);
+              r = _mm_shuffle_epi8(r, shuffle_mask);
+
+              // _mm_storeu_si32 is not defined, so we use this workaround
+              _mm_store_ss((float*)dp, _mm_castsi128_ps(r));
+            }
+            dp[0] = 0; // set an extra entry on the right with 0
+          }
+          {
+            // reset one row after the codeblock
+            ui16* dp = sigma + (y >> 2) * mstr;
+            __m128i zero = _mm_setzero_si128();
+            for (ui32 x = 0; x < width; x += 32, dp += 8)
+              _mm_store_si128((__m128i*)dp, zero);
+            dp[0] = 0; // set an extra entry on the right with 0
+          }
+        }
+
+        // We perform Significance Propagation Pass here
+        {
+          // This stores significance information of the previous
+          // 4 rows.  Significance information in this array includes
+          // all signicant samples in bitplane p - 1; that is,
+          // significant samples for bitplane p (discovered during the
+          // cleanup pass and stored in sigma) and samples that have recently
+          // became significant (during the SPP) in bitplane p-1.
+          // We store enough for the widest row, containing 1024 columns,
+          // which is equivalent to 256 of ui16, since each stores 4 columns.
+          // We add an extra 8 entries, just in case we need more
+          ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
+
+          frwd_struct sigprop;
+          frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
+          {
+            ui32 pattern = 0xFFFFu; // a pattern needed samples
+            if (height - y < 4) {
+              pattern = 0x7777u;
+              if (height - y < 3)
+                pattern = 0x3333u;
+              else if (height - y < 2)
+                pattern = 0x1111u;
+            }
+
+            // prev holds sign. info. for the previous quad, together
+            // with the rows on top of it and below it.
+            ui32 prev = 0;
+            ui16 *prev_sig = prev_row_sig;
+            ui16 *cur_sig = sigma + (y >> 2) * mstr;
+            ui32 *dpp = decoded_data + y * stride;
+            for (ui32 x = 0; x < width; x += 4, dpp += 4, ++cur_sig, ++prev_sig)
+            {
+              // only rows and columns inside the stripe are included
+              si32 s = x + 4 - (si32)width;
+              s = ojph_max(s, 0);
+              pattern = pattern >> (s * 4);
+
+              // We first find locations that need to be tested (potential
+              // SPP members); these location will end up in mbr
+              // In each iteration, we produce 16 bits because cwd can have
+              // up to 16 bits of significance information, followed by the
+              // corresponding 16 bits of sign information; therefore, it is
+              // sufficient to fetch 32 bit data per loop.
+
+              // Althougth we are interested in 16 bits only, we load 32 bits.
+              // For the 16 bits we are producing, we need the next 4 bits --
+              // We need data for at least 5 columns out of 8.
+              // Therefore loading 32 bits is easier than loading 16 bits
+              // twice.
+              ui32 ps = *(ui32*)prev_sig;
+              ui32 ns = *(ui32*)(cur_sig + mstr);
+              ui32 u = (ps & 0x88888888) >> 3; // the row on top
+              if (!stripe_causal)
+                u |= (ns & 0x11111111) << 3;   // the row below
+
+              ui32 cs = *(ui32*)cur_sig;
+              // vertical integration
+              ui32 mbr =  cs;                // this sig. info.
+              mbr |= (cs & 0x77777777) << 1; //above neighbors
+              mbr |= (cs & 0xEEEEEEEE) >> 1; //below neighbors
+              mbr |= u;
+              // horizontal integration
+              ui32 t = mbr;
+              mbr |= t << 4;      // neighbors on the left
+              mbr |= t >> 4;      // neighbors on the right
+              mbr |= prev >> 12;  // significance of previous group
+
+              // remove outside samples, and already significant samples
+              mbr &= pattern;
+              mbr &= ~cs;
+
+              // find samples that become significant during the SPP
+              ui32 new_sig = mbr;
+              if (new_sig)
+              {
+                __m128i cwd_vec = frwd_fetch<0>(&sigprop);
+                ui32 cwd = _mm_extract_epi16(cwd_vec, 0);
+
+                ui32 cnt = 0;
+                ui32 col_mask = 0xFu;
+                ui32 inv_sig = ~cs & pattern;
+                for (int i = 0; i < 16; i += 4, col_mask <<= 4)
+                {
+                  if ((col_mask & new_sig) == 0)
+                    continue;
+
+                  //scan one column
+                  ui32 sample_mask = 0x1111u & col_mask;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x33u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x76u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xECu << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xC8u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+                }
+
+                if (new_sig)
+                {
+                  cwd |= (ui32)_mm_extract_epi16(cwd_vec, 1) << (16 - cnt);
+
+                  // Spread new_sig, such that each bit is in one byte with a
+                  // value of 0 if new_sig bit is 0, and 0xFF if new_sig is 1
+                  __m128i new_sig_vec = _mm_set1_epi16((ui16)new_sig);
+                  new_sig_vec = _mm_shuffle_epi8(new_sig_vec,
+                    _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
+                  new_sig_vec = _mm_and_si128(new_sig_vec,
+                    _mm_set1_epi64x(0x8040201008040201ul));
+                  new_sig_vec = _mm_cmpeq_epi8(new_sig_vec,
+                    _mm_set1_epi64x(0x8040201008040201ul));
+
+                  // find cumulative sums
+                  // to find which bit in cwd we should extract
+                  __m128i inc_sum = new_sig_vec; // inclusive scan
+                  inc_sum = _mm_sign_epi8(inc_sum, inc_sum); // cvrt to 0 or 1
+                  inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 1));
+                  inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 2));
+                  inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 4));
+                  inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 8));
+                  cnt += _mm_extract_epi16(inc_sum, 7) >> 8;
+                  // exclusive scan
+                  __m128i ex_sum = _mm_bslli_si128(inc_sum, 1);
+
+                  // Spread cwd, such that each bit is in one byte
+                  // with a value of 0 or 1.
+                  cwd_vec = _mm_set1_epi16((ui16)cwd);
+                  cwd_vec = _mm_shuffle_epi8(cwd_vec,
+                    _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
+                  cwd_vec = _mm_and_si128(cwd_vec,
+                    _mm_set1_epi64x(0x8040201008040201ul));
+                  cwd_vec = _mm_cmpeq_epi8(cwd_vec,
+                    _mm_set1_epi64x(0x8040201008040201ul));
+                  cwd_vec = _mm_sign_epi8(cwd_vec, cwd_vec);
+
+                  // Obtain bit from cwd_vec correspondig to ex_sum
+                  // Basically, collect needed bits from cwd_vec
+                  __m128i v = _mm_shuffle_epi8(cwd_vec, ex_sum);
+
+                  // load data and set spp coefficients
+                  __m128i m =
+                    _mm_set_epi8(-1,-1,-1,12,-1,-1,-1,8,-1,-1,-1,4,-1,-1,-1,0);
+                  __m128i val = _mm_set1_epi32(3u << (p - 2));
+                  ui32 *dp = dpp;
+                  for (int c = 0; c < 4; ++ c) {
+                    __m128i s0, s0_ns, s0_val;
+                    // load coefficients
+                    s0 = _mm_load_si128((__m128i*)dp);
+
+                    // epi32 is -1 only for coefficient that
+                    // are changed during the SPP
+                    s0_ns = _mm_shuffle_epi8(new_sig_vec, m);
+                    s0_ns = _mm_cmpeq_epi32(s0_ns, _mm_set1_epi32(0xFF));
+
+                    // obtain sign for coefficients in SPP
+                    s0_val = _mm_shuffle_epi8(v, m);
+                    s0_val = _mm_slli_epi32(s0_val, 31);
+                    s0_val = _mm_or_si128(s0_val, val);
+                    s0_val = _mm_and_si128(s0_val, s0_ns);
+
+                    // update vector
+                    s0 = _mm_or_si128(s0, s0_val);
+                    // store coefficients
+                    _mm_store_si128((__m128i*)dp, s0);
+                    // prepare for next row
+                    dp += stride;
+                    m = _mm_add_epi32(m, _mm_set1_epi32(1));
+                  }
+                }
+                frwd_advance(&sigprop, cnt);
+              }
+
+              new_sig |= cs;
+              *prev_sig = (ui16)(new_sig);
+
+              // vertical integration for the new sig. info.
+              t = new_sig;
+              new_sig |= (t & 0x7777) << 1; //above neighbors
+              new_sig |= (t & 0xEEEE) >> 1; //below neighbors
+              // add sig. info. from the row on top and below
+              prev = new_sig | u;
+              // we need only the bits in 0xF000
+              prev &= 0xF000;
+            }
+          }
+        }
+
+        // We perform Magnitude Refinement Pass here
+        if (num_passes > 2)
+        {
+          rev_struct magref;
+          rev_init_mrp(&magref, coded_data, (int)lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
+          {
+            ui16 *cur_sig = sigma + (y >> 2) * mstr;
+            ui32 *dpp = decoded_data + y * stride;
+            for (ui32 i = 0; i < width; i += 4, dpp += 4)
+            {
+              //Process one entry from sigma array at a time
+              // Each nibble (4 bits) in the sigma array represents 4 rows,
+              ui32 cwd = rev_fetch_mrp(&magref); // get 32 bit data
+              ui16 sig = *cur_sig++; // 16 bit that will be processed now
+              int total_bits = 0;
+              if (sig) // if any of the 32 bits are set
+              {
+                // We work on 4 rows, with 4 samples each, since
+                // data is 32 bit (4 bytes)
+
+                // spread the 16 bits in sig to 0 or 1 bytes in sig_vec
+                __m128i sig_vec = _mm_set1_epi16(sig);
+                sig_vec = _mm_shuffle_epi8(sig_vec,
+                  _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
+                sig_vec = _mm_and_si128(sig_vec,
+                  _mm_set1_epi64x(0x8040201008040201ul));
+                sig_vec = _mm_cmpeq_epi8(sig_vec,
+                  _mm_set1_epi64x(0x8040201008040201ul));
+                sig_vec = _mm_sign_epi8(sig_vec, sig_vec);
+
+                // find cumulative sums
+                // to find which bit in cwd we should extract
+                __m128i inc_sum = sig_vec; // inclusive scan
+                inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 1));
+                inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 2));
+                inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 4));
+                inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 8));
+                total_bits = _mm_extract_epi16(inc_sum, 7) >> 8;
+                __m128i ex_sum = _mm_bslli_si128(inc_sum, 1); // exclusive scan
+
+                // Spread the 16 bits in cwd to inverted 0 or 1 bytes in
+                // cwd_vec. Then, convert these to a form suitable
+                // for coefficient modifications; in particular, a value
+                // of 0 is presented as binary 11, and a value of 1 is
+                // represented as binary 01
+                __m128i cwd_vec = _mm_set1_epi16((si16)cwd);
+                cwd_vec = _mm_shuffle_epi8(cwd_vec,
+                  _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
+                cwd_vec = _mm_and_si128(cwd_vec, 
+                  _mm_set1_epi64x(0x8040201008040201ul));
+                cwd_vec = _mm_cmpeq_epi8(cwd_vec, 
+                  _mm_set1_epi64x(0x8040201008040201ul));
+                cwd_vec = _mm_add_epi8(cwd_vec, _mm_set1_epi8(1));
+                cwd_vec = _mm_add_epi8(cwd_vec, cwd_vec);
+                cwd_vec = _mm_or_si128(cwd_vec, _mm_set1_epi8(1));
+
+                // load data and insert the mrp bit
+                __m128i m =
+                  _mm_set_epi8(-1,-1,-1,12,-1,-1,-1,8,-1,-1,-1,4,-1,-1,-1,0);
+                ui32 *dp = dpp;
+                for (int c = 0; c < 4; ++c) {
+                  __m128i s0, s0_sig, s0_idx, s0_val;
+                  // load coefficients                  
+                  s0 = _mm_load_si128((__m128i*)dp);
+                  // find significant samples in this row
+                  s0_sig = _mm_shuffle_epi8(sig_vec, m);
+                  s0_sig = _mm_cmpeq_epi8(s0_sig, _mm_setzero_si128());
+                  // get MRP bit index, and MRP pattern
+                  s0_idx = _mm_shuffle_epi8(ex_sum, m);
+                  s0_val = _mm_shuffle_epi8(cwd_vec, s0_idx);
+                  // keep data from significant samples only
+                  s0_val = _mm_andnot_si128(s0_sig, s0_val);
+                  // move mrp bits to correct position, and employ
+                  s0_val = _mm_slli_epi32(s0_val, p - 2);
+                  s0 = _mm_xor_si128(s0, s0_val);
+                  // store coefficients
+                  _mm_store_si128((__m128i*)dp, s0);
+                  // prepare for next row
+                  dp += stride;
+                  m = _mm_add_epi32(m, _mm_set1_epi32(1));
+                }
+              }
+              // consume data according to the number of bits set
+              rev_advance_mrp(&magref, total_bits);
+            }
+          }
+        }
+      }
+
       return true;
     }
   }

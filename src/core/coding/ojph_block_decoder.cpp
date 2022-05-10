@@ -1741,6 +1741,7 @@ namespace ojph {
                     if (sig & sample_mask) //if LSB is set
                     {
                       assert(dp[0] != 0); // decoded value cannot be zero
+                      assert((dp[0] & half) == 0); // no half
                       ui32 sym = cwd & 1; // get it value
                       // remove center of bin if sym is 0
                       dp[0] ^= (1 - sym) << (p - 1);
@@ -1752,6 +1753,7 @@ namespace ojph {
                     if (sig & sample_mask)
                     {
                       assert(dp[stride] != 0);
+                      assert((dp[stride] & half) == 0);
                       ui32 sym = cwd & 1;
                       dp[stride] ^= (1 - sym) << (p - 1);
                       dp[stride] |= half;
@@ -1762,6 +1764,7 @@ namespace ojph {
                     if (sig & sample_mask)
                     {
                       assert(dp[2 * stride] != 0);
+                      assert((dp[2 * stride] & half) == 0);
                       ui32 sym = cwd & 1;
                       dp[2 * stride] ^= (1 - sym) << (p - 1);
                       dp[2 * stride] |= half;
@@ -1772,6 +1775,7 @@ namespace ojph {
                     if (sig & sample_mask)
                     {
                       assert(dp[3 * stride] != 0);
+                      assert((dp[3 * stride] & half) == 0);
                       ui32 sym = cwd & 1;
                       dp[3 * stride] ^= (1 - sym) << (p - 1);
                       dp[3 * stride] |= half;
@@ -2031,6 +2035,7 @@ namespace ojph {
                   if (sig & sample_mask)
                   {
                     assert(dp[0] != 0);
+                    assert((dp[0] & half) == 0); // no half
                     ui32 sym = cwd & 1;
                     dp[0] ^= (1 - sym) << (p - 1);
                     dp[0] |= half;
@@ -2041,6 +2046,7 @@ namespace ojph {
                   if (sig & sample_mask)
                   {
                     assert(dp[stride] != 0);
+                    assert((dp[stride] & half) == 0);
                     ui32 sym = cwd & 1;
                     dp[stride] ^= (1 - sym) << (p - 1);
                     dp[stride] |= half;
@@ -2051,6 +2057,7 @@ namespace ojph {
                   if (sig & sample_mask)
                   {
                     assert(dp[2 * stride] != 0);
+                    assert((dp[2 * stride] & half) == 0);
                     ui32 sym = cwd & 1;
                     dp[2 * stride] ^= (1 - sym) << (p - 1);
                     dp[2 * stride] |= half;
@@ -2061,6 +2068,7 @@ namespace ojph {
                   if (sig & sample_mask)
                   {
                     assert(dp[3 * stride] != 0);
+                    assert((dp[3 * stride] & half) == 0);
                     ui32 sym = cwd & 1;
                     dp[3 * stride] ^= (1 - sym) << (p - 1);
                     dp[3 * stride] |= half;

@@ -40,24 +40,17 @@
  *  @brief implements a faster HTJ2K block decoder
  */
 
+#include <string>
+#include <iostream>
+
 #include <cassert>
 #include <cstring>
 #include "ojph_block_decoder.h"
 #include "ojph_arch.h"
 #include "ojph_message.h"
 
-#include "tsc-measure.h"
-
 namespace ojph {
   namespace local2 {
-
-    struct _counter {
-      _counter() { count = 0; num_samples = 0; }
-      ~_counter() { printf("%ld, %ld, %f\n", count, num_samples, (float)count / (float)num_samples); }
-      uint64_t count;
-      uint64_t tmp;
-      uint64_t num_samples;
-    } counter;
 
     //************************************************************************/
     /** @defgroup vlc_decoding_tables_grp VLC decoding tables
@@ -1168,11 +1161,13 @@ namespace ojph {
      *  @param [in]   width is the decoded codeblock width 
      *  @param [in]   height is the decoded codeblock height
      *  @param [in]   stride is the decoded codeblock buffer stride 
+     *  @param [in]   stripe_causal is true for stripe causal mode
      */
     bool ojph_decode_codeblock2(ui8* coded_data, ui32* decoded_data,
                                 ui32 missing_msbs, ui32 num_passes,
                                 ui32 lengths1, ui32 lengths2,
-                                ui32 width, ui32 height, ui32 stride)
+                                ui32 width, ui32 height, ui32 stride,
+                                bool stripe_causal)
     {
       // The cleanup pass is decoded in two steps; in step one,
       // the VLC and MEL segments are decoded, generating a record that 
@@ -1225,16 +1220,9 @@ namespace ojph {
       // from MSB
       // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
       // Each entry in UVLC contains u_q
-      ui16 scratch[8 * 512] = {0};       // 8+ kB
-
-      // We allocate a scratch row for storing v_n values.
-      // We have 512 quads horizontally.
-      // We need an extra entry to handle the case of vp[1]
-      // when vp is at the last column.
-      // Here, we allocate 4 insttead of 1 to make the buffer size 
-      // a multipled of 16 bytes.
-      const int v_n_size = 512 + 4;
-      ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
+      // One extra row to handle the case of SPP propagating downwards
+      // when codeblock width is 4
+      ui16 scratch[8 * 513] = {0};       // 8 kB
 
       // We need an extra two entries (one inf and one u_q) beyond
       // the last column. 
@@ -1243,8 +1231,6 @@ namespace ojph {
       // sstr is 16 (enough for 8 quads). For a width of 16 (8 
       // quads), we use 24 (enough for 12 quads).
       ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
-
-      counter.tmp = tsc_measure_start();
 
       // step 1 decoding VLC and MEL segments
       {
@@ -1485,6 +1471,15 @@ namespace ojph {
 
       // step2 we decode magsgn
       {
+        // We allocate a scratch row for storing v_n values.
+        // We have 512 quads horizontally.
+        // We need an extra entry to handle the case of vp[1]
+        // when vp is at the last column.
+        // Here, we allocate 4 instead of 1 to make the buffer size
+        // a multipled of 16 bytes.
+        const int v_n_size = 512 + 4;
+        ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
+
         frwd_struct magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
 
@@ -1700,8 +1695,301 @@ namespace ojph {
           vp[0] = prev_v_n;
         }
       }
-      counter.count += tsc_measure_stop() - counter.tmp;
-      counter.num_samples += width * height;
+
+      if (num_passes > 1)
+      {
+        // We use scratch again, we can divide it into multiple regions
+        // sigma holds all the significant samples, and it cannot
+        // be modified after it is set.  it will be used during the
+        // Magnitude Refinement Pass
+        ui16* const sigma = scratch;
+
+        ui32 mstr = (width + 3u) >> 2;   // divide by 4, since each
+                                         // ui16 contains 4 columns
+        mstr = ((mstr + 2u) + 7u) & ~7u; // multiples of 8
+
+        // We re-arrange quad significance, where each 4 consecutive
+        // bits represent one quad, into column significance, where,
+        // each 4 consequtive bits represent one column of 4 rows
+        {
+          ui32 y;
+          for (y = 0; y < height; y += 4)
+          {
+            ui16* sp = scratch + (y >> 1) * sstr;
+            ui16* dp = sigma + (y >> 2) * mstr;
+            for (ui32 x = 0; x < width; x += 4, sp += 4, ++dp) {
+              ui32 t0 = 0, t1 = 0;
+              t0  = ((sp[0     ] & 0x30) >> 4)  | ((sp[0     ] & 0xC0) >> 2);
+              t0 |= ((sp[2     ] & 0x30) << 4)  | ((sp[2     ] & 0xC0) << 6);
+              t1  = ((sp[0+sstr] & 0x30) >> 2)  | ((sp[0+sstr] & 0xC0)     );
+              t1 |= ((sp[2+sstr] & 0x30) << 6)  | ((sp[2+sstr] & 0xC0) << 8);
+              dp[0] = (ui16)(t0 | t1);
+            }
+            dp[0] = 0; // set an extra entry on the right with 0
+          }
+          {
+            // reset one row after the codeblock
+            ui16* dp = sigma + (y >> 2) * mstr;
+            for (ui32 x = 0; x < width; x += 4, ++dp)
+              dp[0] = 0;
+            dp[0] = 0; // set an extra entry on the right with 0
+          }
+        }
+
+        // We perform Significance Propagation Pass here
+        {
+          // This stores significance information of the previous
+          // 4 rows.  Significance information in this array includes
+          // all signicant samples in bitplane p - 1; that is,
+          // significant samples for bitplane p (discovered during the
+          // cleanup pass and stored in sigma) and samples that have recently
+          // became significant (during the SPP) in bitplane p-1.
+          // We store enough for the widest row, containing 1024 columns,
+          // which is equivalent to 256 of ui16, since each stores 4 columns.
+          // We add an extra 8 entries, just in case we need more
+          ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
+
+          frwd_struct sigprop;
+          frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
+          {
+            ui32 pattern = 0xFFFFu; // a pattern needed samples
+            if (height - y < 4) {
+              pattern = 0x7777u;
+              if (height - y < 3)
+                pattern = 0x3333u;
+              else if (height - y < 2)
+                pattern = 0x1111u;
+            }
+
+            // prev holds sign. info. for the previous quad, together
+            // with the rows on top of it and below it.
+            ui32 prev = 0;
+            ui16 *prev_sig = prev_row_sig;
+            ui16 *cur_sig = sigma + (y >> 2) * mstr;
+            ui32 *dpp = decoded_data + y * stride;
+            for (ui32 x = 0; x < width; x += 4, ++cur_sig, ++prev_sig)
+            {
+              // only rows and columns inside the stripe are included
+              si32 s = x + 4 - (si32)width;
+              s = ojph_max(s, 0);
+              pattern = pattern >> (s * 4);
+
+              // We first find locations that need to be tested (potential
+              // SPP members); these location will end up in mbr
+              // In each iteration, we produce 16 bits because cwd can have
+              // up to 16 bits of significance information, followed by the
+              // corresponding 16 bits of sign information; therefore, it is
+              // sufficient to fetch 32 bit data per loop.
+
+              // Althougth we are interested in 16 bits only, we load 32 bits.
+              // For the 16 bits we are producing, we need the next 4 bits --
+              // We need data for at least 5 columns out of 8.
+              // Therefore loading 32 bits is easier than loading 16 bits
+              // twice.
+              ui32 ps = *(ui32*)prev_sig;
+              ui32 ns = *(ui32*)(cur_sig + mstr);
+              ui32 u = (ps & 0x88888888) >> 3; // the row on top
+              if (!stripe_causal)
+                u |= (ns & 0x11111111) << 3;   // the row below
+
+              ui32 cs = *(ui32*)cur_sig;
+              // vertical integration
+              ui32 mbr =  cs;                // this sig. info.
+              mbr |= (cs & 0x77777777) << 1; //above neighbors
+              mbr |= (cs & 0xEEEEEEEE) >> 1; //below neighbors
+              mbr |= u;
+              // horizontal integration
+              ui32 t = mbr;
+              mbr |= t << 4;      // neighbors on the left
+              mbr |= t >> 4;      // neighbors on the right
+              mbr |= prev >> 12;  // significance of previous group
+
+              // remove outside samples, and already significant samples
+              mbr &= pattern;
+              mbr &= ~cs;
+
+              // find samples that become significant during the SPP
+              ui32 new_sig = mbr;
+              if (new_sig)
+              {
+                ui32 cwd = frwd_fetch<0>(&sigprop);
+
+                ui32 cnt = 0;
+                ui32 col_mask = 0xFu;
+                ui32 inv_sig = ~cs & pattern;
+                for (int i = 0; i < 16; i += 4, col_mask <<= 4)
+                {
+                  if ((col_mask & new_sig) == 0)
+                    continue;
+
+                  //scan one column
+                  ui32 sample_mask = 0x1111u & col_mask;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x33u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x76u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xECu << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xC8u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+                }
+
+                if (new_sig)
+                {
+                  // new_sig has newly-discovered sig. samples during SPP
+                  // find the signs and update decoded_data
+                  ui32 *dp = dpp + x;
+                  ui32 val = 3u << (p - 2);
+                  col_mask = 0xFu;
+                  for (int i = 0; i < 4; ++i, ++dp, col_mask <<= 4)
+                  {
+                    if ((col_mask & new_sig) == 0)
+                      continue;
+
+                    //scan 4 signs
+                    ui32 sample_mask = 0x1111u & col_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[0] == 0);
+                      dp[0] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[stride] == 0);
+                      dp[stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[2 * stride] == 0);
+                      dp[2 * stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[3 * stride] == 0);
+                      dp[3 * stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+                  }
+                }
+                frwd_advance(&sigprop, cnt);
+              }
+
+              new_sig |= cs;
+              *prev_sig = (ui16)(new_sig);
+
+              // vertical integration for the new sig. info.
+              t = new_sig;
+              new_sig |= (t & 0x7777) << 1; //above neighbors
+              new_sig |= (t & 0xEEEE) >> 1; //below neighbors
+              // add sig. info. from the row on top and below
+              prev = new_sig | u;
+              // we need only the bits in 0xF000
+              prev &= 0xF000;
+            }
+          }
+        }
+
+        // We perform Magnitude Refinement Pass here
+        if (num_passes > 2)
+        {
+          rev_struct magref;
+          rev_init_mrp(&magref, coded_data, (int)lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
+          {
+            ui32 *cur_sig = (ui32*)(sigma + (y >> 2) * mstr);
+            ui32 *dpp = decoded_data + y * stride;
+            ui32 half = 1 << (p - 2);
+            for (ui32 i = 0; i < width; i += 8)
+            {
+              //Process one entry from sigma array at a time
+              // Each nibble (4 bits) in the sigma array represents 4 rows,
+              // and the 32 bits contain 8 columns
+              ui32 cwd = rev_fetch_mrp(&magref); // get 32 bit data
+              ui32 sig = *cur_sig++; // 32 bit that will be processed now
+              ui32 col_mask = 0xFu;  // a mask for a column in sig
+              if (sig) // if any of the 32 bits are set
+              {
+                for (int j = 0; j < 8; ++j) //one column at a time
+                {
+                  if (sig & col_mask) // lowest nibble
+                  {
+                    ui32 *dp = dpp + i + j; // next column in decoded samples
+                    ui32 sample_mask = 0x11111111u & col_mask; //LSB
+
+                    for (int k = 0; k < 4; ++k) {
+                      if (sig & sample_mask) //if LSB is set
+                      {
+                        assert(dp[0] != 0); // decoded value cannot be zero
+                        assert((dp[0] & half) == 0); // no half
+                        ui32 sym = cwd & 1;          // get it value
+                        sym = (1 - sym) << (p - 1); // previous center of bin
+                        sym |= half;            // put half the center of bin
+                        dp[0] ^= sym;    // remove old bin center and put new
+                        cwd >>= 1;       // consume word
+                      }
+                      sample_mask += sample_mask; //next row
+                      dp += stride; // next samples row
+                    }
+                  }
+                  col_mask <<= 4; //next column
+                }
+              }
+              // consume data according to the number of bits set
+              rev_advance_mrp(&magref, population_count(sig));
+            }
+          }
+        }
+      }
       return true;
     }
   }

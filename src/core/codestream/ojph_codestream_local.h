@@ -299,6 +299,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     struct precinct
     {
+      precinct() {
+        scratch = NULL; bands = NULL; coded = NULL;
+        num_bands = 0; may_use_sop = uses_eph = false;
+      }
       ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
       void write(outfile_base *file);

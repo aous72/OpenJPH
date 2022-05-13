@@ -32,46 +32,26 @@
 // This file is part of the OpenJPH software implementation.
 // File: ojph_block_decoder.cpp
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 13 May 2022
 //***************************************************************************/
 
 //***************************************************************************/
 /** @file ojph_block_decoder.cpp
- *  @brief implements HTJ2K block decoder
+ *  @brief implements a HTJ2K block decoder
  */
+
+#include <string>
+#include <iostream>
 
 #include <cassert>
 #include <cstring>
+#include "ojph_block_common.h"
 #include "ojph_block_decoder.h"
 #include "ojph_arch.h"
 #include "ojph_message.h"
 
 namespace ojph {
   namespace local {
-
-    //************************************************************************/
-    /** @defgroup vlc_decoding_tables_grp VLC decoding tables
-     *  @{
-     *  VLC tables to decode VLC codewords to these fields: (in order)       \n
-     *  \li \c cwd_len : 3bits -> the codeword length of the VLC codeword;    
-     *                   the VLC cwd is in the LSB of bitstream              \n
-     *  \li \c u_off   : 1bit  -> u_offset, which is 1 if u value is not 0   \n
-     *  \li \c rho     : 4bits -> signficant samples within a quad           \n
-     *  \li \c e_1     : 4bits -> EMB e_1                                    \n
-     *  \li \c e_k     : 4bits -> EMB e_k                                    \n
-     *                                                                       \n
-     *  The table index is 10 bits and composed of two parts:                \n
-     *  The 7 LSBs contain a codeword which might be shorter than 7 bits;    
-     *  this word is the next decoable bits in the bitstream.                \n
-     *  The 3 MSB is the context of for the codeword.                        \n
-     */
-
-    /// @brief vlc_tbl0 contains decoding information for initial row of quads
-    static ui16 vlc_tbl0[1024] = { 0 };
-    /// @brief vlc_tbl1 contains decoding information for non-initial row of 
-    ///        quads
-    static ui16 vlc_tbl1[1024] = { 0 };
-    /// @}
 
     //************************************************************************/
     /** @brief MEL state structure for reading and decoding the MEL bitstream
@@ -587,270 +567,6 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @ingroup vlc_decoding_tables_grp
-     *  @brief Initializes vlc_tbl0 and vlc_tbl1 tables, from table0.h and
-     *         table1.h
-     */
-    static bool vlc_init_tables()
-    {
-      const bool debug = false; //useful for checking 
-
-      //Data in the table is arranged in this format (taken from the standard)
-      // c_q is the context for a quad
-      // rho is the signficance pattern for a quad
-      // u_off indicate if u value is 0 (u_off is 0), or communicated
-      // e_k, e_1 EMB patterns
-      // cwd VLC codeword
-      // cwd VLC codeword length
-      struct vlc_src_table { int c_q, rho, u_off, e_k, e_1, cwd, cwd_len; };
-      // initial quad rows
-      vlc_src_table tbl0[] = {
-    #include "table0.h"
-      };
-      // number of entries in the table
-      size_t tbl0_size = sizeof(tbl0) / sizeof(vlc_src_table); 
-
-      // nono-initial quad rows
-      vlc_src_table tbl1[] = {
-    #include "table1.h"
-      };
-      // number of entries in the table
-      size_t tbl1_size = sizeof(tbl1) / sizeof(vlc_src_table);
-
-      if (debug) memset(vlc_tbl0, 0, sizeof(vlc_tbl0)); //unnecessary
-
-      // this is to convert table entries into values for decoder look up
-      // There can be at most 1024 possibilites, not all of them are valid.
-      // 
-      for (int i = 0; i < 1024; ++i)
-      {
-        int cwd = i & 0x7F; // from i extract codeword
-        int c_q = i >> 7;   // from i extract context
-        // See if this case exist in the table, if so then set the entry in
-        // vlc_tbl0
-        for (size_t j = 0; j < tbl0_size; ++j) 
-          if (tbl0[j].c_q == c_q) // this is an and operation
-            if (tbl0[j].cwd == (cwd & ((1 << tbl0[j].cwd_len) - 1)))
-            {
-              if (debug) assert(vlc_tbl0[i] == 0);
-              // Put this entry into the table
-              vlc_tbl0[i] = (ui16)((tbl0[j].rho << 4) | (tbl0[j].u_off << 3)
-                | (tbl0[j].e_k << 12) | (tbl0[j].e_1 << 8) | tbl0[j].cwd_len);
-            }
-      }
-
-      if (debug) memset(vlc_tbl1, 0, sizeof(vlc_tbl1)); //unnecessary
-
-      // this the same as above but for non-initial rows
-      for (int i = 0; i < 1024; ++i)
-      {
-        int cwd = i & 0x7F; //7 bits
-        int c_q = i >> 7;
-        for (size_t j = 0; j < tbl1_size; ++j)
-          if (tbl1[j].c_q == c_q) // this is an and operation
-            if (tbl1[j].cwd == (cwd & ((1 << tbl1[j].cwd_len) - 1)))
-            {
-              if (debug) assert(vlc_tbl1[i] == 0);
-              vlc_tbl1[i] = (ui16)((tbl1[j].rho << 4) | (tbl1[j].u_off << 3)
-                | (tbl1[j].e_k << 12) | (tbl1[j].e_1 << 8) | tbl1[j].cwd_len);
-            }
-      }
-
-      return true;
-    }
-
-    //************************************************************************/
-    /** @brief Decode initial UVLC to get the u value (or u_q)
-     *
-     *  @param [in]  vlc is the head of the VLC bitstream
-     *  @param [in]  mode is 0, 1, 2, 3, or 4. Values in 0 to 3 are composed of
-     *               u_off of 1st quad and 2nd quad of a quad pair.  The value
-     *               4 occurs when both bits are 1, and the event decoded
-     *               from MEL bitstream is also 1.
-     *  @param [out] u is the u value (or u_q) + 1.  Note: we produce u + 1;
-     *               this value is a partial calculation of u + kappa.
-     */
-    inline ui32 decode_init_uvlc(ui32 vlc, ui32 mode, ui32 *u)
-    {
-      //table stores possible decoding three bits from vlc
-      // there are 8 entries for xx1, x10, 100, 000, where x means do not care
-      // table value is made up of
-      // 2 bits in the LSB for prefix length 
-      // 3 bits for suffix length
-      // 3 bits in the MSB for prefix value (u_pfx in Table 3 of ITU T.814)
-      static const ui8 dec[8] = { // the index is the prefix codeword
-        3 | (5 << 2) | (5 << 5), //000 == 000, prefix codeword "000"
-        1 | (0 << 2) | (1 << 5), //001 == xx1, prefix codeword "1"
-        2 | (0 << 2) | (2 << 5), //010 == x10, prefix codeword "01"
-        1 | (0 << 2) | (1 << 5), //011 == xx1, prefix codeword "1"
-        3 | (1 << 2) | (3 << 5), //100 == 100, prefix codeword "001"
-        1 | (0 << 2) | (1 << 5), //101 == xx1, prefix codeword "1"
-        2 | (0 << 2) | (2 << 5), //110 == x10, prefix codeword "01"
-        1 | (0 << 2) | (1 << 5)  //111 == xx1, prefix codeword "1"
-      };
-
-      ui32 consumed_bits = 0;
-      if (mode == 0)  // both u_off are 0
-      {
-        u[0] = u[1] = 1; //Kappa is 1 for initial line
-      }
-      else if (mode <= 2) // u_off are either 01 or 10
-      {
-        ui32 d = dec[vlc & 0x7];   //look at the least significant 3 bits
-        vlc >>= d & 0x3;          //prefix length
-        consumed_bits += d & 0x3; 
-
-        ui32 suffix_len = ((d >> 2) & 0x7); 
-        consumed_bits += suffix_len;
-
-        d = (d >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[0] = (mode == 1) ? d + 1 : 1; // kappa is 1 for initial line
-        u[1] = (mode == 1) ? 1 : d + 1; // kappa is 1 for initial line
-      }
-      else if (mode == 3) // both u_off are 1, and MEL event is 0
-      {
-        ui32 d1 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-        vlc >>= d1 & 0x3;          // Consume bits
-        consumed_bits += d1 & 0x3;
-
-        if ((d1 & 0x3) > 2)
-        {
-          //u_{q_2} prefix
-          u[1] = (vlc & 1) + 1 + 1; //Kappa is 1 for initial line
-          ++consumed_bits;
-          vlc >>= 1;
-
-          ui32 suffix_len = ((d1 >> 2) & 0x7);
-          consumed_bits += suffix_len;
-          d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-          u[0] = d1 + 1; //Kappa is 1 for initial line
-        }
-        else
-        {
-          ui32 d2 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-          vlc >>= d2 & 0x3;          // Consume bits
-          consumed_bits += d2 & 0x3;
-
-          ui32 suffix_len = ((d1 >> 2) & 0x7);
-          consumed_bits += suffix_len;
-
-          d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-          u[0] = d1 + 1; //Kappa is 1 for initial line
-          vlc >>= suffix_len;
-
-          suffix_len = ((d2 >> 2) & 0x7);
-          consumed_bits += suffix_len;
-
-          d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-          u[1] = d2 + 1; //Kappa is 1 for initial line
-        }
-      }
-      else if (mode == 4) // both u_off are 1, and MEL event is 1
-      {
-        ui32 d1 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-        vlc >>= d1 & 0x3;          // Consume bits
-        consumed_bits += d1 & 0x3;
-
-        ui32 d2 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-        vlc >>= d2 & 0x3;          // Consume bits
-        consumed_bits += d2 & 0x3;
-
-        ui32 suffix_len = ((d1 >> 2) & 0x7);
-        consumed_bits += suffix_len;
-
-        d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[0] = d1 + 3; // add 2+kappa
-        vlc >>= suffix_len;
-
-        suffix_len = ((d2 >> 2) & 0x7);
-        consumed_bits += suffix_len;
-
-        d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[1] = d2 + 3; // add 2+kappa
-      }
-      return consumed_bits;
-    }
-
-    //************************************************************************/
-    /** @brief Decode non-initial UVLC to get the u value (or u_q)
-     *
-     *  @param [in]  vlc is the head of the VLC bitstream
-     *  @param [in]  mode is 0, 1, 2, or 3. The 1st bit is u_off of 1st quad 
-     *               and 2nd for 2nd quad of a quad pair
-     *  @param [out] u is the u value (or u_q) + 1.  Note: we produce u + 1;
-     *               this value is a partial calculation of u + kappa.
-     */
-    inline ui32 decode_noninit_uvlc(ui32 vlc, ui32 mode, ui32 *u)
-    {
-      //table stores possible decoding three bits from vlc
-      // there are 8 entries for xx1, x10, 100, 000, where x means do not care
-      // table value is made up of
-      // 2 bits in the LSB for prefix length 
-      // 3 bits for suffix length
-      // 3 bits in the MSB for prefix value (u_pfx in Table 3 of ITU T.814)
-      static const ui8 dec[8] = {
-        3 | (5 << 2) | (5 << 5), //000 == 000, prefix codeword "000"
-        1 | (0 << 2) | (1 << 5), //001 == xx1, prefix codeword "1"
-        2 | (0 << 2) | (2 << 5), //010 == x10, prefix codeword "01"
-        1 | (0 << 2) | (1 << 5), //011 == xx1, prefix codeword "1"
-        3 | (1 << 2) | (3 << 5), //100 == 100, prefix codeword "001"
-        1 | (0 << 2) | (1 << 5), //101 == xx1, prefix codeword "1"
-        2 | (0 << 2) | (2 << 5), //110 == x10, prefix codeword "01"
-        1 | (0 << 2) | (1 << 5)  //111 == xx1, prefix codeword "1"
-      };
-
-      ui32 consumed_bits = 0;
-      if (mode == 0)
-      {
-        u[0] = u[1] = 1; //for kappa
-      }
-      else if (mode <= 2) //u_off are either 01 or 10
-      {
-        ui32 d = dec[vlc & 0x7];  //look at the least significant 3 bits
-        vlc >>= d & 0x3;          //prefix length
-        consumed_bits += d & 0x3;
-
-        ui32 suffix_len = ((d >> 2) & 0x7);
-        consumed_bits += suffix_len;
-
-        d = (d >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[0] = (mode == 1) ? d + 1 : 1; //for kappa
-        u[1] = (mode == 1) ? 1 : d + 1; //for kappa
-      }
-      else if (mode == 3) // both u_off are 1
-      {
-        ui32 d1 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-        vlc >>= d1 & 0x3;          // Consume bits
-        consumed_bits += d1 & 0x3;
-
-        ui32 d2 = dec[vlc & 0x7];  // LSBs of VLC are prefix codeword
-        vlc >>= d2 & 0x3;          // Consume bits
-        consumed_bits += d2 & 0x3;
-
-        ui32 suffix_len = ((d1 >> 2) & 0x7);
-        consumed_bits += suffix_len;
-
-        d1 = (d1 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[0] = d1 + 1;  //1 for kappa
-        vlc >>= suffix_len;
-
-        suffix_len = ((d2 >> 2) & 0x7);
-        consumed_bits += suffix_len;
-
-        d2 = (d2 >> 5) + (vlc & ((1U << suffix_len) - 1)); // u value
-        u[1] = d2 + 1;  //1 for kappa
-      }
-      return consumed_bits;
-    }
-
-
-    //************************************************************************/
-    /** @ingroup vlc_decoding_tables_grp
-     *  @brief Initializes VLC tables vlc_tbl0 and vlc_tbl1
-     */
-    static bool vlc_tables_initialized = vlc_init_tables();
-
-    //************************************************************************/
     /** @brief State structure for reading and unstuffing of forward-growing 
      *         bitstreams; these are: MagSgn and SPP bitstreams
      */
@@ -858,7 +574,7 @@ namespace ojph {
       const ui8* data;  //!<pointer to bitstream
       ui64 tmp;         //!<temporary buffer of read data
       ui32 bits;        //!<number of bits stored in tmp
-      bool unstuff;     //!<true if a bit needs to be unstuffed from next byte
+      ui32 unstuff;     //!<1 if a bit needs to be unstuffed from next byte
       int size;         //!<size of data
     };
 
@@ -942,7 +658,7 @@ namespace ojph {
       msp->data = data;
       msp->tmp = 0;
       msp->bits = 0;
-      msp->unstuff = false;
+      msp->unstuff = 0;
       msp->size = size;
 
       //This code is designed for an architecture that read address should
@@ -1021,26 +737,6 @@ namespace ojph {
       static bool modify_code = false;
       static bool truncate_spp_mrp = false;
 
-      /*  sigma1 and sigma2 contains significant (i.e., non-zero) pixel 
-       *  locations.  The buffers are used interchangeably, because we need
-       *  more than 4 rows of significance information at a given time.
-       *  Each 32 bits contain significance information for 4 rows of 8 
-       *  columns each.  If we denote 32 bits by 0xaaaaaaaa, the each "a" is
-       *  called a nibble and has significance information for 4 rows.
-       *  The least significant nibble has information for the first column,
-       *  and so on. The nibble's LSB is for the first row, and so on.
-       *  Since, at most, we can have 1024 columns in a quad, we need 128
-       *  entries; we added 1 for convenience when propagation of signifcance
-       *  goes outside the structure
-       */
-      ui32 sigma1[129] = { 0 }, sigma2[129] = { 0 };
-      // mbr arrangement is similar to sigma; mbr contains locations 
-      // that become significant during significance propagation pass
-      ui32 mbr1[129] = { 0 }, mbr2[129] = { 0 };
-      //a pointer to sigma
-      ui32 *sip = sigma1; //pointers to arrays to be used interchangeably
-      ui32 sip_shift = 0; //the amount of shift needed for sigma
-
       if (num_passes > 1 && lengths2 == 0)
       {
         OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
@@ -1110,617 +806,756 @@ namespace ojph {
       if (scup < 2 || scup > lcup || scup > 4079) //something is wrong
         return false;
 
-      // init structures
-      dec_mel_st mel;
-      mel_init(&mel, coded_data, lcup, scup);
-      rev_struct vlc;
-      rev_init(&vlc, coded_data, lcup, scup);
-      frwd_struct magsgn;
-      frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
-      frwd_struct sigprop;
-      if (num_passes > 1) // needs to be tested
-        frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
-      rev_struct magref;
-      if (num_passes > 2)
-        rev_init_mrp(&magref, coded_data, (int)lengths1, (int)lengths2);
+      // The temporary storage scratch holds two types of data in an 
+      // interleaved fashion. The interleaving allows us to use one
+      // memory pointer.
+      // We have one entry for a decoded VLC code, and one entry for UVLC.
+      // Entries are 16 bits each, corresponding to one quad, 
+      // but since we want to use XMM registers of the SSE family 
+      // of SIMD; we allocated 16 bytes or more per quad row; that is,
+      // the width is no smaller than 16 bytes (or 8 entries), and the
+      // height is 512 quads
+      // Each VLC entry contains, in the following order, starting 
+      // from MSB
+      // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
+      // Each entry in UVLC contains u_q
+      // One extra row to handle the case of SPP propagating downwards
+      // when codeblock width is 4
+      ui16 scratch[8 * 513] = {0};       // 8 kB
 
-      /** State storage
-       *  One byte per quad; for 1024 columns, or 512 quads, we need
-       *  512 bytes. We are using 2 extra bytes one on the left and one on
-       *  the right for convenience.
-       *
-       *  The MSB bit in each byte is (\sigma^nw | \sigma^n), and the 7 LSBs
-       *  contain max(E^nw | E^n)
-       */
-      ui8 *lsp, line_state[514]; //enough for 1024, max block width, + 2 extra
+      // We need an extra two entries (one inf and one u_q) beyond
+      // the last column. 
+      // If the block width is 4 (2 quads), then we use sstr of 8 
+      // (enough for 4 quads). If width is 8 (4 quads) we use 
+      // sstr is 16 (enough for 8 quads). For a width of 16 (8 
+      // quads), we use 24 (enough for 12 quads).
+      ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
 
-      //initial 2 lines
-      /////////////////
-      lsp = line_state;             // point to line state
-      lsp[0] = 0;                   // for initial row of quad, we set to 0
-      int run = mel_get_run(&mel);  // decode runs of events from MEL bitstrm
-                                    // data represented as runs of 0 events
-                                    // See mel_decode description
-      ui32 vlc_val;                 // fetched data from VLC bitstream
-      ui32 qinf[2] = { 0 };         // quad info decoded from VLC bitstream
-      ui32 c_q = 0;                 // context for quad q
-      ui32* sp = decoded_data;      // decoded codeblock samples
+      ui32 mmsbp2 = missing_msbs + 2;
 
-      for (ui32 x = 0; x < width; x += 4) // one iteration per quad pair
+      // The cleanup pass is decoded in two steps; in step one,
+      // the VLC and MEL segments are decoded, generating a record that 
+      // has 2 bytes per quad. The 2 bytes contain, u, rho, e^1 & e^k.
+      // This information should be sufficient for the next step.
+      // In step 2, we decode the MagSgn segment.
+
+      // step 1 decoding VLC and MEL segments
       {
-        // decode VLC
-        /////////////
+        // init structures
+        dec_mel_st mel;
+        mel_init(&mel, coded_data, lcup, scup);
+        rev_struct vlc;
+        rev_init(&vlc, coded_data, lcup, scup);
 
-        //first quad
-        // Get the head of the VLC bitstream. One fetch is enough for two 
-        // quads, since the largest VLC code is 7 bits, and maximum number of 
-        // bits used for u is 8.  Therefore for two quads we need 30 bits 
-        // (if we include unstuffing, then 32 bits are enough, since we have 
-        // a maximum of one stuffing per two bytes)
-        vlc_val = rev_fetch(&vlc);
+        int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
+                                     // data represented as runs of 0 events
+                                     // See mel_decode description
 
-        //decode VLC using the context c_q and the head of the VLC bitstream
-        qinf[0] = vlc_tbl0[ (c_q << 7) | (vlc_val & 0x7F) ];
-
-        if (c_q == 0) // if zero context, we need to use one MEL event
+        ui32 vlc_val;
+        ui32 c_q = 0;
+        ui16 *sp = scratch;
+        //initial quad row
+        for (ui32 x = 0; x < width; sp += 4)
         {
-          run -= 2; //the number of 0 events is multiplied by 2, so subtract 2
+          // decode VLC
+          /////////////
 
-          // Is the run terminated in 1? if so, use decoded VLC code, 
-          // otherwise, discard decoded data, since we will decoded again 
-          // using a different context
-          qinf[0] = (run == -1) ? qinf[0] : 0;
+          // first quad
+          vlc_val = rev_fetch(&vlc);
 
-          // is run -1 or -2? this means a run has been consumed
-          if (run < 0) 
-            run = mel_get_run(&mel);  // get another run
-        }
-
-        // prepare context for the next quad; eqn. 1 in ITU T.814
-        c_q = ((qinf[0] & 0x10) >> 4) | ((qinf[0] & 0xE0) >> 5);
-
-        //remove data from vlc stream (0 bits are removed if qinf is not used)
-        vlc_val = rev_advance(&vlc, qinf[0] & 0x7);
-
-        //update sigma
-        // The update depends on the value of x; consider one ui32
-        // if x is 0, 8, 16 and so on, then this line update c locations
-        //      nibble (4 bits) number   0 1 2 3 4 5 6 7
-        //                         LSB   c c 0 0 0 0 0 0 
-        //                               c c 0 0 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        // if x is 4, 12, 20, then this line update locations c
-        //      nibble (4 bits) number   0 1 2 3 4 5 6 7
-        //                         LSB   0 0 0 0 c c 0 0 
-        //                               0 0 0 0 c c 0 0
-        //                               0 0 0 0 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        *sip |= (((qinf[0] & 0x30)>>4) | ((qinf[0] & 0xC0)>>2)) << sip_shift;
-
-        //second quad
-        qinf[1] = 0;
-        if (x + 2 < width) // do not run if codeblock is narrower
-        {
-          //decode VLC using the context c_q and the head of the VLC bitstream
-          qinf[1] = vlc_tbl0[(c_q << 7) | (vlc_val & 0x7F)]; 
+          //decode VLC using the context c_q and the head of VLC bitstream
+          ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
 
           // if context is zero, use one MEL event
           if (c_q == 0) //zero context
           {
             run -= 2; //subtract 2, since events number if multiplied by 2
 
-            // if event is 0, discard decoded qinf
-            qinf[1] = (run == -1) ? qinf[1] : 0;
+            // Is the run terminated in 1? if so, use decoded VLC code, 
+            // otherwise, discard decoded data, since we will decoded again 
+            // using a different context
+            t0 = (run == -1) ? t0 : 0;
+
+            // is run -1 or -2? this means a run has been consumed
+            if (run < 0) 
+              run = mel_get_run(&mel);  // get another run
+          }
+          //run -= (c_q == 0) ? 2 : 0;
+          //t0 = (c_q != 0 || run == -1) ? t0 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
+          sp[0] = t0;
+          x += 2;
+
+          // prepare context for the next quad; eqn. 1 in ITU T.814
+          c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
+
+          //remove data from vlc stream (0 bits are removed if vlc is not used)
+          vlc_val = rev_advance(&vlc, t0 & 0x7);
+
+          //second quad
+          ui16 t1 = 0;
+
+          //decode VLC using the context c_q and the head of VLC bitstream
+          t1 = vlc_tbl0[c_q + (vlc_val & 0x7F)]; 
+
+          // if context is zero, use one MEL event
+          if (c_q == 0 && x < width) //zero context
+          {
+            run -= 2; //subtract 2, since events number if multiplied by 2
+
+            // if event is 0, discard decoded t1
+            t1 = (run == -1) ? t1 : 0;
 
             if (run < 0) // have we consumed all events in a run
               run = mel_get_run(&mel); // if yes, then get another run
           }
+          t1 = x < width ? t1 : 0;
+          //run -= (c_q == 0 && x < width) ? 2 : 0;
+          //t1 = (c_q != 0 || run == -1) ? t1 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
+          sp[2] = t1;
+          x += 2;
 
           //prepare context for the next quad, eqn. 1 in ITU T.814
-          c_q = ((qinf[1] & 0x10) >> 4) | ((qinf[1] & 0xE0) >> 5);
+          c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
 
           //remove data from vlc stream, if qinf is not used, cwdlen is 0
-          vlc_val = rev_advance(&vlc, qinf[1] & 0x7);
-        }
-
-        //update sigma
-        // The update depends on the value of x; consider one ui32
-        // if x is 0, 8, 16 and so on, then this line update c locations
-        //      nibble (4 bits) number   0 1 2 3 4 5 6 7
-        //                         LSB   0 0 c c 0 0 0 0 
-        //                               0 0 c c 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        // if x is 4, 12, 20, then this line update locations c
-        //      nibble (4 bits) number   0 1 2 3 4 5 6 7
-        //                         LSB   0 0 0 0 0 0 c c 
-        //                               0 0 0 0 0 0 c c
-        //                               0 0 0 0 0 0 0 0
-        //                               0 0 0 0 0 0 0 0
-        *sip |= (((qinf[1] & 0x30) | ((qinf[1] & 0xC0)<<2))) << (4+sip_shift);
-
-        sip += x & 0x7 ? 1 : 0; // move sigma pointer to next entry
-        sip_shift ^= 0x10;      // increment/decrement sip_shift by 16
-
-        // retrieve u
-        /////////////
-        ui32 U_q[2]; // u values for the quad pair
-
-        // uvlc_mode is made up of u_offset bits from the quad pair
-        ui32 uvlc_mode = ((qinf[0] & 0x8) >> 3) | ((qinf[1] & 0x8) >> 2);
-        if (uvlc_mode == 3)  // if both u_offset are set, get an event from
-        {                    // the MEL run of events
-          run -= 2; //subtract 2, since events number if multiplied by 2
-          uvlc_mode += (run == -1) ? 1 : 0; //increment uvlc_mode if event is 1
-          if (run < 0) // if run is consumed (run is -1 or -2), get another run
-            run = mel_get_run(&mel);
-        }
-        //decode uvlc_mode to get u for both quads
-        ui32 consumed_bits = decode_init_uvlc(vlc_val, uvlc_mode, U_q);
-        if (U_q[0] > missing_msbs + 2 || U_q[1] > missing_msbs + 2)
-        {
-          OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is larger "
-                    "than missing_msbs + 2.\n");
-          return false;
-        }
-
-        //consume u bits in the VLC code
-        vlc_val = rev_advance(&vlc, consumed_bits);
-
-        //decode magsgn and update line_state
-        /////////////////////////////////////
-        ui32 m_n, v_n;
-        ui32 ms_val;
-
-        //We obtain a mask for the samples locations that needs evaluation
-        ui32 locs = 0xFF;
-        if (x + 4 > width) locs >>= (x + 4 - width) << 1; // limits width
-        locs = height > 1 ? locs : (locs & 0x55);         // limits height
-
-        if ((((qinf[0] & 0xF0) >> 4) | (qinf[1] & 0xF0)) & ~locs)
-        {
-          OJPH_WARN(0x00010008, "Malformed codeblock bitstream. Decoded VLC "
-                    "code indicates that there are significant samples "
-                    "outside the codeblock area.\n");
-          return false;
-        }
-
-        //first quad, starting at first sample in quad and moving on
-        if (qinf[0] & 0x10) //is it signifcant? (sigma_n)
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);   //get 32 bits of magsgn data
-          m_n = U_q[0] - ((qinf[0] >> 12) & 1); //evaluate m_n (number of bits
-                                     // to read from bitstream), using EMB e_k
-          frwd_advance(&magsgn, m_n);        //consume m_n
-          ui32 val = ms_val << 31;           //get sign bit
-          v_n = ms_val & ((1U << m_n) - 1);   //keep only m_n bits
-          v_n |= ((qinf[0] & 0x100) >> 8) << m_n;  //add EMB e_1 as MSB
-          v_n |= 1;                                //add center of bin    
-          //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
-          //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
-          sp[0] = val | ((v_n + 2) << (p - 1)); 
-        }
-        else if (locs & 0x1) // if this is inside the codeblock, set the 
-          sp[0] = 0;         // sample to zero
-
-        if (qinf[0] & 0x20) //sigma_n
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);   //get 32 bits
-          m_n = U_q[0] - ((qinf[0] >> 13) & 1); //m_n, uses EMB e_k
-          frwd_advance(&magsgn, m_n);           //consume m_n
-          ui32 val = ms_val << 31;              //get sign bit
-          v_n = ms_val & ((1U << m_n) - 1);      //keep only m_n bits
-          v_n |= ((qinf[0] & 0x200) >> 9) << m_n; //add EMB e_1
-          v_n |= 1;                               //bin center
-          //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
-          //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
-          sp[stride] = val | ((v_n + 2) << (p - 1)); 
-
-          //update line_state: bit 7 (\sigma^N), and E^N
-          ui32 t = lsp[0] & 0x7F;          //keep E^NW
-          v_n = 32 - count_leading_zeros(v_n); 
-          lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n)); //max(E^NW, E^N)|\sigma^N
-        }
-        else if (locs & 0x2) // if this is outside the codeblock, set the 
-          sp[stride] = 0;    // sample to zero
-
-        ++lsp; // move to next quad information
-        ++sp;  // move to next column of samples
-
-        //this is similar to the above two samples
-        if (qinf[0] & 0x40) 
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[0] - ((qinf[0] >> 14) & 1); 
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= (((qinf[0] & 0x400) >> 10) << m_n);
-          v_n |= 1; 
-          sp[0] = val | ((v_n + 2) << (p - 1));
-        }
-        else if (locs & 0x4)
-          sp[0] = 0;
-
-        lsp[0] = 0;
-        if (qinf[0] & 0x80) 
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[0] - ((qinf[0] >> 15) & 1); //m_n
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= ((qinf[0] & 0x800) >> 11) << m_n;
-          v_n |= 1; //center of bin
-          sp[stride] = val | ((v_n + 2) << (p - 1));
-
-          //line_state: bit 7 (\sigma^NW), and E^NW for next quad
-          lsp[0] = (ui8)(0x80 | (32 - count_leading_zeros(v_n)));
-        }
-        else if (locs & 0x8) // if inside set to 0
-          sp[stride] = 0;
-
-        ++sp; //move to next column
-
-        //second quad
-        if (qinf[1] & 0x10) 
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[1] - ((qinf[1] >> 12) & 1); //m_n
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= (((qinf[1] & 0x100) >> 8) << m_n);
-          v_n |= 1;
-          sp[0] = val | ((v_n + 2) << (p - 1));
-        }
-        else if (locs & 0x10)
-          sp[0] = 0;
-
-        if (qinf[1] & 0x20)
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[1] - ((qinf[1] >> 13) & 1); //m_n
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= (((qinf[1] & 0x200) >> 9) << m_n);
-          v_n |= 1;
-          sp[stride] = val | ((v_n + 2) << (p - 1));
-
-          //update line_state: bit 7 (\sigma^N), and E^N
-          ui32 t = lsp[0] & 0x7F;                  //E^NW
-          v_n = 32 - count_leading_zeros(v_n);     //E^N
-          lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n)); //max(E^NW, E^N)|\sigma^N
-        }
-        else if (locs & 0x20)
-          sp[stride] = 0;      //no need to update line_state
-
-        ++lsp; //move line state to next quad
-        ++sp;  //move to next sample
-
-        if (qinf[1] & 0x40)
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[1] - ((qinf[1] >> 14) & 1); //m_n
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= (((qinf[1] & 0x400) >> 10) << m_n);
-          v_n |= 1;
-          sp[0] = val | ((v_n + 2) << (p - 1));
-        }
-        else if (locs & 0x40)
-          sp[0] = 0;
-
-        lsp[0] = 0;
-        if (qinf[1] & 0x80)
-        {
-          ms_val = frwd_fetch<0xFF>(&magsgn);
-          m_n = U_q[1] - ((qinf[1] >> 15) & 1); //m_n
-          frwd_advance(&magsgn, m_n);
-          ui32 val = ms_val << 31;
-          v_n = ms_val & ((1U << m_n) - 1);
-          v_n |= (((qinf[1] & 0x800) >> 11) << m_n);
-          v_n |= 1; //center of bin
-          sp[stride] = val | ((v_n + 2) << (p - 1));
-
-          //line_state: bit 7 (\sigma^NW), and E^NW for next quad
-          lsp[0] = (ui8)(0x80 | (32 - count_leading_zeros(v_n)));
-        }
-        else if (locs & 0x80)
-          sp[stride] = 0;
-
-        ++sp;
-      }
-
-      //non-initial lines
-      //////////////////////////
-      for (ui32 y = 2; y < height; /*done at the end of loop*/)
-      {
-        sip_shift ^= 0x2;  // shift sigma to the upper half od the nibble
-        sip_shift &= 0xFFFFFFEFU; //move back to 0 (it might have been at 0x10)
-        ui32 *sip = y & 0x4 ? sigma2 : sigma1; //choose sigma array
-
-        lsp = line_state;
-        ui8 ls0 = lsp[0];               // read the line state value
-        lsp[0] = 0;                     // and set it to zero
-        sp = decoded_data + y * stride; // generated samples
-        c_q = 0;                        // context
-        for (ui32 x = 0; x < width; x += 4)
-        {
-          // decode vlc
+          vlc_val = rev_advance(&vlc, t1 & 0x7);
+          
+          // decode u
           /////////////
+          // uvlc_mode is made up of u_offset bits from the quad pair
+          ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
+          if (uvlc_mode == 0xc0)// if both u_offset are set, get an event from
+          {                     // the MEL run of events
+            run -= 2; //subtract 2, since events number if multiplied by 2
 
-          //first quad
-          // get context, eqn. 2 ITU T.814
-          // c_q has \sigma^W | \sigma^SW
-          c_q |= (ls0 >> 7);          //\sigma^NW | \sigma^N
-          c_q |= (lsp[1] >> 5) & 0x4; //\sigma^NE | \sigma^NF
+            uvlc_mode += (run == -1) ? 0x40 : 0; // increment uvlc_mode by
+                                                 // is 0x40
 
-          //the following is very similar to previous code, so please refer to 
-          // that
-          vlc_val = rev_fetch(&vlc);
-          qinf[0] = vlc_tbl1[(c_q << 7) | (vlc_val & 0x7F)];
-          if (c_q == 0) //zero context
-          {
-            run -= 2;
-            qinf[0] = (run == -1) ? qinf[0] : 0;
-            if (run < 0)
+            if (run < 0)//if run is consumed (run is -1 or -2), get another run
               run = mel_get_run(&mel);
           }
-          //prepare context for the next quad, \sigma^W | \sigma^SW
-          c_q = ((qinf[0] & 0x40) >> 5) | ((qinf[0] & 0x80) >> 6);
+          //run -= (uvlc_mode == 0xc0) ? 2 : 0;
+          //uvlc_mode += (uvlc_mode == 0xc0 && run == -1) ? 0x40 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
 
-          //remove data from vlc stream
-          vlc_val = rev_advance(&vlc, qinf[0] & 0x7);
+          //decode uvlc_mode to get u for both quads
+          ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
+          //remove total prefix length
+          vlc_val = rev_advance(&vlc, uvlc_entry & 0x7); 
+          uvlc_entry >>= 3; 
+          //extract suffixes for quad 0 and 1
+          ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
+          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
+          vlc_val = rev_advance(&vlc, len);
+          uvlc_entry >>= 4;
+          // quad 0 length
+          len = uvlc_entry & 0x7; // quad 0 suffix length
+          uvlc_entry >>= 3;
+          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len)));//kap. 1
+          sp[1] = u_q;
+          u_q = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
+          sp[3]= u_q;
+        }
+        sp[0] = sp[1] = 0;
 
-          //update sigma
-          // The update depends on the value of x and y; consider one ui32
-          // if x is 0, 8, 16 and so on, and y is 2, 6, etc., then this 
-          // line update c locations
-          //      nibble (4 bits) number   0 1 2 3 4 5 6 7
-          //                         LSB   0 0 0 0 0 0 0 0 
-          //                               0 0 0 0 0 0 0 0
-          //                               c c 0 0 0 0 0 0
-          //                               c c 0 0 0 0 0 0
-          *sip |= (((qinf[0]&0x30) >> 4) | ((qinf[0]&0xC0) >> 2)) << sip_shift;
+        //non initial quad rows
+        for (ui32 y = 2; y < height; y += 2)
+        {
+          c_q = 0;                                // context
+          ui16 *sp = scratch + (y >> 1) * sstr;   // this row of quads
 
-          //second quad
-          qinf[1] = 0;
-          if (x + 2 < width)
+          for (ui32 x = 0; x < width; sp += 4)
           {
-            c_q |= (lsp[1] >> 7);
-            c_q |= (lsp[2] >> 5) & 0x4;
-            qinf[1] = vlc_tbl1[(c_q << 7) | (vlc_val & 0x7F)];
+            // decode VLC
+            /////////////
+
+            // sigma_q (n, ne, nf)
+            c_q |= ((sp[0 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
+
+            // first quad
+            vlc_val = rev_fetch(&vlc);
+
+            //decode VLC using the context c_q and the head of VLC bitstream
+            ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];
+
+            // if context is zero, use one MEL event
             if (c_q == 0) //zero context
             {
-              run -= 2;
-              qinf[1] = (run == -1) ? qinf[1] : 0;
-              if (run < 0)
-                run = mel_get_run(&mel);
+              run -= 2; //subtract 2, since events number is multiplied by 2
+
+              // Is the run terminated in 1? if so, use decoded VLC code, 
+              // otherwise, discard decoded data, since we will decoded again 
+              // using a different context
+              t0 = (run == -1) ? t0 : 0;
+
+              // is run -1 or -2? this means a run has been consumed
+              if (run < 0) 
+                run = mel_get_run(&mel);  // get another run
             }
-            //prepare context for the next quad
-            c_q = ((qinf[1] & 0x40) >> 5) | ((qinf[1] & 0x80) >> 6);
-            //remove data from vlc stream
-            vlc_val = rev_advance(&vlc, qinf[1] & 0x7);
+            //run -= (c_q == 0) ? 2 : 0;
+            //t0 = (c_q != 0 || run == -1) ? t0 : 0;
+            //if (run < 0)
+            //  run = mel_get_run(&mel);  // get another run
+            sp[0] = t0;
+            x += 2;
+
+            // prepare context for the next quad; eqn. 2 in ITU T.814
+            // sigma_q (w, sw)
+            c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
+            // sigma_q (nw)
+            c_q |= sp[0 - (si32)sstr] & 0x80;
+            // sigma_q (n, ne, nf)
+            c_q |= ((sp[2 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
+
+            //remove data from vlc stream (0 bits are removed if vlc is unused)
+            vlc_val = rev_advance(&vlc, t0 & 0x7);
+
+            //second quad
+            ui16 t1 = 0;
+
+            //decode VLC using the context c_q and the head of VLC bitstream
+            t1 = vlc_tbl1[ c_q + (vlc_val & 0x7F)]; 
+
+            // if context is zero, use one MEL event
+            if (c_q == 0 && x < width) //zero context
+            {
+              run -= 2; //subtract 2, since events number if multiplied by 2
+
+              // if event is 0, discard decoded t1
+              t1 = (run == -1) ? t1 : 0;
+
+              if (run < 0) // have we consumed all events in a run
+                run = mel_get_run(&mel); // if yes, then get another run
+            }
+            t1 = x < width ? t1 : 0;
+            //run -= (c_q == 0 && x < width) ? 2 : 0;
+            //t1 = (c_q != 0 || run == -1) ? t1 : 0;
+            //if (run < 0)
+            //  run = mel_get_run(&mel);  // get another run
+            sp[2] = t1;
+            x += 2;
+
+            // partial c_q, will be completed when we process the next quad
+            // sigma_q (w, sw)
+            c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
+            // sigma_q (nw)
+            c_q |= sp[2 - (si32)sstr] & 0x80;
+
+            //remove data from vlc stream, if qinf is not used, cwdlen is 0
+            vlc_val = rev_advance(&vlc, t1 & 0x7);
+          
+            // decode u
+            /////////////
+            // uvlc_mode is made up of u_offset bits from the quad pair
+            ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
+            ui32 uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
+            //remove total prefix length
+            vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+            uvlc_entry >>= 3;
+            //extract suffixes for quad 0 and 1
+            ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
+            ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
+            vlc_val = rev_advance(&vlc, len);
+            uvlc_entry >>= 4;
+            // quad 0 length
+            len = uvlc_entry & 0x7; // quad 0 suffix length
+            uvlc_entry >>= 3;
+            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFU << len))); //u_q
+            sp[1] = u_q;
+            u_q = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
+            sp[3] = u_q;
           }
+          sp[0] = sp[1] = 0;
+        }
+      }
 
-          //update sigma
-          *sip |= (((qinf[1]&0x30) | ((qinf[1]&0xC0) << 2))) << (4+sip_shift);
+      // step2 we decode magsgn
+      {
+        // We allocate a scratch row for storing v_n values.
+        // We have 512 quads horizontally.
+        // We need an extra entry to handle the case of vp[1]
+        // when vp is at the last column.
+        // Here, we allocate 4 instead of 1 to make the buffer size
+        // a multipled of 16 bytes.
+        const int v_n_size = 512 + 4;
+        ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
 
-          sip += x & 0x7 ? 1 : 0;
-          sip_shift ^= 0x10;
+        frwd_struct magsgn;
+        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
 
-          //retrieve u
-          ////////////
-          ui32 U_q[2];
-          ui32 uvlc_mode = ((qinf[0] & 0x8) >> 3) | ((qinf[1] & 0x8) >> 2);
-          ui32 consumed_bits = decode_noninit_uvlc(vlc_val, uvlc_mode, U_q);
-          vlc_val = rev_advance(&vlc, consumed_bits);
+        ui16 *sp = scratch;
+        ui32 *vp = v_n_scratch;
+        ui32 *dp = decoded_data;
 
-          //calculate E^max and add it to U_q, eqns 5 and 6 in ITU T.814
-          if ((qinf[0] & 0xF0) & ((qinf[0] & 0xF0) - 1)) // is \gamma_q 1?
-          {
-            ui32 E = (ls0 & 0x7Fu);
-            E = E > (lsp[1] & 0x7Fu) ? E : (lsp[1]&0x7Fu); //max(E, E^NE, E^NF)
-            //since U_q alread has u_q + 1, we subtract 2 instead of 1
-            U_q[0] += E > 2 ? E - 2 : 0;
-          }
-
-          if ((qinf[1] & 0xF0) & ((qinf[1] & 0xF0) - 1)) //is \gamma_q 1? 
-          {
-            ui32 E = (lsp[1] & 0x7Fu);
-            E = E > (lsp[2] & 0x7Fu) ? E : (lsp[2]&0x7Fu); //max(E, E^NE, E^NF)
-            //since U_q alread has u_q + 1, we subtract 2 instead of 1
-            U_q[1] += E > 2 ? E - 2 : 0;
-          }
-
-          if (U_q[0] > missing_msbs + 2 || U_q[1] > missing_msbs + 2)
-          {
-            OJPH_WARN(0x00010007, "Malformed codeblock bitstream. Uq is "
-                      "larger than missing_msbs + 2\n");
+        ui32 prev_v_n = 0;
+        for (ui32 x = 0; x < width; sp += 2, ++vp)
+        {
+          ui32 inf = sp[0];
+          ui32 U_q = sp[1];
+          if (U_q > mmsbp2)
             return false;
-          }
 
-          ls0 = lsp[2]; //for next double quad
-          lsp[1] = lsp[2] = 0;
-
-          //decode magsgn and update line_state
-          /////////////////////////////////////
-          ui32 m_n, v_n;
-          ui32 ms_val;
-
-          //locations where samples need update
-          ui32 locs = 0xFF;
-          if (x + 4 > width) locs >>= (x + 4 - width) << 1;
-          locs = y + 2 <= height ? locs : (locs & 0x55);
-
-          if ((((qinf[0] & 0xF0) >> 4) | (qinf[1] & 0xF0)) & ~locs)
+          ui32 v_n;
+          ui32 val = 0;
+          ui32 bit = 0;
+          if (inf & (1 << (4 + bit)))
           {
-            OJPH_WARN(0x00010008, "Malformed codeblock bitstream. Decoded VLC "
-                      "code indicates that there are significant samples "
-                      "outside the codeblock area.\n");
-            return false;
-          }
+            //get 32 bits of magsgn data
+            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+            frwd_advance(&magsgn, m_n);                 //consume m_n
 
-          if (qinf[0] & 0x10) //sigma_n
+            val = ms_val << 31;                     // get sign bit
+            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                               // add center of bin    
+            //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+            //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+            val |= (v_n + 2) << (p - 1);
+          }
+          dp[0] = val;
+
+          v_n = 0;
+          val = 0;
+          bit = 1;
+          if (inf & (1 << (4 + bit)))
           {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[0] - ((qinf[0] >> 12) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= ((qinf[0] & 0x100) >> 8) << m_n;
-            v_n |= 1; //center of bin
-            sp[0] = val | ((v_n + 2) << (p - 1));
-          }
-          else if (locs & 0x1)
-            sp[0] = 0;
+            //get 32 bits of magsgn data
+            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+            frwd_advance(&magsgn, m_n);                 //consume m_n
 
-          if (qinf[0] & 0x20) //sigma_n
+            val = ms_val << 31;                      // get sign bit
+            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                               // add center of bin    
+            //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+            //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+            val |= (v_n + 2) << (p - 1);
+          }
+          dp[stride] = val;
+          vp[0] = prev_v_n | v_n;
+          prev_v_n = 0;
+          ++dp;
+          if (++x >= width)
+          { ++vp; break; }
+
+          val = 0;
+          bit = 2;
+          if (inf & (1 << (4 + bit)))
           {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[0] - ((qinf[0] >> 13) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= ((qinf[0] & 0x200) >> 9) << m_n;
-            v_n |= 1; //center of bin
-            sp[stride] = val | ((v_n + 2) << (p - 1));
+            //get 32 bits of magsgn data
+            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+            frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            //update line_state: bit 7 (\sigma^N), and E^N
-            ui32 t = lsp[0] & 0x7F;          //E^NW
-            v_n = 32 - count_leading_zeros(v_n); 
-            lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n));
+            val = ms_val << 31;                     // get sign bit
+            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                               // add center of bin    
+            //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+            //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+            val |= (v_n + 2) << (p - 1);
           }
-          else if (locs & 0x2)
-            sp[stride] = 0; // no need to update line_state
+          dp[0] = val;
 
-          ++lsp;
-          ++sp;
-
-          if (qinf[0] & 0x40) //sigma_n
+          v_n = 0;
+          val = 0;
+          bit = 3;
+          if (inf & (1 << (4 + bit)))
           {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[0] - ((qinf[0] >> 14) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= (((qinf[0] & 0x400) >> 10) << m_n);
-            v_n |= 1;                            //center of bin
-            sp[0] = val | ((v_n + 2) << (p - 1));
-          }
-          else if (locs & 0x4)
-            sp[0] = 0;
+            //get 32 bits of magsgn data
+            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+            frwd_advance(&magsgn, m_n);                 //consume m_n
 
-          if (qinf[0] & 0x80) //sigma_n
+            val = ms_val << 31;                     // get sign bit
+            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                               // add center of bin    
+            //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+            //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+            val |= (v_n + 2) << (p - 1);
+          }
+          dp[stride] = val;
+          prev_v_n = v_n;
+          ++dp;
+          ++x;
+        }
+        vp[0] = prev_v_n;
+
+        for (ui32 y = 2; y < height; y += 2)
+        {
+          ui16 *sp = scratch + (y >> 1) * sstr;
+          ui32 *vp = v_n_scratch;
+          ui32 *dp = decoded_data + y * stride;
+
+          prev_v_n = 0;
+          for (ui32 x = 0; x < width; sp += 2, ++vp)
           {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[0] - ((qinf[0] >> 15) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= ((qinf[0] & 0x800) >> 11) << m_n;
-            v_n |= 1; //center of bin
-            sp[stride] = val | ((v_n + 2) << (p - 1));
+            ui32 inf = sp[0];
+            ui32 u_q = sp[1];
 
-            //update line_state: bit 7 (\sigma^NW), and E^NW for next quad
-            lsp[0] = (ui8)(0x80 | (32 - count_leading_zeros(v_n)));
+            ui32 gamma = inf & 0xF0; gamma &= gamma - 0x10; //is gamma_q 1?
+            ui32 emax = vp[0] | vp[1];
+            emax = 31 - count_leading_zeros(emax | 2); // emax - 1            
+            ui32 kappa = gamma ? emax : 1;
+
+            ui32 U_q = u_q + kappa;
+            if (U_q > mmsbp2)
+              return false;
+
+            ui32 v_n;
+            ui32 val = 0;
+            ui32 bit = 0;
+            if (inf & (1 << (4 + bit)))
+            {
+              //get 32 bits of magsgn data
+              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+              frwd_advance(&magsgn, m_n);                 //consume m_n
+
+              val = ms_val << 31;                     // get sign bit
+              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                               // add center of bin    
+              //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+              //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+              val |= (v_n + 2) << (p - 1);
+            }
+            dp[0] = val;
+
+            v_n = 0;
+            val = 0;
+            bit = 1;
+            if (inf & (1 << (4 + bit)))
+            {
+              //get 32 bits of magsgn data
+              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+              frwd_advance(&magsgn, m_n);                 //consume m_n
+
+              val = ms_val << 31;                     // get sign bit
+              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                               // add center of bin    
+              //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+              //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+              val |= (v_n + 2) << (p - 1);
+            }
+            dp[stride] = val;
+            vp[0] = prev_v_n | v_n;
+            prev_v_n = 0;
+            ++dp;
+            if (++x >= width)
+            { ++vp; break; }
+
+            val = 0;
+            bit = 2;
+            if (inf & (1 << (4 + bit)))
+            {
+              //get 32 bits of magsgn data
+              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+              frwd_advance(&magsgn, m_n);                 //consume m_n
+
+              val = ms_val << 31;                     // get sign bit
+              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                               // add center of bin    
+              //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+              //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+              val |= (v_n + 2) << (p - 1);
+            }
+            dp[0] = val;
+
+            v_n = 0;
+            val = 0;
+            bit = 3;
+            if (inf & (1 << (4 + bit)))
+            {
+              //get 32 bits of magsgn data
+              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
+              frwd_advance(&magsgn, m_n);                 //consume m_n
+
+              val = ms_val << 31;                     // get sign bit
+              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
+              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                               // add center of bin    
+              //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
+              //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
+              val |= (v_n + 2) << (p - 1);
+            }
+            dp[stride] = val;
+            prev_v_n = v_n;
+            ++dp;
+            ++x;
           }
-          else if (locs & 0x8)
+          vp[0] = prev_v_n;
+        }
+      }
+
+      if (num_passes > 1)
+      {
+        // We use scratch again, we can divide it into multiple regions
+        // sigma holds all the significant samples, and it cannot
+        // be modified after it is set.  it will be used during the
+        // Magnitude Refinement Pass
+        ui16* const sigma = scratch;
+
+        ui32 mstr = (width + 3u) >> 2;   // divide by 4, since each
+                                         // ui16 contains 4 columns
+        mstr = ((mstr + 2u) + 7u) & ~7u; // multiples of 8
+
+        // We re-arrange quad significance, where each 4 consecutive
+        // bits represent one quad, into column significance, where,
+        // each 4 consequtive bits represent one column of 4 rows
+        {
+          ui32 y;
+          for (y = 0; y < height; y += 4)
           {
-            sp[stride] = 0;
-            // lsp[0] = 0; needs testing
+            ui16* sp = scratch + (y >> 1) * sstr;
+            ui16* dp = sigma + (y >> 2) * mstr;
+            for (ui32 x = 0; x < width; x += 4, sp += 4, ++dp) {
+              ui32 t0 = 0, t1 = 0;
+              t0  = ((sp[0     ] & 0x30u) >> 4)  | ((sp[0     ] & 0xC0u) >> 2);
+              t0 |= ((sp[2     ] & 0x30u) << 4)  | ((sp[2     ] & 0xC0u) << 6);
+              t1  = ((sp[0+sstr] & 0x30u) >> 2)  | ((sp[0+sstr] & 0xC0u)     );
+              t1 |= ((sp[2+sstr] & 0x30u) << 6)  | ((sp[2+sstr] & 0xC0u) << 8);
+              dp[0] = (ui16)(t0 | t1);
+            }
+            dp[0] = 0; // set an extra entry on the right with 0
           }
-
-          ++sp;
-
-          if (qinf[1] & 0x10) //sigma_n
           {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[1] - ((qinf[1] >> 12) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= (((qinf[1] & 0x100) >> 8) << m_n);
-            v_n |= 1;                            //center of bin
-            sp[0] = val | ((v_n + 2) << (p - 1));
+            // reset one row after the codeblock
+            ui16* dp = sigma + (y >> 2) * mstr;
+            for (ui32 x = 0; x < width; x += 4, ++dp)
+              dp[0] = 0;
+            dp[0] = 0; // set an extra entry on the right with 0
           }
-          else if (locs & 0x10)
-            sp[0] = 0;
-
-          if (qinf[1] & 0x20) //sigma_n
-          {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[1] - ((qinf[1] >> 13) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= (((qinf[1] & 0x200) >> 9) << m_n);
-            v_n |= 1; //center of bin
-            sp[stride] = val | ((v_n + 2) << (p - 1));
-
-            //update line_state: bit 7 (\sigma^N), and E^N
-            ui32 t = lsp[0] & 0x7F;          //E^NW
-            v_n = 32 - count_leading_zeros(v_n); 
-            lsp[0] = (ui8)(0x80 | (t > v_n ? t : v_n));
-          }
-          else if (locs & 0x20)
-            sp[stride] = 0; //no need to update line_state
-
-          ++lsp;
-          ++sp;
-
-          if (qinf[1] & 0x40) //sigma_n
-          {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[1] - ((qinf[1] >> 14) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= (((qinf[1] & 0x400) >> 10) << m_n);
-            v_n |= 1;                            //center of bin
-            sp[0] = val | ((v_n + 2) << (p - 1));
-          }
-          else if (locs & 0x40)
-            sp[0] = 0;
-
-          if (qinf[1] & 0x80) //sigma_n
-          {
-            ms_val = frwd_fetch<0xFF>(&magsgn);
-            m_n = U_q[1] - ((qinf[1] >> 15) & 1); //m_n
-            frwd_advance(&magsgn, m_n);
-            ui32 val = ms_val << 31;
-            v_n = ms_val & ((1U << m_n) - 1);
-            v_n |= (((qinf[1] & 0x800) >> 11) << m_n);
-            v_n |= 1; //center of bin
-            sp[stride] = val | ((v_n + 2) << (p - 1));
-
-            //update line_state: bit 7 (\sigma^NW), and E^NW for next quad
-            lsp[0] = (ui8)(0x80 | (32 - count_leading_zeros(v_n)));
-          }
-          else if (locs & 0x80)
-          {
-            sp[stride] = 0;
-            // lsp[0] = 0; needs testing
-          }
-
-          ++sp;
         }
 
-        y += 2;
-        if (num_passes > 1 && (y & 3) == 0) //executed at multiples of 4
-        { // This is for SPP and potentially MRP
+        // We perform Significance Propagation Pass here
+        {
+          // This stores significance information of the previous
+          // 4 rows.  Significance information in this array includes
+          // all signicant samples in bitplane p - 1; that is,
+          // significant samples for bitplane p (discovered during the
+          // cleanup pass and stored in sigma) and samples that have recently
+          // became significant (during the SPP) in bitplane p-1.
+          // We store enough for the widest row, containing 1024 columns,
+          // which is equivalent to 256 of ui16, since each stores 4 columns.
+          // We add an extra 8 entries, just in case we need more
+          ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
 
-          if (num_passes > 2) //do MRP
+          frwd_struct sigprop;
+          frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
           {
-            // select the current stripe
-            ui32 *cur_sig = y & 0x4 ? sigma1 : sigma2;
-            // the address of the data that needs updating
-            ui32 *dpp = decoded_data + (y - 4) * stride;
-            ui32 half = 1 << (p - 2); // half the center of the bin
+            ui32 pattern = 0xFFFFu; // a pattern needed samples
+            if (height - y < 4) {
+              pattern = 0x7777u;
+              if (height - y < 3)
+                pattern = 0x3333u;
+              else if (height - y < 2)
+                pattern = 0x1111u;
+            }
+
+            // prev holds sign. info. for the previous quad, together
+            // with the rows on top of it and below it.
+            ui32 prev = 0;
+            ui16 *prev_sig = prev_row_sig;
+            ui16 *cur_sig = sigma + (y >> 2) * mstr;
+            ui32 *dpp = decoded_data + y * stride;
+            for (ui32 x = 0; x < width; x += 4, ++cur_sig, ++prev_sig)
+            {
+              // only rows and columns inside the stripe are included
+              si32 s = (si32)x + 4 - (si32)width;
+              s = ojph_max(s, 0);
+              pattern = pattern >> (s * 4);
+
+              // We first find locations that need to be tested (potential
+              // SPP members); these location will end up in mbr
+              // In each iteration, we produce 16 bits because cwd can have
+              // up to 16 bits of significance information, followed by the
+              // corresponding 16 bits of sign information; therefore, it is
+              // sufficient to fetch 32 bit data per loop.
+
+              // Althougth we are interested in 16 bits only, we load 32 bits.
+              // For the 16 bits we are producing, we need the next 4 bits --
+              // We need data for at least 5 columns out of 8.
+              // Therefore loading 32 bits is easier than loading 16 bits
+              // twice.
+              ui32 ps = *(ui32*)prev_sig;
+              ui32 ns = *(ui32*)(cur_sig + mstr);
+              ui32 u = (ps & 0x88888888) >> 3; // the row on top
+              if (!stripe_causal)
+                u |= (ns & 0x11111111) << 3;   // the row below
+
+              ui32 cs = *(ui32*)cur_sig;
+              // vertical integration
+              ui32 mbr =  cs;                // this sig. info.
+              mbr |= (cs & 0x77777777) << 1; //above neighbors
+              mbr |= (cs & 0xEEEEEEEE) >> 1; //below neighbors
+              mbr |= u;
+              // horizontal integration
+              ui32 t = mbr;
+              mbr |= t << 4;      // neighbors on the left
+              mbr |= t >> 4;      // neighbors on the right
+              mbr |= prev >> 12;  // significance of previous group
+
+              // remove outside samples, and already significant samples
+              mbr &= pattern;
+              mbr &= ~cs;
+
+              // find samples that become significant during the SPP
+              ui32 new_sig = mbr;
+              if (new_sig)
+              {
+                ui32 cwd = frwd_fetch<0>(&sigprop);
+
+                ui32 cnt = 0;
+                ui32 col_mask = 0xFu;
+                ui32 inv_sig = ~cs & pattern;
+                for (int i = 0; i < 16; i += 4, col_mask <<= 4)
+                {
+                  if ((col_mask & new_sig) == 0)
+                    continue;
+
+                  //scan one column
+                  ui32 sample_mask = 0x1111u & col_mask;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x33u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0x76u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xECu << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+
+                  sample_mask <<= 1;
+                  if (new_sig & sample_mask)
+                  {
+                    new_sig &= ~sample_mask;
+                    if (cwd & 1)
+                    {
+                      ui32 t = 0xC8u << i;
+                      new_sig |= t & inv_sig;
+                    }
+                    cwd >>= 1; ++cnt;
+                  }
+                }
+
+                if (new_sig)
+                {
+                  // new_sig has newly-discovered sig. samples during SPP
+                  // find the signs and update decoded_data
+                  ui32 *dp = dpp + x;
+                  ui32 val = 3u << (p - 2);
+                  col_mask = 0xFu;
+                  for (int i = 0; i < 4; ++i, ++dp, col_mask <<= 4)
+                  {
+                    if ((col_mask & new_sig) == 0)
+                      continue;
+
+                    //scan 4 signs
+                    ui32 sample_mask = 0x1111u & col_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[0] == 0);
+                      dp[0] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[stride] == 0);
+                      dp[stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[2 * stride] == 0);
+                      dp[2 * stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+
+                    sample_mask += sample_mask;
+                    if (new_sig & sample_mask)
+                    {
+                      assert(dp[3 * stride] == 0);
+                      dp[3 * stride] = (cwd << 31) | val;
+                      cwd >>= 1; ++cnt;
+                    }
+                  }
+                }
+                frwd_advance(&sigprop, cnt);
+              }
+
+              new_sig |= cs;
+              *prev_sig = (ui16)(new_sig);
+
+              // vertical integration for the new sig. info.
+              t = new_sig;
+              new_sig |= (t & 0x7777) << 1; //above neighbors
+              new_sig |= (t & 0xEEEE) >> 1; //below neighbors
+              // add sig. info. from the row on top and below
+              prev = new_sig | u;
+              // we need only the bits in 0xF000
+              prev &= 0xF000;
+            }
+          }
+        }
+
+        // We perform Magnitude Refinement Pass here
+        if (num_passes > 2)
+        {
+          rev_struct magref;
+          rev_init_mrp(&magref, coded_data, (int)lengths1, (int)lengths2);
+
+          for (ui32 y = 0; y < height; y += 4)
+          {
+            ui32 *cur_sig = (ui32*)(sigma + (y >> 2) * mstr);
+            ui32 *dpp = decoded_data + y * stride;
+            ui32 half = 1 << (p - 2);
             for (ui32 i = 0; i < width; i += 8)
             {
               //Process one entry from sigma array at a time
@@ -1729,577 +1564,36 @@ namespace ojph {
               ui32 cwd = rev_fetch_mrp(&magref); // get 32 bit data
               ui32 sig = *cur_sig++; // 32 bit that will be processed now
               ui32 col_mask = 0xFu;  // a mask for a column in sig
-              ui32 *dp = dpp + i;    // next column in decode samples
               if (sig) // if any of the 32 bits are set
               {
-                for (int j = 0; j < 8; ++j, dp++) //one column at a time
+                for (int j = 0; j < 8; ++j) //one column at a time
                 {
                   if (sig & col_mask) // lowest nibble
                   {
+                    ui32 *dp = dpp + i + j; // next column in decoded samples
                     ui32 sample_mask = 0x11111111u & col_mask; //LSB
 
-                    if (sig & sample_mask) //if LSB is set
-                    {
-                      assert(dp[0] != 0); // decoded value cannot be zero
-                      assert((dp[0] & half) == 0); // no half
-                      ui32 sym = cwd & 1; // get it value
-                      // remove center of bin if sym is 0
-                      dp[0] ^= (1 - sym) << (p - 1);
-                      dp[0] |= half;      // put half the center of bin
-                      cwd >>= 1;          //consume word
+                    for (int k = 0; k < 4; ++k) {
+                      if (sig & sample_mask) //if LSB is set
+                      {
+                        assert(dp[0] != 0); // decoded value cannot be zero
+                        assert((dp[0] & half) == 0); // no half
+                        ui32 sym = cwd & 1;          // get it value
+                        sym = (1 - sym) << (p - 1); // previous center of bin
+                        sym |= half;            // put half the center of bin
+                        dp[0] ^= sym;    // remove old bin center and put new
+                        cwd >>= 1;       // consume word
+                      }
+                      sample_mask += sample_mask; //next row
+                      dp += stride; // next samples row
                     }
-                    sample_mask += sample_mask; //next row
-
-                    if (sig & sample_mask)
-                    {
-                      assert(dp[stride] != 0);
-                      assert((dp[stride] & half) == 0);
-                      ui32 sym = cwd & 1;
-                      dp[stride] ^= (1 - sym) << (p - 1);
-                      dp[stride] |= half;
-                      cwd >>= 1;
-                    }
-                    sample_mask += sample_mask;
-
-                    if (sig & sample_mask)
-                    {
-                      assert(dp[2 * stride] != 0);
-                      assert((dp[2 * stride] & half) == 0);
-                      ui32 sym = cwd & 1;
-                      dp[2 * stride] ^= (1 - sym) << (p - 1);
-                      dp[2 * stride] |= half;
-                      cwd >>= 1;
-                    }
-                    sample_mask += sample_mask;
-
-                    if (sig & sample_mask)
-                    {
-                      assert(dp[3 * stride] != 0);
-                      assert((dp[3 * stride] & half) == 0);
-                      ui32 sym = cwd & 1;
-                      dp[3 * stride] ^= (1 - sym) << (p - 1);
-                      dp[3 * stride] |= half;
-                      cwd >>= 1;
-                    }
-                    sample_mask += sample_mask;
                   }
                   col_mask <<= 4; //next column
                 }
               }
               // consume data according to the number of bits set
-              rev_advance_mrp(&magref, population_count(sig)); 
+              rev_advance_mrp(&magref, population_count(sig));
             }
-          }
-
-          if (y >= 4) // update mbr array at the end of each stripe
-          {
-            //generate mbr corresponding to a stripe
-            ui32 *sig = y & 0x4 ? sigma1 : sigma2;
-            ui32 *mbr = y & 0x4 ? mbr1 : mbr2;
-
-            //data is processed in patches of 8 columns, each 
-            // each 32 bits in sigma1 or mbr1 represent 4 rows
-
-            ui32 prev = 0; // previous columns
-            for (ui32 i = 0; i < width; i += 8, mbr++, sig++)
-            {
-              //integrate horizontally
-              mbr[0] = sig[0];         //start with significant samples
-              mbr[0] |= prev >> 28;    //for first column, left neighbors
-              mbr[0] |= sig[0] << 4;   //left neighbors
-              mbr[0] |= sig[0] >> 4;   //right neighbors
-              mbr[0] |= sig[1] << 28;  //for last column, right neighbors
-              prev = sig[0];           // for next group of columns
-
-              //integrate vertically
-              ui32 t = mbr[0], z = mbr[0];
-              z |= (t & 0x77777777) << 1; //above neighbors
-              z |= (t & 0xEEEEEEEE) >> 1; //below neighbors
-              mbr[0] = z & ~sig[0]; //remove already significance samples
-            }
-          }
-
-          if (y >= 8) //wait until 8 rows has been processed
-          {
-            ui32 *cur_sig, *cur_mbr, *nxt_sig, *nxt_mbr;
-
-            // add membership from the next stripe, obtained above
-            cur_sig = y & 0x4 ? sigma2 : sigma1;
-            cur_mbr = y & 0x4 ? mbr2 : mbr1;
-            nxt_sig = y & 0x4 ? sigma1 : sigma2;  //future samples
-            ui32 prev = 0; // the columns before these group of 8 columns
-            for (ui32 i = 0; i < width; i+=8, cur_mbr++, cur_sig++, nxt_sig++)
-            {
-              ui32 t = nxt_sig[0];
-              t |= prev >> 28;        //for first column, left neighbors
-              t |= nxt_sig[0] << 4;   //left neighbors
-              t |= nxt_sig[0] >> 4;   //right neighbors
-              t |= nxt_sig[1] << 28;  //for last column, right neighbors
-              prev = nxt_sig[0];      // for next group of columns
-
-              if (stripe_causal == false)
-                cur_mbr[0] |= (t & 0x11111111u) << 3; //propagate up to cur_mbr
-              cur_mbr[0] &= ~cur_sig[0]; //remove already significance samples
-            }
-
-            //find new locations and get signs
-            cur_sig = y & 0x4 ? sigma2 : sigma1;  
-            cur_mbr = y & 0x4 ? mbr2 : mbr1;
-            nxt_sig = y & 0x4 ? sigma1 : sigma2; //future samples
-            nxt_mbr = y & 0x4 ? mbr1 : mbr2;     //future samples
-            ui32 val = 3u << (p - 2); // sample values for newly discovered 
-                             // signficant samples including the bin center
-            for (ui32 i = 0; i < width;
-                 i += 8, cur_sig++, cur_mbr++, nxt_sig++, nxt_mbr++)
-            {
-              ui32 mbr = *cur_mbr;
-              ui32 new_sig = 0;
-              if (mbr)  //are there any samples that migt be signficant 
-              {
-                for (ui32 n = 0; n < 8; n += 4)
-                {
-                  ui32 cwd = frwd_fetch<0>(&sigprop); //get 32 bits
-                  ui32 cnt = 0;
-
-                  ui32 *dp = decoded_data + (y - 8) * stride;
-                  dp += i + n; //address for decoded samples
-
-                  ui32 col_mask = 0xFu << (4 * n); //a mask to select a column
-
-                  ui32 inv_sig = ~cur_sig[0]; // insignificant samples
-
-                  //find the last sample we operate on
-                  ui32 end = n + 4 + i < width ? n + 4 : width - i;
-
-                  for (ui32 j = n; j < end; ++j, ++dp, col_mask <<= 4)
-                  {
-                    if ((col_mask & mbr) == 0) //no samples need checking
-                      continue;
-
-                    //scan mbr to find a new signficant sample
-                    ui32 sample_mask = 0x11111111u & col_mask; // LSB
-                    if (mbr & sample_mask)
-                    {
-                      assert(dp[0] == 0); // the sample must have been 0
-                      if (cwd & 1) //if this sample has become significant
-                      { // must propagate it to nearby samples
-                        new_sig |= sample_mask;  // new significant samples
-                        ui32 t = 0x32u << (j * 4);// propagation to neighbors
-                        mbr |= t & inv_sig; //remove already signifcant samples
-                      }
-                      cwd >>= 1; ++cnt; //consume bit and increment number of
-                                        //consumed bits
-                    }
-
-                    sample_mask += sample_mask;  // next row
-                    if (mbr & sample_mask)
-                    {
-                      assert(dp[stride] == 0);
-                      if (cwd & 1)
-                      {
-                        new_sig |= sample_mask;
-                        ui32 t = 0x74u << (j * 4);
-                        mbr |= t & inv_sig;
-                      }
-                      cwd >>= 1; ++cnt;
-                    }
-
-                    sample_mask += sample_mask;
-                    if (mbr & sample_mask)
-                    {
-                      assert(dp[2 * stride] == 0);
-                      if (cwd & 1)
-                      {
-                        new_sig |= sample_mask;
-                        ui32 t = 0xE8u << (j * 4);
-                        mbr |= t & inv_sig;
-                      }
-                      cwd >>= 1; ++cnt;
-                    }
-
-                    sample_mask += sample_mask;
-                    if (mbr & sample_mask)
-                    {
-                      assert(dp[3 * stride] == 0);
-                      if (cwd & 1)
-                      {
-                        new_sig |= sample_mask;
-                        ui32 t = 0xC0u << (j * 4);
-                        mbr |= t & inv_sig;
-                      }
-                      cwd >>= 1; ++cnt;
-                    }
-                  }
-
-                  //obtain signs here
-                  if (new_sig & (0xFFFFu << (4 * n))) //if any
-                  {
-                    ui32 *dp = decoded_data + (y - 8) * stride;
-                    dp += i + n; // decoded samples address
-                    ui32 col_mask = 0xFu << (4 * n); //mask to select a column
-
-                    for (ui32 j = n; j < end; ++j, ++dp, col_mask <<= 4)
-                    {
-                      if ((col_mask & new_sig) == 0) //if non is signficant
-                        continue;
-
-                      //scan 4 signs
-                      ui32 sample_mask = 0x11111111u & col_mask;
-                      if (new_sig & sample_mask)
-                      {
-                        assert(dp[0] == 0);
-                        dp[0] |= ((cwd & 1) << 31) | val; //put value and sign
-                        cwd >>= 1; ++cnt; //consume bit and increment number
-                                          //of consumed bits
-                      }
-
-                      sample_mask += sample_mask;
-                      if (new_sig & sample_mask)
-                      {
-                        assert(dp[stride] == 0);
-                        dp[stride] |= ((cwd & 1) << 31) | val;
-                        cwd >>= 1; ++cnt;
-                      }
-
-                      sample_mask += sample_mask;
-                      if (new_sig & sample_mask)
-                      {
-                        assert(dp[2 * stride] == 0);
-                        dp[2 * stride] |= ((cwd & 1) << 31) | val;
-                        cwd >>= 1; ++cnt;
-                      }
-
-                      sample_mask += sample_mask;
-                      if (new_sig & sample_mask)
-                      {
-                        assert(dp[3 * stride] == 0);
-                        dp[3 * stride] |= ((cwd & 1) << 31) | val;
-                        cwd >>= 1; ++cnt;
-                      }
-                    }
-
-                  }
-                  frwd_advance(&sigprop, cnt); //consume the bits from bitstrm
-                  cnt = 0;
-
-                  //update the next 8 columns
-                  if (n == 4)
-                  {
-                    //horizontally
-                    ui32 t = new_sig >> 28;
-                    t |= ((t & 0xE) >> 1) | ((t & 7) << 1);
-                    cur_mbr[1] |= t & ~cur_sig[1];
-                  }
-                }
-              }
-              //update the next stripe (vertically propagation)
-              new_sig |= cur_sig[0];
-              ui32 u = (new_sig & 0x88888888) >> 3;
-              ui32 t = u | (u << 4) | (u >> 4); //left and right neighbors
-              if (i > 0)
-                nxt_mbr[-1] |= (u << 28) & ~nxt_sig[-1];
-              nxt_mbr[0] |= t & ~nxt_sig[0];
-              nxt_mbr[1] |= (u >> 28) & ~nxt_sig[1];
-            }
-
-            //clear current sigma
-            //mbr need not be cleared because it is overwritten
-            cur_sig = y & 0x4 ? sigma2 : sigma1;
-            memset(cur_sig, 0, (((width + 7) >> 3) + 1) << 2);
-          }
-        }
-      }
-
-      //terminating
-      if (num_passes > 1) {
-
-        if (num_passes > 2 && ((height & 3) == 1 || (height & 3) == 2))
-        {//do magref
-          ui32 *cur_sig = height & 0x4 ? sigma2 : sigma1; //reversed
-          ui32 *dpp = decoded_data + (height & 0xFFFFFFFCu) * stride;
-          ui32 half = 1 << (p - 2);
-          for (ui32 i = 0; i < width; i += 8)
-          {
-            ui32 cwd = rev_fetch_mrp(&magref);
-            ui32 sig = *cur_sig++;
-            ui32 col_mask = 0xF;
-            ui32 *dp = dpp + i;
-            if (sig)
-            {
-              for (int j = 0; j < 8; ++j, dp++)
-              {
-                if (sig & col_mask)
-                {
-                  ui32 sample_mask = 0x11111111u & col_mask;
-
-                  if (sig & sample_mask)
-                  {
-                    assert(dp[0] != 0);
-                    assert((dp[0] & half) == 0); // no half
-                    ui32 sym = cwd & 1;
-                    dp[0] ^= (1 - sym) << (p - 1);
-                    dp[0] |= half;
-                    cwd >>= 1;
-                  }
-                  sample_mask += sample_mask;
-
-                  if (sig & sample_mask)
-                  {
-                    assert(dp[stride] != 0);
-                    assert((dp[stride] & half) == 0);
-                    ui32 sym = cwd & 1;
-                    dp[stride] ^= (1 - sym) << (p - 1);
-                    dp[stride] |= half;
-                    cwd >>= 1;
-                  }
-                  sample_mask += sample_mask;
-
-                  if (sig & sample_mask)
-                  {
-                    assert(dp[2 * stride] != 0);
-                    assert((dp[2 * stride] & half) == 0);
-                    ui32 sym = cwd & 1;
-                    dp[2 * stride] ^= (1 - sym) << (p - 1);
-                    dp[2 * stride] |= half;
-                    cwd >>= 1;
-                  }
-                  sample_mask += sample_mask;
-
-                  if (sig & sample_mask)
-                  {
-                    assert(dp[3 * stride] != 0);
-                    assert((dp[3 * stride] & half) == 0);
-                    ui32 sym = cwd & 1;
-                    dp[3 * stride] ^= (1 - sym) << (p - 1);
-                    dp[3 * stride] |= half;
-                    cwd >>= 1;
-                  }
-                  sample_mask += sample_mask;
-                }
-                col_mask <<= 4;
-              }
-            }
-            rev_advance_mrp(&magref, population_count(sig));
-          }
-        }
-
-        //do the last incomplete stripe
-        // for cases of (height & 3) == 0 and 3
-        // the should have been processed previously
-        if ((height & 3) == 1 || (height & 3) == 2)
-        {
-          //generate mbr of first stripe
-          ui32 *sig = height & 0x4 ? sigma2 : sigma1;
-          ui32 *mbr = height & 0x4 ? mbr2 : mbr1;
-          //integrate horizontally
-          ui32 prev = 0;
-          for (ui32 i = 0; i < width; i += 8, mbr++, sig++)
-          {
-            mbr[0] = sig[0];
-            mbr[0] |= prev >> 28;    //for first column, left neighbors
-            mbr[0] |= sig[0] << 4;   //left neighbors
-            mbr[0] |= sig[0] >> 4;   //left neighbors
-            mbr[0] |= sig[1] << 28;  //for last column, right neighbors
-            prev = sig[0];
-
-            //integrate vertically
-            ui32 t = mbr[0], z = mbr[0];
-            z |= (t & 0x77777777) << 1; //above neighbors
-            z |= (t & 0xEEEEEEEE) >> 1; //below neighbors
-            mbr[0] = z & ~sig[0]; //remove already significance samples
-          }
-        }
-
-        ui32 st = height;
-        st -= height > 6 ? (((height + 1) & 3) + 3) : height;
-        for (ui32 y = st; y < height; y += 4)
-        {
-          ui32 *cur_sig, *cur_mbr, *nxt_sig, *nxt_mbr;
-
-          ui32 pattern = 0xFFFFFFFFu; // a pattern needed samples
-          if (height - y == 3)
-            pattern = 0x77777777u;
-          else if (height - y == 2)
-            pattern = 0x33333333u;
-          else if (height - y == 1)
-            pattern = 0x11111111u;
-
-          //add membership from the next stripe, obtained above
-          if (height - y > 4)
-          {
-            cur_sig = y & 0x4 ? sigma2 : sigma1;
-            cur_mbr = y & 0x4 ? mbr2 : mbr1;
-            nxt_sig = y & 0x4 ? sigma1 : sigma2;
-            ui32 prev = 0;
-            for (ui32 i = 0; i<width; i += 8, cur_mbr++, cur_sig++, nxt_sig++)
-            {
-              ui32 t = nxt_sig[0];
-              t |= prev >> 28;     //for first column, left neighbors
-              t |= nxt_sig[0] << 4;   //left neighbors
-              t |= nxt_sig[0] >> 4;   //left neighbors
-              t |= nxt_sig[1] << 28;  //for last column, right neighbors
-              prev = nxt_sig[0];
-
-              if (stripe_causal == false)
-                cur_mbr[0] |= (t & 0x11111111u) << 3;
-              //remove already significance samples
-              cur_mbr[0] &= ~cur_sig[0];
-            }
-          }
-
-          //find new locations and get signs
-          cur_sig = y & 0x4 ? sigma2 : sigma1;
-          cur_mbr = y & 0x4 ? mbr2 : mbr1;
-          nxt_sig = y & 0x4 ? sigma1 : sigma2;
-          nxt_mbr = y & 0x4 ? mbr1 : mbr2;
-          ui32 val = 3u << (p - 2);
-          for (ui32 i = 0; i < width; i += 8,
-               cur_sig++, cur_mbr++, nxt_sig++, nxt_mbr++)
-          {
-            ui32 mbr = *cur_mbr & pattern; //skip unneeded samples
-            ui32 new_sig = 0;
-            if (mbr)
-            {
-              for (ui32 n = 0; n < 8; n += 4)
-              {
-                ui32 cwd = frwd_fetch<0>(&sigprop);
-                ui32 cnt = 0;
-
-                ui32 *dp = decoded_data + y * stride;
-                dp += i + n;
-
-                ui32 col_mask = 0xFu << (4 * n);
-
-                ui32 inv_sig = ~cur_sig[0] & pattern;
-
-                ui32 end = n + 4 + i < width ? n + 4 : width - i;
-                for (ui32 j = n; j < end; ++j, ++dp, col_mask <<= 4)
-                {
-                  if ((col_mask & mbr) == 0)
-                    continue;
-
-                  //scan 4 mbr
-                  ui32 sample_mask = 0x11111111u & col_mask;
-                  if (mbr & sample_mask)
-                  {
-                    assert(dp[0] == 0);
-                    if (cwd & 1)
-                    {
-                      new_sig |= sample_mask;
-                      ui32 t = 0x32u << (j * 4);
-                      mbr |= t & inv_sig;
-                    }
-                    cwd >>= 1; ++cnt;
-                  }
-
-                  sample_mask += sample_mask;
-                  if (mbr & sample_mask)
-                  {
-                    assert(dp[stride] == 0);
-                    if (cwd & 1)
-                    {
-                      new_sig |= sample_mask;
-                      ui32 t = 0x74u << (j * 4);
-                      mbr |= t & inv_sig;
-                    }
-                    cwd >>= 1; ++cnt;
-                  }
-
-                  sample_mask += sample_mask;
-                  if (mbr & sample_mask)
-                  {
-                    assert(dp[2 * stride] == 0);
-                    if (cwd & 1)
-                    {
-                      new_sig |= sample_mask;
-                      ui32 t = 0xE8u << (j * 4);
-                      mbr |= t & inv_sig;
-                    }
-                    cwd >>= 1; ++cnt;
-                  }
-
-                  sample_mask += sample_mask;
-                  if (mbr & sample_mask)
-                  {
-                    assert(dp[3 * stride] == 0);
-                    if (cwd & 1)
-                    {
-                      new_sig |= sample_mask;
-                      ui32 t = 0xC0u << (j * 4);
-                      mbr |= t & inv_sig;
-                    }
-                    cwd >>= 1; ++cnt;
-                  }
-                }
-
-                //signs here
-                if (new_sig & (0xFFFFu << (4 * n)))
-                {
-                  ui32 *dp = decoded_data + y * stride;
-                  dp += i + n;
-                  ui32 col_mask = 0xFu << (4 * n);
-
-                  for (ui32 j = n; j < end; ++j, ++dp, col_mask <<= 4)
-                  {
-                    if ((col_mask & new_sig) == 0)
-                      continue;
-
-                    //scan 4 signs
-                    ui32 sample_mask = 0x11111111u & col_mask;
-                    if (new_sig & sample_mask)
-                    {
-                      assert(dp[0] == 0);
-                      dp[0] |= ((cwd & 1) << 31) | val;
-                      cwd >>= 1; ++cnt;
-                    }
-
-                    sample_mask += sample_mask;
-                    if (new_sig & sample_mask)
-                    {
-                      assert(dp[stride] == 0);
-                      dp[stride] |= ((cwd & 1) << 31) | val;
-                      cwd >>= 1; ++cnt;
-                    }
-
-                    sample_mask += sample_mask;
-                    if (new_sig & sample_mask)
-                    {
-                      assert(dp[2 * stride] == 0);
-                      dp[2 * stride] |= ((cwd & 1) << 31) | val;
-                      cwd >>= 1; ++cnt;
-                    }
-
-                    sample_mask += sample_mask;
-                    if (new_sig & sample_mask)
-                    {
-                      assert(dp[3 * stride] == 0);
-                      dp[3 * stride] |= ((cwd & 1) << 31) | val;
-                      cwd >>= 1; ++cnt;
-                    }
-                  }
-
-                }
-                frwd_advance(&sigprop, cnt);
-                cnt = 0;
-
-                //update next columns
-                if (n == 4)
-                {
-                  //horizontally
-                  ui32 t = new_sig >> 28;
-                  t |= ((t & 0xE) >> 1) | ((t & 7) << 1);
-                  cur_mbr[1] |= t & ~cur_sig[1];
-                }
-              }
-            }
-            //propagate down (vertically propagation)
-            new_sig |= cur_sig[0];
-            ui32 u = (new_sig & 0x88888888) >> 3;
-            ui32 t = u | (u << 4) | (u >> 4);
-            if (i > 0)
-              nxt_mbr[-1] |= (u << 28) & ~nxt_sig[-1];
-            nxt_mbr[0] |= t & ~nxt_sig[0];
-            nxt_mbr[1] |= (u >> 28) & ~nxt_sig[1];
           }
         }
       }

@@ -68,7 +68,21 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   //                             cpu features
   /////////////////////////////////////////////////////////////////////////////
-  int cpu_ext_level();
+  int get_cpu_ext_level();
+
+  enum : int {
+    X86_CPU_EXT_LEVEL_GENERIC = 0,
+    X86_CPU_EXT_LEVEL_MMX = 1,
+    X86_CPU_EXT_LEVEL_SSE = 2,
+    X86_CPU_EXT_LEVEL_SSE2 = 3,
+    X86_CPU_EXT_LEVEL_SSE3 = 4,
+    X86_CPU_EXT_LEVEL_SSSE3 = 5,
+    X86_CPU_EXT_LEVEL_SSE4 = 6,
+    X86_CPU_EXT_LEVEL_AVX = 7,
+    X86_CPU_EXT_LEVEL_AVX2 = 8,
+    X86_CPU_EXT_LEVEL_AVX2FMA = 9,
+    X86_CPU_EXT_LEVEL_AVX512 = 10,
+  };
 
   /////////////////////////////////////////////////////////////////////////////
   static inline ui32 population_count(ui32 val)

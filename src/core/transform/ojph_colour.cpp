@@ -107,9 +107,9 @@ namespace ojph {
       ict_backward = gen_ict_backward;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
-      int level = cpu_ext_level();
+      int level = get_cpu_ext_level();
 
-      if (level >= 2)
+      if (level >= X86_CPU_EXT_LEVEL_SSE)
       {
         cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
         cnvrt_si32_to_float = sse_cnvrt_si32_to_float;
@@ -119,7 +119,7 @@ namespace ojph {
         ict_backward = sse_ict_backward;
       }
 
-      if (level >= 3)
+      if (level >= X86_CPU_EXT_LEVEL_SSE2)
       {
         cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
         cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
@@ -128,7 +128,7 @@ namespace ojph {
         rct_backward = sse2_rct_backward;
       }
 
-      if (level >= 7)
+      if (level >= X86_CPU_EXT_LEVEL_AVX)
       {
         cnvrt_si32_to_float_shftd = avx_cnvrt_si32_to_float_shftd;
         cnvrt_si32_to_float = avx_cnvrt_si32_to_float;
@@ -138,7 +138,7 @@ namespace ojph {
         ict_backward = avx_ict_backward;
       }
 
-      if (level >= 8)
+      if (level >= X86_CPU_EXT_LEVEL_AVX2)
       {
         cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
         rct_forward = avx2_rct_forward;

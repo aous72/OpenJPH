@@ -87,28 +87,28 @@ namespace ojph {
     level = 0;
     if (mmx_avail)
     {
-      level = 1;
+      level = X86_CPU_EXT_LEVEL_MMX;
       bool sse_avail = ((mmx_abcd[3] & 0x02000000) == 0x02000000);
       if (sse_avail)
       {
-        level = 2;
+        level = X86_CPU_EXT_LEVEL_SSE;
         bool sse2_avail = ((mmx_abcd[3] & 0x04000000) == 0x04000000);
         if (sse2_avail)
         {
-          level = 3;
+          level = X86_CPU_EXT_LEVEL_SSE2;
           bool sse3_avail = ((mmx_abcd[2] & 0x00000001) == 0x00000001);
           if (sse3_avail)
           {
-            level = 4;
+            level = X86_CPU_EXT_LEVEL_SSE3;
             bool ssse3_avail = ((mmx_abcd[2] & 0x00000200) == 0x00000200);
             if (ssse3_avail)
             {
-              level = 5;
+              level = X86_CPU_EXT_LEVEL_SSSE3;
               bool sse41_avail = ((mmx_abcd[2] & 0x00080000) == 0x00080000);
               bool sse42_avail = ((mmx_abcd[2] & 0x00100000) == 0x00100000);
               if (sse41_avail && sse42_avail)
               {
-                level = 6;
+                level = X86_CPU_EXT_LEVEL_SSE4;
 
                 uint64_t xcr_val = 0;
                 bool osxsave_avail, ymm_avail, avx_avail = false;
@@ -121,26 +121,26 @@ namespace ojph {
                 }
                 if (avx_avail)
                 {
-                  level = 7;
+                  level = X86_CPU_EXT_LEVEL_AVX;
 
                   uint32_t avx2_abcd[4];
                   run_cpuid(7, 0, avx2_abcd);
                   bool avx2_avail = (avx2_abcd[1] & 0x20) != 0;
                   if (avx2_avail)
                   {
-                    level = 8;
+                    level = X86_CPU_EXT_LEVEL_AVX2;
                     bool avx2fma_avail =
                       avx2_avail && ((mmx_abcd[2] & 0x1000) == 0x1000);
                     if (avx2fma_avail)
                     {
-                      level = 9;
+                      level = X86_CPU_EXT_LEVEL_AVX2FMA;
 
                       bool zmm_avail =
                         osxsave_avail && ((xcr_val & 0xE) == 0xE);
                       bool avx512vl_avail = (avx2_abcd[1] & 0x80000000) != 0;
                       bool avx512_avail = zmm_avail && avx512vl_avail;
                       if (avx512_avail)
-                        level = 10;
+                        level = X86_CPU_EXT_LEVEL_AVX512;
                     }
                   }
                 }
@@ -176,7 +176,7 @@ namespace ojph {
   static bool cpu_level_initialized = init_cpu_ext_level(cpu_level);
 
   ////////////////////////////////////////////////////////////////////////////
-  int cpu_ext_level()
+  int get_cpu_ext_level()
   {
     assert(cpu_level_initialized);
     return cpu_level;

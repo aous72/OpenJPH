@@ -387,6 +387,14 @@ namespace ojph {
       bool resilient;
       bool stripe_causal;
       coded_cb_header* coded_cb;
+    private:
+      // define the block decoder function signature
+      typedef bool (*cb_decoder_fun)(ui8* coded_data, ui32* decoded_data,
+        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
+        ui32 width, ui32 height, ui32 stride, bool stripe_causal); 
+      
+      // a pointer to the decoder function
+      static cb_decoder_fun decode_cb;
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -399,7 +407,7 @@ namespace ojph {
       coded_lists *next_coded;
 
       static const int prefix_buf_size = 8;
-      static const int suffix_buf_size = 8;
+      static const int suffix_buf_size = 16;
     };
 
   }

@@ -3950,6 +3950,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    codeblock::cb_decoder_fun codeblock::decode_cb = NULL;
+
+    //////////////////////////////////////////////////////////////////////////
     void codeblock::pre_alloc(codestream *codestream,
                               const size& nominal)
     {
@@ -3983,6 +3986,10 @@ namespace ojph {
       ojph::param_cod cod = codestream->access_cod();
       this->stripe_causal = cod.get_block_vertical_causality();
       this->coded_cb = coded_cb;
+
+      decode_cb = ojph_decode_codeblock;
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSSE3)
+        decode_cb = ojph_decode_codeblock_ssse3;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -4032,70 +4039,14 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::decode()
     {
-      static struct _counter {
-        _counter() { count = 0; num_samples = 0; }
-        ~_counter() { printf("%ld, %ld, %f\n", count, num_samples, (float)count / (float)num_samples); }
-        uint64_t count;
-        uint64_t tmp;
-        uint64_t num_samples;
-      } r_counter, counter;
-
-      //static int count = 0;
-
       if (coded_cb->pass_length[0] > 0 && coded_cb->num_passes > 0 &&
           coded_cb->next_coded != NULL)
       {
-        //++count;
-        // if (count != 16) return;
-
-        r_counter.tmp = tsc_measure_start();
-        bool result =
-          ojph::local::ojph_decode_codeblock(
+        bool result = decode_cb(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
             cb_size.w, cb_size.h, stride, stripe_causal);
-        r_counter.count += tsc_measure_stop() - r_counter.tmp;
-        r_counter.num_samples += cb_size.w * cb_size.h;
-
-        ui32 buf2[4096];
-        bool result2;
-        counter.tmp = tsc_measure_start();
-        if (1) {
-          result2 =
-            ojph::local_ssse3::ojph_decode_codeblock_ssse3(
-              coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-              buf2, coded_cb->missing_msbs, coded_cb->num_passes,
-              coded_cb->pass_length[0], coded_cb->pass_length[1],
-              cb_size.w, cb_size.h, stride, stripe_causal);
-        }
-        else {
-          result2 =
-            ojph::local2::ojph_decode_codeblock2(
-              coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-              buf2, coded_cb->missing_msbs, coded_cb->num_passes,
-              coded_cb->pass_length[0], coded_cb->pass_length[1],
-              cb_size.w, cb_size.h, stride, stripe_causal);
-        }
-        counter.count += tsc_measure_stop() - counter.tmp;
-        counter.num_samples += cb_size.w * cb_size.h;
-
-
-        bool error = result != result2;
-        for (ui32 y = 0; y < cb_size.h; ++y)
-        {
-          //  //printf("0x%08x\n",  buf[i]);
-          const ui32* sp = buf + y * stride;
-          const ui32* dp = buf2 + y * stride;
-          for (ui32 x = 0; x < cb_size.w; ++x)
-            if (*dp++ != *sp++)
-            {
-              printf(".");
-              error = true;
-            }
-        }
-        if (error)
-          printf("\n");
 
         if (result == false)
           {

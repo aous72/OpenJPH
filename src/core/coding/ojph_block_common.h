@@ -1,11 +1,11 @@
-//***************************************************************************/
+/***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia 
-//
+// Copyright (c) 2022, Aous Naman 
+// Copyright (c) 2022, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2022, The University of New South Wales, Australia
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,37 +30,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_block_decoder.h
+// File: ojph_block_common.h
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 13 May 2022
 //***************************************************************************/
-
-
-#ifndef OJPH_BLOCK_DECODER_H
-#define OJPH_BLOCK_DECODER_H
 
 #include "ojph_defs.h"
 
-namespace ojph {
+namespace ojph{
   namespace local {
+    
+    extern ui16 vlc_tbl0[1024];
+    extern ui16 vlc_tbl1[1024];
+    extern ui16 uvlc_tbl0[256+64];
+    extern ui16 uvlc_tbl1[256];
 
-    //////////////////////////////////////////////////////////////////////////
-    //decodes the cleanup pass, significance propagation pass,
-    // and magnitude refinement pass
-
-    // generic decoder
-    bool
-      ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-    // SSSE3-accelerated decoder
-    bool
-      ojph_decode_codeblock_ssse3(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-  }
-}
-
-#endif // !OJPH_BLOCK_DECODER_H
+  } // !namespace local
+} // !namespace ojph

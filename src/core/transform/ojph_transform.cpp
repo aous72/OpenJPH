@@ -128,9 +128,9 @@ namespace ojph {
       irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
-      int level = cpu_ext_level();
+      int level = get_cpu_ext_level();
 
-      if (level >= 2)
+      if (level >= X86_CPU_EXT_LEVEL_SSE)
       {
         irrev_vert_wvlt_step    = sse_irrev_vert_wvlt_step;
         irrev_vert_wvlt_K       = sse_irrev_vert_wvlt_K;
@@ -138,7 +138,7 @@ namespace ojph {
         irrev_horz_wvlt_bwd_tx  = sse_irrev_horz_wvlt_bwd_tx;
       }
 
-      if (level >= 3)
+      if (level >= X86_CPU_EXT_LEVEL_SSE2)
       {
         rev_vert_wvlt_fwd_predict = sse2_rev_vert_wvlt_fwd_predict;
         rev_vert_wvlt_fwd_update  = sse2_rev_vert_wvlt_fwd_update;
@@ -148,7 +148,7 @@ namespace ojph {
         rev_horz_wvlt_bwd_tx      = sse2_rev_horz_wvlt_bwd_tx;
       }
 
-      if (level >= 7)
+      if (level >= X86_CPU_EXT_LEVEL_AVX)
       {
         irrev_vert_wvlt_step   = avx_irrev_vert_wvlt_step;
         irrev_vert_wvlt_K      = avx_irrev_vert_wvlt_K;
@@ -156,7 +156,7 @@ namespace ojph {
         irrev_horz_wvlt_bwd_tx = avx_irrev_horz_wvlt_bwd_tx;
       }
 
-      if (level >= 8)
+      if (level >= X86_CPU_EXT_LEVEL_AVX2)
       {
         rev_vert_wvlt_fwd_predict = avx2_rev_vert_wvlt_fwd_predict;
         rev_vert_wvlt_fwd_update  = avx2_rev_vert_wvlt_fwd_update;

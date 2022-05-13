@@ -304,7 +304,8 @@ namespace ojph {
      *
      *  @param [in]  vlcp is a pointer to rev_struct structure
      */
-    inline void rev_read(rev_struct *vlcp)
+    static inline 
+    void rev_read(rev_struct *vlcp)
     {
       //process 4 bytes at a time
       if (vlcp->bits > 32)  // if there are more than 32 bits in tmp, then 
@@ -369,7 +370,8 @@ namespace ojph {
      *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
      *  @param [in]  scup is the length of MEL+VLC segments
      */
-    inline void rev_init(rev_struct *vlcp, ui8* data, int lcup, int scup)
+    static inline 
+    void rev_init(rev_struct *vlcp, ui8* data, int lcup, int scup)
     {
       //first byte has only the upper 4 bits
       vlcp->data = data + lcup - 2;
@@ -409,7 +411,8 @@ namespace ojph {
      *
      *  @param [in]  vlcp is a pointer to rev_struct structure
      */
-    inline ui32 rev_fetch(rev_struct *vlcp)
+    static inline 
+    ui32 rev_fetch(rev_struct *vlcp)
     {
       if (vlcp->bits < 32)  // if there are less then 32 bits, read more
       {
@@ -426,7 +429,8 @@ namespace ojph {
      *  @param [in]  vlcp is a pointer to rev_struct structure
      *  @param [in]  num_bits is the number of bits to be removed
      */
-    inline ui32 rev_advance(rev_struct *vlcp, ui32 num_bits)
+    static inline 
+    ui32 rev_advance(rev_struct *vlcp, ui32 num_bits)
     {
       assert(num_bits <= vlcp->bits); // vlcp->tmp must have more than num_bits
       vlcp->tmp >>= num_bits;         // remove bits
@@ -445,7 +449,8 @@ namespace ojph {
      *
      *  @param [in]  mrp is a pointer to rev_struct structure
      */
-    inline void rev_read_mrp(rev_struct *mrp)
+    static inline 
+    void rev_read_mrp(rev_struct *mrp)
     {
       //process 4 bytes at a time
       if (mrp->bits > 32)
@@ -508,7 +513,8 @@ namespace ojph {
      *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
      *  @param [in]  len2 is the length of SPP+MRP segments
      */
-    inline void rev_init_mrp(rev_struct *mrp, ui8* data, int lcup, int len2)
+    static inline 
+    void rev_init_mrp(rev_struct *mrp, ui8* data, int lcup, int len2)
     {
       mrp->data = data + lcup + len2 - 1;
       mrp->size = len2;
@@ -541,7 +547,8 @@ namespace ojph {
      *
      *  @param [in]  mrp is a pointer to rev_struct structure
      */
-    inline ui32 rev_fetch_mrp(rev_struct *mrp)
+    static inline 
+    ui32 rev_fetch_mrp(rev_struct *mrp)
     {
       if (mrp->bits < 32) // if there are less than 32 bits in mrp->tmp
       {
@@ -558,7 +565,8 @@ namespace ojph {
      *  @param [in]  mrp is a pointer to rev_struct structure
      *  @param [in]  num_bits is the number of bits to be removed
      */
-    inline ui32 rev_advance_mrp(rev_struct *mrp, ui32 num_bits)
+    static inline 
+    ui32 rev_advance_mrp(rev_struct *mrp, ui32 num_bits)
     {
       assert(num_bits <= mrp->bits); // we must not consume more than mrp->bits
       mrp->tmp >>= num_bits;  // discard the lowest num_bits bits
@@ -597,6 +605,7 @@ namespace ojph {
      *
      */ 
     template<int X>
+    static inline 
     void frwd_read(frwd_struct *msp)
     {
       assert(msp->bits <= 32); // assert that there is a space for 32 bits
@@ -653,6 +662,7 @@ namespace ojph {
      *  @param [in]  size is the number of byte in the bitstream
      */
     template<int X>
+    static inline
     void frwd_init(frwd_struct *msp, const ui8* data, int size)
     {
       msp->data = data;
@@ -684,7 +694,8 @@ namespace ojph {
      *  @param [in]  msp is a pointer to frwd_struct
      *  @param [in]  num_bits is the number of bit to consume
      */
-    inline void frwd_advance(frwd_struct *msp, ui32 num_bits)
+    static inline 
+    void frwd_advance(frwd_struct *msp, ui32 num_bits)
     {
       assert(num_bits <= msp->bits);
       msp->tmp >>= num_bits;  // consume num_bits
@@ -699,6 +710,7 @@ namespace ojph {
      *  @param [in]  msp is a pointer to frwd_struct
      */
     template<int X>
+    static inline 
     ui32 frwd_fetch(frwd_struct *msp)
     {
       if (msp->bits < 32)

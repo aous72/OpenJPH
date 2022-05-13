@@ -43,11 +43,7 @@
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
-#ifdef OJPH_COMPILER_MSVC
-#include <intrin.h>
-#else
-#include <x86intrin.h>
-#endif
+#include <immintrin.h>
 
 namespace ojph {
   namespace local {

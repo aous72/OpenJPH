@@ -3973,13 +3973,9 @@ namespace ojph {
         }
       }
 
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSSE3) {
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSSE3)
         decode_cb = ojph_decode_codeblock_ssse3;
-        if (reversible) {
-          tx_to_cb = ssse3_rev_tx_to_cb;
-          tx_from_cb = ssse3_rev_tx_from_cb;
-        }
-      }
+
 
       if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
         mem_clear = avx_mem_clear;

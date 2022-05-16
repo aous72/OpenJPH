@@ -459,8 +459,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
                            float delta_inv, ui32 count, ui32* max_val);
-    void ssse3_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                            float delta_inv, ui32 count, ui32* max_val);
     void avx2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
                            float delta_inv, ui32 count, ui32* max_val);
     void sse2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
@@ -475,8 +473,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void sse2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
                              float delta, ui32 count);
-    void ssse3_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                              float delta, ui32 count);
     void avx2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
                              float delta, ui32 count);
     void sse2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,

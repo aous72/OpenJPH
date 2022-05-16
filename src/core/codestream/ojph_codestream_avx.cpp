@@ -2,10 +2,10 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia 
-//
+// Copyright (c) 2022, Aous Naman 
+// Copyright (c) 2022, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2022, The University of New South Wales, Australia
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,43 +30,25 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_block_decoder.h
+// File: ojph_codestream_avx.cpp
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 15 May 2022
 //***************************************************************************/
 
-
-#ifndef OJPH_BLOCK_DECODER_H
-#define OJPH_BLOCK_DECODER_H
-
+#include <immintrin.h>
 #include "ojph_defs.h"
 
 namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    //decodes the cleanup pass, significance propagation pass,
-    // and magnitude refinement pass
-
-    // generic decoder
-    bool
-      ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-    // SSSE3-accelerated decoder
-    bool
-      ojph_decode_codeblock_ssse3(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-    // WASM SIMD-accelerated decoder
-    bool
-      ojph_decode_codeblock_wasm(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-  }
+    void avx_mem_clear(void* addr, size_t count)
+    {
+      float* p = (float*)addr;
+      __m256 zero = _mm256_setzero_ps();
+      for (size_t i = 0; i < count; i += 32, p += 8)
+        _mm256_storeu_ps(p, zero);
+    }
+    
+ }
 }
-
-#endif // !OJPH_BLOCK_DECODER_H

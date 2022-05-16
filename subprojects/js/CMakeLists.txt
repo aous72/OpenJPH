@@ -8,7 +8,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
 
 add_subdirectory("../.." openjph EXCLUDE_FROM_ALL)
-add_executable(libopenjph "src/ojph_wrapper.cpp" ${SOURCES})
+add_executable(libopenjph "src/ojph_wrapper.cpp")
 set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-O3 -s WASM=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1")
 target_link_libraries(libopenjph PRIVATE openjph)
 

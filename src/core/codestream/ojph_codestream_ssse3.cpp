@@ -2,10 +2,10 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia 
-//
+// Copyright (c) 2022, Aous Naman 
+// Copyright (c) 2022, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2022, The University of New South Wales, Australia
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,43 +30,57 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_block_decoder.h
+// File: ojph_codestream_ssse3.cpp
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 15 May 2022
 //***************************************************************************/
 
-
-#ifndef OJPH_BLOCK_DECODER_H
-#define OJPH_BLOCK_DECODER_H
-
+#include <immintrin.h>
 #include "ojph_defs.h"
 
 namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    //decodes the cleanup pass, significance propagation pass,
-    // and magnitude refinement pass
+    void ssse3_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max, 
+                            float delta_inv, ui32 count, ui32* max_val)
+    {
+      ojph_unused(delta_inv);
 
-    // generic decoder
-    bool
-      ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
+      // convert to sign and magnitude and keep max_val      
+      ui32 shift = 31 - K_max;
+      __m128i m0 = _mm_set1_epi32((int)0x80000000);
+      __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
+      __m128i *p = (__m128i*)sp;
+      for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
+      {
+        __m128i v = _mm_loadu_si128(p);
+        __m128i sign = _mm_and_si128(v, m0);
+        __m128i val = _mm_sign_epi32(v, v);
+        val = _mm_slli_epi32(val, (int)shift);
+        tmax = _mm_or_si128(tmax, val);
+        val = _mm_or_si128(val, sign);
+        _mm_storeu_si128((__m128i*)dp, val);
+      }
+      _mm_storeu_si128((__m128i*)max_val, tmax);
+    }
 
-    // SSSE3-accelerated decoder
-    bool
-      ojph_decode_codeblock_ssse3(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
-    // WASM SIMD-accelerated decoder
-    bool
-      ojph_decode_codeblock_wasm(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal);
-
+    //////////////////////////////////////////////////////////////////////////
+    void ssse3_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max, 
+                              float delta, ui32 count)
+    {
+      ojph_unused(delta);
+      ui32 shift = 31 - K_max;
+      __m128i m1 = _mm_set1_epi32(0x7FFFFFFF);
+      si32 *p = (si32*)dp;
+      for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
+      {
+          __m128i v = _mm_load_si128((__m128i*)sp);
+          __m128i val = _mm_and_si128(v, m1);
+          val = _mm_srli_epi32(val, (int)shift);
+          val = _mm_sign_epi32(val, v);
+          _mm_storeu_si128((__m128i*)p, val);
+      }
+    }
   }
 }
-
-#endif // !OJPH_BLOCK_DECODER_H

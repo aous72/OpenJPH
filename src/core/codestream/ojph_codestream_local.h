@@ -334,6 +334,7 @@ namespace ojph {
       void push_line();
 
       void get_cb_indices(const size& num_precincts, precinct *precincts);
+      float get_delta() { return delta; }
 
       line_buf* pull_line();
 
@@ -382,17 +383,52 @@ namespace ojph {
       subband* parent;
       int line_offset;
       ui32 cur_line;
+      float delta, delta_inv;
       ui32 K_max;
-      int max_val;
+      bool reversible;
       bool resilient;
       bool stripe_causal;
+      bool zero_block; // true when the decoded block is all zero
+      ui32 max_val[8]; // supports up to 256 bits
       coded_cb_header* coded_cb;
+
     private:
+      // define function signature simple memory clearing
+      typedef void (*mem_clear_fun)(void* addr, size_t count);
+      // a pointer to the max value finding function
+      mem_clear_fun mem_clear;
+      static void gen_mem_clear(void* addr, size_t count);
+
+      // define function signature for max value finding
+      typedef ui32 (*find_max_val_fun)(ui32* addr);
+      // a pointer to the max value finding function
+      find_max_val_fun find_max_val;
+      static ui32 gen_find_max_val(ui32* addr) { return addr[0]; }
+
+      // define line transfer function signature from subbands to codeblocks
+      typedef void (*tx_to_cb_fun)(const void *sp, ui32 *dp, ui32 K_max,
+                                   float delta_inv, ui32 count, ui32* max_val);
+      // a pointer to function transferring samples from subbands to codeblocks
+      tx_to_cb_fun tx_to_cb;
+      static void gen_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                                   float delta_inv, ui32 count, ui32* max_val);
+      static void gen_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                                   float delta_inv, ui32 count, ui32* max_val);
+
+      // define line transfer function signature from codeblock to subband
+      typedef void (*tx_from_cb_fun)(const ui32 *sp, void *dp, ui32 K_max,
+                                     float delta, ui32 count);
+      // a pointer to function transferring samples from codeblocks to subbands
+      tx_from_cb_fun tx_from_cb;
+      static void gen_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                                     float delta, ui32 count);
+      static void gen_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                                     float delta, ui32 count);
+
       // define the block decoder function signature
       typedef bool (*cb_decoder_fun)(ui8* coded_data, ui32* decoded_data,
         ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
         ui32 width, ui32 height, ui32 stride, bool stripe_causal); 
-      
       // a pointer to the decoder function
       static cb_decoder_fun decode_cb;
     };
@@ -409,6 +445,48 @@ namespace ojph {
       static const int prefix_buf_size = 8;
       static const int suffix_buf_size = 16;
     };
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse_mem_clear(void* addr, size_t count);
+    void avx_mem_clear(void* addr, size_t count);
+    void wasm_mem_clear(void* addr, size_t count);
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 sse2_find_max_val(ui32* address);
+    ui32 avx2_find_max_val(ui32* address);
+    ui32 wasm_find_max_val(ui32* address);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void ssse3_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                            float delta_inv, ui32 count, ui32* max_val);
+    void avx2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void sse2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void avx2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void wasm_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void wasm_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void ssse3_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                              float delta, ui32 count);
+    void avx2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void sse2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void avx2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void wasm_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void wasm_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
 
   }
 }

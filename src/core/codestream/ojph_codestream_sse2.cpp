@@ -96,20 +96,21 @@ namespace ojph {
       //quantize and convert to sign and magnitude and keep max_val
 
       __m128 d = _mm_set1_ps(delta_inv);
-      __m128i m0 = _mm_set1_epi32((int)0x80000000);
+      __m128i zero = _mm_setzero_si128();
+      __m128i one = _mm_set1_epi32(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
       float *p = (float*)sp;
-      
       for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
       {
         __m128 vf = _mm_loadu_ps(p);
-        __m128i vi = _mm_castps_si128(vf);    // not an instruction
-        __m128i sign = _mm_and_si128(vi, m0); // get sign
-        vi = _mm_andnot_si128(m0, vi);        // remove sign
-        vf = _mm_castsi128_ps(vi);            // not an instruction
-        vf = _mm_mul_ps(vf, d);               // multiply
-        __m128i val = _mm_cvtps_epi32 (vf);   // convert to int
+        vf = _mm_mul_ps(vf, d);                    // multiply
+        __m128i val = _mm_cvtps_epi32(vf);         // convert to int
+        __m128i sign = _mm_cmplt_epi32(val, zero); // get sign
+        val = _mm_xor_si128(val, sign);            // negate 1's complement
+        __m128i ones = _mm_and_si128(sign, one);
+        val = _mm_add_epi32(val, ones);            // 2's complement
         tmax = _mm_or_si128(tmax, val);
+        sign = _mm_slli_epi32(sign, 31);
         val = _mm_or_si128(val, sign);
         _mm_storeu_si128((__m128i*)dp, val);
       }

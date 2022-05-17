@@ -35,31 +35,35 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include <cstddef> 
 #include <wasm_simd128.h>
-#include <immintrin.h>
+
 #include "ojph_defs.h"
 
 namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
+  #define REPEAT(a) a,a,a,a
+
+    //////////////////////////////////////////////////////////////////////////
     void wasm_mem_clear(void* addr, size_t count)
     {
       float* p = (float*)addr;
-      __m128 zero = _mm_setzero_ps();
+      v128_t zero = wasm_i32x4_const(REPEAT(0));
       for (size_t i = 0; i < count; i += 16, p += 4)
-        _mm_storeu_ps(p, zero);
+        wasm_v128_store(p, zero);
     }
 
     //////////////////////////////////////////////////////////////////////////
     ui32 wasm_find_max_val(ui32* address)
     {
-      __m128i x1, x0 = _mm_loadu_si128((__m128i*)address);
-      x1 = _mm_shuffle_epi32(x0, 0xEE);   // x1 = x0[2,3,2,3]
-      x0 = _mm_or_si128(x0, x1);
-      x1 = _mm_shuffle_epi32(x0, 0x55);   // x1 = x0[1,1,1,1]
-      x0 = _mm_or_si128(x0, x1);
-      ui32 t = (ui32)_mm_extract_epi32(x0, 0);
+      v128_t x1, x0 = wasm_v128_load(address);
+      x1 = wasm_i32x4_shuffle(x0, x0, 2, 3, 2, 3);   // x1 = x0[2,3,2,3]
+      x0 = wasm_v128_or(x0, x1);
+      x1 = wasm_i32x4_shuffle(x0, x0, 1, 1, 1, 1);   // x1 = x0[1,1,1,1]
+      x0 = wasm_v128_or(x0, x1);
+      ui32 t = (ui32)wasm_i32x4_extract_lane(x0, 0);
       return t;
     }
 
@@ -71,25 +75,25 @@ namespace ojph {
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 31 - K_max;
-      __m128i m0 = _mm_set1_epi32((int)0x80000000);
-      __m128i zero = _mm_setzero_si128();
-      __m128i one = _mm_set1_epi32(1);
-      __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
-      __m128i *p = (__m128i*)sp;
+      v128_t m0 = wasm_i32x4_const(REPEAT((int)0x80000000));
+      v128_t zero = wasm_i32x4_const(REPEAT(0));
+      v128_t one = wasm_i32x4_const(REPEAT(1));
+      v128_t tmax = wasm_v128_load(max_val);
+      v128_t *p = (v128_t*)sp;
       for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
       {
-        __m128i v = _mm_loadu_si128(p);
-        __m128i sign = _mm_cmplt_epi32(v, zero);
-        __m128i val = _mm_xor_si128(v, sign); // negate 1's complement
-        __m128i ones = _mm_and_si128(sign, one);
-        val = _mm_add_epi32(val, ones);        // 2's complement
-        sign = _mm_and_si128(sign, m0);
-        val = _mm_slli_epi32(val, (int)shift);
-        tmax = _mm_or_si128(tmax, val);
-        val = _mm_or_si128(val, sign);
-        _mm_storeu_si128((__m128i*)dp, val);
+        v128_t v = wasm_v128_load(p);
+        v128_t sign = wasm_i32x4_lt(v, zero);
+        v128_t val = wasm_v128_xor(v, sign); // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i32x4_add(val, ones);     // 2's complement
+        sign = wasm_v128_and(sign, m0);
+        val = wasm_i32x4_shl(val, shift);
+        tmax = wasm_v128_or(tmax, val);
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
       }
-      _mm_storeu_si128((__m128i*)max_val, tmax);
+      wasm_v128_store(max_val, tmax);
     }
                            
     //////////////////////////////////////////////////////////////////////////
@@ -100,25 +104,26 @@ namespace ojph {
 
       //quantize and convert to sign and magnitude and keep max_val
 
-      __m128 d = _mm_set1_ps(delta_inv);
-      __m128i m0 = _mm_set1_epi32((int)0x80000000);
-      __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
+      v128_t d = wasm_f32x4_splat(delta_inv);
+      v128_t zero = wasm_i32x4_const(REPEAT(0));
+      v128_t one = wasm_i32x4_const(REPEAT(1));
+      v128_t tmax = wasm_v128_load(max_val);
       float *p = (float*)sp;
-      
       for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
       {
-        __m128 vf = _mm_loadu_ps(p);
-        __m128i vi = _mm_castps_si128(vf);    // not an instruction
-        __m128i sign = _mm_and_si128(vi, m0); // get sign
-        vi = _mm_andnot_si128(m0, vi);        // remove sign
-        vf = _mm_castsi128_ps(vi);            // not an instruction
-        vf = _mm_mul_ps(vf, d);               // multiply
-        __m128i val = _mm_cvtps_epi32 (vf);   // convert to int
-        tmax = _mm_or_si128(tmax, val);
-        val = _mm_or_si128(val, sign);
-        _mm_storeu_si128((__m128i*)dp, val);
+        v128_t vf = wasm_v128_load(p);
+        vf = wasm_f32x4_mul(vf, d);                   // multiply
+        v128_t val = wasm_i32x4_trunc_sat_f32x4(vf);  // convert to signed int
+        v128_t sign = wasm_i32x4_lt(val, zero);       // get sign
+        val = wasm_v128_xor(val, sign);               // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i32x4_add(val, ones);              // 2's complement
+        tmax = wasm_v128_or(tmax, val);
+        sign = wasm_i32x4_shl(sign, 31);
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
       }
-      _mm_storeu_si128((__m128i*)max_val, tmax);
+      wasm_v128_store(max_val, tmax);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -127,20 +132,20 @@ namespace ojph {
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
-      __m128i m1 = _mm_set1_epi32(0x7FFFFFFF);
-      __m128i zero = _mm_setzero_si128();
-      __m128i one = _mm_set1_epi32(1);
+      v128_t m1 = wasm_i32x4_const(REPEAT(0x7FFFFFFF));
+      v128_t zero = wasm_i32x4_const(REPEAT(0));
+      v128_t one = wasm_i32x4_const(REPEAT(1));
       si32 *p = (si32*)dp;
       for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
       {
-          __m128i v = _mm_load_si128((__m128i*)sp);
-          __m128i val = _mm_and_si128(v, m1);
-          val = _mm_srli_epi32(val, (int)shift);
-          __m128i sign = _mm_cmplt_epi32(v, zero);
-          val = _mm_xor_si128(val, sign); // negate 1's complement
-          __m128i ones = _mm_and_si128(sign, one);
-          val = _mm_add_epi32(val, ones); // 2's complement
-          _mm_storeu_si128((__m128i*)p, val);
+          v128_t v = wasm_v128_load((v128_t*)sp);
+          v128_t val = wasm_v128_and(v, m1);
+          val = wasm_i32x4_shr(val, shift);
+          v128_t sign = wasm_i32x4_lt(v, zero);
+          val = wasm_v128_xor(val, sign); // negate 1's complement
+          v128_t ones = wasm_v128_and(sign, one);
+          val = wasm_i32x4_add(val, ones); // 2's complement
+          wasm_v128_store(p, val);
       }
     }
 
@@ -149,18 +154,18 @@ namespace ojph {
                              float delta, ui32 count)
     {
       ojph_unused(K_max);
-      __m128i m1 = _mm_set1_epi32(0x7FFFFFFF);
-      __m128 d = _mm_set1_ps(delta);
+      v128_t m1 = wasm_i32x4_const(REPEAT(0x7FFFFFFF));
+      v128_t d = wasm_f32x4_splat(delta);
       float *p = (float*)dp;
       for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
       {
-        __m128i v = _mm_load_si128((__m128i*)sp);
-        __m128i vali = _mm_and_si128(v, m1);
-        __m128  valf = _mm_cvtepi32_ps(vali);
-        valf = _mm_mul_ps(valf, d);
-        __m128i sign = _mm_andnot_si128(m1, v);
-        valf = _mm_or_ps(valf, _mm_castsi128_ps(sign));
-        _mm_storeu_ps(p, valf);
+        v128_t v = wasm_v128_load((v128_t*)sp);
+        v128_t vali = wasm_v128_and(v, m1);
+        v128_t  valf = wasm_f32x4_convert_i32x4(vali);
+        valf = wasm_f32x4_mul(valf, d);
+        v128_t sign = wasm_v128_andnot(v, m1);
+        valf = wasm_v128_or(valf, sign);
+        wasm_v128_store(p, valf);
       }
     }  
   }

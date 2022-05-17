@@ -94,12 +94,10 @@ namespace ojph {
       for (ui32 i = 0; i < count; i += 8, p += 8, dp += 8)
       {
         __m256 vf = _mm256_loadu_ps(p);
-        __m256i vi = _mm256_castps_si256(vf);    // not an instruction
-        __m256i sign = _mm256_and_si256(vi, m0); // get sign
-        vi = _mm256_andnot_si256(m0, vi);        // remove sign
-        vf = _mm256_castsi256_ps(vi);            // not an instruction
-        vf = _mm256_mul_ps(vf, d);               // multiply
-        __m256i val = _mm256_cvtps_epi32 (vf);   // convert to int
+        vf = _mm256_mul_ps(vf, d);                // multiply
+        __m256i val = _mm256_cvtps_epi32(vf);     // convert to int
+        __m256i sign = _mm256_and_si256(val, m0); // get sign
+        val = _mm256_sign_epi32(val, val);
         tmax = _mm256_or_si256(tmax, val);
         val = _mm256_or_si256(val, sign);
         _mm256_storeu_si256((__m256i*)dp, val);

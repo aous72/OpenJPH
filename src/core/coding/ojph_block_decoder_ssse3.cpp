@@ -1773,10 +1773,11 @@ namespace ojph {
             ui32 pattern = 0xFFFFu; // a pattern needed samples
             if (height - y < 4) {
               pattern = 0x7777u;
-              if (height - y < 3)
+              if (height - y < 3) {
                 pattern = 0x3333u;
-              else if (height - y < 2)
-                pattern = 0x1111u;
+                if (height - y < 2)
+                  pattern = 0x1111u;
+              }
             }
 
             // prev holds sign. info. for the previous quad, together

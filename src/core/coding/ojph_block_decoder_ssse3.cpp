@@ -2,9 +2,9 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2022, Aous Naman 
+// Copyright (c) 2022, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2022, The University of New South Wales, Australia
 // 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -588,7 +588,7 @@ namespace ojph {
     };
 
     //************************************************************************/
-    /** @brief Read and unstuffs 32 bits from forward-growing bitstream
+    /** @brief Read and unstuffs 16 bytes from forward-growing bitstream
      *  
      *  A template is used to accommodate a different requirement for
      *  MagSgn and SPP bitstreams; in particular, when MagSgn bitstream is
@@ -1413,7 +1413,6 @@ namespace ojph {
               if (i & 0xFF) // only the lower two U_q
                 return false;
             }
-            // printf("%2d  0 ", x);
 
             __m128i vn = _mm_set1_epi32(2);
             __m128i row0 = decode_one_quad32<0>(inf_u_q, U_q, &magsgn, p, vn);
@@ -1422,8 +1421,6 @@ namespace ojph {
             w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);            
-
-            // printf("\n");
 
             //interleave in ssse3 style 
             w0 = _mm_unpacklo_epi32(row0, row1);
@@ -1510,7 +1507,6 @@ namespace ojph {
               if (i & 0xFF) // only the lower two U_q
                 return false;
             }
-            // printf("%2d %2d ", x, y);
 
             __m128i vn = _mm_set1_epi32(2);
             __m128i row0 = decode_one_quad32<0>(inf_u_q, U_q, &magsgn, p, vn);
@@ -1519,8 +1515,6 @@ namespace ojph {
             w0 = _mm_and_si128(w0, _mm_set_epi32(0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
-
-            // printf("\n");
 
             //interleave in ssse3 style
             w0 = _mm_unpacklo_epi32(row0, row1);
@@ -1570,7 +1564,6 @@ namespace ojph {
               if (i & 0xFF) // only the lower two U_q
                 return false;
             }
-            //printf("%2d  0 ", x);
 
             __m128i vn = _mm_set1_epi16(2);
             __m128i row = decode_two_quad16(inf_u_q, U_q, &magsgn, p, vn);
@@ -1578,8 +1571,6 @@ namespace ojph {
             w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
-
-            //printf("\n");
 
             //interleave in ssse3 style 
             w0 = _mm_shuffle_epi8(row, 
@@ -1666,7 +1657,6 @@ namespace ojph {
               if (i & 0xFF) // only the lower two U_q
                 return false;
             }
-            //printf("%2d %2d ", x, y);
 
             __m128i vn = _mm_set1_epi16(2);
             __m128i row = decode_two_quad16(inf_u_q, U_q, &magsgn, p, vn);
@@ -1674,8 +1664,6 @@ namespace ojph {
             w0 = _mm_and_si128(w0, _mm_set_epi16(0,0,0,0,0,0,0,-1));
             w0 = _mm_or_si128(w0, vn);
             _mm_storeu_si128((__m128i*)vp, w0);  
-
-            //printf("\n");
 
             w0 = _mm_shuffle_epi8(row, 
               _mm_set_epi16(0x0D0C, -1, 0x0908, -1,
@@ -1909,7 +1897,7 @@ namespace ojph {
                   // find cumulative sums
                   // to find which bit in cwd we should extract
                   __m128i inc_sum = new_sig_vec; // inclusive scan
-                  inc_sum = _mm_sign_epi8(inc_sum, inc_sum); // cvrt to 0 or 1
+                  inc_sum = _mm_abs_epi8(inc_sum); // cvrt to 0 or 1
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 1));
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 2));
                   inc_sum = _mm_add_epi8(inc_sum, _mm_bslli_si128(inc_sum, 4));
@@ -1927,7 +1915,7 @@ namespace ojph {
                     _mm_set1_epi64x((si64)0x8040201008040201));
                   cwd_vec = _mm_cmpeq_epi8(cwd_vec,
                     _mm_set1_epi64x((si64)0x8040201008040201));
-                  cwd_vec = _mm_sign_epi8(cwd_vec, cwd_vec);
+                  cwd_vec = _mm_abs_epi8(cwd_vec);
 
                   // Obtain bit from cwd_vec correspondig to ex_sum
                   // Basically, collect needed bits from cwd_vec
@@ -2011,7 +1999,7 @@ namespace ojph {
                   _mm_set1_epi64x((si64)0x8040201008040201));
                 sig_vec = _mm_cmpeq_epi8(sig_vec,
                   _mm_set1_epi64x((si64)0x8040201008040201));
-                sig_vec = _mm_sign_epi8(sig_vec, sig_vec);
+                sig_vec = _mm_abs_epi8(sig_vec);
 
                 // find cumulative sums
                 // to find which bit in cwd we should extract

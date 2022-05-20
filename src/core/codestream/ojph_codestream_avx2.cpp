@@ -70,7 +70,7 @@ namespace ojph {
       {
         __m256i v = _mm256_loadu_si256(p);
         __m256i sign = _mm256_and_si256(v, m0);
-        __m256i val = _mm256_sign_epi32(v, v);
+        __m256i val = _mm256_abs_epi32(v);
         val = _mm256_slli_epi32(val, (int)shift);
         tmax = _mm256_or_si256(tmax, val);
         val = _mm256_or_si256(val, sign);
@@ -97,7 +97,7 @@ namespace ojph {
         vf = _mm256_mul_ps(vf, d);                // multiply
         __m256i val = _mm256_cvtps_epi32(vf);     // convert to int
         __m256i sign = _mm256_and_si256(val, m0); // get sign
-        val = _mm256_sign_epi32(val, val);
+        val = _mm256_abs_epi32(val);
         tmax = _mm256_or_si256(tmax, val);
         val = _mm256_or_si256(val, sign);
         _mm256_storeu_si256((__m256i*)dp, val);

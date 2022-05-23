@@ -4,4 +4,4 @@ compiler:
   - clang
   - gcc
 
-script: cd build && cmake -DBUILD_TESTING=ON .. && make && make test
+script: cd build && cmake -DOJPH_BUILD_TEST=ON .. && make && ctest --output-on-failure

@@ -214,7 +214,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   // defines for dll
   /////////////////////////////////////////////////////////////////////////////
-#if defined(OJPH_OS_WINDOWS) && !defined(OJPH_STATIC)
+#if defined(OJPH_OS_WINDOWS) && defined(OJPH_BUILD_SHARED_LIBRARY)
   #define OJPH_EXPORT __declspec(dllexport)
 #else
   #define OJPH_EXPORT

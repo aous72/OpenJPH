@@ -28,6 +28,7 @@ set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
+option(OJPH_BUILD_TEST "Enables building test code" OFF)
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
@@ -48,6 +49,10 @@ if (OJPH_DISABLE_INTEL_SIMD)
 	else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_DISABLE_INTEL_SIMD")
 	endif()
+endif()
+
+if (BUILD_SHARED_LIBS AND MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_BUILD_SHARED_LIBRARY\"")
 endif()
 
 if (OJPH_CODE_COVERAGE AND NOT MSVC)
@@ -223,10 +228,10 @@ install(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 ################################################################################################
-# Testing (BUILD_TESTING)
+# Testing (OJPH_BUILD_TEST)
 ################################################################################################
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND OJPH_BUILD_TEST)
     include(CTest)
     add_subdirectory(tests)
 endif()

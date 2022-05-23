@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export LD_LIBRARY_PATH=`pwd`/../:`\pwd`/../../bin
-export PATH=$PATH:`pwd`/../:`\pwd`/../../bin
+export PATH=/bin:/usr/bin:`pwd`/../:`\pwd`/../../bin
 
 # compress and decompress the images
 if [ "$1" = "-dec" -o "$1" = "-rdec"  ]; then
@@ -38,7 +38,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-rm test.j2c test.jph $6 $7
+rm -f test.j2c test.jph $6 $7
 
 psnr1=$(echo $out1 | cut -f1 -d' ')
 psnr2=$(echo $out2 | cut -f1 -d' ')

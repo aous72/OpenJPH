@@ -123,8 +123,6 @@ add_test(NAME simple_dec_irv97_64x64_tiles_CPRL33x33 COMMAND ${CMAKE_CURRENT_SOU
 add_test(NAME simple_dec_rev53_64x64_gray_tiles COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im3.pgm -o test.jph -precise -quiet Creversible=yes Clevels=5 Stiles=\{33,257\}"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/im3.pgm" "test1.pgm" "test2.pgm")
 add_test(NAME simple_dec_irv97_64x64_gray_tiles COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im3.pgm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Stiles=\{33,257\}"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/im3.pgm" "test1.pgm" "test2.pgm")
 
-
-
 #############################################################
 # Encoding
 #############################################################
@@ -151,6 +149,7 @@ add_test(NAME simple_enc_rev53_4x1024 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_de
 add_test(NAME simple_enc_irv97_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -enc  "-i ${images_folder}/foreman_420.yuv -o test.j2c -qstep 0.1 -dims \{352,288\} -num_comps 3 -downsamp \{1,1\},\{2,2\},\{2,2\} -bit_depth 8,8,8 -signed false,false,false"                   "-i test.j2c -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.j2c -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
 add_test(NAME simple_enc_rev53_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -renc "-i ${images_folder}/foreman_420.yuv -o test.j2c -reversible true -qstep 0.1 -dims \{352,288\} -num_comps 3 -downsamp \{1,1\},\{2,2\},\{2,2\} -bit_depth 8,8,8 -signed false,false,false"  "-i test.j2c -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.j2c -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
 
-add_test(NAME simple_enc_irv97_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc  "-i ${images_folder}/tall_narrow.ppm -o test.j2c -qstep 0.1"        "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/tall_narrow.ppm -o test.j2c -reversible true"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
-
+add_test(NAME simple_enc_irv97_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc  "-i ${images_folder}/tall_narrow.ppm -o test.j2c -qstep 0.1"                              "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
+add_test(NAME simple_enc_irv97_tall_narrow1 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc  "-i ${images_folder}/tall_narrow.ppm -o test.j2c -image_offset {1,0} -qstep 0.1"         "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
+add_test(NAME simple_enc_rev53_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/tall_narrow.ppm -o test.j2c -reversible true"                        "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
+add_test(NAME simple_enc_rev53_tall_narrow1 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/tall_narrow.ppm -o test.j2c -image_offset {1,0} -reversible true"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")

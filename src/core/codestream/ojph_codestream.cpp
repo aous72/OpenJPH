@@ -3791,6 +3791,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void subband::exchange_buf(line_buf *l)
     {
+      if (empty)
+        return;
+
       assert(l->pre_size == lines[0].pre_size && l->size == lines[0].size);
       si32* t = lines[0].i32;
       lines[0].i32 = l->i32;

@@ -341,6 +341,7 @@ namespace ojph {
     private:
       ui32 res_num, band_num;
       bool reversible;
+      bool empty;
       rect band_rect;
       line_buf *lines;
       resolution* parent;

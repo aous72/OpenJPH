@@ -3613,6 +3613,10 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
+      bool empty = ((band_rect.siz.w == 0) || (band_rect.siz.h == 0));
+      if (empty)
+        return;
+
       const param_cod* cdp = codestream->get_cod();
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
@@ -3628,29 +3632,23 @@ namespace ojph {
       ui32 tby1 = band_rect.org.y + band_rect.siz.h;
 
       size num_blocks;
-      if (tbx0 != tbx1 && tby0 != tby1)
-      {
-        num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
-        num_blocks.w -= tbx0 >> xcb_prime;
-        num_blocks.h = (tby1 + (1 << ycb_prime) - 1) >> ycb_prime;
-        num_blocks.h -= tby0 >> ycb_prime;
-      }
+      num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
+      num_blocks.w -= tbx0 >> xcb_prime;
+      num_blocks.h = (tby1 + (1 << ycb_prime) - 1) >> ycb_prime;
+      num_blocks.h -= tby0 >> ycb_prime;
 
-      if (num_blocks.area())
-      {
-        allocator->pre_alloc_obj<codeblock>(num_blocks.w);
-        //allocate codeblock headers
-        allocator->pre_alloc_obj<coded_cb_header>(num_blocks.area());
+      allocator->pre_alloc_obj<codeblock>(num_blocks.w);
+      //allocate codeblock headers
+      allocator->pre_alloc_obj<coded_cb_header>(num_blocks.area());
 
-        for (ui32 i = 0; i < num_blocks.w; ++i)
-          codeblock::pre_alloc(codestream, nominal);
+      for (ui32 i = 0; i < num_blocks.w; ++i)
+        codeblock::pre_alloc(codestream, nominal);
 
-        //allocate lines
-        allocator->pre_alloc_obj<line_buf>(1);
-        //allocate line_buf
-        ui32 width = band_rect.siz.w + 1;
-        allocator->pre_alloc_data<si32>(width, 1);
-      }
+      //allocate lines
+      allocator->pre_alloc_obj<line_buf>(1);
+      //allocate line_buf
+      ui32 width = band_rect.siz.w + 1;
+      allocator->pre_alloc_data<si32>(width, 1);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -3690,60 +3688,58 @@ namespace ojph {
         delta_inv = (1.0f/d);
       }
 
+      this->empty = ((band_rect.siz.w == 0) || (band_rect.siz.h == 0));
+      if (this->empty)
+        return;
+
       ui32 tbx0 = band_rect.org.x;
       ui32 tby0 = band_rect.org.y;
       ui32 tbx1 = band_rect.org.x + band_rect.siz.w;
       ui32 tby1 = band_rect.org.y + band_rect.siz.h;
 
       num_blocks = size();
-      if (tbx0 != tbx1 && tby0 != tby1)
+      num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
+      num_blocks.w -= tbx0 >> xcb_prime;
+      num_blocks.h = (tby1 + (1 << ycb_prime) - 1) >> ycb_prime;
+      num_blocks.h -= tby0 >> ycb_prime;
+
+      blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
+      //allocate codeblock headers
+      coded_cb_header *cp = coded_cbs =
+        allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
+      memset(coded_cbs, 0, sizeof(coded_cb_header) * num_blocks.area());
+      for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
+        cp->Kmax = K_max;
+
+      ui32 x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
+      ui32 y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
+
+      size cb_size;
+      cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
+      cur_cb_height = (si32)cb_size.h;
+      int line_offset = 0;
+      for (ui32 i = 0; i < num_blocks.w; ++i)
       {
-        num_blocks.w = (tbx1 + (1 << xcb_prime) - 1) >> xcb_prime;
-        num_blocks.w -= tbx0 >> xcb_prime;
-        num_blocks.h = (tby1 + (1 << ycb_prime) - 1) >> ycb_prime;
-        num_blocks.h -= tby0 >> ycb_prime;
+        ui32 cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
+        ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
+        cb_size.w = cbx1 - cbx0;
+        blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
+                                  coded_cbs + i, K_max, line_offset);
+        line_offset += cb_size.w;
       }
 
-      if (num_blocks.area())
-      {
-        blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
-        //allocate codeblock headers
-        coded_cb_header *cp = coded_cbs =
-          allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
-        memset(coded_cbs, 0, sizeof(coded_cb_header) * num_blocks.area());
-        for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
-          cp->Kmax = K_max;
-
-        ui32 x_lower_bound = (tbx0 >> xcb_prime) << xcb_prime;
-        ui32 y_lower_bound = (tby0 >> ycb_prime) << ycb_prime;
-
-        size cb_size;
-        cb_size.h = ojph_min(tby1, y_lower_bound + nominal.h) - tby0;
-        cur_cb_height = (si32)cb_size.h;
-        int line_offset = 0;
-        for (ui32 i = 0; i < num_blocks.w; ++i)
-        {
-          ui32 cbx0 = ojph_max(tbx0, x_lower_bound + i * nominal.w);
-          ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
-          cb_size.w = cbx1 - cbx0;
-          blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
-                                   coded_cbs + i, K_max, line_offset);
-          line_offset += cb_size.w;
-        }
-
-        //allocate lines
-        lines = allocator->post_alloc_obj<line_buf>(1);
-        //allocate line_buf
-        ui32 width = band_rect.siz.w + 1;
-        lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
-      }
+      //allocate lines
+      lines = allocator->post_alloc_obj<line_buf>(1);
+      //allocate line_buf
+      ui32 width = band_rect.siz.w + 1;
+      lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
     }
 
     //////////////////////////////////////////////////////////////////////////
     void subband::get_cb_indices(const size& num_precincts,
                                  precinct *precincts)
     {
-      if (band_rect.siz.w == 0 || band_rect.siz.h == 0)
+      if (empty)
         return;
 
       rect res_rect = parent->get_rect();
@@ -3804,6 +3800,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void subband::push_line()
     {
+      if (empty)
+        return;
+
       //push to codeblocks
       for (ui32 i = 0; i < num_blocks.w; ++i)
         blocks[i].push(lines + 0);
@@ -3845,7 +3844,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     line_buf *subband::pull_line()
     {
-      if (band_rect.siz.w == 0 || band_rect.siz.h == 0)
+      if (empty)
         return lines;
 
       //pull from codeblocks

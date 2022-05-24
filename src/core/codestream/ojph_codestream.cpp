@@ -198,7 +198,7 @@ namespace ojph {
     : precinct_scratch(NULL), allocator(NULL), elastic_alloc(NULL)
     {
       tiles = NULL;
-      line = NULL;
+      lines = NULL;
       comp_size = NULL;
       recon_comp_size = NULL;
       allocator = NULL;
@@ -295,15 +295,12 @@ namespace ojph {
       //allocate lines
       //These lines are used by codestream to exchange data with external
       // world
-      allocator->pre_alloc_obj<line_buf>(1);
       ui32 num_comps = sz.get_num_components();
+      allocator->pre_alloc_obj<line_buf>(num_comps);
       allocator->pre_alloc_obj<size>(num_comps); //for *comp_size
       allocator->pre_alloc_obj<size>(num_comps); //for *recon_comp_size
-      ui32 width = 0;
       for (ui32 i = 0; i < num_comps; ++i)
-        width = ojph_max(width, siz.get_recon_width(i));
-
-      allocator->pre_alloc_data<si32>(width, 0);
+        allocator->pre_alloc_data<si32>(siz.get_recon_width(i), 0);
 
       //allocate tlm
       if (outfile != NULL)
@@ -407,23 +404,20 @@ namespace ojph {
       //allocate lines
       //These lines are used by codestream to exchange data with external
       // world
-      line = allocator->post_alloc_obj<line_buf>(1);
-      num_comps = sz.get_num_components();
+      this->num_comps = sz.get_num_components();
+      lines = allocator->post_alloc_obj<line_buf>(this->num_comps);
       comp_size = allocator->post_alloc_obj<size>(this->num_comps);
       recon_comp_size = allocator->post_alloc_obj<size>(this->num_comps);
       employ_color_transform = cod.is_employing_color_transform();
-      ui32 width = 0;
-      for (ui32 i = 0; i < num_comps; ++i)
+      for (ui32 i = 0; i < this->num_comps; ++i)
       {
         comp_size[i].w = siz.get_width(i);
         comp_size[i].h = siz.get_height(i);
         ui32 cw = siz.get_recon_width(i);
         recon_comp_size[i].w = cw;
         recon_comp_size[i].h = siz.get_recon_height(i);
-        width = ojph_max(width, cw);
+        lines[i].wrap(allocator->post_alloc_data<si32>(cw, 0), cw, 0);        
       }
-
-      line->wrap(allocator->post_alloc_data<si32>(width, 0), width, 0);
 
       cur_comp = 0;
       cur_line = 0;
@@ -433,7 +427,7 @@ namespace ojph {
       {
         if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
         {
-          ui32 num_pairs = (ui32)num_tiles.area() * num_comps;
+          ui32 num_pairs = (ui32)num_tiles.area() * this->num_comps;
           tlm.init(num_pairs,
             allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
         }
@@ -1203,7 +1197,7 @@ namespace ojph {
       }
 
       next_component = cur_comp;
-      return this->line;
+      return this->lines + cur_comp;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1216,7 +1210,7 @@ namespace ojph {
         for (ui32 i = 0; i < num_tiles.w; ++i)
         {
           ui32 idx = i + cur_tile_row * num_tiles.w;
-          if ((success &= tiles[idx].pull(line, cur_comp)) == false)
+          if ((success &= tiles[idx].pull(lines + cur_comp, cur_comp)) == false)
             break;
         }
         cur_tile_row += success == false ? 1 : 0;
@@ -1251,7 +1245,7 @@ namespace ojph {
         }
       }
 
-      return line;
+      return lines + comp_num;
     }
 
     //////////////////////////////////////////////////////////////////////////

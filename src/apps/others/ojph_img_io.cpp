@@ -81,6 +81,151 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   //
   //
+  // Accelerators -- non-accelerating
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
+                               const line_buf *ln2, void *dp, 
+                               int bit_depth, int count)
+  {
+    ojph_unused(ln1);
+    ojph_unused(ln2);
+    
+    int max_val = (1 << bit_depth) - 1;
+    const si32 *sp = ln0->i32;
+    ui8* p = (ui8 *)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val = *sp++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui8)val;
+    }
+  }
+
+  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
+                               const line_buf *ln2, void *dp, 
+                               int bit_depth, int count)
+  {
+    int max_val = (1<<bit_depth) - 1;
+    const si32 *sp0 = ln0->i32;
+    const si32 *sp1 = ln1->i32;
+    const si32 *sp2 = ln2->i32;
+    ui8* p = (ui8 *)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val;
+      val = *sp0++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui8) val;
+      val = *sp1++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui8) val;
+      val = *sp2++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui8) val;
+    }
+  }
+
+  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count)
+  {
+    ojph_unused(ln1);
+    ojph_unused(ln2);
+    int max_val = (1<<bit_depth) - 1;
+    const si32 *sp = ln0->i32;
+    ui16* p = (ui16*)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val = *sp++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui16) val;
+    }
+  }
+
+  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count)
+  {
+    int max_val = (1<<bit_depth) - 1;
+    const si32 *sp0 = ln0->i32;
+    const si32 *sp1 = ln1->i32;
+    const si32 *sp2 = ln2->i32;
+    ui16* p = (ui16*)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val;
+      val = *sp0++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui16) val;
+      val = *sp1++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui16) val;
+      val = *sp2++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = (ui16) val;
+    }
+  }
+
+  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count)
+  {
+    ojph_unused(ln1);
+    ojph_unused(ln2);
+    int max_val = (1<<bit_depth) - 1;
+    const si32 *sp = ln0->i32;
+    ui16* p = (ui16*)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val = *sp++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = be2le((ui16) val);
+    }
+  }
+
+  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count)
+  {
+    int max_val = (1<<bit_depth) - 1;
+    const si32 *sp0 = ln0->i32;
+    const si32 *sp1 = ln1->i32;
+    const si32 *sp2 = ln2->i32;
+    ui16* p = (ui16*)dp;
+    for (ui32 i = count; i > 0; --i)
+    {
+      int val;
+      val = *sp0++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = be2le((ui16) val);
+      val = *sp1++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = be2le((ui16) val);
+      val = *sp2++;
+      val = val >= 0 ? val : 0;
+      val = val <= max_val ? val : max_val;
+      *p++ = be2le((ui16) val);
+    }
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
   //
   //
   //
@@ -302,82 +447,70 @@ namespace ojph {
     bytes_per_sample = 1 + (bit_depth > 8 ? 1 : 0);
     samples_per_line = num_components * width;
     bytes_per_line = bytes_per_sample * samples_per_line;
+    
+    if (bytes_per_sample == 1) {
+      if (num_components == 1) 
+        converter = gen_cvrt_32b1c_to_8ub1c;
+      else
+        converter = gen_cvrt_32b3c_to_8ub3c;
+    }
+    else {
+      if (num_components == 1) 
+        converter = gen_cvrt_32b1c_to_16ub1c_be;
+      else
+        converter = gen_cvrt_32b3c_to_16ub3c_be;
+    }
+
+#ifndef OJPH_DISABLE_INTEL_SIMD
+
+    if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE41) {
+      if (bytes_per_sample == 1) {
+        if (num_components == 1) 
+          converter = sse41_cvrt_32b1c_to_8ub1c;
+        else
+          converter = sse41_cvrt_32b3c_to_8ub3c;
+      }
+      else {
+        if (num_components == 1) 
+          converter = sse41_cvrt_32b1c_to_16ub1c_be;
+        else
+          converter = sse41_cvrt_32b3c_to_16ub3c_be;
+      }
+    }
+
+    // if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
+    //   if (bytes_per_sample == 1) {
+    //     if (num_components == 1) 
+    //       converter = avx2_cvrt_32b1c_to_8ub1c;
+    //     else
+    //       converter = avx2_cvrt_32b3c_to_8ub3c;
+    //   }
+    //   else {
+    //     if (num_components == 1) 
+    //       converter = avx2_cvrt_32b1c_to_16ub1c_be;
+    //     else
+    //       converter = avx2_cvrt_32b3c_to_16ub3c_be;
+    //   }
+    // }
+
+#endif
   }
 
   ////////////////////////////////////////////////////////////////////////////
   ui32 ppm_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(fh);
-    if (num_components == 1)
-    {
-      assert(comp_num == 0);
 
-      if (bit_depth <= 8)
-      {
-        int max_val = (1<<bit_depth) - 1;
-        const si32 *sp = line->i32;
-        ui8* dp = buffer;
-        for (ui32 i = width; i > 0; --i)
-        {
-          int val = *sp++;
-          val = val >= 0 ? val : 0;
-          val = val <= max_val ? val : max_val;
-          *dp++ = (ui8)val;
-        }
-      }
-      else
-      {
-        int max_val = (1<<bit_depth) - 1;
-        const si32 *sp = line->i32;
-        ui16* dp = (ui16*)buffer;
-        for (ui32 i = width; i > 0; --i)
-        {
-          int val = *sp++;
-          val = val >= 0 ? val : 0;
-          val = val <= max_val ? val : max_val;
-          *dp++ = be2le((ui16) val);
-        }
-      }
-      if ((ui32)fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x030000041, "error writing to file %s", fname);
-    }
-    else
+    lptr[comp_num] = line;
+    if (comp_num == num_components - 1)
     {
-      assert(num_components == 3);
-
-      if (bit_depth <= 8)
-      {
-        int max_val = (1<<bit_depth) - 1;
-        const si32 *sp = line->i32;
-        ui8* dp = buffer + comp_num;
-        for (ui32 i = width; i > 0; --i, dp += 3)
-        {
-          int val = *sp++;
-          val = val >= 0 ? val : 0;
-          val = val <= max_val ? val : max_val;
-          *dp = (ui8) val;
-        }
-      }
-      else
-      {
-        int max_val = (1<<bit_depth) - 1;
-        const si32 *sp = line->i32;
-        ui16* dp = (ui16*)buffer + comp_num;
-        for (ui32 i = width; i > 0; --i, dp += 3)
-        {
-          int val = *sp++;
-          val = val >= 0 ? val : 0;
-          val = val <= max_val ? val : max_val;
-          *dp = be2le((ui16) val);
-        }
-      }
-      if (comp_num == 2)
-      {
-        size_t result = fwrite(buffer,
-                               bytes_per_sample, samples_per_line, fh);
-        if (result != samples_per_line)
-          OJPH_ERROR(0x030000042, "error writing to file %s", fname);
-      }
+      assert(lptr[0] != lptr[1]);
+      assert((lptr[1]!=lptr[2] && num_components==3) || num_components==1);
+      converter(lptr[0], lptr[1], lptr[2], buffer, bit_depth, width);
+      size_t result = fwrite(buffer,
+                              bytes_per_sample, samples_per_line, fh);
+      if (result != samples_per_line)
+        OJPH_ERROR(0x030000042, "error writing to file %s", fname);
     }
     return 0;
   }

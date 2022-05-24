@@ -294,6 +294,69 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
+  // Accelerators (defined in ojph_img_io_*)
+  typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1, 
+                                 const line_buf *ln2, void *dp, 
+                                 int bit_depth, int count);
+
+  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
+                               const line_buf *ln2, void *dp, 
+                               int bit_depth, int count);
+  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
+                               const line_buf *ln2, void *dp, 
+                               int bit_depth, int count);
+  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count);
+  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count);
+  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count);
+  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
+                                   const line_buf *ln2, void *dp, 
+                                   int bit_depth, int count);
+
+  void sse41_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
+                                 const line_buf *ln2, void *dp, 
+                                 int bit_depth, int count);
+  void sse41_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
+                                 const line_buf *ln2, void *dp, 
+                                 int bit_depth, int count);
+  void sse41_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
+                                     const line_buf *ln2, void *dp, 
+                                     int bit_depth, int count);
+  void sse41_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
+                                     const line_buf *ln2, void *dp, 
+                                     int bit_depth, int count);
+  void sse41_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
+                                     const line_buf *ln2, void *dp, 
+                                     int bit_depth, int count);
+  void sse41_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
+                                     const line_buf *ln2, void *dp, 
+                                     int bit_depth, int count);
+
+  void avx2_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
+                                const line_buf *ln2, void *dp, 
+                                int bit_depth, int count);
+  void avx2_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
+                                const line_buf *ln2, void *dp, 
+                                int bit_depth, int count);
+  void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
+                                    const line_buf *ln2, void *dp, 
+                                    int bit_depth, int count);
+  void avx2_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
+                                    const line_buf *ln2, void *dp, 
+                                    int bit_depth, int count);
+  void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
+                                    const line_buf *ln2, void *dp, 
+                                    int bit_depth, int count);
+  void avx2_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
+                                    const line_buf *ln2, void *dp, 
+                                    int bit_depth, int count);
+
+  ////////////////////////////////////////////////////////////////////////////
   //
   //
   //
@@ -327,6 +390,8 @@ namespace ojph {
       bit_depth = bytes_per_sample = 0;
       buffer_size = 0;
       cur_line = samples_per_line = bytes_per_line = 0;
+      converter = NULL;
+      lptr[0] = lptr[1] = lptr[2] = 0;
     }
     virtual ~ppm_out()
     {
@@ -349,6 +414,8 @@ namespace ojph {
     ui8* buffer;
     ui32 buffer_size;
     ui32 cur_line, samples_per_line, bytes_per_line;
+    conversion_fun converter;
+    const line_buf *lptr[3];
   };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -369,7 +436,8 @@ namespace ojph {
       buffer = NULL;
       width = height = num_components = 0;
       bytes_per_sample = 0;
-	  bit_depth_of_data[0] = bit_depth_of_data[1] = bit_depth_of_data[2] = bit_depth_of_data[3] = 0;
+	    bit_depth_of_data[0] = bit_depth_of_data[1] = 0;
+      bit_depth_of_data[2] = bit_depth_of_data[3] = 0;
       buffer_size = 0;
       cur_line = samples_per_line = 0;
       bytes_per_line = 0;
@@ -448,8 +516,6 @@ namespace ojph {
     ui8 *buffer;
     ui32 buffer_size;
   };
-
-
 
 
 }

@@ -77,11 +77,12 @@ namespace ojph {
     X86_CPU_EXT_LEVEL_SSE2 = 3,
     X86_CPU_EXT_LEVEL_SSE3 = 4,
     X86_CPU_EXT_LEVEL_SSSE3 = 5,
-    X86_CPU_EXT_LEVEL_SSE4 = 6,
-    X86_CPU_EXT_LEVEL_AVX = 7,
-    X86_CPU_EXT_LEVEL_AVX2 = 8,
-    X86_CPU_EXT_LEVEL_AVX2FMA = 9,
-    X86_CPU_EXT_LEVEL_AVX512 = 10,
+    X86_CPU_EXT_LEVEL_SSE41 = 6,
+    X86_CPU_EXT_LEVEL_SSE42 = 7,
+    X86_CPU_EXT_LEVEL_AVX = 8,
+    X86_CPU_EXT_LEVEL_AVX2 = 9,
+    X86_CPU_EXT_LEVEL_AVX2FMA = 10,
+    X86_CPU_EXT_LEVEL_AVX512 = 11,
   };
 
   /////////////////////////////////////////////////////////////////////////////

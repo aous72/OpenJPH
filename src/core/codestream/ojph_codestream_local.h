@@ -137,7 +137,7 @@ namespace ojph {
     private:
       size num_tiles;
       tile *tiles;
-      line_buf* line;
+      line_buf* lines;
       ui32 num_comps;
       size *comp_size;       //stores full resolution no. of lines and width
       size *recon_comp_size; //stores number of lines and width of each comp

@@ -25,7 +25,7 @@ jobs:
      steps:
      - uses: actions/checkout@v2
      - name: cmake
-       run: cmake -DBUILD_TESTING=ON -DOJPH_CODE_COVERAGE=ON ..
+       run: cmake -DOJPH_BUILD_TEST=ON ..
        working-directory: build
      - name: build
        run: make && make test

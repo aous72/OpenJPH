@@ -489,7 +489,7 @@ namespace ojph {
         if (num_components == 1) 
           converter = avx2_cvrt_32b1c_to_16ub1c_be;
         else
-          converter = avx2_cvrt_32b3c_to_16ub3c_be;
+          { } // did not find an implementation better than sse41
       }
     }
 

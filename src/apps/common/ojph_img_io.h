@@ -346,13 +346,7 @@ namespace ojph {
   void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
                                     int bit_depth, int count);
-  void avx2_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
-                                    const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count);
   void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
-                                    const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count);
-  void avx2_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
                                     int bit_depth, int count);
 

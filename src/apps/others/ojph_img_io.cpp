@@ -478,20 +478,20 @@ namespace ojph {
       }
     }
 
-    // if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
-    //   if (bytes_per_sample == 1) {
-    //     if (num_components == 1) 
-    //       converter = avx2_cvrt_32b1c_to_8ub1c;
-    //     else
-    //       converter = avx2_cvrt_32b3c_to_8ub3c;
-    //   }
-    //   else {
-    //     if (num_components == 1) 
-    //       converter = avx2_cvrt_32b1c_to_16ub1c_be;
-    //     else
-    //       converter = avx2_cvrt_32b3c_to_16ub3c_be;
-    //   }
-    // }
+    if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
+      if (bytes_per_sample == 1) {
+        if (num_components == 1) 
+          converter = avx2_cvrt_32b1c_to_8ub1c;
+        else
+          converter = avx2_cvrt_32b3c_to_8ub3c;
+      }
+      else {
+        if (num_components == 1) 
+          converter = avx2_cvrt_32b1c_to_16ub1c_be;
+        else
+          converter = avx2_cvrt_32b3c_to_16ub3c_be;
+      }
+    }
 
 #endif
   }

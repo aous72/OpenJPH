@@ -113,7 +113,6 @@ namespace ojph {
                                  const line_buf *ln2, void *dp, 
                                  int bit_depth, int count)
   {
-
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
     const si32 *sp2 = ln2->i32;
@@ -121,18 +120,12 @@ namespace ojph {
 
     __m128i max_val_vec = _mm_set1_epi32((1 << bit_depth) - 1);
     __m128i zero = _mm_setzero_si128();
-    __m128i m0 = _mm_set_epi64x(0x07FFFF030E0D0C0A, 0x0908060504020100);
-    __m128i m1 = _mm_set_epi64x(0xFF0100FFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
-    __m128i m2 = _mm_set_epi64x(0xFFFFFFFFFFFFFFFF, 0xFFFF0FFFFF0BFFFF);
-    __m128i m3 = _mm_set_epi64x(0x0B0AFF0706FF0302, 0x0D0CFF0908FF0504);
-    __m128i m4 = _mm_set_epi64x(0xFFFF04FFFF00FFFF, 0xFFFFFFFFFFFFFFFF);
-    __m128i m5 = _mm_set_epi64x(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFF0F0EFF);
-    __m128i m6 = _mm_set_epi64x(0x0F0E0D0B0A090706, 0x050302010CFFFF08);
+    __m128i m0 = _mm_set_epi64x(0xFFFFFFFF0E0D0C0A, 0x0908060504020100);
 
-    // 48 bytes or entries in each loop
+    // 16 entries in each loop
     for ( ; count >= 16; count -= 16, sp0 += 16, sp1 += 16, sp2 += 16, p += 48) 
     {
-      __m128i a, b, t, u, v;
+      __m128i a, t, u, v, w;
       a = _mm_load_si128((__m128i*)sp0);
       a = _mm_max_epi32(a, zero);
       t = _mm_min_epi32(a, max_val_vec);
@@ -148,73 +141,66 @@ namespace ojph {
       a = _mm_min_epi32(a, max_val_vec);
       a = _mm_slli_epi32(a, 16);
       t = _mm_or_si128(t, a);
+      t = _mm_shuffle_epi8(t, m0);
 
       a = _mm_load_si128((__m128i*)sp0 + 1);
       a = _mm_max_epi32(a, zero);
-      a = _mm_min_epi32(a, max_val_vec);
-      a = _mm_slli_epi32(a, 24);
-      t = _mm_or_si128(t, a);
+      u = _mm_min_epi32(a, max_val_vec);
 
       a = _mm_load_si128((__m128i*)sp1 + 1);
       a = _mm_max_epi32(a, zero);
-      u = _mm_min_epi32(a, max_val_vec);
+      a = _mm_min_epi32(a, max_val_vec);
+      a = _mm_slli_epi32(a, 8);
+      u = _mm_or_si128(u, a);
 
       a = _mm_load_si128((__m128i*)sp2 + 1);
       a = _mm_max_epi32(a, zero);
       a = _mm_min_epi32(a, max_val_vec);
-      a = _mm_slli_epi32(a, 8);
+      a = _mm_slli_epi32(a, 16);
       u = _mm_or_si128(u, a);
+      u = _mm_shuffle_epi8(u, m0);
 
       a = _mm_load_si128((__m128i*)sp0 + 2);
       a = _mm_max_epi32(a, zero);
-      a = _mm_min_epi32(a, max_val_vec);
-      a = _mm_slli_epi32(a, 16);
-      u = _mm_or_si128(u, a);
+      v = _mm_min_epi32(a, max_val_vec);
 
       a = _mm_load_si128((__m128i*)sp1 + 2);
       a = _mm_max_epi32(a, zero);
       a = _mm_min_epi32(a, max_val_vec);
-      a = _mm_slli_epi32(a, 24);
-      u = _mm_or_si128(u, a);
-
-      a = _mm_load_si128((__m128i*)sp2 + 2);
-      a = _mm_max_epi32(a, zero);
-      v = _mm_min_epi32(a, max_val_vec);
-
-      a = _mm_load_si128((__m128i*)sp0 + 3);
-      a = _mm_max_epi32(a, zero);
-      a = _mm_min_epi32(a, max_val_vec);
       a = _mm_slli_epi32(a, 8);
       v = _mm_or_si128(v, a);
 
-      a = _mm_load_si128((__m128i*)sp1 + 3);
+      a = _mm_load_si128((__m128i*)sp2 + 2);
       a = _mm_max_epi32(a, zero);
       a = _mm_min_epi32(a, max_val_vec);
       a = _mm_slli_epi32(a, 16);
       v = _mm_or_si128(v, a);
+      v = _mm_shuffle_epi8(v, m0);
+
+      a = _mm_load_si128((__m128i*)sp0 + 3);
+      a = _mm_max_epi32(a, zero);
+      w = _mm_min_epi32(a, max_val_vec);
+
+      a = _mm_load_si128((__m128i*)sp1 + 3);
+      a = _mm_max_epi32(a, zero);
+      a = _mm_min_epi32(a, max_val_vec);
+      a = _mm_slli_epi32(a, 8);
+      w = _mm_or_si128(w, a);
 
       a = _mm_load_si128((__m128i*)sp2 + 3);
       a = _mm_max_epi32(a, zero);
       a = _mm_min_epi32(a, max_val_vec);
-      a = _mm_slli_epi32(a, 24);
-      v = _mm_or_si128(v, a);
+      a = _mm_slli_epi32(a, 16);
+      w = _mm_or_si128(w, a);
+      w = _mm_shuffle_epi8(w, m0);
 
-      a = _mm_shuffle_epi8(t, m0);
-      b = _mm_shuffle_epi8(u, m1);
-      a = _mm_or_si128(a, b);
-      _mm_storeu_si128((__m128i*)p, a);
+      t = _mm_or_si128(t, _mm_bslli_si128(u, 12));
+      u = _mm_or_si128(_mm_bsrli_si128(u, 4), _mm_bslli_si128(v, 8));
+      v = _mm_or_si128(_mm_bsrli_si128(v, 8), _mm_bslli_si128(w, 4));
 
-      a = _mm_shuffle_epi8(t, m2);
-      b = _mm_shuffle_epi8(u, m3);
-      a = _mm_or_si128(a, b);
-      b = _mm_shuffle_epi8(v, m4);
-      a = _mm_or_si128(a, b);
-      _mm_storeu_si128((__m128i*)p + 1, a);
-
-      a = _mm_shuffle_epi8(u, m5);
-      b = _mm_shuffle_epi8(v, m6);
-      a = _mm_or_si128(a, b);
-      _mm_storeu_si128((__m128i*)p + 2, a);
+      _mm_storeu_si128((__m128i*)p + 0, t);
+      _mm_storeu_si128((__m128i*)p + 1, u);
+      _mm_storeu_si128((__m128i*)p + 2, v);
     }
 
     int max_val = (1<<bit_depth) - 1;

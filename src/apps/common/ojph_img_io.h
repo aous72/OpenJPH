@@ -297,58 +297,58 @@ namespace ojph {
   // Accelerators (defined in ojph_img_io_*)
   typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
-                                 int bit_depth, int count);
+                                 ui32 bit_depth, ui32 count);
 
   void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                const line_buf *ln2, void *dp, 
-                               int bit_depth, int count);
+                               ui32 bit_depth, ui32 count);
   void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                const line_buf *ln2, void *dp, 
-                               int bit_depth, int count);
+                               ui32 bit_depth, ui32 count);
   void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count);
+                                   ui32 bit_depth, ui32 count);
   void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count);
+                                   ui32 bit_depth, ui32 count);
   void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count);
+                                   ui32 bit_depth, ui32 count);
   void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count);
+                                   ui32 bit_depth, ui32 count);
 
   void sse41_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
-                                 int bit_depth, int count);
+                                 ui32 bit_depth, ui32 count);
   void sse41_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
-                                 int bit_depth, int count);
+                                 ui32 bit_depth, ui32 count);
   void sse41_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count);
+                                     ui32 bit_depth, ui32 count);
   void sse41_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count);
+                                     ui32 bit_depth, ui32 count);
   void sse41_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count);
+                                     ui32 bit_depth, ui32 count);
   void sse41_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count);
+                                     ui32 bit_depth, ui32 count);
 
   void avx2_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                 const line_buf *ln2, void *dp, 
-                                int bit_depth, int count);
+                                ui32 bit_depth, ui32 count);
   void avx2_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                 const line_buf *ln2, void *dp, 
-                                int bit_depth, int count);
+                                ui32 bit_depth, ui32 count);
   void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count);
+                                    ui32 bit_depth, ui32 count);
   void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count);
+                                    ui32 bit_depth, ui32 count);
 
   ////////////////////////////////////////////////////////////////////////////
   //

@@ -88,7 +88,7 @@ namespace ojph {
 
   void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                const line_buf *ln2, void *dp, 
-                               int bit_depth, int count)
+                               ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -96,7 +96,7 @@ namespace ojph {
     int max_val = (1 << bit_depth) - 1;
     const si32 *sp = ln0->i32;
     ui8* p = (ui8 *)dp;
-    for (ui32 i = count; i > 0; --i)
+    for ( ; count > 0; --count)
     {
       int val = *sp++;
       val = val >= 0 ? val : 0;
@@ -107,14 +107,14 @@ namespace ojph {
 
   void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                const line_buf *ln2, void *dp, 
-                               int bit_depth, int count)
+                               ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
     const si32 *sp2 = ln2->i32;
     ui8* p = (ui8 *)dp;
-    for (ui32 i = count; i > 0; --i)
+    for (; count > 0; --count)
     {
       int val;
       val = *sp0++;
@@ -134,14 +134,14 @@ namespace ojph {
 
   void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count)
+                                   ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
     int max_val = (1<<bit_depth) - 1;
     const si32 *sp = ln0->i32;
     ui16* p = (ui16*)dp;
-    for (ui32 i = count; i > 0; --i)
+    for (; count > 0; --count)
     {
       int val = *sp++;
       val = val >= 0 ? val : 0;
@@ -152,14 +152,14 @@ namespace ojph {
 
   void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count)
+                                   ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
     const si32 *sp2 = ln2->i32;
     ui16* p = (ui16*)dp;
-    for (ui32 i = count; i > 0; --i)
+    for (; count > 0; --count)
     {
       int val;
       val = *sp0++;
@@ -179,14 +179,14 @@ namespace ojph {
 
   void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count)
+                                   ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
     int max_val = (1<<bit_depth) - 1;
     const si32 *sp = ln0->i32;
     ui16* p = (ui16*)dp;
-    for (ui32 i = count; i > 0; --i)
+    for (; count > 0; --count)
     {
       int val = *sp++;
       val = val >= 0 ? val : 0;
@@ -197,14 +197,14 @@ namespace ojph {
 
   void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
-                                   int bit_depth, int count)
+                                   ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
     const si32 *sp2 = ln2->i32;
     ui16* p = (ui16*)dp;
-    for (ui32 i = count; i > 0; --i)
+    for (; count > 0; --count)
     {
       int val;
       val = *sp0++;

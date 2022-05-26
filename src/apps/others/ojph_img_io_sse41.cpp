@@ -57,7 +57,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
-                                 int bit_depth, int count)
+                                 ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -111,7 +111,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
-                                 int bit_depth, int count)
+                                 ui32 bit_depth, ui32 count)
   {
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
@@ -120,7 +120,8 @@ namespace ojph {
 
     __m128i max_val_vec = _mm_set1_epi32((1 << bit_depth) - 1);
     __m128i zero = _mm_setzero_si128();
-    __m128i m0 = _mm_set_epi64x(0xFFFFFFFF0E0D0C0A, 0x0908060504020100);
+    __m128i m0 = _mm_set_epi64x((si64)0xFFFFFFFF0E0D0C0A, 
+                                (si64)0x0908060504020100);
 
     // 16 entries in each loop
     for ( ; count >= 16; count -= 16, sp0 += 16, sp1 += 16, sp2 += 16, p += 48) 
@@ -225,7 +226,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count)
+                                     ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -267,7 +268,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count)
+                                     ui32 bit_depth, ui32 count)
   {
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
@@ -277,13 +278,20 @@ namespace ojph {
     __m128i max_val_vec = _mm_set1_epi32((1 << bit_depth) - 1);
     __m128i zero = _mm_setzero_si128();
 
-    __m128i m0 = _mm_set_epi64x(0x0B0A0908FFFF0706, 0x0504FFFF03020100);
-    __m128i m1 = _mm_set_epi64x(0xFFFFFFFF0504FFFF, 0xFFFF0100FFFFFFFF);
-    __m128i m2 = _mm_set_epi64x(0xFFFFFFFFFFFFFFFF, 0xFFFF0F0E0D0CFFFF);
-    __m128i m3 = _mm_set_epi64x(0x0706FFFFFFFF0302, 0x0D0CFFFFFFFF0908);
-    __m128i m4 = _mm_set_epi64x(0xFFFF03020100FFFF, 0xFFFFFFFFFFFFFFFF);
-    __m128i m5 = _mm_set_epi64x(0xFFFFFFFF0F0EFFFF, 0xFFFF0B0AFFFFFFFF);
-    __m128i m6 = _mm_set_epi64x(0x0F0E0D0CFFFF0B0A, 0x0908FFFF07060504);
+    __m128i m0 = _mm_set_epi64x((si64)0x0B0A0908FFFF0706, 
+                                (si64)0x0504FFFF03020100);
+    __m128i m1 = _mm_set_epi64x((si64)0xFFFFFFFF0504FFFF, 
+                                (si64)0xFFFF0100FFFFFFFF);
+    __m128i m2 = _mm_set_epi64x((si64)0xFFFFFFFFFFFFFFFF, 
+                                (si64)0xFFFF0F0E0D0CFFFF);
+    __m128i m3 = _mm_set_epi64x((si64)0x0706FFFFFFFF0302, 
+                                (si64)0x0D0CFFFFFFFF0908);
+    __m128i m4 = _mm_set_epi64x((si64)0xFFFF03020100FFFF, 
+                                (si64)0xFFFFFFFFFFFFFFFF);
+    __m128i m5 = _mm_set_epi64x((si64)0xFFFFFFFF0F0EFFFF, 
+                                (si64)0xFFFF0B0AFFFFFFFF);
+    __m128i m6 = _mm_set_epi64x((si64)0x0F0E0D0CFFFF0B0A, 
+                                (si64)0x0908FFFF07060504);
 
     // 24 entries in each loop
     for ( ; count >= 8; count -= 8, sp0 += 8, sp1 += 8, sp2 += 8, p += 24) 
@@ -359,7 +367,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count)
+                                     ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -401,7 +409,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void sse41_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
                                      const line_buf *ln2, void *dp, 
-                                     int bit_depth, int count)
+                                     ui32 bit_depth, ui32 count)
   {
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
@@ -411,13 +419,20 @@ namespace ojph {
     __m128i max_val_vec = _mm_set1_epi32((1 << bit_depth) - 1);
     __m128i zero = _mm_setzero_si128();
 
-    __m128i m0 = _mm_set_epi64x(0x0A0B0809FFFF0607, 0x0405FFFF02030001);
-    __m128i m1 = _mm_set_epi64x(0xFFFFFFFF0405FFFF, 0xFFFF0001FFFFFFFF);
-    __m128i m2 = _mm_set_epi64x(0xFFFFFFFFFFFFFFFF, 0xFFFF0E0F0C0DFFFF);
-    __m128i m3 = _mm_set_epi64x(0x0607FFFFFFFF0203, 0x0C0DFFFFFFFF0809);
-    __m128i m4 = _mm_set_epi64x(0xFFFF02030001FFFF, 0xFFFFFFFFFFFFFFFF);
-    __m128i m5 = _mm_set_epi64x(0xFFFFFFFF0E0FFFFF, 0xFFFF0A0BFFFFFFFF);
-    __m128i m6 = _mm_set_epi64x(0x0E0F0C0DFFFF0A0B, 0x0809FFFF06070405);
+    __m128i m0 = _mm_set_epi64x((si64)0x0A0B0809FFFF0607, 
+                                (si64)0x0405FFFF02030001);
+    __m128i m1 = _mm_set_epi64x((si64)0xFFFFFFFF0405FFFF, 
+                                (si64)0xFFFF0001FFFFFFFF);
+    __m128i m2 = _mm_set_epi64x((si64)0xFFFFFFFFFFFFFFFF, 
+                                (si64)0xFFFF0E0F0C0DFFFF);
+    __m128i m3 = _mm_set_epi64x((si64)0x0607FFFFFFFF0203, 
+                                (si64)0x0C0DFFFFFFFF0809);
+    __m128i m4 = _mm_set_epi64x((si64)0xFFFF02030001FFFF, 
+                                (si64)0xFFFFFFFFFFFFFFFF);
+    __m128i m5 = _mm_set_epi64x((si64)0xFFFFFFFF0E0FFFFF, 
+                                (si64)0xFFFF0A0BFFFFFFFF);
+    __m128i m6 = _mm_set_epi64x((si64)0x0E0F0C0DFFFF0A0B, 
+                                (si64)0x0809FFFF06070405);
 
     // 24 entries in each loop
     for ( ; count >= 8; count -= 8, sp0 += 8, sp1 += 8, sp2 += 8, p += 24) 

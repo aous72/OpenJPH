@@ -57,7 +57,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void avx2_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
                                 const line_buf *ln2, void *dp, 
-                                int bit_depth, int count)
+                                ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -115,7 +115,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void avx2_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
                                 const line_buf *ln2, void *dp, 
-                                int bit_depth, int count)
+                                ui32 bit_depth, ui32 count)
   {
     const si32 *sp0 = ln0->i32;
     const si32 *sp1 = ln1->i32;
@@ -124,8 +124,10 @@ namespace ojph {
 
     __m256i max_val_vec = _mm256_set1_epi32((1 << bit_depth) - 1);
     __m256i zero = _mm256_setzero_si256();
-    __m256i m0 = _mm256_set_epi64x(0xFFFFFFFF0E0D0C0A, 0x0908060504020100, 
-                                   0xFFFFFFFF0E0D0C0A, 0x0908060504020100);
+    __m256i m0 = _mm256_set_epi64x((si64)0xFFFFFFFF0E0D0C0A,
+                                   (si64)0x0908060504020100,
+                                   (si64)0xFFFFFFFF0E0D0C0A,
+                                   (si64)0x0908060504020100);
 
     // 32 entries or entries in each loop
     for ( ; count >= 32; count -= 32, sp0 += 32, sp1 += 32, sp2 += 32, p += 96)
@@ -234,7 +236,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count)
+                                    ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
@@ -278,7 +280,7 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
   void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                     const line_buf *ln2, void *dp, 
-                                    int bit_depth, int count)
+                                    ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);

@@ -65,9 +65,30 @@
 
 namespace ojph {
 
+  ////////////////////////////////////////////////////////////////////////////
+  //                         OS detection definitions
+  ////////////////////////////////////////////////////////////////////////////
+#if (defined WIN32) || (defined _WIN32) || (defined _WIN64)
+#define OJPH_OS_WINDOWS
+#elif (defined __APPLE__)
+#define OJPH_OS_APPLE
+#elif (defined __linux)
+#define OJPH_OS_LINUX
+#endif
+
+  /////////////////////////////////////////////////////////////////////////////
+  // defines for dll
+  /////////////////////////////////////////////////////////////////////////////
+#if defined(OJPH_OS_WINDOWS) && defined(OJPH_BUILD_SHARED_LIBRARY)
+#define OJPH_EXPORT __declspec(dllexport)
+#else
+#define OJPH_EXPORT
+#endif
+
   /////////////////////////////////////////////////////////////////////////////
   //                             cpu features
   /////////////////////////////////////////////////////////////////////////////
+  OJPH_EXPORT
   int get_cpu_ext_level();
 
   enum : int {
@@ -200,26 +221,6 @@ namespace ojph {
     p &= ~((1ULL << (31 - count_leading_zeros(N))) - 1);
     return reinterpret_cast<T *>(p);
   }
-
-  ////////////////////////////////////////////////////////////////////////////
-  //                         OS detection definitions
-  ////////////////////////////////////////////////////////////////////////////
-#if (defined WIN32) || (defined _WIN32) || (defined _WIN64)
-  #define OJPH_OS_WINDOWS
-#elif (defined __APPLE__)
-  #define OJPH_OS_APPLE
-#elif (defined __linux)
-  #define OJPH_OS_LINUX
-#endif
-
-  /////////////////////////////////////////////////////////////////////////////
-  // defines for dll
-  /////////////////////////////////////////////////////////////////////////////
-#if defined(OJPH_OS_WINDOWS) && defined(OJPH_BUILD_SHARED_LIBRARY)
-  #define OJPH_EXPORT __declspec(dllexport)
-#else
-  #define OJPH_EXPORT
-#endif
 
 }
 

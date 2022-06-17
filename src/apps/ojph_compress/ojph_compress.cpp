@@ -370,7 +370,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
                    ojph::ui32& num_comp_downsamps, ojph::point*& comp_downsamp,
                    ojph::ui32& num_bit_depths, ojph::ui32*& bit_depth,
                    ojph::ui32& num_is_signed, ojph::si32*& is_signed,
-                   bool& tlm_markers, bool& tileparts_at_resolutions,
+                   bool& tlm_marker, bool& tileparts_at_resolutions,
                    bool& tileparts_at_components)
 {
   ojph::cli_interpreter interpreter;
@@ -385,7 +385,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   interpreter.reinterpret("-reversible", reversible);
   interpreter.reinterpret_to_bool("-colour_trans", employ_color_transform);
   interpreter.reinterpret("-num_comps", num_comps);
-  interpreter.reinterpret("-tlm_markers", tlm_markers);
+  interpreter.reinterpret("-tlm_marker", tlm_marker);
 
   size_interpreter block_interpreter(block_size);
   size_interpreter dims_interpreter(dims);
@@ -498,7 +498,7 @@ int main(int argc, char * argv[]) {
   ojph::ui32 num_comp_downsamps = 0;
   ojph::point downsampling_store[initial_num_comps];
   ojph::point *comp_downsampling = downsampling_store;
-  bool tlm_markers = false;
+  bool tlm_marker = false;
   bool tileparts_at_resolutions = false;
   bool tileparts_at_components = false;
 
@@ -548,11 +548,11 @@ int main(int argc, char * argv[]) {
     " -tileparts    (None) employ tilepart divisions at each resolution, \n"
     "               indicated by the letter R, and/or component, indicated \n"
     "               by the letter C. For both, use \"-tileparts RC\".\n"
-    " -tlm_markers  (false) insert TLM markers, either \"true\" or \"false\"\n"
+    " -tlm_marker   (false) insert a TLM marker, either \"true\" or \"false\"\n"
     " -profile      (None) is the profile, the code will check if the \n"
     "               selected options meet the profile.  Currently only \n"
     "               BROADCAST and IMF are supported.  This automatically \n"
-    "               sets tlm_markers to true and tileparts to C.\n"
+    "               sets tlm_marker to true and tileparts to C.\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"
@@ -576,7 +576,7 @@ int main(int argc, char * argv[]) {
                      max_num_comps, num_components,
                      num_comp_downsamps, comp_downsampling,
                      num_bit_depths, bit_depth, num_is_signed, is_signed,
-                     tlm_markers, tileparts_at_resolutions,
+                     tlm_marker, tileparts_at_resolutions,
                      tileparts_at_components))
   {
     return -1;
@@ -634,7 +634,7 @@ int main(int argc, char * argv[]) {
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions, 
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_markers);
+        codestream.request_tlm_marker(tlm_marker);
 
         if (employ_color_transform != -1)
           OJPH_WARN(0x01000001,
@@ -691,7 +691,7 @@ int main(int argc, char * argv[]) {
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions, 
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_markers);          
+        codestream.request_tlm_marker(tlm_marker);          
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000011,
@@ -747,7 +747,7 @@ int main(int argc, char * argv[]) {
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions, 
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_markers);
+        codestream.request_tlm_marker(tlm_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000061,
@@ -832,7 +832,7 @@ int main(int argc, char * argv[]) {
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions, 
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_markers);          
+        codestream.request_tlm_marker(tlm_marker);          
 
         yuv.open(input_filename);
         base = &yuv;

@@ -1798,7 +1798,7 @@ namespace ojph {
         }
         else 
         {
-          int num_tileparts = num_comps * (max_decompositions + 1);
+          ui32 num_tileparts = num_comps * (max_decompositions + 1);
           for (ui32 r = 0; r <= max_decompositions; ++r)
             for (ui32 c = 0; c < num_comps; ++c)
               if (r <= comps[c].get_num_decompositions()) {
@@ -1820,7 +1820,7 @@ namespace ojph {
         {
           if (tilepart_div == OJPH_TILEPART_RESOLUTIONS)
           {
-            int bytes = 0;
+            ui32 bytes = 0;
             for (ui32 c = 0; c < num_comps; ++c)
               bytes += comps[c].get_num_bytes(r);
             //write tile header
@@ -2950,7 +2950,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 resolution::prepare_precinct()
     {
-      int lower_resolutions_bytes = 0;
+      ui32 lower_resolutions_bytes = 0;
       if (res_num != 0)
         lower_resolutions_bytes = child_res->prepare_precinct();
 

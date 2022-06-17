@@ -148,7 +148,7 @@ namespace ojph {
       bool employ_color_transform;
       int planar;
       int profile;
-      int tilepart_div;    // tilepart division value
+      ui32 tilepart_div;    // tilepart division value
       bool need_tlm;       // true if tlm markers are needed
       
     private:
@@ -212,7 +212,7 @@ namespace ojph {
 
     private:
       int profile;
-      int tilepart_div;    // tilepart division value
+      ui32 tilepart_div;    // tilepart division value
       bool need_tlm;       // true if tlm markers are needed
 
       ui32 num_bytes; // number of bytes in this tile

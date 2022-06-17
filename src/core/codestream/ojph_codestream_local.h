@@ -107,12 +107,16 @@ namespace ojph {
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);
+      void set_tilepart_divisions(ui32 value);
+      void request_tlm_marker(bool needed);
       line_buf* pull(ui32 &comp_num);
       void flush();
       void close();
 
       bool is_planar() const { return planar != 0; }
       si32 get_profile() const { return profile; };
+      ui32 get_tilepart_div() const { return tilepart_div; };
+      bool is_tlm_needed() const { return need_tlm; };
 
       void check_imf_validity();
       void check_broadcast_validity();
@@ -144,7 +148,9 @@ namespace ojph {
       bool employ_color_transform;
       int planar;
       int profile;
-
+      int tilepart_div;    // tilepart division value
+      bool need_tlm;       // true if tlm markers are needed
+      
     private:
       param_siz siz;
       param_cod cod;
@@ -169,10 +175,10 @@ namespace ojph {
     {
     public:
       static void pre_alloc(codestream *codestream, const rect& tile_rect,
-                            const rect& recon_tile_rect);
+                            const rect& recon_tile_rect, ui32 &num_tileparts);
       void finalize_alloc(codestream *codestream, const rect& tile_rect,
-                          const rect& recon_tile_rect, 
-                          ui32 tile_idx, ui32 offset);
+                          const rect& recon_tile_rect, ui32 tile_idx, 
+                          ui32 offset, ui32 &num_tileparts);
 
       bool push(line_buf *line, ui32 comp_num);
       void prepare_for_flush();
@@ -206,7 +212,11 @@ namespace ojph {
 
     private:
       int profile;
-      ui32 *num_comp_bytes; //this for use with TLM
+      int tilepart_div;    // tilepart division value
+      bool need_tlm;       // true if tlm markers are needed
+
+      ui32 num_bytes; // number of bytes in this tile
+                      // used for tile length      
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -234,6 +244,9 @@ namespace ojph {
       void parse_one_precinct(ui32 res_num, ui32& data_left, 
                               infile_base *file);
 
+      ui32 get_num_bytes() const { return num_bytes; }
+      ui32 get_num_bytes(ui32 resolution_num) const;
+
     private:
       tile *parent_tile;
       resolution *res;
@@ -241,6 +254,8 @@ namespace ojph {
       ojph::point comp_downsamp;
       ui32 num_decomps;
       ui32 comp_num;
+      ui32 num_bytes; // number of bytes in this tile component
+                      // used for tilepart length
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -271,11 +286,16 @@ namespace ojph {
       void parse_all_precincts(ui32& data_left, infile_base *file);
       void parse_one_precinct(ui32& data_left, infile_base *file);
 
+      ui32 get_num_bytes() const { return num_bytes; }
+      ui32 get_num_bytes(ui32 resolution_num) const;
+
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
       ui32 num_lines;
       ui32 num_bands, res_num;
       ui32 comp_num;
+      ui32 num_bytes; // number of bytes in this resolution 
+                      // used for tilepart length
       point comp_downsamp;
       rect res_rect;
       line_buf *lines;

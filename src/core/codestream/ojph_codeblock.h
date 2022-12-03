@@ -58,12 +58,8 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     //defined here
-    class tile;
-    class tile_comp;
-    class resolution;
     struct precinct;
     class subband;
-    class codeblock;
     struct coded_cb_header;
 
     //////////////////////////////////////////////////////////////////////////
@@ -154,7 +150,7 @@ namespace ojph {
       static const int prefix_buf_size = 8;
       static const int suffix_buf_size = 16;
     };
-    
+
   }
 }
 

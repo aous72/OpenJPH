@@ -30,7 +30,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.cpp
+// File: ojph_tile.cpp
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
@@ -44,6 +44,7 @@
 #include "ojph_params.h"
 #include "ojph_codestream.h"
 #include "ojph_codestream_local.h"
+#include "ojph_tile.h"
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"
@@ -51,9 +52,6 @@
 #include "../coding/ojph_block_encoder.h"
 
 namespace ojph {
-
-
-
 
   //////////////////////////////////////////////////////////////////////////
   //

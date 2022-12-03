@@ -31,7 +31,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.cpp
+// File: ojph_subband.cpp
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
@@ -45,6 +45,10 @@
 #include "ojph_params.h"
 #include "ojph_codestream.h"
 #include "ojph_codestream_local.h"
+#include "ojph_subband.h"
+#include "ojph_resolution.h"
+#include "ojph_codeblock.h"
+#include "ojph_precinct.h"
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"
@@ -52,9 +56,6 @@
 #include "../coding/ojph_block_encoder.h"
 
 namespace ojph {
-
-
-
 
   //////////////////////////////////////////////////////////////////////////
   //
@@ -357,7 +358,6 @@ namespace ojph {
 
       return lines;
     }
-
 
   }
 }

@@ -42,12 +42,6 @@
 #include "ojph_defs.h"
 #include "ojph_file.h"
 #include "ojph_params_local.h"
-#include "ojph_codeblock.h"
-#include "ojph_subband.h"
-#include "ojph_precinct.h"
-#include "ojph_resolution.h"
-#include "ojph_tile_comp.h"
-#include "ojph_tile.h"
 
 namespace ojph {
 
@@ -62,14 +56,8 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    //defined here
+    //defined elsewhere
     class tile;
-    class tile_comp;
-    class resolution;
-    struct precinct;
-    class subband;
-    class codeblock;
-    struct coded_cb_header;
 
     //////////////////////////////////////////////////////////////////////////
     class codestream

@@ -3,3 +3,4 @@ mytest/*
 others/*
 
 .vscode
+build.sh

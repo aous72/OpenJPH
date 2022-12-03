@@ -101,33 +101,23 @@ namespace ojph {
       typedef void (*mem_clear_fun)(void* addr, size_t count);
       // a pointer to the max value finding function
       mem_clear_fun mem_clear;
-      static void gen_mem_clear(void* addr, size_t count);
 
       // define function signature for max value finding
       typedef ui32 (*find_max_val_fun)(ui32* addr);
       // a pointer to the max value finding function
       find_max_val_fun find_max_val;
-      static ui32 gen_find_max_val(ui32* addr) { return addr[0]; }
 
       // define line transfer function signature from subbands to codeblocks
       typedef void (*tx_to_cb_fun)(const void *sp, ui32 *dp, ui32 K_max,
                                    float delta_inv, ui32 count, ui32* max_val);
       // a pointer to function transferring samples from subbands to codeblocks
       tx_to_cb_fun tx_to_cb;
-      static void gen_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                                   float delta_inv, ui32 count, ui32* max_val);
-      static void gen_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                                   float delta_inv, ui32 count, ui32* max_val);
 
       // define line transfer function signature from codeblock to subband
       typedef void (*tx_from_cb_fun)(const ui32 *sp, void *dp, ui32 K_max,
                                      float delta, ui32 count);
       // a pointer to function transferring samples from codeblocks to subbands
       tx_from_cb_fun tx_from_cb;
-      static void gen_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                     float delta, ui32 count);
-      static void gen_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                     float delta, ui32 count);
 
       // define the block decoder function signature
       typedef bool (*cb_decoder_fun)(ui8* coded_data, ui32* decoded_data,

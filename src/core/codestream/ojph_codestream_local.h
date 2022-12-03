@@ -164,46 +164,6 @@ namespace ojph {
       outfile_base *outfile;
       infile_base *infile;
     };
-  
-
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse_mem_clear(void* addr, size_t count);
-    void avx_mem_clear(void* addr, size_t count);
-    void wasm_mem_clear(void* addr, size_t count);
-
-    //////////////////////////////////////////////////////////////////////////
-    ui32 sse2_find_max_val(ui32* address);
-    ui32 avx2_find_max_val(ui32* address);
-    ui32 wasm_find_max_val(ui32* address);
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-    void avx2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-    void sse2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-    void avx2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-    void wasm_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-    void wasm_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val);
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
-    void avx2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
-    void sse2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
-    void avx2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
-    void wasm_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
-    void wasm_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                             float delta, ui32 count);
 
   }
 }

@@ -59,6 +59,54 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
+    void gen_mem_clear(void* addr, size_t count);
+    void sse_mem_clear(void* addr, size_t count);
+    void avx_mem_clear(void* addr, size_t count);
+    void wasm_mem_clear(void* addr, size_t count);
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 gen_find_max_val(ui32* address);
+    ui32 sse2_find_max_val(ui32* address);
+    ui32 avx2_find_max_val(ui32* address);
+    ui32 wasm_find_max_val(ui32* address);
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void sse2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void avx2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void gen_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void sse2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void avx2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void wasm_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+    void wasm_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
+                           float delta_inv, ui32 count, ui32* max_val);
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void sse2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void avx2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void gen_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void sse2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void avx2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void wasm_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+    void wasm_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
+                             float delta, ui32 count);
+
+    //////////////////////////////////////////////////////////////////////////
     codeblock::cb_decoder_fun codeblock::decode_cb = NULL;
 
     //////////////////////////////////////////////////////////////////////////
@@ -104,16 +152,16 @@ namespace ojph {
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
       decode_cb = ojph_decode_codeblock;
-      find_max_val = codeblock::gen_find_max_val;
-      mem_clear = codeblock::gen_mem_clear;
+      find_max_val = gen_find_max_val;
+      mem_clear = gen_mem_clear;
       if (reversible) {
-        tx_to_cb = codeblock::gen_rev_tx_to_cb;
-        tx_from_cb = codeblock::gen_rev_tx_from_cb;
+        tx_to_cb = gen_rev_tx_to_cb;
+        tx_from_cb = gen_rev_tx_from_cb;
       }
       else
       {
-        tx_to_cb = codeblock::gen_irv_tx_to_cb;
-        tx_from_cb = codeblock::gen_irv_tx_from_cb;
+        tx_to_cb = gen_irv_tx_to_cb;
+        tx_from_cb = gen_irv_tx_from_cb;
       }
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
@@ -235,87 +283,6 @@ namespace ojph {
         zero_block = true;
     }
 
-    //////////////////////////////////////////////////////////////////////////
-    void codeblock::gen_mem_clear(void* addr, size_t count)
-    {
-      ui32* p = (ui32*)addr;
-      for (size_t i = 0; i < count; i += 4, p += 1)
-        *p = 0;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void codeblock::gen_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max, 
-                                     float delta_inv, ui32 count, 
-                                     ui32* max_val)
-    {
-      ojph_unused(delta_inv);
-      ui32 shift = 31 - K_max;
-      // convert to sign and magnitude and keep max_val
-      ui32 tmax = *max_val;
-      si32 *p = (si32*)sp;
-      for (ui32 i = count; i > 0; --i)
-      {
-        si32 v = *p++;
-        ui32 sign = v >= 0 ? 0 : 0x80000000;
-        ui32 val = (ui32)(v >= 0 ? v : -v);
-        val <<= shift;
-        *dp++ = sign | val;
-        tmax |= val; // it is more efficient to use or than max
-      }
-      *max_val = tmax;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void codeblock::gen_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                                     float delta_inv, ui32 count, 
-                                     ui32* max_val)
-    {
-      ojph_unused(K_max);
-      //quantize and convert to sign and magnitude and keep max_val
-      ui32 tmax = *max_val;
-      float *p = (float*)sp;
-      for (ui32 i = count; i > 0; --i)
-      {
-        float v = *p++;
-        si32 t = ojph_trunc(v * delta_inv);
-        ui32 sign = t >= 0 ? 0 : 0x80000000;
-        ui32 val = (ui32)(t >= 0 ? t : -t);
-        *dp++ = sign | val;
-        tmax |= val; // it is more efficient to use or than max
-      }
-      *max_val = tmax;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void codeblock::gen_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                       float delta, ui32 count)
-    {
-      ojph_unused(delta);
-      ui32 shift = 31 - K_max;
-      //convert to sign and magnitude
-      si32 *p = (si32*)dp;
-      for (ui32 i = count; i > 0; --i)
-      {
-        ui32 v = *sp++;
-        si32 val = (v & 0x7FFFFFFF) >> shift;
-        *p++ = (v & 0x80000000) ? -val : val;
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void codeblock::gen_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                       float delta, ui32 count)
-    {
-      ojph_unused(K_max);
-      //convert to sign and magnitude
-      float *p = (float*)dp;
-      for (ui32 i = count; i > 0; --i)
-      {
-        ui32 v = *sp++;
-        float val = (float)(v & 0x7FFFFFFF) * delta;
-        *p++ = (v & 0x80000000) ? -val : val;
-      }
-    }
 
     //////////////////////////////////////////////////////////////////////////
     void codeblock::pull_line(line_buf *line)

@@ -48,20 +48,15 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
   struct line_buf;
-  class mem_fixed_allocator;
   class mem_elastic_allocator;
   class codestream;
-  struct coded_lists;
 
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
     //defined here
-    class tile;
-    class tile_comp;
     class resolution;
     struct precinct;
-    class subband;
     class codeblock;
     struct coded_cb_header;
   
@@ -103,7 +98,7 @@ namespace ojph {
       coded_cb_header *coded_cbs;
       mem_elastic_allocator *elastic;
     };
-    
+
   }
 }
 

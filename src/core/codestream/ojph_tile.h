@@ -42,33 +42,19 @@
 #include "ojph_defs.h"
 #include "ojph_file.h"
 #include "ojph_params_local.h"
-#include "ojph_codeblock.h"
-#include "ojph_subband.h"
-#include "ojph_precinct.h"
-#include "ojph_resolution.h"
-#include "ojph_tile_comp.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
   struct line_buf;
-  class mem_fixed_allocator;
-  class mem_elastic_allocator;
   class codestream;
-  struct coded_lists;
 
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
     //defined here
-    class tile;
     class tile_comp;
-    class resolution;
-    struct precinct;
-    class subband;
-    class codeblock;
-    struct coded_cb_header;
 
     //////////////////////////////////////////////////////////////////////////
     class tile

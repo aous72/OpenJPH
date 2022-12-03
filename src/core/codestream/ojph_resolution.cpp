@@ -47,6 +47,8 @@
 #include "ojph_resolution.h"
 #include "ojph_tile_comp.h"
 #include "ojph_tile.h"
+#include "ojph_subband.h"
+#include "ojph_precinct.h"
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"

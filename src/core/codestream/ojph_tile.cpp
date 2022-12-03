@@ -45,6 +45,7 @@
 #include "ojph_codestream.h"
 #include "ojph_codestream_local.h"
 #include "ojph_tile.h"
+#include "ojph_tile_comp.h"
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"

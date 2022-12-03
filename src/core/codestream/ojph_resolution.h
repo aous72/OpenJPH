@@ -1,4 +1,4 @@
-  //***************************************************************************/
+//***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
@@ -119,7 +119,7 @@ namespace ojph {
       bool vert_even, horz_even;
       mem_elastic_allocator *elastic;
     };
-    
+
   }
 }
 

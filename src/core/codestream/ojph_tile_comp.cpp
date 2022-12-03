@@ -1,5 +1,4 @@
-
-    //***************************************************************************/
+//***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
@@ -210,6 +209,6 @@ namespace ojph {
       if (r) //resolution does not exist if r is NULL
         r->parse_one_precinct(data_left, file);
     }
-    
+
   }
 }

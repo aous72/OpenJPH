@@ -63,8 +63,14 @@ namespace ojph {
 
     // define the block decoder function signature
     typedef bool (*cb_decoder_fun)(ui8* coded_data, ui32* decoded_data,
-        ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
-        ui32 width, ui32 height, ui32 stride, bool stripe_causal); 
+      ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
+      ui32 width, ui32 height, ui32 stride, bool stripe_causal);
+
+    // define the block encoder function signature
+    typedef void (*cb_encoder_fun)(ui32* buf, ui32 missing_msbs, 
+      ui32 num_passes, ui32 width, ui32 height, ui32 stride,
+      ui32* lengths, ojph::mem_elastic_allocator* elastic,
+      ojph::coded_lists*& coded);
 
     //////////////////////////////////////////////////////////////////////////
     struct codeblock_fun {
@@ -85,6 +91,9 @@ namespace ojph {
      
       // a pointer to the decoder function
       cb_decoder_fun decode_cb;
+
+      // a pointer to the encoder function
+      cb_encoder_fun encode_cb;
     };
     
   }

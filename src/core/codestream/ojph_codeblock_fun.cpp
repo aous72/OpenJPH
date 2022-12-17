@@ -106,7 +106,6 @@ namespace ojph {
 
 
     void codeblock_fun::init(bool reversible) {
-
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
       decode_cb = ojph_decode_codeblock;
@@ -175,6 +174,8 @@ namespace ojph {
       }
 
 #endif // !OJPH_ENABLE_WASM_SIMD
+
+      encode_cb = ojph_encode_codeblock;
     }
 
   }

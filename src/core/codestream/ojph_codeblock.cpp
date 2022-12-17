@@ -40,18 +40,11 @@
 #include <climits>
 #include <cmath>
 
-#include "ojph_file.h"
 #include "ojph_mem.h"
 #include "ojph_params.h"
-#include "ojph_codestream.h"
 #include "ojph_codestream_local.h"
 #include "ojph_codeblock.h"
 #include "ojph_subband.h"
-
-#include "../transform/ojph_colour.h"
-#include "../transform/ojph_transform.h"
-#include "../coding/ojph_block_decoder.h"
-#include "../coding/ojph_block_encoder.h"
 
 namespace ojph {
 
@@ -107,7 +100,8 @@ namespace ojph {
       // convert to sign and magnitude and keep max_val
       const si32 *sp = line->i32 + line_offset;
       ui32 *dp = buf + cur_line * stride;
-      this->codeblock_functions.tx_to_cb(sp, dp, K_max, delta_inv, cb_size.w, max_val);
+      this->codeblock_functions.tx_to_cb(sp, dp, K_max, delta_inv, cb_size.w, 
+        max_val);
       ++cur_line;
     }
 
@@ -122,7 +116,7 @@ namespace ojph {
         assert(coded_cb->missing_msbs < K_max);
         coded_cb->num_passes = 1;
         
-        ojph_encode_codeblock(buf, K_max-1, 1,
+        this->codeblock_functions.encode_cb(buf, K_max-1, 1,
           cb_size.w, cb_size.h, stride, coded_cb->pass_length,
           elastic, coded_cb->next_coded);
       }

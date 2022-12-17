@@ -42,7 +42,6 @@
 
 #include "ojph_defs.h"
 #include "ojph_file.h"
-#include "ojph_params_local.h"
 #include "ojph_codeblock_fun.h"
 
 namespace ojph {

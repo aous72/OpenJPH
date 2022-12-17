@@ -43,6 +43,7 @@
 #include <cassert>
 
 #include "ojph_defs.h"
+#include "ojph_base.h"
 #include "ojph_arch.h"
 #include "ojph_message.h"
 

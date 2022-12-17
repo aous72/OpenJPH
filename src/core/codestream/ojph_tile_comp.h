@@ -41,8 +41,8 @@
 #define OJPH_TILE_COMP_H
 
 #include "ojph_defs.h"
+#include "ojph_base.h"
 #include "ojph_file.h"
-#include "ojph_params_local.h"
 
 namespace ojph {
 

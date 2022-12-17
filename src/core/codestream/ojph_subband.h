@@ -40,8 +40,6 @@
 #define OJPH_SUBBAND_H
 
 #include "ojph_defs.h"
-#include "ojph_file.h"
-#include "ojph_params_local.h"
 
 namespace ojph {
 

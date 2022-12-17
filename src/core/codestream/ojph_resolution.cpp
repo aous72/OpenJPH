@@ -39,10 +39,8 @@
 #include <climits>
 #include <cmath>
 
-#include "ojph_file.h"
 #include "ojph_mem.h"
 #include "ojph_params.h"
-#include "ojph_codestream.h"
 #include "ojph_codestream_local.h"
 #include "ojph_resolution.h"
 #include "ojph_tile_comp.h"
@@ -50,10 +48,7 @@
 #include "ojph_subband.h"
 #include "ojph_precinct.h"
 
-#include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"
-#include "../coding/ojph_block_decoder.h"
-#include "../coding/ojph_block_encoder.h"
 
 namespace ojph {
 

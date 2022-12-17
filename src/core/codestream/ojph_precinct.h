@@ -40,14 +40,11 @@
 #define OJPH_PRECINCT_H
 
 #include "ojph_defs.h"
-#include "ojph_file.h"
-#include "ojph_params_local.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  struct line_buf;
   class mem_elastic_allocator;
   struct coded_lists;
 

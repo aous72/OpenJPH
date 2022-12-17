@@ -40,8 +40,6 @@
 #define OJPH_RESOLUTION_H
 
 #include "ojph_defs.h"
-#include "ojph_file.h"
-#include "ojph_params_local.h"
 
 namespace ojph {
 
@@ -58,6 +56,7 @@ namespace ojph {
     class tile_comp;
     struct precinct;
     class subband;
+
     //////////////////////////////////////////////////////////////////////////
     class resolution
     {

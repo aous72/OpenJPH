@@ -40,7 +40,6 @@
 #define OJPH_CODESTREAM_LOCAL_H
 
 #include "ojph_defs.h"
-#include "ojph_file.h"
 #include "ojph_params_local.h"
 
 namespace ojph {
@@ -51,7 +50,6 @@ namespace ojph {
   class mem_fixed_allocator;
   class mem_elastic_allocator;
   class codestream;
-  struct coded_lists;
 
   namespace local {
 

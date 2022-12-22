@@ -30,9 +30,74 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_base.h
+// File: ojph_subband.h
+// Author: Aous Naman
+// Date: 28 August 2019
 //***************************************************************************/
 
-#define OPENJPH_VERSION_MAJOR 0
-#define OPENJPH_VERSION_MINOR 10
-#define OPENJPH_VERSION_PATCH beta0
+
+#ifndef OJPH_SUBBAND_H
+#define OJPH_SUBBAND_H
+
+#include "ojph_defs.h"
+
+namespace ojph {
+
+  ////////////////////////////////////////////////////////////////////////////
+  //defined elsewhere
+  struct line_buf;
+  class mem_elastic_allocator;
+  class codestream;
+
+  namespace local {
+
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    class resolution;
+    struct precinct;
+    class codeblock;
+    struct coded_cb_header;
+  
+  //////////////////////////////////////////////////////////////////////////
+    class subband
+    {
+      friend struct precinct;
+    public:
+      static void pre_alloc(codestream *codestream, const rect& band_rect,
+                            ui32 res_num);
+      void finalize_alloc(codestream *codestream, const rect& band_rect,
+                          resolution* res, ui32 res_num, ui32 subband_num);
+
+      void exchange_buf(line_buf* l);
+      line_buf* get_line() { return lines; }
+      void push_line();
+
+      void get_cb_indices(const size& num_precincts, precinct *precincts);
+      float get_delta() { return delta; }
+
+      line_buf* pull_line();
+
+    private:
+      ui32 res_num, band_num;
+      bool reversible;
+      bool empty;
+      rect band_rect;
+      line_buf *lines;
+      resolution* parent;
+      codeblock* blocks;
+      size num_blocks;
+      size log_PP;
+      ui32 xcb_prime, ycb_prime;
+      ui32 cur_cb_row;
+      int cur_line;
+      int cur_cb_height;
+      float delta, delta_inv;
+      ui32 K_max;
+      coded_cb_header *coded_cbs;
+      mem_elastic_allocator *elastic;
+    };
+
+  }
+}
+
+#endif // !OJPH_SUBBAND_H

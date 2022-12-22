@@ -30,9 +30,54 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_base.h
+// File: ojph_precinct.h
+// Author: Aous Naman
+// Date: 28 August 2019
 //***************************************************************************/
 
-#define OPENJPH_VERSION_MAJOR 0
-#define OPENJPH_VERSION_MINOR 10
-#define OPENJPH_VERSION_PATCH beta0
+
+#ifndef OJPH_PRECINCT_H
+#define OJPH_PRECINCT_H
+
+#include "ojph_defs.h"
+
+namespace ojph {
+
+  ////////////////////////////////////////////////////////////////////////////
+  //defined elsewhere
+  class mem_elastic_allocator;
+  struct coded_lists;
+
+  namespace local {
+
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    class subband;
+    
+    //////////////////////////////////////////////////////////////////////////
+    struct precinct
+    {
+      precinct() {
+        scratch = NULL; bands = NULL; coded = NULL;
+        num_bands = 0; may_use_sop = uses_eph = false;
+      }
+      ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
+                            mem_elastic_allocator *elastic);
+      void write(outfile_base *file);
+      void parse(int tag_tree_size, ui32* lev_idx,
+                 mem_elastic_allocator *elastic,
+                 ui32& data_left, infile_base *file, bool skipped);
+
+      ui8 *scratch;
+      point img_point;   //the precinct projected to full resolution
+      rect cb_idxs[4]; //indices of codeblocks
+      subband *bands;  //the subbands
+      coded_lists* coded;
+      ui32 num_bands;
+      bool may_use_sop, uses_eph;
+    };
+
+  }
+}
+
+#endif // !OJPH_PRECINCT_H

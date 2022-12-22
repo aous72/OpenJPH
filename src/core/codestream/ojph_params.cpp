@@ -1181,6 +1181,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_tlm::init(ui32 num_pairs, Ttlm_Ptlm_pair *store)
     {
+      if (4 + 6 * num_pairs > 65535)
+        OJPH_ERROR(0x000500B1, "Trying to allocate more than 65535 bytes for "
+                   "a TLM marker; this can be resolved by having more than "
+                   "one TLM marker, but the code does not support this. "
+                   "In any case, this limit means that we have 10922 "
+                   "tileparts or more, which is a huge number.");
       this->num_pairs = num_pairs;
       pairs = (Ttlm_Ptlm_pair*)store;
       Ltlm = (ui16)(4 + 6 * num_pairs);

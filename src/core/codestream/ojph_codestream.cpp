@@ -97,6 +97,24 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  void codestream::set_tilepart_divisions(bool at_resolutions, 
+                                          bool at_components)
+  {
+    ui32 value = 0;
+    if (at_resolutions)
+      value |= OJPH_TILEPART_RESOLUTIONS;
+    if (at_components)
+      value |= OJPH_TILEPART_COMPONENTS;
+    state->set_tilepart_divisions(value);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void codestream::request_tlm_marker(bool needed)
+  {
+    state->request_tlm_marker(needed);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   bool codestream::is_planar() const
   {
     return state->is_planar();

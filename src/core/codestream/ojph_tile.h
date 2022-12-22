@@ -61,10 +61,10 @@ namespace ojph {
     {
     public:
       static void pre_alloc(codestream *codestream, const rect& tile_rect,
-                            const rect& recon_tile_rect);
+                            const rect& recon_tile_rect, ui32 &num_tileparts);
       void finalize_alloc(codestream *codestream, const rect& tile_rect,
-                          const rect& recon_tile_rect, 
-                          ui32 tile_idx, ui32 offset);
+                          const rect& recon_tile_rect, ui32 tile_idx, 
+                          ui32 offset, ui32 &num_tileparts);
 
       bool push(line_buf *line, ui32 comp_num);
       void prepare_for_flush();
@@ -98,7 +98,11 @@ namespace ojph {
 
     private:
       int profile;
-      ui32 *num_comp_bytes; //this for use with TLM
+      ui32 tilepart_div;    // tilepart division value
+      bool need_tlm;        // true if tlm markers are needed
+
+      ui32 num_bytes; // number of bytes in this tile
+                      // used for tile length
     };
     
   }

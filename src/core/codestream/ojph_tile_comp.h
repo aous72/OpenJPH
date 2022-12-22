@@ -83,6 +83,9 @@ namespace ojph {
       void parse_one_precinct(ui32 res_num, ui32& data_left, 
                               infile_base *file);
 
+      ui32 get_num_bytes() const { return num_bytes; }
+      ui32 get_num_bytes(ui32 resolution_num) const;
+
     private:
       tile *parent_tile;
       resolution *res;
@@ -90,6 +93,8 @@ namespace ojph {
       ojph::point comp_downsamp;
       ui32 num_decomps;
       ui32 comp_num;
+      ui32 num_bytes; // number of bytes in this tile component
+                      // used for tilepart length
     };
 
   }

@@ -67,7 +67,9 @@ namespace ojph {
       num_comps = 0;
       employ_color_transform = false;
       planar = -1;
-      profile = OJPH_PROFILE_NUM::OJPH_PN_UNDEFINED;
+      profile = OJPH_PN_UNDEFINED;
+      tilepart_div = OJPH_TILEPART_NODIVSIONS;
+      need_tlm = false;
 
       cur_comp = 0;
       cur_line = 0;
@@ -112,6 +114,7 @@ namespace ojph {
       //allocate tiles
       allocator->pre_alloc_obj<tile>(num_tiles.area());
 
+      ui32 num_tileparts = 0;
       point index;
       rect tile_rect, recon_tile_rect;
       ui32 ds = 1 << skipped_res_for_recon;
@@ -147,7 +150,9 @@ namespace ojph {
             ojph_div_ceil(sz.get_image_extent().x, ds))
             - recon_tile_rect.org.x;
 
-          tile::pre_alloc(this, tile_rect, recon_tile_rect);
+          ui32 tps = 0; // number of tileparts for this tile
+          tile::pre_alloc(this, tile_rect, recon_tile_rect, tps);
+          num_tileparts += tps;
         }
       }
 
@@ -162,19 +167,8 @@ namespace ojph {
         allocator->pre_alloc_data<si32>(siz.get_recon_width(i), 0);
 
       //allocate tlm
-      if (outfile != NULL)
-      {
-        if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
-        {
-          ui32 num_pairs = (ui32)num_tiles.area() * num_comps;
-          allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
-        }
-        else
-        {
-          ui32 num_pairs = (ui32)num_tiles.area();
-          allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs);
-        }
-      }
+      if (outfile != NULL && need_tlm)
+        allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_tileparts);
 
       //precinct scratch buffer
       ui32 num_decomps = cod.get_num_decompositions();
@@ -216,6 +210,7 @@ namespace ojph {
       //get tiles
       tiles = this->allocator->post_alloc_obj<tile>(num_tiles.area());
 
+      ui32 num_tileparts = 0;
       point index;
       rect tile_rect, recon_tile_rect;
       ojph::param_siz sz = access_siz();
@@ -253,10 +248,12 @@ namespace ojph {
             ojph_div_ceil(sz.get_image_extent().x, ds))
             - recon_tile_rect.org.x;
 
+          ui32 tps = 0; // number of tileparts for this tile
           ui32 idx = index.y * num_tiles.w + index.x;
-          tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect, 
-                                    idx, offset);
+          tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect,
+            idx, offset, tps);
           offset += recon_tile_rect.siz.w;
+          num_tileparts += tps;
         }
       }
 
@@ -282,21 +279,9 @@ namespace ojph {
       cur_line = 0;
 
       //allocate tlm
-      if (outfile != NULL)
-      {
-        if (profile == OJPH_PN_IMF || profile == OJPH_PN_BROADCAST)
-        {
-          ui32 num_pairs = (ui32)num_tiles.area() * this->num_comps;
-          tlm.init(num_pairs,
-            allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
-        }
-        else
-        {
-          ui32 num_pairs = (ui32)num_tiles.area();
-          tlm.init(num_pairs,
-            allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_pairs));
-        }
-      }
+      if (outfile != NULL && need_tlm)
+        tlm.init(num_tileparts,
+          allocator->post_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_tileparts));
     }
 
 
@@ -449,8 +434,18 @@ namespace ojph {
             "Number of decompositions does not match the IMF profile"
             " dictated by wavelet reversibility and image dimensions and"
             " tiles.");
-     }
+      }
 
+      need_tlm = true;
+      tilepart_div |= OJPH_TILEPART_COMPONENTS;
+      if (tilepart_div != OJPH_TILEPART_COMPONENTS)
+      {
+        tilepart_div = OJPH_TILEPART_COMPONENTS;
+        OJPH_WARN(0x000300C1,
+          "In IMF profile, tile part divisions at the component level must be "
+          "employed, while at the resolution level is not allowed. "
+          "This has been corrected.");
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -540,6 +535,17 @@ namespace ojph {
       if (total_tiles != 1 && total_tiles != 4)
         OJPH_ERROR(0x000300BB,
           "The broadcast profile can only have 1 or 4 tiles");
+
+      need_tlm = true;
+      tilepart_div |= OJPH_TILEPART_COMPONENTS;
+      if (tilepart_div != OJPH_TILEPART_COMPONENTS)
+      {
+        tilepart_div = OJPH_TILEPART_COMPONENTS;
+        OJPH_WARN(0x000300B1, 
+          "In BROADCAST profile, tile part divisions at the component level "
+          "must be employed, while at the resolution level is not allowed. "
+          "This has been corrected.");
+      }    
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -554,6 +560,47 @@ namespace ojph {
         check_imf_validity();
       else if (profile == OJPH_PN_BROADCAST)
         check_broadcast_validity();
+
+      int po = ojph::param_cod(&cod).get_progression_order();
+      if ((po == OJPH_PO_LRCP || po == OJPH_PO_RLCP) && 
+           tilepart_div == OJPH_TILEPART_COMPONENTS)
+      {
+        tilepart_div |= OJPH_TILEPART_RESOLUTIONS;
+        OJPH_INFO(0x00030021, 
+          "For LRCP and RLCP progression orders, tilepart divisions at the "
+          "component level, means that we have a tilepart for every "
+          "resolution and component.\n");
+      }
+      if (po == OJPH_PO_RPCL && (tilepart_div & OJPH_TILEPART_COMPONENTS) != 0)
+      {
+        tilepart_div &= ~OJPH_TILEPART_COMPONENTS;
+        OJPH_WARN(0x00030021,
+          "For RPCL progression, having tilepart divisions at the component "
+          "level means a tilepart for every precinct, which does not "
+          "make sense, since we can have no more than 255 tile parts. This "
+          "has been corrected by removing tilepart divisions at the component "
+          "level.");
+      }
+      if (po == OJPH_PO_PCRL && tilepart_div != 0)
+      {
+        tilepart_div = 0;
+        OJPH_WARN(0x00030022,
+          "For PCRL progression, having tilepart divisions at the component "
+          "level or the resolution level means a tile part for every "
+          "precinct, which does not make sense, since we can have no more "
+          "than 255 tile parts.  This has been corrected by removing tilepart "
+          "divisions; use another progression if you want tileparts.");
+      }
+      if (po == OJPH_PO_CPRL && (tilepart_div & OJPH_TILEPART_RESOLUTIONS) != 0)
+      {
+        tilepart_div &= ~OJPH_TILEPART_RESOLUTIONS;
+        OJPH_WARN(0x00030023,
+          "For CPRL progression, having tilepart divisions at the resolution "
+          "level means a tile part for every precinct, which does not "
+          "make sense, since we can have no more than 255 tile parts. This "
+          "has been corrected by removing tilepart divisions at the "
+          "resolution level.");
+      }
 
       if (planar == -1) //not initialized
         planar = cod.is_employing_color_transform() ? 1 : 0;
@@ -981,12 +1028,24 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void codestream::set_tilepart_divisions(ui32 value)
+    {
+      tilepart_div = value;      
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::request_tlm_marker(bool needed)
+    {
+      need_tlm = needed;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void codestream::flush()
     {
       si32 repeat = (si32)num_tiles.area();
       for (si32 i = 0; i < repeat; ++i)
         tiles[i].prepare_for_flush();
-      if (profile == OJPH_PN_BROADCAST || profile == OJPH_PN_IMF)
+      if (need_tlm)
       { //write tlm
         for (si32 i = 0; i < repeat; ++i)
           tiles[i].fill_tlm(&tlm);

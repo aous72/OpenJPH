@@ -85,11 +85,16 @@ namespace ojph {
       void parse_all_precincts(ui32& data_left, infile_base *file);
       void parse_one_precinct(ui32& data_left, infile_base *file);
 
+      ui32 get_num_bytes() const { return num_bytes; }
+      ui32 get_num_bytes(ui32 resolution_num) const;
+
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
       ui32 num_lines;
       ui32 num_bands, res_num;
       ui32 comp_num;
+      ui32 num_bytes; // number of bytes in this resolution 
+                      // used for tilepart length
       point comp_downsamp;
       rect res_rect;
       line_buf *lines;

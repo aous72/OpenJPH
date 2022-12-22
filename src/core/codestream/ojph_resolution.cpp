@@ -56,8 +56,8 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf *line1, line_buf* line2,
-                               line_buf *line3, line_buf* line4)
+    static void rotate_buffers(line_buf* line1, line_buf* line2,
+                               line_buf* line3, line_buf* line4)
     {
       assert(line1->size == line2->size &&
              line1->pre_size == line2->pre_size &&
@@ -73,9 +73,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf *line1, line_buf* line2,
-                               line_buf *line3, line_buf* line4,
-                               line_buf *line5, line_buf* line6)
+    static void rotate_buffers(line_buf* line1, line_buf* line2,
+                               line_buf* line3, line_buf* line4,
+                               line_buf* line5, line_buf* line6)
     {
       assert(line1->size == line2->size &&
              line1->pre_size == line2->pre_size &&
@@ -97,7 +97,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::pre_alloc(codestream *codestream, const rect &res_rect, 
+    void resolution::pre_alloc(codestream* codestream, const rect& res_rect,
                                const rect& recon_res_rect, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -121,7 +121,7 @@ namespace ojph {
         next_res_rect.siz.w = trx1 - trx0;
         next_res_rect.siz.h = try1 - try0;
 
-        resolution::pre_alloc(codestream, next_res_rect, 
+        resolution::pre_alloc(codestream, next_res_rect,
           skipped_res_for_recon ? recon_res_rect : next_res_rect, res_num - 1);
       }
 
@@ -135,10 +135,10 @@ namespace ojph {
       {
         for (ui32 i = 1; i < 4; ++i)
         {
-          ui32 tbx0 = (trx0 - (i&1) + 1) >> 1;
-          ui32 tbx1 = (trx1 - (i&1) + 1) >> 1;
-          ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
-          ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
+          ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
+          ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
+          ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
+          ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
 
           rect band_rect;
           band_rect.org.x = tbx0;
@@ -156,9 +156,9 @@ namespace ojph {
       size num_precincts;
       if (trx0 != trx1 && try0 != try1)
       {
-        num_precincts.w = (trx1 + (1<<log_PP.w) - 1) >> log_PP.w;
+        num_precincts.w = (trx1 + (1 << log_PP.w) - 1) >> log_PP.w;
         num_precincts.w -= trx0 >> log_PP.w;
-        num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
+        num_precincts.h = (try1 + (1 << log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
         allocator->pre_alloc_obj<precinct>(num_precincts.area());
       }
@@ -177,13 +177,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::finalize_alloc(codestream *codestream, 
-                                    const rect& res_rect, 
+    void resolution::finalize_alloc(codestream* codestream,
+                                    const rect& res_rect,
                                     const rect& recon_res_rect,
                                     ui32 comp_num, ui32 res_num,
                                     point comp_downsamp,
-                                    tile_comp *parent_tile_comp,
-                                    resolution *parent_res)
+                                    tile_comp* parent_tile_comp,
+                                    resolution* parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
@@ -200,6 +200,7 @@ namespace ojph {
       this->res_rect = res_rect;
       this->comp_num = comp_num;
       this->res_num = res_num;
+      this->num_bytes = 0;
       //finalize next resolution
       if (res_num > 0)
       {
@@ -215,8 +216,8 @@ namespace ojph {
         next_res_rect.siz.w = trx1 - trx0;
         next_res_rect.siz.h = try1 - try0;
 
-        child_res->finalize_alloc(codestream, next_res_rect, 
-          skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num, 
+        child_res->finalize_alloc(codestream, next_res_rect,
+          skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num,
           res_num - 1, comp_downsamp, parent_tile_comp, this);
       }
       else
@@ -233,10 +234,10 @@ namespace ojph {
         this->num_bands = 3;
         for (ui32 i = 1; i < 4; ++i)
         {
-          ui32 tbx0 = (trx0 - (i&1) + 1) >> 1;
-          ui32 tbx1 = (trx1 - (i&1) + 1) >> 1;
-          ui32 tby0 = (try0 - (i>>1) + 1) >> 1;
-          ui32 tby1 = (try1 - (i>>1) + 1) >> 1;
+          ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
+          ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
+          ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
+          ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
 
           rect band_rect;
           band_rect.org.x = tbx0;
@@ -257,9 +258,9 @@ namespace ojph {
       precincts = NULL;
       if (trx0 != trx1 && try0 != try1)
       {
-        num_precincts.w = (trx1 + (1<<log_PP.w) - 1) >> log_PP.w;
+        num_precincts.w = (trx1 + (1 << log_PP.w) - 1) >> log_PP.w;
         num_precincts.w -= trx0 >> log_PP.w;
-        num_precincts.h = (try1 + (1<<log_PP.h) - 1) >> log_PP.h;
+        num_precincts.h = (try1 + (1 << log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
         precincts = allocator->post_alloc_obj<precinct>(num_precincts.area());
         ui64 num = num_precincts.area();
@@ -272,9 +273,9 @@ namespace ojph {
       ui32 y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
 
       point proj_factor;
-      proj_factor.x = comp_downsamp.x * (1<<(num_decomps - res_num));
-      proj_factor.y = comp_downsamp.y * (1<<(num_decomps - res_num));
-      precinct *pp = precincts;
+      proj_factor.x = comp_downsamp.x * (1 << (num_decomps - res_num));
+      proj_factor.y = comp_downsamp.y * (1 << (num_decomps - res_num));
+      precinct* pp = precincts;
 
       point tile_top_left = parent_tile_comp->get_tile()->get_tile_rect().org;
       for (ui32 y = 0; y < num_precincts.h; ++y)
@@ -300,10 +301,10 @@ namespace ojph {
       else
         for (int i = 1; i < 4; ++i)
           bands[i].get_cb_indices(num_precincts, precincts);
-      
+
       size log_cb = cdp->get_log_block_dims();
-      log_PP.w -= (res_num?1:0);
-      log_PP.h -= (res_num?1:0);
+      log_PP.w -= (res_num ? 1 : 0);
+      log_PP.h -= (res_num ? 1 : 0);
       size ratio;
       ratio.w = log_PP.w - ojph_min(log_cb.w, log_PP.w);
       ratio.h = log_PP.h - ojph_min(log_cb.h, log_PP.h);
@@ -395,7 +396,7 @@ namespace ojph {
               rev_vert_wvlt_fwd_predict(lines + 1, lines + 1,
                                         lines, width);
               rev_vert_wvlt_fwd_update(lines,
-                                       cur_line > 1 ? lines + 2:lines,
+                                       cur_line > 1 ? lines + 2 : lines,
                                        lines + 1, width);
 
               // push to horizontal transform lines[1](L) and line[0] (H)
@@ -423,7 +424,7 @@ namespace ojph {
             }
             else
             {
-              si32 *sp = lines[0].i32;
+              si32* sp = lines[0].i32;
               for (ui32 i = width; i > 0; --i)
                 *sp++ <<= 1;
               //push to H
@@ -435,7 +436,7 @@ namespace ojph {
           }
         }
 
-        rotate_buffers(lines, lines+1, lines+2, lines+3);
+        rotate_buffers(lines, lines + 1, lines + 2, lines + 3);
 
         ++cur_line;
         vert_even = !vert_even;
@@ -592,7 +593,8 @@ namespace ojph {
           }
         }
 
-        rotate_buffers(lines, lines+1, lines+2, lines+3, lines+4, lines+5);
+        rotate_buffers(lines, lines + 1, lines + 2, lines + 3, lines + 4, 
+                       lines + 5);
 
         ++cur_line;
         vert_even = !vert_even;
@@ -648,10 +650,9 @@ namespace ojph {
             }
 
             vert_even = !vert_even;
-            rotate_buffers(lines, lines+1, lines+2, lines+3);
+            rotate_buffers(lines, lines + 1, lines + 2, lines + 3);
             ++cur_line;
-          }
-          while (cur_line < 3);
+          } while (cur_line < 3);
           memcpy(lines[0].i32, lines[3].i32, res_rect.siz.w * sizeof(si32));
           return lines;
         }
@@ -668,7 +669,7 @@ namespace ojph {
               bands[3].pull_line(), width, horz_even);
             if (width)
             {
-              si32 *sp = lines[0].i32;
+              si32* sp = lines[0].i32;
               for (ui32 i = width; i > 0; --i)
                 *sp++ >>= 1;
             }
@@ -709,7 +710,7 @@ namespace ojph {
             {
               irrev_vert_wvlt_step(
                 cur_line > 1 ? lines + 2 : lines,
-                cur_line < res_rect.siz.h     ? lines : lines + 2,
+                cur_line < res_rect.siz.h ? lines : lines + 2,
                 lines + 1, 7, width);
               irrev_vert_wvlt_step(
                 cur_line > 2 ? lines + 3 : lines + 1,
@@ -726,10 +727,10 @@ namespace ojph {
             }
 
             vert_even = !vert_even;
-            rotate_buffers(lines,lines+1,lines+2,lines+3,lines+4,lines+5);
+            rotate_buffers(lines, lines + 1, lines + 2, lines + 3, lines + 4, 
+                           lines + 5);
             ++cur_line;
-          }
-          while (cur_line < 5);
+          } while (cur_line < 5);
           memcpy(lines[0].f32, lines[5].f32, res_rect.siz.w * sizeof(float));
           return lines;
         }
@@ -746,7 +747,7 @@ namespace ojph {
               bands[3].pull_line(), width, horz_even);
             if (width)
             {
-              float *sp = lines[0].f32;
+              float* sp = lines[0].f32;
               for (ui32 i = width; i > 0; --i)
                 *sp++ *= 0.5f;
             }
@@ -761,28 +762,28 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 resolution::prepare_precinct()
     {
-      ui32 used_bytes = 0;
+      ui32 lower_resolutions_bytes = 0;
       if (res_num != 0)
-         used_bytes = child_res->prepare_precinct();
+        lower_resolutions_bytes = child_res->prepare_precinct();
 
+      this->num_bytes = 0;
       si32 repeat = (si32)num_precincts.area();
       for (si32 i = 0; i < repeat; ++i)
-        used_bytes += precincts[i].prepare_precinct(tag_tree_size,
-                                                    level_index, elastic);
-
-      return used_bytes;
+        this->num_bytes += precincts[i].prepare_precinct(tag_tree_size,
+          level_index, elastic);
+      return this->num_bytes + lower_resolutions_bytes;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::write_precincts(outfile_base *file)
+    void resolution::write_precincts(outfile_base* file)
     {
-      precinct *p = precincts;
+      precinct* p = precincts;
       for (si32 i = 0; i < (si32)num_precincts.area(); ++i)
         p[i].write(file);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool resolution::get_top_left_precinct(point &top_left)
+    bool resolution::get_top_left_precinct(point& top_left)
     {
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       if (idx < num_precincts.area())
@@ -794,7 +795,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::write_one_precinct(outfile_base *file)
+    void resolution::write_one_precinct(outfile_base* file)
     {
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < num_precincts.area());
@@ -808,9 +809,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_all_precincts(ui32& data_left, infile_base *file)
+    void resolution::parse_all_precincts(ui32& data_left, infile_base* file)
     {
-      precinct *p = precincts;
+      precinct* p = precincts;
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       for (ui32 i = idx; i < num_precincts.area(); ++i)
       {
@@ -827,14 +828,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_one_precinct(ui32& data_left, infile_base *file)
+    void resolution::parse_one_precinct(ui32& data_left, infile_base* file)
     {
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < num_precincts.area());
 
       if (data_left == 0)
         return;
-      precinct *p = precincts + idx;
+      precinct* p = precincts + idx;
       p->parse(tag_tree_size, level_index, elastic, data_left, file,
         skipped_res_for_read);
       if (++cur_precinct_loc.x >= num_precincts.w)
@@ -844,5 +845,18 @@ namespace ojph {
       }
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    ui32 resolution::get_num_bytes(ui32 resolution_num) const
+    {
+      if (this->res_num == resolution_num)
+        return get_num_bytes();
+      else {
+        if (child_res)
+          return child_res->get_num_bytes(resolution_num);
+        else
+          return 0;
+      }
+
+    }
   }
 }

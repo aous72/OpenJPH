@@ -79,6 +79,7 @@ namespace ojph {
       this->parent_tile = parent;
 
       this->comp_num = comp_num;
+      this->num_bytes = 0;
       res = allocator->post_alloc_obj<resolution>(1);
       res->finalize_alloc(codestream, comp_rect, recon_comp_rect, comp_num,
                           num_decomps, comp_downsamp, this, NULL);
@@ -105,7 +106,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 tile_comp::prepare_precincts()
     {
-      return res->prepare_precinct();
+      this->num_bytes = res->prepare_precinct();
+      return this->num_bytes;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -188,5 +190,10 @@ namespace ojph {
         r->parse_one_precinct(data_left, file);
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    ui32 tile_comp::get_num_bytes(ui32 resolution_num) const
+    {
+      return res->get_num_bytes(resolution_num);
+    }
   }
 }

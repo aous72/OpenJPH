@@ -106,12 +106,16 @@ namespace ojph {
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);
+      void set_tilepart_divisions(ui32 value);
+      void request_tlm_marker(bool needed);
       line_buf* pull(ui32 &comp_num);
       void flush();
       void close();
 
       bool is_planar() const { return planar != 0; }
       si32 get_profile() const { return profile; };
+      ui32 get_tilepart_div() const { return tilepart_div; };
+      bool is_tlm_needed() const { return need_tlm; };
 
       void check_imf_validity();
       void check_broadcast_validity();
@@ -143,7 +147,9 @@ namespace ojph {
       bool employ_color_transform;
       int planar;
       int profile;
-
+      ui32 tilepart_div;    // tilepart division value
+      bool need_tlm;       // true if tlm markers are needed
+      
     private:
       param_siz siz;
       param_cod cod;

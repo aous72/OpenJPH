@@ -207,7 +207,7 @@ namespace ojph {
       }
       static ui32 eval_store_bytes(ui32 available_bytes) 
       { // calculates how many bytes need to be allocated
-        return available_bytes + sizeof(stores_list);
+        return available_bytes + (ui32)sizeof(stores_list);
       }
       stores_list *next_store;
       ui32 available;

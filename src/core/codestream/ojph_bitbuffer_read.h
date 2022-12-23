@@ -135,13 +135,14 @@ namespace ojph {
                        mem_elastic_allocator *elastic)
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
-      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
-      elastic->get_buffer(bytes + coded_cb_header::prefix_buf_size
+      elastic->get_buffer(num_bytes + coded_cb_header::prefix_buf_size
         + coded_cb_header::suffix_buf_size, cur_coded_list);
+      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
       ui32 bytes_read = (ui32)bbp->file->read(
         cur_coded_list->buf + coded_cb_header::prefix_buf_size, bytes);
       if (num_bytes > bytes_read)
-        memset(cur_coded_list->buf + coded_cb_header::prefix_buf_size + bytes, 
+        memset(
+          cur_coded_list->buf + coded_cb_header::prefix_buf_size + bytes_read,
           0, num_bytes - bytes_read);
       bbp->bytes_left -= bytes_read;
       return bytes_read == bytes;

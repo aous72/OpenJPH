@@ -727,7 +727,9 @@ namespace ojph {
       if (file->read(&SGCod.prog_order, 1) != 1)
         OJPH_ERROR(0x00050073, "error reading COD marker");
       if (file->read(&SGCod.num_layers, 2) != 2)
-        OJPH_ERROR(0x00050074, "error reading COD marker");
+      { OJPH_ERROR(0x00050074, "error reading COD marker"); }
+      else
+        SGCod.num_layers = swap_byte(SGCod.num_layers);
       if (file->read(&SGCod.mc_trans, 1) != 1)
         OJPH_ERROR(0x00050075, "error reading COD marker");
       if (file->read(&SPcod.num_decomp, 1) != 1)

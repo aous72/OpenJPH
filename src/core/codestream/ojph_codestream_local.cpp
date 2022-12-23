@@ -735,7 +735,15 @@ namespace ojph {
           //Skipping CPF marker segment; this should not cause any issues
           skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
-        { cod.read(file); received_markers |= 1; }
+        { 
+          cod.read(file); received_markers |= 1; 
+          ojph::param_cod c(&cod);
+          int num_qlayers = c.get_num_layers();
+          if (num_qlayers != 1)
+            OJPH_ERROR(0x00030053, "The current implementation supports "
+              "1 quality layer only.  This codestream has %d quality layers",
+              num_qlayers);
+        }
         else if (marker_idx == 4)
           skip_marker(file, "COC", "COC is not supported yet",
             OJPH_MSG_LEVEL::WARN, false);

@@ -27,7 +27,7 @@ if ! ojph_expand $4; then
   echo "===========>" ojph_expand error
   exit 1
 fi
-exit 0
+
 # test PSNR and maximum error
 out1=$(../psnr_pae $5 $6)
 if [ $? -ne 0 ]; then

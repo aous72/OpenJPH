@@ -116,10 +116,9 @@ namespace ojph {
 
     p = new (cur_store->data) coded_lists(needed_bytes);
 
+    assert(cur_store->available >= extended_bytes);
     cur_store->available -= extended_bytes;
     cur_store->data += extended_bytes;
-
-    assert(cur_store->available >= 0);
   }
 
 }

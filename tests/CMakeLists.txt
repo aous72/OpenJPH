@@ -1,189 +1,35 @@
-########################
-## Build test exeuctable
-########################
-project (psnr_pae DESCRIPTION "A program to find PSNR and peak absolute error between two images" LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(PSNR_PAE psnr_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_arch.cpp")
-set(OJPH_IMG_IO_SSE41 "../src/apps/others/ojph_img_io_sse41.cpp")
-set(OJPH_IMG_IO_AVX2 "../src/apps/others/ojph_img_io_avx2.cpp")
 
-if(NOT OJPH_DISABLE_INTEL_SIMD)
-  list(APPEND PSNR_PAE ${OJPH_IMG_IO_SSE41})
-  list(APPEND PSNR_PAE ${OJPH_IMG_IO_AVX2})
-endif()
+# create the mse_pae executable
+include(mse_pae.cmake)
 
-add_executable(psnr_pae ${PSNR_PAE})
+# Fetch googletest
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
-if (MSVC)
-  set_source_files_properties(../src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-else()
-  set_source_files_properties(../src/apps/others/ojph_img_io_sse41.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
-  set_source_files_properties(../src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-endif()
+# Fetch test files
+FetchContent_Declare(
+  jp2k_test_codestreams
+  URL https://github.com/aous72/jp2k_test_codestreams/archive/refs/heads/main.zip
+)
+FetchContent_MakeAvailable(jp2k_test_codestreams)
 
+# configure test executables
+add_executable(
+  test_executables
+  test_executables.cpp
+)
 
-IF( USE_TIFF )
-  target_link_libraries (psnr_pae ${TIFF_LIBRARIES})
-ELSE()
-  target_link_libraries (psnr_pae)
-ENDIF()
+target_link_libraries(
+  test_executables
+  GTest::gtest_main
+)
 
-########################
-## Test environment
-########################
-set(ENV{CTEST_OUTPUT_ON_FAILURE} TRUE)
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
-if (WIN64)
-    set(kakadu_name KDU805_Demo_Apps_for_Win64_200602.msi_)
-    file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/${kakadu_name}.zip ./t.zip)
-    execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand.exe ${kakadu_name}/kdu_compress.exe ${kakadu_name}/kdu_v80R.dll)
-endif()
-if (UNIX AND NOT APPLE)
-    set(kakadu_name KDU805_Demo_Apps_for_Linux-x86-64_200602)
-    file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/${kakadu_name}.zip ./t.zip)
-    execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand ${kakadu_name}/kdu_compress ${kakadu_name}/libkdu_v80R.so)
-endif()
-if (APPLE)
-message(STATUS "Kakadu tools cannot be extracted automatically on MacOS, because I cannot extract Kakadu from a .dmg file")
-message(STATUS "Please make sure that you have kdu_compress, kdu_expand and the respective library in the build folder before running the test.")
-#    set(kakadu_name KDU805_Demo_Apps_for_MacOS_200602.dmg_)
-#    file(DOWNLOAD https://kakadusoftware.com/wp-content/uploads/${kakadu_name}.zip ./t.zip)
-#    execute_process(COMMAND unzip -jo ./t.zip)
-#    execute_process(COMMAND unzip -jo ./t.zip ${kakadu_name}/kdu_expand ${kakadu_name}/kdu_compress ${kakadu_name}/libkdu_v80R.so)
-endif()
-
-
-set(images_folder ..)
-if (NOT EXISTS "./im1.ppm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Malamute.ppm ./im1.ppm)
-endif()
-if (NOT EXISTS "./im2.ppm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/Rainier.ppm ./im2.ppm)
-endif()
-if (NOT EXISTS "./im3.ppm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/monarch.ppm ./im3.ppm)
-endif()
-if (NOT EXISTS "./im3.pgm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/monarch.pgm ./im3.pgm)
-endif()
-if (NOT EXISTS "./mm.ppm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/mm.ppm ./mm.ppm)
-endif()
-if (NOT EXISTS "./mm.pgm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/mm.pgm ./mm.pgm)
-endif()
-if (NOT EXISTS "./tall_narrow.ppm")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/tall_narrow.ppm ./tall_narrow.ppm)
-endif()
-if (NOT EXISTS "./lena_444.yuv")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/lena_444.yuv ./lena_444.yuv)
-    execute_process(COMMAND dd if=lena_444.yuv of=lena_444y.rawl bs=1 count=262144)
-    execute_process(COMMAND dd if=lena_444.yuv of=lena_444u.rawl bs=1 count=262144 skip=262144)
-    execute_process(COMMAND dd if=lena_444.yuv of=lena_444v.rawl bs=1 count=262144 skip=524288)
-endif()
-if (NOT EXISTS "./foreman_422.yuv")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/foreman_422.yuv ./foreman_422.yuv)
-    execute_process(COMMAND dd if=foreman_422.yuv of=foreman_422y.rawl bs=1 count=101376)
-    execute_process(COMMAND dd if=foreman_422.yuv of=foreman_422u.rawl bs=1 count=50688 skip=101376)
-    execute_process(COMMAND dd if=foreman_422.yuv of=foreman_422v.rawl bs=1 count=50688 skip=152064)
-endif()
-if (NOT EXISTS "./foreman_420.yuv")
-    file(DOWNLOAD https://github.com/aous72/aous72.github.io/raw/master/test_images/foreman_420.yuv ./foreman_420.yuv)
-    execute_process(COMMAND dd if=foreman_420.yuv of=foreman_420y.rawl bs=1 count=101376)
-    execute_process(COMMAND dd if=foreman_420.yuv of=foreman_420u.rawl bs=1 count=25344 skip=101376)
-    execute_process(COMMAND dd if=foreman_420.yuv of=foreman_420v.rawl bs=1 count=25344 skip=126720)
-endif()
-
-add_test(NAME no_argument_ojph_compress COMMAND ojph_compress)
-set_tests_properties(no_argument_ojph_compress PROPERTIES WILL_FAIL TRUE)
-
-#############################################################
-# Decoding
-#############################################################
-
-add_test(NAME simple_dec_irv97_64x64 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_32x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{32,32\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_16x16 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{16,16\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_4x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{4,4\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_1024x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{1024,4\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_4x1024 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{4,1024\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_512x8 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{512,8\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_8x512 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{8,512\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_256x16 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{256,16\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_16x256 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{16,256\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_128x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{128,32\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_32x128 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 1 Cblk=\{32,128\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_dec_rev53_64x64 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet Creversible=yes"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_rev53_32x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet Creversible=yes Cblk=\{32,32\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_rev53_4x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet Creversible=yes Cblk=\{4,4\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_rev53_1024x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet Creversible=yes Cblk=\{1024,4\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_rev53_4x1024 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet Creversible=yes Cblk=\{4,1024\}" "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_dec_irv97_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -dec "-i ${images_folder}/foreman_420y.rawl,${images_folder}/foreman_420u.rawl,${images_folder}/foreman_420v.rawl -o test.jph -precise -quiet -rate 0.5 Sdims=\{288,352\},\{144,176\},\{144,176\} Ssampling=\{1,1\},\{2,2\},\{2,2\} Nprecision=\{8\} Nsigned=\{no\}"  "-i test.jph -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.jph -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-add_test(NAME simple_dec_rev53_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -rdec "-i ${images_folder}/foreman_420y.rawl,${images_folder}/foreman_420u.rawl,${images_folder}/foreman_420v.rawl -o test.jph -precise -quiet Creversible=yes Sdims=\{288,352\},\{144,176\},\{144,176\} Ssampling=\{1,1\},\{2,2\},\{2,2\} Nprecision=\{8\} Nsigned=\{no\}"  "-i test.jph -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.jph -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-add_test(NAME simple_dec_irv97_64x64_tiles_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -dec "-i ${images_folder}/foreman_420y.rawl,${images_folder}/foreman_420u.rawl,${images_folder}/foreman_420v.rawl -o test.jph -precise -quiet -rate 0.5 Sdims=\{288,352\},\{144,176\},\{144,176\} Ssampling=\{1,1\},\{2,2\},\{2,2\} Nprecision=\{8\} Nsigned=\{no\} Stiles=\{33,257\}"  "-i test.jph -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.jph -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-add_test(NAME simple_dec_rev53_64x64_tiles_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -rdec "-i ${images_folder}/foreman_420y.rawl,${images_folder}/foreman_420u.rawl,${images_folder}/foreman_420v.rawl -o test.jph -precise -quiet Creversible=yes Sdims=\{288,352\},\{144,176\},\{144,176\} Ssampling=\{1,1\},\{2,2\},\{2,2\} Nprecision=\{8\} Nsigned=\{no\} Stiles=\{33,257\}"  "-i test.jph -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.jph -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-
-add_test(NAME simple_dec_irv97_64x64_tiles_LRCP COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=LRCP Cprecincts=\{2,256\} Sorigin=\{374,1717\} Stile_origin=\{374,1717\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RLCP COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RLCP Cprecincts=\{2,256\} Sorigin=\{374,1717\} Stile_origin=\{374,1717\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RPCL COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RPCL Cprecincts=\{2,256\} Sorigin=\{374,1717\} Stile_origin=\{374,1717\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_PCRL COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=PCRL Cprecincts=\{2,256\} Sorigin=\{374,1717\} Stile_origin=\{374,1717\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_CPRL COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=CPRL Cprecincts=\{2,256\} Sorigin=\{374,1717\} Stile_origin=\{374,1717\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_dec_irv97_64x64_tiles_LRCP33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=LRCP Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,257\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RLCP33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RLCP Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,257\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RPCL33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RPCL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,257\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_PCRL33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=PCRL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,257\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_CPRL33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=CPRL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,257\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_dec_irv97_64x64_tiles_LRCP33x33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=LRCP Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,33\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RLCP33x33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RLCP Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,33\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_RPCL33x33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=RPCL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,33\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_PCRL33x33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=PCRL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,33\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_tiles_CPRL33x33 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im1.ppm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Corder=CPRL Sorigin=\{5,33\} Stile_origin=\{5,10\} Stiles=\{33,33\}"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_dec_rev53_64x64_gray_tiles COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/im3.pgm -o test.jph -precise -quiet Creversible=yes Clevels=5 Stiles=\{33,257\}"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/im3.pgm" "test1.pgm" "test2.pgm")
-add_test(NAME simple_dec_irv97_64x64_gray_tiles COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/im3.pgm -o test.jph -precise -quiet -rate 0.5 Clevels=5 Stiles=\{33,257\}"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/im3.pgm" "test1.pgm" "test2.pgm")
-
-add_test(NAME simple_dec_irv97_64x64_16bit COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/mm.ppm -o test.jph -precise -quiet -rate 0.5"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/mm.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_irv97_64x64_16bit_gray COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -dec "-i ${images_folder}/mm.pgm -o test.jph -precise -quiet -rate 0.5"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/mm.pgm" "test1.pgm" "test2.pgm")
-add_test(NAME simple_dec_rev53_64x64_16bit COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/mm.ppm -o test.jph -precise -quiet Creversible=yes"  "-i test.jph -o test1.ppm -precise -quiet" "-i test.jph -o test2.ppm" "${images_folder}/mm.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_dec_rev53_64x64_16bit_gray COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -rdec "-i ${images_folder}/mm.pgm -o test.jph -precise -quiet Creversible=yes"  "-i test.jph -o test1.pgm -precise -quiet" "-i test.jph -o test2.pgm" "${images_folder}/mm.pgm" "test1.pgm" "test2.pgm")
-
-
-#############################################################
-# Encoding
-#############################################################
-
-add_test(NAME simple_enc_irv97_64x64  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.1"                         "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_32x32  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{32,32\}"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_16x16  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{16,16\}"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_4x4    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{4,4\}"    "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_1024x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{4,1024\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_4x1024 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{1024,4\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_512x8  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{8,512\}"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_8x512  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{512,8\}"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_256x16 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{16,256\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_16x256 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{256,16\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_128x32 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{32,128\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_32x128 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc             "-i ${images_folder}/im1.ppm -o test.j2c -qstep 0.01 -block_size \{128,32\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_64x64_16bit COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc        "-i ${images_folder}/mm.ppm -o test.j2c -qstep 0.01"                         "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/mm.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_64x64_16bit_gray COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc   "-i ${images_folder}/mm.pgm -o test.j2c -qstep 0.01"                         "-i test.j2c -o test1.pgm -precise -quiet" "-i test.j2c -o test2.pgm" "${images_folder}/mm.pgm" "test1.pgm" "test2.pgm")
-add_test(NAME simple_enc_rev53_64x64_16bit  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc      "-i ${images_folder}/mm.ppm -o test.j2c -reversible true"                    "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/mm.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_64x64_16bit_gray  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/mm.pgm -o test.j2c -reversible true"                    "-i test.j2c -o test1.pgm -precise -quiet" "-i test.j2c -o test2.pgm" "${images_folder}/mm.pgm" "test1.pgm" "test2.pgm")
-
-add_test(NAME simple_enc_rev53_64x64  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/im1.ppm -o test.j2c -reversible true"                        "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_32x32  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/im1.ppm -o test.j2c -reversible true -block_size \{32,32\}"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_4x4    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/im1.ppm -o test.j2c -reversible true -block_size \{4,4\}"    "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_1024x4 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/im1.ppm -o test.j2c -reversible true -block_size \{4,1024\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_4x1024 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/im1.ppm -o test.j2c -reversible true -block_size \{1024,4\}" "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/im1.ppm" "test1.ppm" "test2.ppm")
-
-add_test(NAME simple_enc_irv97_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -enc  "-i ${images_folder}/foreman_420.yuv -o test.j2c -qstep 0.1 -dims \{352,288\} -num_comps 3 -downsamp \{1,1\},\{2,2\},\{2,2\} -bit_depth 8,8,8 -signed false,false,false"                   "-i test.j2c -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.j2c -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-add_test(NAME simple_enc_rev53_64x64_yuv COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom_yuv.sh -renc "-i ${images_folder}/foreman_420.yuv -o test.j2c -reversible true -qstep 0.1 -dims \{352,288\} -num_comps 3 -downsamp \{1,1\},\{2,2\},\{2,2\} -bit_depth 8,8,8 -signed false,false,false"  "-i test.j2c -o test1y.rawl,test1u.rawl,test1v.rawl -precise -quiet" "-i test.j2c -o test2.yuv" "${images_folder}/foreman_420.yuv:352x288x8x420" "test1.yuv:352x288x8x420" "test2.yuv:352x288x8x420")
-
-add_test(NAME simple_enc_irv97_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc  "-i ${images_folder}/tall_narrow.ppm -o test.j2c -qstep 0.1"                              "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_irv97_tall_narrow1 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -enc  "-i ${images_folder}/tall_narrow.ppm -o test.j2c -image_offset {1,0} -qstep 0.1"         "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_tall_narrow COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/tall_narrow.ppm -o test.j2c -reversible true"                        "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
-add_test(NAME simple_enc_rev53_tall_narrow1 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/com_decom.sh -renc "-i ${images_folder}/tall_narrow.ppm -o test.j2c -image_offset {1,0} -reversible true"  "-i test.j2c -o test1.ppm -precise -quiet" "-i test.j2c -o test2.ppm" "${images_folder}/tall_narrow.ppm" "test1.ppm" "test2.ppm")
+include(GoogleTest)
+gtest_add_tests(TARGET test_executables)

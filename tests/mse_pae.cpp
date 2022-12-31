@@ -31,7 +31,7 @@
 //***************************************************************************/
 // This file is part of the testing routines for the OpenJPH software 
 // implementation.
-// File: psnr_pae.cpp
+// File: mse_pae.cpp
 // Author: Aous Naman
 // Date: 18 March 2021
 //***************************************************************************/
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
 {
   if (argc < 3)
   {
-    printf("psnr_pae expects two arguments <filename1, filename2>\n");
+    printf("mse_pae expects two arguments <filename1, filename2>\n");
     exit(-1);
   }
     
@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
   else if (is_yuv(argv[1]))
     load_yuv(argv[1], img1);
   else {
-    printf("psnr_pae does not know file format of %s\n", argv[1]);
+    printf("mse_pae does not know file format of %s\n", argv[1]);
     printf("or a .yuv that does not have the expected format, which is\n");
     printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
     printf("either 444, 422, or 420\n");
@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
   else if (is_yuv(argv[2]))
     load_yuv(argv[2], img2);
   else {
-    printf("psnr_pae does not know file format of %s\n", argv[2]);
+    printf("mse_pae does not know file format of %s\n", argv[2]);
     printf("or a .yuv that does not have the expected format, which is\n");
     printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
     printf("either 444, 422, or 420\n");

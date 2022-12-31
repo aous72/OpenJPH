@@ -162,7 +162,7 @@ void test_ojph_expand(std::string base_filename, std::string src_ext,
 TEST(TestExecutables, OpenJPHCompressNoArguments) {
   try {
     std::string result;
-    EXPECT_EQ(execute("ojph_compress", result), 1);
+    EXPECT_EQ(execute(COMPRESS_EXECUTABLE, result), 1);
   }
   catch(const std::runtime_error& error) {
     FAIL() << error.what();
@@ -174,7 +174,7 @@ TEST(TestExecutables, OpenJPHCompressNoArguments) {
 TEST(TestExecutables, OpenJPHExpandNoArguments) {
   try {
     std::string result;
-    EXPECT_EQ(execute("ojph_expand", result), 1);
+    EXPECT_EQ(execute(EXPAND_EXECUTABLE, result), 1);
   }
   catch(const std::runtime_error& error) {
     FAIL() << error.what();

@@ -28,7 +28,10 @@ jobs:
        run: cmake -DOJPH_BUILD_TESTS=yes ..
        working-directory: build
      - name: build
-       run: make && ctest --output-on-failure
+       run: make
+       working-directory: build
+     - name: test
+       run: ctest --output-on-failure
        working-directory: build
 
 #jobs:

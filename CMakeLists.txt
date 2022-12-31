@@ -30,6 +30,14 @@ option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 
+# This is related to how the timestamp is set for URL downloaded files.
+# Set DOWNLOAD_EXTRACT_TIMESTAMP
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24.0")
+  if(POLICY CMP0065)
+    cmake_policy(SET CMP0135 NEW)
+  endif()
+endif()
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()

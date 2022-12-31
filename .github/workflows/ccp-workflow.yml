@@ -31,7 +31,7 @@ jobs:
        run: make
        working-directory: build
      - name: test
-       run: ctest
+       run: ctest --output-on-failure
        working-directory: build
 
 #jobs:

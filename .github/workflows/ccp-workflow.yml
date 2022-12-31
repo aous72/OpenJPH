@@ -28,7 +28,10 @@ jobs:
        run: cmake -DOJPH_BUILD_TESTS=yes ..
        working-directory: build
      - name: build
-       run: make && make test
+       run: make
+       working-directory: build
+     - name: test
+       run: ctest
        working-directory: build
 
 #jobs:

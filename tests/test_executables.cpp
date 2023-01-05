@@ -97,8 +97,8 @@ int execute(const std::string& cmd, std::string& result)
 #define OUT_FILE_DIR "./"
 #define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
 #define MSE_PAE_PATH  "./mse_pae"
-#define EXPAND_EXECUTABLE "ojph_expand"
-#define COMPRESS_EXECUTABLE "ojph_compress"
+#define EXPAND_EXECUTABLE "../../bin/ojph_expand"
+#define COMPRESS_EXECUTABLE "../../bin/ojph_compress"
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1
 

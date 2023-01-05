@@ -9,7 +9,7 @@ jobs:
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
-         os: [macos-10.16, macos-latest, ubuntu-20.04, ubuntu-latest]
+         os: [macos-latest, ubuntu-20.04, ubuntu-latest]
      steps:
      - uses: actions/checkout@v3
      - name: cmake

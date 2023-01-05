@@ -9,9 +9,9 @@ jobs:
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
-         os: [macos-10.15, macos-latest, ubuntu-18.04, ubuntu-latest]
+         os: [macos-10.16, macos-latest, ubuntu-20.04, ubuntu-latest]
      steps:
-     - uses: actions/checkout@v2
+     - uses: actions/checkout@v3
      - name: cmake
        run: cmake ..
        working-directory: build
@@ -23,7 +23,7 @@ jobs:
      name: test on linux
      runs-on: ubuntu-latest
      steps:
-     - uses: actions/checkout@v2
+     - uses: actions/checkout@v3
      - name: cmake
        run: cmake -DOJPH_BUILD_TESTS=yes ..
        working-directory: build

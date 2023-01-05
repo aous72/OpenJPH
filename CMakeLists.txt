@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.11.0)
 
 project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 

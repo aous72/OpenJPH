@@ -93,10 +93,10 @@ int execute(const std::string& cmd, std::string& result)
 //                                 MACROS
 ////////////////////////////////////////////////////////////////////////////////
 
-#define SRC_FILE_DIR "../_deps/jp2k_test_codestreams-src/openjph/"
+#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
 #define OUT_FILE_DIR "./"
-#define REF_FILE_DIR "../_deps/jp2k_test_codestreams-src/openjph/references/"
-#define MSE_PAE_PATH  "../../bin/mse_pae"
+#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
+#define MSE_PAE_PATH  "./mse_pae"
 #define EXPAND_EXECUTABLE "ojph_expand"
 #define COMPRESS_EXECUTABLE "ojph_compress"
 #define TOL_DOUBLE 0.01

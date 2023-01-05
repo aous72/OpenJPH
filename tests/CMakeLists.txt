@@ -1,7 +1,4 @@
 
-# create the mse_pae executable
-include(mse_pae.cmake)
-
 # Fetch googletest
 include(FetchContent)
 FetchContent_Declare(
@@ -16,9 +13,14 @@ FetchContent_MakeAvailable(googletest)
 # Fetch test files
 FetchContent_Declare(
   jp2k_test_codestreams
-  URL https://github.com/aous72/jp2k_test_codestreams/archive/refs/heads/main.zip
+  URL               https://github.com/aous72/jp2k_test_codestreams/archive/refs/heads/main.zip
+  SOURCE_DIR        jp2k_test_codestreams/
+  CONFIGURE_COMMAND ""
 )
-FetchContent_MakeAvailable(jp2k_test_codestreams)
+FetchContent_Populate(jp2k_test_codestreams)
+
+# create the mse_pae executable
+include(mse_pae.cmake)
 
 # configure test executables
 add_executable(

@@ -4,35 +4,38 @@ name: C/C++ CI
 on: push
 
 jobs:
-   build:
-     name: main build for Unix-like
-     runs-on: ${{ matrix.os }}
-     strategy:
-       matrix:
-         os: [macos-latest, ubuntu-20.04, ubuntu-latest]
-     steps:
-     - uses: actions/checkout@v3
-     - name: cmake
-       run: cmake ..
-       working-directory: build
-     - name: build
-       run: make
-       working-directory: build
+  build:
+    name: main build for Unix-like
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-20.04, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build
 
-   test:
-     name: test on linux
-     runs-on: ubuntu-latest
-     steps:
-     - uses: actions/checkout@v3
-     - name: cmake
-       run: cmake -DOJPH_BUILD_TESTS=yes ..
-       working-directory: build
-     - name: build
-       run: make
-       working-directory: build
-     - name: test
-       run: ctest --output-on-failure
-       working-directory: build
+  test:
+    name: tests on Linux and MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake -DOJPH_BUILD_TESTS=yes ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure
+      working-directory: build
 
 #jobs:
 #  ci:

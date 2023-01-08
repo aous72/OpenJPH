@@ -533,8 +533,8 @@ int main(int argc, char *argv[])
                        extra_cmd_options);
       write_compress_test(out_file, ref_filename, base_filename, out_ext, 
         yuv_specs, comment, extra_cmd_options, num_components, mse, pae);
-      write_file_compare(out_file, ref_filename, base_filename, out_ext,
-        comment, extra_cmd_options);
+      // write_file_compare(out_file, ref_filename, base_filename, out_ext,
+      //   comment, extra_cmd_options);
     }
 
   }

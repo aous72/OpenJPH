@@ -812,18 +812,6 @@ TEST(TestExecutables, SimpleEncIrv9764x64) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_64x64.j2c -qstep 0.1
-TEST(TestExecutables, SimpleEncIrv9764x64Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_64x64", "_compare", "j2c",
-                    "-qstep 0.1");
-  compare_files("simple_enc_irv97_64x64", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
@@ -836,18 +824,6 @@ TEST(TestExecutables, SimpleEncIrv9732x32) {
   run_ojph_expand("simple_enc_irv97_32x32", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_32x32", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
-TEST(TestExecutables, SimpleEncIrv9732x32Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_32x32", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{32,32}\"");
-  compare_files("simple_enc_irv97_32x32", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -868,18 +844,6 @@ TEST(TestExecutables, SimpleEncIrv9716x16) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_16x16.j2c -qstep 0.01 -block_size {16,16}
-TEST(TestExecutables, SimpleEncIrv9716x16Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_16x16", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{16,16}\"");
-  compare_files("simple_enc_irv97_16x16", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
@@ -892,18 +856,6 @@ TEST(TestExecutables, SimpleEncIrv974x4) {
   run_ojph_expand("simple_enc_irv97_4x4", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_4x4", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
-TEST(TestExecutables, SimpleEncIrv974x4Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_4x4", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{4,4}\"");
-  compare_files("simple_enc_irv97_4x4", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -924,18 +876,6 @@ TEST(TestExecutables, SimpleEncIrv971024x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_1024x4.j2c -qstep 0.01 -block_size {4,1024}
-TEST(TestExecutables, SimpleEncIrv971024x4Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_1024x4", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{4,1024}\"");
-  compare_files("simple_enc_irv97_1024x4", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
@@ -948,18 +888,6 @@ TEST(TestExecutables, SimpleEncIrv974x1024) {
   run_ojph_expand("simple_enc_irv97_4x1024", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_4x1024", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
-TEST(TestExecutables, SimpleEncIrv974x1024Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_4x1024", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{1024,4}\"");
-  compare_files("simple_enc_irv97_4x1024", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -980,18 +908,6 @@ TEST(TestExecutables, SimpleEncIrv97512x8) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_512x8.j2c -qstep 0.01 -block_size {8,512}
-TEST(TestExecutables, SimpleEncIrv97512x8Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_512x8", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{8,512}\"");
-  compare_files("simple_enc_irv97_512x8", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
@@ -1004,18 +920,6 @@ TEST(TestExecutables, SimpleEncIrv978x512) {
   run_ojph_expand("simple_enc_irv97_8x512", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_8x512", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
-TEST(TestExecutables, SimpleEncIrv978x512Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_8x512", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{512,8}\"");
-  compare_files("simple_enc_irv97_8x512", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1036,18 +940,6 @@ TEST(TestExecutables, SimpleEncIrv97256x16) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_256x16.j2c -qstep 0.01 -block_size {16,256}
-TEST(TestExecutables, SimpleEncIrv97256x16Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_256x16", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{16,256}\"");
-  compare_files("simple_enc_irv97_256x16", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
@@ -1060,18 +952,6 @@ TEST(TestExecutables, SimpleEncIrv9716x256) {
   run_ojph_expand("simple_enc_irv97_16x256", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_16x256", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
-TEST(TestExecutables, SimpleEncIrv9716x256Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_16x256", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{256,16}\"");
-  compare_files("simple_enc_irv97_16x256", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1092,18 +972,6 @@ TEST(TestExecutables, SimpleEncIrv97128x32) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_128x32.j2c -qstep 0.01 -block_size {32,128}
-TEST(TestExecutables, SimpleEncIrv97128x32Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_128x32", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{32,128}\"");
-  compare_files("simple_enc_irv97_128x32", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
@@ -1116,18 +984,6 @@ TEST(TestExecutables, SimpleEncIrv9732x128) {
   run_ojph_expand("simple_enc_irv97_32x128", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_32x128", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
-TEST(TestExecutables, SimpleEncIrv9732x128Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_32x128", "_compare", "j2c",
-                    "-qstep 0.01 -block_size \"{128,32}\"");
-  compare_files("simple_enc_irv97_32x128", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1148,18 +1004,6 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
-TEST(TestExecutables, SimpleEncIrv9764x6416bitCompare) {
-  run_ojph_compress("mm.ppm",
-                    "simple_enc_irv97_64x64_16bit", "_compare", "j2c",
-                    "-qstep 0.01");
-  compare_files("simple_enc_irv97_64x64_16bit", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
@@ -1172,18 +1016,6 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
   run_ojph_expand("simple_enc_irv97_64x64_16bit_gray", "j2c", "pgm");
   run_mse_pae("simple_enc_irv97_64x64_16bit_gray", "pgm", "mm.pgm",
               "", 1, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
-TEST(TestExecutables, SimpleEncIrv9764x6416bitGrayCompare) {
-  run_ojph_compress("mm.pgm",
-                    "simple_enc_irv97_64x64_16bit_gray", "_compare", "j2c",
-                    "-qstep 0.01");
-  compare_files("simple_enc_irv97_64x64_16bit_gray", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1204,18 +1036,6 @@ TEST(TestExecutables, SimpleEncRev5364x6416bit) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
-TEST(TestExecutables, SimpleEncRev5364x6416bitCompare) {
-  run_ojph_compress("mm.ppm",
-                    "simple_enc_rev53_64x64_16bit", "_compare", "j2c",
-                    "-reversible true");
-  compare_files("simple_enc_rev53_64x64_16bit", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
@@ -1228,18 +1048,6 @@ TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
   run_ojph_expand("simple_enc_rev53_64x64_16bit_gray", "j2c", "pgm");
   run_mse_pae("simple_enc_rev53_64x64_16bit_gray", "pgm", "mm.pgm",
               "", 1, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
-TEST(TestExecutables, SimpleEncRev5364x6416bitGrayCompare) {
-  run_ojph_compress("mm.pgm",
-                    "simple_enc_rev53_64x64_16bit_gray", "_compare", "j2c",
-                    "-reversible true");
-  compare_files("simple_enc_rev53_64x64_16bit_gray", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1260,18 +1068,6 @@ TEST(TestExecutables, SimpleEncRev5364x64) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
-TEST(TestExecutables, SimpleEncRev5364x64Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_64x64", "_compare", "j2c",
-                    "-reversible true");
-  compare_files("simple_enc_rev53_64x64", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
@@ -1284,18 +1080,6 @@ TEST(TestExecutables, SimpleEncRev5332x32) {
   run_ojph_expand("simple_enc_rev53_32x32", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_32x32", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
-TEST(TestExecutables, SimpleEncRev5332x32Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_32x32", "_compare", "j2c",
-                    "-reversible true -block_size \"{32,32}\"");
-  compare_files("simple_enc_rev53_32x32", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1316,18 +1100,6 @@ TEST(TestExecutables, SimpleEncRev534x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_4x4.j2c -reversible true -block_size {4,4}
-TEST(TestExecutables, SimpleEncRev534x4Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_4x4", "_compare", "j2c",
-                    "-reversible true -block_size \"{4,4}\"");
-  compare_files("simple_enc_rev53_4x4", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
@@ -1344,18 +1116,6 @@ TEST(TestExecutables, SimpleEncRev531024x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
-TEST(TestExecutables, SimpleEncRev531024x4Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_1024x4", "_compare", "j2c",
-                    "-reversible true -block_size \"{4,1024}\"");
-  compare_files("simple_enc_rev53_1024x4", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
@@ -1368,18 +1128,6 @@ TEST(TestExecutables, SimpleEncRev534x1024) {
   run_ojph_expand("simple_enc_rev53_4x1024", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_4x1024", "ppm", "Malamute.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
-TEST(TestExecutables, SimpleEncRev534x1024Compare) {
-  run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_4x1024", "_compare", "j2c",
-                    "-reversible true -block_size \"{1024,4}\"");
-  compare_files("simple_enc_rev53_4x1024", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1400,22 +1148,6 @@ TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
   run_ojph_expand("simple_enc_irv97_64x64_yuv", "j2c", "yuv");
   run_mse_pae("simple_enc_irv97_64x64_yuv", "yuv", "foreman_420.yuv",
               ":352x288x8x420", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used,
-// and the color components are subsampled.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
-// -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed false,false,false
-TEST(TestExecutables, SimpleEncIrv9764x64YuvCompare) {
-  run_ojph_compress("foreman_420.yuv",
-                    "simple_enc_irv97_64x64_yuv", "_compare", "j2c",
-                    "-qstep 0.1 -dims \"{352,288}\" -num_comps 3 -downsamp"
-                    " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
-                    " -signed false,false,false");
-  compare_files("simple_enc_irv97_64x64_yuv", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1440,23 +1172,6 @@ TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used,
-// and the color components are subsampled.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_yuv.j2c -reversible true -qstep 0.1 -dims
-// {352,288} -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed
-// false,false,false
-TEST(TestExecutables, SimpleEncRev5364x64YuvCompare) {
-  run_ojph_compress("foreman_420.yuv",
-                    "simple_enc_rev53_64x64_yuv", "_compare", "j2c",
-                    "-reversible true -qstep 0.1 -dims \"{352,288}\""
-                    " -num_comps 3 -downsamp \"{1,1}\",\"{2,2}\",\"{2,2}\""
-                    " -bit_depth 8,8,8 -signed false,false,false");
-  compare_files("simple_enc_rev53_64x64_yuv", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
@@ -1474,18 +1189,6 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_tall_narrow.j2c -qstep 0.1
-TEST(TestExecutables, SimpleEncIrv97TallNarrowCompare) {
-  run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_irv97_tall_narrow", "_compare", "j2c",
-                    "-qstep 0.1");
-  compare_files("simple_enc_irv97_tall_narrow", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
@@ -1498,18 +1201,6 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
   run_ojph_expand("simple_enc_irv97_tall_narrow1", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_tall_narrow1", "ppm", "tall_narrow.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
-TEST(TestExecutables, SimpleEncIrv97TallNarrow1Compare) {
-  run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_irv97_tall_narrow1", "_compare", "j2c",
-                    "-image_offset \"{1,0}\" -qstep 0.1");
-  compare_files("simple_enc_irv97_tall_narrow1", "_compare", "j2c");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1530,18 +1221,6 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_tall_narrow.j2c -reversible true
-TEST(TestExecutables, SimpleEncRev53TallNarrowCompare) {
-  run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_rev53_tall_narrow", "_compare", "j2c",
-                    "-reversible true");
-  compare_files("simple_enc_rev53_tall_narrow", "_compare", "j2c");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
@@ -1554,18 +1233,6 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
   run_ojph_expand("simple_enc_rev53_tall_narrow1", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_tall_narrow1", "ppm", "tall_narrow.ppm",
               "", 3, mse, pae);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing coded images, ignoring comments. 
-// The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
-TEST(TestExecutables, SimpleEncRev53TallNarrow1Compare) {
-  run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_rev53_tall_narrow1", "_compare", "j2c",
-                    "-image_offset \"{1,0}\" -reversible true");
-  compare_files("simple_enc_rev53_tall_narrow1", "_compare", "j2c");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

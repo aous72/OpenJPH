@@ -22,6 +22,12 @@ FetchContent_Populate(jp2k_test_codestreams)
 # create the mse_pae executable
 include(mse_pae.cmake)
 
+# create the compare_files executable
+add_executable(
+  compare_files
+  compare_files.cpp
+)
+
 # configure test executables
 add_executable(
   test_executables

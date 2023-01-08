@@ -97,10 +97,28 @@ void remove_back_slash(std::string& str)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Removes underscores from name, and replaces the following letter with 
+// the capital letter version of it
+std::string prepare_test_name(std::string name)
+{
+  name[0] = toupper(name[0]);
+  size_t pos = name.find("_");
+  while (pos != std::string::npos)
+  {
+    name.erase(pos, 1);
+    name[pos] = toupper(name[pos]);
+    pos = name.find("_", pos);
+  }
+  return name;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Reads and processes ht_cmdlines.txt to extract the command line for
-// base_filename, extracting the command line and yuv_specs if they exist
+// base_filename, extracting the command line and yuv_specs if they exist.
+// Extra_cmd_options are only useful for encoding (ojph_compress)
 void process_cmdlines(std::ifstream& file, const std::string base_filename,
-                      std::string& comment, std::string& yuv_specs) 
+                      std::string& comment, std::string& yuv_specs,
+                      std::string& extra_cmd_options) 
 {
   file.seekg(std::ios_base::beg);
   while (file.good())
@@ -110,12 +128,37 @@ void process_cmdlines(std::ifstream& file, const std::string base_filename,
     size_t pos = line.find(base_filename);
     if (pos != std::string::npos)
     {
+      remove_double_spaces(line);
+
       size_t start_pos = line.find("-o");
       if (start_pos != std::string::npos) {
         size_t end_pos = line.find("\"", start_pos);
+        if (end_pos == std::string::npos) {
+          printf("Formatting error in cmdlines file, pos 1\n");
+          exit(-1);
+        }
+        // comment
         comment = line.substr(start_pos, end_pos - start_pos);
-        remove_double_spaces(comment);
         remove_back_slash(comment);
+
+        // extra_cmd_options
+        start_pos = 0;
+        extra_cmd_options = comment;
+        for (int i = 0; i < 2; ++i) // skip two spaces ("-o filename ")
+          if (start_pos < extra_cmd_options.length())
+            start_pos = extra_cmd_options.find(" ", start_pos) + 1;
+          else
+           {
+              printf("Formatting error in cmdlines file, pos 2\n");
+              exit(-1);
+           }
+        if (start_pos < extra_cmd_options.length())
+          extra_cmd_options.erase(0, start_pos);
+        else
+          {
+            printf("Formatting error in cmdlines file, pos 3\n");
+            exit(-1);
+          }
       }
 
       start_pos = line.find(":");
@@ -129,7 +172,7 @@ void process_cmdlines(std::ifstream& file, const std::string base_filename,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Write the test_ojph_expand command line for test_executables.cpp
+// Write the run_ojph_expand command line for test_executables.cpp
 void write_expand_test(std::ofstream& file, 
                        const std::string& base_filename,
                        const std::string& src_ext,
@@ -154,16 +197,21 @@ void write_expand_test(std::ofstream& file,
   if (out_ext.compare("yuv") == 0)
     file << "// and the color components are subsampled." << std::endl;
   file << "// Command-line options used to obtain this file is:" << std::endl;
-  while (comment.length() > 75)
+  while (comment.length() > 0)
   {
-    size_t pos = comment.rfind(' ', 75);
-    file << "// " << comment.substr(0, pos) << std::endl;
-    comment.erase(0, pos + 1);
+    const int len = 75;
+    size_t pos = comment.rfind(' ', len);
+    if (comment.length() > len && pos != std::string::npos) {
+      file << "// " << comment.substr(0, pos) << std::endl;
+      comment.erase(0, pos + 1);
+    }
+    else {
+      file << "// " << comment << std::endl;
+      comment.clear();
+    }
   }
-  
 
-
-  file << "TEST(TestExecutables, " << base_filename << ") {" 
+  file << "TEST(TestExecutables, " << prepare_test_name(base_filename) << ") {" 
     << std::endl;
   file << "  double mse[" << num_components << "] = { ";
   for (int i = 0; i < num_components; ++i) {
@@ -179,11 +227,203 @@ void write_expand_test(std::ofstream& file,
       file << ", ";
   }
   file << "};" << std::endl;
-  file << "  test_ojph_expand(\"" << base_filename << "\", \"" 
-    << src_ext << "\", \"" << out_ext << "\"," << std::endl;
-  file << "                    ";
-  file << "\"" << ref_filename << "\", \"" << yuv_specs << "\", " 
+  file << "  run_ojph_expand(\"" << base_filename << "\", \"" 
+    << src_ext << "\", \"" << out_ext << "\");" << std::endl;
+  file << "  run_mse_pae(\"" << base_filename << "\", \"" 
+    << out_ext << "\", \"" << ref_filename << "\"," << std::endl;
+  file << "              \"" << yuv_specs << "\", " 
     << num_components << ", mse, pae);" << std::endl;
+  file << "}" << std::endl << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Write the run_ojph_expand command line for test_executables.cpp
+void write_compress_test(std::ofstream& file, 
+                         const std::string& ref_filename, 
+                         const std::string& base_filename,
+                         const std::string& out_ext, 
+                         const std::string& yuv_specs,
+                         std::string comment,
+                         std::string extra_cmd_options,
+                         int num_components, double* mse, int* pae)
+{
+  std::string wavelet, cb_dims;
+  size_t start_pos = base_filename.find("_irv97_");
+  if (start_pos != std::string::npos)
+    wavelet = "irv97";
+  else
+    wavelet = "rev53";
+
+  // comment
+  file << "/////////////////////////////////////////////////////////"
+    << "//////////////////////" << std::endl;
+  file << "// Test ojph_compress with " << "codeblocks when the "
+    << wavelet << " wavelet is used";
+  if (out_ext.compare("yuv") == 0) {
+    file << "," << std::endl << "// and the color components are subsampled.";
+    file << std::endl;
+  } 
+  else 
+    file << "." << std::endl;
+  file << "// We test by comparing MSE and PAE of decoded images. ";
+  file << std::endl;
+
+  file << "// The compressed file is obtained using these command-line "
+    "options:" << std::endl;
+  while (comment.length() > 0)
+  {
+    const int len = 75;
+    size_t pos = comment.rfind(' ', len);
+    if (comment.length() > len && pos < comment.length()) {
+      file << "// " << comment.substr(0, pos) << std::endl;
+      comment.erase(0, pos + 1);
+    }
+    else {
+      file << "// " << comment << std::endl;
+      comment.clear();
+    }
+  }
+
+  // test
+  file << "TEST(TestExecutables, " << prepare_test_name(base_filename) << ") {" 
+    << std::endl;
+  file << "  double mse[" << num_components << "] = { ";
+  for (int i = 0; i < num_components; ++i) {
+    file << std::setprecision(6) << mse[i];
+    if (i < num_components - 1) 
+      file << ", ";
+  }
+  file << "};" << std::endl;
+  file << "  int pae[" << num_components << "] = { ";
+  for (int i = 0; i < num_components; ++i) {
+    file << pae[i];
+    if (i < num_components - 1) 
+      file << ", ";
+  }
+  file << "};" << std::endl;
+
+  // compress
+  file << "  run_ojph_compress(\"" << ref_filename << "\"," << std::endl;
+  file << "                   ";
+  file << " \"" << base_filename << "\", \"\", \"" << "j2c" << "\",";
+  file << std::endl;
+
+  while (extra_cmd_options.length() > 0)
+  {
+    const int len = 54;
+    size_t pos = extra_cmd_options.rfind(' ', len);
+    if (extra_cmd_options.length() > len && pos != std::string::npos) {
+      file << "                    \"";
+      file << extra_cmd_options.substr(0, pos) << "\"";
+      extra_cmd_options.erase(0, pos);
+      if (extra_cmd_options.empty())
+        file << ");" << std::endl;
+      else
+        file << std::endl;
+    }
+    else {
+      file << "                    \"";
+      file << extra_cmd_options << "\");" << std::endl;
+      extra_cmd_options.clear();
+    }
+  }
+  
+  // expand
+  file << "  run_ojph_expand(\"" << base_filename << "\", \"" 
+    << "j2c" << "\", \"" << out_ext << "\");" << std::endl;
+
+  // error
+  file << "  run_mse_pae(\"" << base_filename << "\", \"" 
+    << out_ext << "\", \"" << ref_filename << "\"," << std::endl;
+  file << "              \"" << yuv_specs << "\", " 
+    << num_components << ", mse, pae);" << std::endl;
+
+  // end function
+  file << "}" << std::endl << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Write the run_compare_files command line for test_executables.cpp
+void write_file_compare(std::ofstream& file, 
+                        const std::string& ref_filename, 
+                        const std::string& base_filename,
+                        const std::string& out_ext, 
+                        std::string comment,
+                        std::string extra_cmd_options)
+{
+  std::string wavelet, cb_dims;
+  size_t start_pos = base_filename.find("_irv97_");
+  if (start_pos != std::string::npos)
+    wavelet = "irv97";
+  else
+    wavelet = "rev53";
+
+  // comment
+  file << "/////////////////////////////////////////////////////////"
+    << "//////////////////////" << std::endl;
+  file << "// Test ojph_compress with " << "codeblocks when the "
+    << wavelet << " wavelet is used";
+  if (out_ext.compare("yuv") == 0) {
+    file << "," << std::endl << "// and the color components are subsampled.";
+    file << std::endl;
+  } 
+  else 
+    file << "." << std::endl;
+  file << "// We test by comparing coded images, ignoring comments. ";
+  file << std::endl;
+
+  file << "// The compressed file is obtained using these command-line "
+    "options:" << std::endl;
+
+  while (comment.length() > 0)
+  {
+    const int len = 75;
+    size_t pos = comment.rfind(' ', len);
+    if (comment.length() > len && pos < comment.length()) {
+      file << "// " << comment.substr(0, pos) << std::endl;
+      comment.erase(0, pos + 1);
+    }
+    else {
+      file << "// " << comment << std::endl;
+      comment.clear();
+    }
+  }  
+
+  // test
+  file << "TEST(TestExecutables, " << prepare_test_name(base_filename);
+  file << "Compare) {" << std::endl;
+
+  // compress
+  file << "  run_ojph_compress(\"" << ref_filename << "\"," << std::endl;
+  file << "                   ";
+  file << " \"" << base_filename << "\", \"_compare\", \"" << "j2c";
+  file << "\"," << std::endl;
+
+  while (extra_cmd_options.length() > 0)
+  {
+    const int len = 54;
+    size_t pos = extra_cmd_options.rfind(' ', len);
+    if (extra_cmd_options.length() > len && pos != std::string::npos) {
+      file << "                    \"";
+      file << extra_cmd_options.substr(0, pos) << "\"";
+      extra_cmd_options.erase(0, pos);
+      if (extra_cmd_options.empty())
+        file << ");" << std::endl;
+      else
+        file << std::endl;
+    }
+    else {
+      file << "                    \"";
+      file << extra_cmd_options << "\");" << std::endl;
+      extra_cmd_options.clear();
+    }
+  }
+
+  // call compare files
+  file << "  compare_files(\"" << base_filename << "\", \"_compare\", \""; 
+  file << "j2c" << "\");" << std::endl;
+
+  // end function
   file << "}" << std::endl << std::endl;
 }
 
@@ -192,9 +432,9 @@ void write_expand_test(std::ofstream& file,
 int main(int argc, char *argv[])
 {
   const char mse_pae_filename[] = 
-    "../build/_deps/jp2k_test_codestreams-src/openjph/mse_pae.txt";
+    "../../build/tests/jp2k_test_codestreams/openjph/mse_pae.txt";
   const char cmdlines_filename[] = "ht_cmdlines.txt";
-  const char out_filename[] = "raw_tests.txt";
+  const char out_filename[] = "openjph_tests.cpp";
 
   std::ifstream mse_pae_file;
   mse_pae_file.open(mse_pae_filename, std::ios_base::in);
@@ -254,18 +494,28 @@ int main(int argc, char *argv[])
       c = mse_pae_file.peek();
     }
 
-    // write tests for test_ojph_expand
+    // write tests for write_expand_test
     if (base_filename.find("_dec_") != std::string::npos) 
     {
-      std::string yuv_specs, comment;
-      process_cmdlines(cmdlines_file, base_filename, comment, yuv_specs);
+      std::string yuv_specs, comment, extra_cmd_options;
+      process_cmdlines(cmdlines_file, base_filename, comment, yuv_specs, 
+                       extra_cmd_options);
       write_expand_test(out_file, base_filename, src_ext, out_ext, 
         ref_filename, yuv_specs, comment, num_components, mse, pae);
     }
 
     // write tests for test_ojph_compress and test_compare_files
     // to be written
-
+    if (base_filename.find("_enc_") != std::string::npos) 
+    {
+      std::string yuv_specs, comment, extra_cmd_options;
+      process_cmdlines(cmdlines_file, base_filename, comment, yuv_specs, 
+                       extra_cmd_options);
+      write_compress_test(out_file, ref_filename, base_filename, out_ext, 
+        yuv_specs, comment, extra_cmd_options, num_components, mse, pae);
+      write_file_compare(out_file, ref_filename, base_filename, out_ext,
+        comment, extra_cmd_options);
+    }
 
   }
   

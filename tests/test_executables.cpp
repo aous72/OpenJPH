@@ -97,31 +97,69 @@ int execute(const std::string& cmd, std::string& result)
 #define OUT_FILE_DIR "./"
 #define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
 #define MSE_PAE_PATH  "./mse_pae"
+#define COMPARE_FILES_PATH  "./compare_files"
 #define EXPAND_EXECUTABLE "../../bin/ojph_expand"
 #define COMPRESS_EXECUTABLE "../../bin/ojph_compress"
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1
 
 ////////////////////////////////////////////////////////////////////////////////
-//                            test_ojph_expand
+//                            run_ojph_compress
 ////////////////////////////////////////////////////////////////////////////////
-void test_ojph_expand(std::string base_filename, std::string src_ext,
-                      std::string out_ext, std::string ref_filename,
-                      std::string yuv_specs,
-                      int num_components, double* mse, int* pae) 
+void run_ojph_compress(const std::string& ref_filename, 
+                       const std::string& base_filename, 
+                       const std::string& extended_base_fname, 
+                       const std::string& out_ext,
+                       const std::string& extra_options)
+{
+  try {
+    std::string result, command;
+    command = std::string(COMPRESS_EXECUTABLE) 
+      + " -i " + REF_FILE_DIR + ref_filename
+      + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname + 
+      "." + out_ext + " " + extra_options;
+    std::cerr << command << std::endl;
+    EXPECT_EQ(execute(command, result), 0);
+  }
+  catch(const std::runtime_error& error) {
+    FAIL() << error.what();
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                            run_ojph_expand
+////////////////////////////////////////////////////////////////////////////////
+void run_ojph_expand(const std::string& base_filename, 
+                     const std::string& src_ext,
+                     const std::string& out_ext)
 {
   try {
     std::string result, command;
     command = std::string(EXPAND_EXECUTABLE) 
-      + " -i " + SRC_FILE_DIR + base_filename + "." + src_ext +
+      + " -i " + SRC_FILE_DIR + base_filename + "." + src_ext
       + " -o " + OUT_FILE_DIR + base_filename + "." + out_ext;
     EXPECT_EQ(execute(command, result), 0);
-    std::cerr << command << std::endl << result << std::endl;
+  }
+  catch(const std::runtime_error& error) {
+    FAIL() << error.what();
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                             run_mse_pae
+////////////////////////////////////////////////////////////////////////////////
+void run_mse_pae(const std::string& base_filename, 
+                 const std::string& out_ext, 
+                 const std::string& ref_filename, 
+                 const std::string& yuv_specs,
+                 int num_components, double* mse, int* pae) 
+{
+  try {
+    std::string result, command;
     command = std::string(MSE_PAE_PATH) 
       + " " + OUT_FILE_DIR + base_filename + "." + out_ext + yuv_specs
       + " " + REF_FILE_DIR + ref_filename + yuv_specs;
     EXPECT_EQ(execute(command, result), 0);
-    std::cerr << command << std::endl << result << std::endl;
 
     size_t pos = 0;
     for (int c = 0; c < num_components; ++c) {
@@ -150,7 +188,25 @@ void test_ojph_expand(std::string base_filename, std::string src_ext,
   catch(const std::runtime_error& error) {
     FAIL() << error.what();
   }
+}
 
+////////////////////////////////////////////////////////////////////////////////
+//                             compare_files
+////////////////////////////////////////////////////////////////////////////////
+void compare_files(const std::string& base_filename, 
+                   const std::string& extended_base_fname, 
+                   const std::string& ext) 
+{
+  try {
+    std::string result, command;
+    command = std::string(COMPARE_FILES_PATH) 
+      + " " + OUT_FILE_DIR + base_filename + extended_base_fname + "." + ext
+      + " " + SRC_FILE_DIR + base_filename + "." + ext;
+    EXPECT_EQ(execute(command, result), 0);
+  }
+  catch(const std::runtime_error& error) {
+    FAIL() << error.what();
+  }  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -181,178 +237,216 @@ TEST(TestExecutables, OpenJPHExpandNoArguments) {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//                               other tests
+////////////////////////////////////////////////////////////////////////////////
+
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_64x64) {
+// -o simple_dec_irv97_64x64.jph -precise -quiet -rate 0.5 -full
+TEST(TestExecutables, SimpleDecIrv9764x64) {
   double mse[3] = { 39.2812, 36.3819, 47.642};
   int pae[3] = { 74, 77, 73};
-  test_ojph_expand("simple_dec_irv97_64x64", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_32x32) {
+// -o simple_dec_irv97_32x32.jph -precise -quiet -rate 1 Cblk={32,32} -full
+TEST(TestExecutables, SimpleDecIrv9732x32) {
   double mse[3] = { 18.6979, 17.1208, 22.7539};
   int pae[3] = { 51, 48, 46};
-  test_ojph_expand("simple_dec_irv97_32x32", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_32x32", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_32x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_16x16) {
+// -o simple_dec_irv97_16x16.jph -precise -quiet -rate 1 Cblk={16,16} -full
+TEST(TestExecutables, SimpleDecIrv9716x16) {
   double mse[3] = { 20.1706, 18.5427, 24.6146};
   int pae[3] = { 53, 51, 47};
-  test_ojph_expand("simple_dec_irv97_16x16", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_16x16", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_16x16", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_4x4) {
+// -o simple_dec_irv97_4x4.jph -precise -quiet -rate 1 Cblk={4,4} -full
+TEST(TestExecutables, SimpleDecIrv974x4) {
   double mse[3] = { 40.8623, 37.9308, 49.7276};
   int pae[3] = { 75, 77, 80};
-  test_ojph_expand("simple_dec_irv97_4x4", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_4x4", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_4x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_1024x4) {
+// -o simple_dec_irv97_1024x4.jph -precise -quiet -rate 1 Cblk={1024,4} -full
+TEST(TestExecutables, SimpleDecIrv971024x4) {
   double mse[3] = { 19.8275, 18.2511, 24.2832};
   int pae[3] = { 53, 52, 50};
-  test_ojph_expand("simple_dec_irv97_1024x4", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_1024x4", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_1024x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_4x1024) {
+// -o simple_dec_irv97_4x1024.jph -precise -quiet -rate 1 Cblk={4,1024} -full
+TEST(TestExecutables, SimpleDecIrv974x1024) {
   double mse[3] = { 19.9635, 18.4063, 24.1719};
   int pae[3] = { 51, 48, 51};
-  test_ojph_expand("simple_dec_irv97_4x1024", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_4x1024", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_4x1024", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_512x8) {
+// -o simple_dec_irv97_512x8.jph -precise -quiet -rate 1 Cblk={512,8} -full
+TEST(TestExecutables, SimpleDecIrv97512x8) {
   double mse[3] = { 18.7929, 17.2026, 22.9922};
   int pae[3] = { 53, 52, 50};
-  test_ojph_expand("simple_dec_irv97_512x8", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_512x8", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_512x8", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_8x512) {
+// -o simple_dec_irv97_8x512.jph -precise -quiet -rate 1 Cblk={8,512} -full
+TEST(TestExecutables, SimpleDecIrv978x512) {
   double mse[3] = { 19.3661, 17.8067, 23.4574};
   int pae[3] = { 51, 48, 52};
-  test_ojph_expand("simple_dec_irv97_8x512", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_8x512", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_8x512", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_256x16) {
+// -o simple_dec_irv97_256x16.jph -precise -quiet -rate 1 Cblk={256,16} -full
+TEST(TestExecutables, SimpleDecIrv97256x16) {
   double mse[3] = { 18.6355, 17.0963, 22.6076};
   int pae[3] = { 54, 51, 48};
-  test_ojph_expand("simple_dec_irv97_256x16", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_256x16", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_256x16", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_16x256) {
+// -o simple_dec_irv97_16x256.jph -precise -quiet -rate 1 Cblk={16,256} -full
+TEST(TestExecutables, SimpleDecIrv9716x256) {
   double mse[3] = { 18.5933, 17.0208, 22.5709};
   int pae[3] = { 51, 48, 47};
-  test_ojph_expand("simple_dec_irv97_16x256", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_16x256", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_16x256", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_128x32) {
+// -o simple_dec_irv97_128x32.jph -precise -quiet -rate 1 Cblk={128,32} -full
+TEST(TestExecutables, SimpleDecIrv97128x32) {
   double mse[3] = { 18.4443, 16.9133, 22.4193};
   int pae[3] = { 52, 50, 46};
-  test_ojph_expand("simple_dec_irv97_128x32", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_128x32", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_128x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_32x128) {
+// -o simple_dec_irv97_32x128.jph -precise -quiet -rate 1 Cblk={32,128} -full
+TEST(TestExecutables, SimpleDecIrv9732x128) {
   double mse[3] = { 18.4874, 16.9379, 22.4855};
   int pae[3] = { 51, 48, 45};
-  test_ojph_expand("simple_dec_irv97_32x128", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_32x128", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_32x128", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_rev53_64x64) {
+// -o simple_dec_rev53_64x64.jph -precise -quiet Creversible=yes -full
+TEST(TestExecutables, SimpleDecRev5364x64) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_64x64", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_64x64", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_32x32.jph -precise -quiet Creversible=yes Cblk={32,32}
-TEST(TestExecutables, simple_dec_rev53_32x32) {
+// -full
+TEST(TestExecutables, SimpleDecRev5332x32) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_32x32", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_32x32", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_32x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_4x4.jph -precise -quiet Creversible=yes Cblk={4,4}
-TEST(TestExecutables, simple_dec_rev53_4x4) {
+// -full
+TEST(TestExecutables, SimpleDecRev534x4) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_4x4", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_4x4", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_4x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_1024x4.jph -precise -quiet Creversible=yes
-TEST(TestExecutables, simple_dec_rev53_1024x4) {
+// Cblk={1024,4} -full
+TEST(TestExecutables, SimpleDecRev531024x4) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_1024x4", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_1024x4", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_1024x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_4x1024.jph -precise -quiet Creversible=yes
-TEST(TestExecutables, simple_dec_rev53_4x1024) {
+// Cblk={4,1024} -full
+TEST(TestExecutables, SimpleDecRev534x1024) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_4x1024", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_4x1024", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_4x1024", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -361,11 +455,13 @@ TEST(TestExecutables, simple_dec_rev53_4x1024) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_yuv.jph -precise -quiet -rate 0.5
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
-TEST(TestExecutables, simple_dec_irv97_64x64_yuv) {
+// Nprecision={8} Nsigned={no} -full
+TEST(TestExecutables, SimpleDecIrv9764x64Yuv) {
   double mse[3] = { 20.2778, 6.27912, 4.15937};
   int pae[3] = { 52, 22, 31};
-  test_ojph_expand("simple_dec_irv97_64x64_yuv", "jph", "yuv",
-                    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_yuv", "jph", "yuv");
+  run_mse_pae("simple_dec_irv97_64x64_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -374,11 +470,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_yuv) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64_yuv.jph -precise -quiet Creversible=yes
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
-TEST(TestExecutables, simple_dec_rev53_64x64_yuv) {
+// Nprecision={8} Nsigned={no} -full
+TEST(TestExecutables, SimpleDecRev5364x64Yuv) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_64x64_yuv", "jph", "yuv",
-                    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64_yuv", "jph", "yuv");
+  run_mse_pae("simple_dec_rev53_64x64_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -387,11 +485,13 @@ TEST(TestExecutables, simple_dec_rev53_64x64_yuv) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_yuv.jph -precise -quiet -rate 0.5
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_yuv) {
+// Nprecision={8} Nsigned={no} Stiles={33,257} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesYuv) {
   double mse[3] = { 34.4972, 10.1112, 7.96331};
   int pae[3] = { 67, 30, 39};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_yuv", "jph", "yuv",
-                    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_yuv", "jph", "yuv");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -400,11 +500,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_yuv) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64_tiles_yuv.jph -precise -quiet Creversible=yes
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
-TEST(TestExecutables, simple_dec_rev53_64x64_tiles_yuv) {
+// Nprecision={8} Nsigned={no} Stiles={33,257} -full
+TEST(TestExecutables, SimpleDecRev5364x64TilesYuv) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_64x64_tiles_yuv", "jph", "yuv",
-                    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64_tiles_yuv", "jph", "yuv");
+  run_mse_pae("simple_dec_rev53_64x64_tiles_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -412,11 +514,13 @@ TEST(TestExecutables, simple_dec_rev53_64x64_tiles_yuv) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_LRCP.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=LRCP Cprecincts={2,256} Sorigin={374,1717}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP) {
+// Stile_origin={374,1717} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP) {
   double mse[3] = { 71.8149, 68.7115, 89.4001};
   int pae[3] = { 78, 78, 83};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -424,11 +528,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RLCP.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RLCP Cprecincts={2,256} Sorigin={374,1717}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP) {
+// Stile_origin={374,1717} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP) {
   double mse[3] = { 71.8149, 68.7115, 89.4001};
   int pae[3] = { 78, 78, 83};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -436,11 +542,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RPCL.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RPCL Cprecincts={2,256} Sorigin={374,1717}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL) {
+// Stile_origin={374,1717} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL) {
   double mse[3] = { 71.8149, 68.7115, 89.4001};
   int pae[3] = { 78, 78, 83};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -448,11 +556,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_PCRL.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=PCRL Cprecincts={2,256} Sorigin={374,1717}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL) {
+// Stile_origin={374,1717} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL) {
   double mse[3] = { 71.8149, 68.7115, 89.4001};
   int pae[3] = { 78, 78, 83};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -460,11 +570,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_CPRL.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=CPRL Cprecincts={2,256} Sorigin={374,1717}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_CPRL) {
+// Stile_origin={374,1717} -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL) {
   double mse[3] = { 71.8149, 68.7115, 89.4001};
   int pae[3] = { 78, 78, 83};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -472,11 +584,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_CPRL) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_LRCP33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=LRCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33) {
   double mse[3] = { 56.2139, 51.4121, 69.0107};
   int pae[3] = { 80, 81, 98};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -484,11 +598,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RLCP33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RLCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33) {
   double mse[3] = { 56.2139, 51.4121, 69.0107};
   int pae[3] = { 80, 81, 98};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -496,11 +612,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RPCL33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RPCL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33) {
   double mse[3] = { 56.2139, 51.4121, 69.0107};
   int pae[3] = { 80, 81, 98};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -508,11 +626,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_PCRL33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=PCRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33) {
   double mse[3] = { 56.2139, 51.4121, 69.0107};
   int pae[3] = { 80, 81, 98};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -520,11 +640,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_CPRL33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=CPRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_CPRL33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33) {
   double mse[3] = { 56.2139, 51.4121, 69.0107};
   int pae[3] = { 80, 81, 98};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -532,11 +654,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_CPRL33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_LRCP33x33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=LRCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP33x33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33x33) {
   double mse[3] = { 210.283, 210.214, 257.276};
   int pae[3] = { 165, 161, 166};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33x33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33x33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP33x33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -544,11 +668,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_LRCP33x33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RLCP33x33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RLCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP33x33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33x33) {
   double mse[3] = { 210.283, 210.214, 257.276};
   int pae[3] = { 165, 161, 166};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33x33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33x33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP33x33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -556,11 +682,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RLCP33x33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_RPCL33x33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=RPCL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL33x33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33x33) {
   double mse[3] = { 210.283, 210.214, 257.276};
   int pae[3] = { 165, 161, 166};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33x33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33x33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL33x33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -568,11 +696,13 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_RPCL33x33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_PCRL33x33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=PCRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL33x33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33x33) {
   double mse[3] = { 210.283, 210.214, 257.276};
   int pae[3] = { 165, 161, 166};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33x33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33x33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL33x33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -580,74 +710,862 @@ TEST(TestExecutables, simple_dec_irv97_64x64_tiles_PCRL33x33) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_tiles_CPRL33x33.jph -precise -quiet -rate 0.5
 // Clevels=5 Corder=CPRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
-TEST(TestExecutables, simple_dec_irv97_64x64_tiles_CPRL33x33) {
+// -full
+TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33x33) {
   double mse[3] = { 210.283, 210.214, 257.276};
   int pae[3] = { 165, 161, 166};
-  test_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33x33", "jph", "ppm",
-                    "Malamute.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33x33", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL33x33", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64_gray_tiles.jph -precise -quiet Creversible=yes
-TEST(TestExecutables, simple_dec_rev53_64x64_gray_tiles) {
+// Clevels=5 Stiles={33,257} -full
+TEST(TestExecutables, SimpleDecRev5364x64GrayTiles) {
   double mse[1] = { 0};
   int pae[1] = { 0};
-  test_ojph_expand("simple_dec_rev53_64x64_gray_tiles", "jph", "pgm",
-                    "monarch.pgm", "", 1, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64_gray_tiles", "jph", "pgm");
+  run_mse_pae("simple_dec_rev53_64x64_gray_tiles", "pgm", "monarch.pgm",
+              "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_gray_tiles.jph -precise -quiet -rate 0.5
-TEST(TestExecutables, simple_dec_irv97_64x64_gray_tiles) {
+// Clevels=5 Stiles={33,257} -full
+TEST(TestExecutables, SimpleDecIrv9764x64GrayTiles) {
   double mse[1] = { 18.9601};
   int pae[1] = { 56};
-  test_ojph_expand("simple_dec_irv97_64x64_gray_tiles", "jph", "pgm",
-                    "monarch.pgm", "", 1, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_gray_tiles", "jph", "pgm");
+  run_mse_pae("simple_dec_irv97_64x64_gray_tiles", "pgm", "monarch.pgm",
+              "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_64x64_16bit) {
+// -o simple_dec_irv97_64x64_16bit.jph -precise -quiet -rate 0.5 -full
+TEST(TestExecutables, SimpleDecIrv9764x6416bit) {
   double mse[3] = { 60507.2, 36672.5, 64809.8};
   int pae[3] = { 2547, 1974, 1922};
-  test_ojph_expand("simple_dec_irv97_64x64_16bit", "jph", "ppm",
-                    "mm.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_16bit", "jph", "ppm");
+  run_mse_pae("simple_dec_irv97_64x64_16bit", "ppm", "mm.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the irv97 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_irv97_64x64_16bit_gray) {
+// -o simple_dec_irv97_64x64_16bit_gray.jph -precise -quiet -rate 0.5 -full
+TEST(TestExecutables, SimpleDecIrv9764x6416bitGray) {
   double mse[1] = { 19382.9};
   int pae[1] = { 1618};
-  test_ojph_expand("simple_dec_irv97_64x64_16bit_gray", "jph", "pgm",
-                    "mm.pgm", "", 1, mse, pae);
+  run_ojph_expand("simple_dec_irv97_64x64_16bit_gray", "jph", "pgm");
+  run_mse_pae("simple_dec_irv97_64x64_16bit_gray", "pgm", "mm.pgm",
+              "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
-TEST(TestExecutables, simple_dec_rev53_64x64_16bit) {
+// -o simple_dec_rev53_64x64_16bit.jph -precise -quiet Creversible=yes -full
+TEST(TestExecutables, SimpleDecRev5364x6416bit) {
   double mse[3] = { 0, 0, 0};
   int pae[3] = { 0, 0, 0};
-  test_ojph_expand("simple_dec_rev53_64x64_16bit", "jph", "ppm",
-                    "mm.ppm", "", 3, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64_16bit", "jph", "ppm");
+  run_mse_pae("simple_dec_rev53_64x64_16bit", "ppm", "mm.ppm",
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64_16bit_gray.jph -precise -quiet Creversible=yes
-TEST(TestExecutables, simple_dec_rev53_64x64_16bit_gray) {
+// -full
+TEST(TestExecutables, SimpleDecRev5364x6416bitGray) {
   double mse[1] = { 0};
   int pae[1] = { 0};
-  test_ojph_expand("simple_dec_rev53_64x64_16bit_gray", "jph", "pgm",
-                    "mm.pgm", "", 1, mse, pae);
+  run_ojph_expand("simple_dec_rev53_64x64_16bit_gray", "jph", "pgm");
+  run_mse_pae("simple_dec_rev53_64x64_16bit_gray", "pgm", "mm.pgm",
+              "", 1, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64.j2c -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv9764x64) {
+  double mse[3] = { 46.2004, 43.622, 56.7452};
+  int pae[3] = { 48, 46, 52};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_64x64", "", "j2c",
+                    "-qstep 0.1");
+  run_ojph_expand("simple_enc_irv97_64x64", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64.j2c -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv9764x64Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_64x64", "_compare", "j2c",
+                    "-qstep 0.1");
+  compare_files("simple_enc_irv97_64x64", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
+TEST(TestExecutables, SimpleEncIrv9732x32) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_32x32", "", "j2c",
+                    "-qstep 0.01 -block_size {32,32}");
+  run_ojph_expand("simple_enc_irv97_32x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_32x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
+TEST(TestExecutables, SimpleEncIrv9732x32Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_32x32", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {32,32}");
+  compare_files("simple_enc_irv97_32x32", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_16x16.j2c -qstep 0.01 -block_size {16,16}
+TEST(TestExecutables, SimpleEncIrv9716x16) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_16x16", "", "j2c",
+                    "-qstep 0.01 -block_size {16,16}");
+  run_ojph_expand("simple_enc_irv97_16x16", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_16x16", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_16x16.j2c -qstep 0.01 -block_size {16,16}
+TEST(TestExecutables, SimpleEncIrv9716x16Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_16x16", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {16,16}");
+  compare_files("simple_enc_irv97_16x16", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
+TEST(TestExecutables, SimpleEncIrv974x4) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_4x4", "", "j2c",
+                    "-qstep 0.01 -block_size {4,4}");
+  run_ojph_expand("simple_enc_irv97_4x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_4x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
+TEST(TestExecutables, SimpleEncIrv974x4Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_4x4", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {4,4}");
+  compare_files("simple_enc_irv97_4x4", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_1024x4.j2c -qstep 0.01 -block_size {4,1024}
+TEST(TestExecutables, SimpleEncIrv971024x4) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_1024x4", "", "j2c",
+                    "-qstep 0.01 -block_size {4,1024}");
+  run_ojph_expand("simple_enc_irv97_1024x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_1024x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_1024x4.j2c -qstep 0.01 -block_size {4,1024}
+TEST(TestExecutables, SimpleEncIrv971024x4Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_1024x4", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {4,1024}");
+  compare_files("simple_enc_irv97_1024x4", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
+TEST(TestExecutables, SimpleEncIrv974x1024) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_4x1024", "", "j2c",
+                    "-qstep 0.01 -block_size {1024,4}");
+  run_ojph_expand("simple_enc_irv97_4x1024", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_4x1024", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
+TEST(TestExecutables, SimpleEncIrv974x1024Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_4x1024", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {1024,4}");
+  compare_files("simple_enc_irv97_4x1024", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_512x8.j2c -qstep 0.01 -block_size {8,512}
+TEST(TestExecutables, SimpleEncIrv97512x8) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_512x8", "", "j2c",
+                    "-qstep 0.01 -block_size {8,512}");
+  run_ojph_expand("simple_enc_irv97_512x8", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_512x8", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_512x8.j2c -qstep 0.01 -block_size {8,512}
+TEST(TestExecutables, SimpleEncIrv97512x8Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_512x8", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {8,512}");
+  compare_files("simple_enc_irv97_512x8", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
+TEST(TestExecutables, SimpleEncIrv978x512) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_8x512", "", "j2c",
+                    "-qstep 0.01 -block_size {512,8}");
+  run_ojph_expand("simple_enc_irv97_8x512", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_8x512", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
+TEST(TestExecutables, SimpleEncIrv978x512Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_8x512", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {512,8}");
+  compare_files("simple_enc_irv97_8x512", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_256x16.j2c -qstep 0.01 -block_size {16,256}
+TEST(TestExecutables, SimpleEncIrv97256x16) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_256x16", "", "j2c",
+                    "-qstep 0.01 -block_size {16,256}");
+  run_ojph_expand("simple_enc_irv97_256x16", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_256x16", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_256x16.j2c -qstep 0.01 -block_size {16,256}
+TEST(TestExecutables, SimpleEncIrv97256x16Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_256x16", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {16,256}");
+  compare_files("simple_enc_irv97_256x16", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
+TEST(TestExecutables, SimpleEncIrv9716x256) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_16x256", "", "j2c",
+                    "-qstep 0.01 -block_size {256,16}");
+  run_ojph_expand("simple_enc_irv97_16x256", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_16x256", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
+TEST(TestExecutables, SimpleEncIrv9716x256Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_16x256", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {256,16}");
+  compare_files("simple_enc_irv97_16x256", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_128x32.j2c -qstep 0.01 -block_size {32,128}
+TEST(TestExecutables, SimpleEncIrv97128x32) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_128x32", "", "j2c",
+                    "-qstep 0.01 -block_size {32,128}");
+  run_ojph_expand("simple_enc_irv97_128x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_128x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_128x32.j2c -qstep 0.01 -block_size {32,128}
+TEST(TestExecutables, SimpleEncIrv97128x32Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_128x32", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {32,128}");
+  compare_files("simple_enc_irv97_128x32", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
+TEST(TestExecutables, SimpleEncIrv9732x128) {
+  double mse[3] = { 1.78779, 1.26001, 2.38395};
+  int pae[3] = { 7, 6, 9};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_32x128", "", "j2c",
+                    "-qstep 0.01 -block_size {128,32}");
+  run_ojph_expand("simple_enc_irv97_32x128", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_32x128", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
+TEST(TestExecutables, SimpleEncIrv9732x128Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_32x128", "_compare", "j2c",
+                    "-qstep 0.01 -block_size {128,32}");
+  compare_files("simple_enc_irv97_32x128", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
+TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
+  double mse[3] = { 51727.3, 32596.4, 45897.8};
+  int pae[3] = { 1512, 1481, 1778};
+  run_ojph_compress("mm.ppm",
+                    "simple_enc_irv97_64x64_16bit", "", "j2c",
+                    "-qstep 0.01");
+  run_ojph_expand("simple_enc_irv97_64x64_16bit", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64_16bit", "ppm", "mm.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
+TEST(TestExecutables, SimpleEncIrv9764x6416bitCompare) {
+  run_ojph_compress("mm.ppm",
+                    "simple_enc_irv97_64x64_16bit", "_compare", "j2c",
+                    "-qstep 0.01");
+  compare_files("simple_enc_irv97_64x64_16bit", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
+TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
+  double mse[1] = { 25150.6};
+  int pae[1] = { 1081};
+  run_ojph_compress("mm.pgm",
+                    "simple_enc_irv97_64x64_16bit_gray", "", "j2c",
+                    "-qstep 0.01");
+  run_ojph_expand("simple_enc_irv97_64x64_16bit_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_irv97_64x64_16bit_gray", "pgm", "mm.pgm",
+              "", 1, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
+TEST(TestExecutables, SimpleEncIrv9764x6416bitGrayCompare) {
+  run_ojph_compress("mm.pgm",
+                    "simple_enc_irv97_64x64_16bit_gray", "_compare", "j2c",
+                    "-qstep 0.01");
+  compare_files("simple_enc_irv97_64x64_16bit_gray", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x6416bit) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("mm.ppm",
+                    "simple_enc_rev53_64x64_16bit", "", "j2c",
+                    "-reversible true");
+  run_ojph_expand("simple_enc_rev53_64x64_16bit", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64_16bit", "ppm", "mm.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x6416bitCompare) {
+  run_ojph_compress("mm.ppm",
+                    "simple_enc_rev53_64x64_16bit", "_compare", "j2c",
+                    "-reversible true");
+  compare_files("simple_enc_rev53_64x64_16bit", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
+  double mse[1] = { 0};
+  int pae[1] = { 0};
+  run_ojph_compress("mm.pgm",
+                    "simple_enc_rev53_64x64_16bit_gray", "", "j2c",
+                    "-reversible true");
+  run_ojph_expand("simple_enc_rev53_64x64_16bit_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_rev53_64x64_16bit_gray", "pgm", "mm.pgm",
+              "", 1, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x6416bitGrayCompare) {
+  run_ojph_compress("mm.pgm",
+                    "simple_enc_rev53_64x64_16bit_gray", "_compare", "j2c",
+                    "-reversible true");
+  compare_files("simple_enc_rev53_64x64_16bit_gray", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x64) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_64x64", "", "j2c",
+                    "-reversible true");
+  run_ojph_expand("simple_enc_rev53_64x64", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_16bit.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev5364x64Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_64x64", "_compare", "j2c",
+                    "-reversible true");
+  compare_files("simple_enc_rev53_64x64", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
+TEST(TestExecutables, SimpleEncRev5332x32) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_32x32", "", "j2c",
+                    "-reversible true -block_size {32,32}");
+  run_ojph_expand("simple_enc_rev53_32x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_32x32", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
+TEST(TestExecutables, SimpleEncRev5332x32Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_32x32", "_compare", "j2c",
+                    "-reversible true -block_size {32,32}");
+  compare_files("simple_enc_rev53_32x32", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_4x4.j2c -reversible true -block_size {4,4}
+TEST(TestExecutables, SimpleEncRev534x4) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_4x4", "", "j2c",
+                    "-reversible true -block_size {4,4}");
+  run_ojph_expand("simple_enc_rev53_4x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_4x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_4x4.j2c -reversible true -block_size {4,4}
+TEST(TestExecutables, SimpleEncRev534x4Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_4x4", "_compare", "j2c",
+                    "-reversible true -block_size {4,4}");
+  compare_files("simple_enc_rev53_4x4", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
+TEST(TestExecutables, SimpleEncRev531024x4) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_1024x4", "", "j2c",
+                    "-reversible true -block_size {4,1024}");
+  run_ojph_expand("simple_enc_rev53_1024x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_1024x4", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
+TEST(TestExecutables, SimpleEncRev531024x4Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_1024x4", "_compare", "j2c",
+                    "-reversible true -block_size {4,1024}");
+  compare_files("simple_enc_rev53_1024x4", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
+TEST(TestExecutables, SimpleEncRev534x1024) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_4x1024", "", "j2c",
+                    "-reversible true -block_size {1024,4}");
+  run_ojph_expand("simple_enc_rev53_4x1024", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_4x1024", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
+TEST(TestExecutables, SimpleEncRev534x1024Compare) {
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_4x1024", "_compare", "j2c",
+                    "-reversible true -block_size {1024,4}");
+  compare_files("simple_enc_rev53_4x1024", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used,
+// and the color components are subsampled.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
+// -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed false,false,false
+TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
+  double mse[3] = { 30.3548, 7.69602, 5.22246};
+  int pae[3] = { 49, 27, 26};
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_irv97_64x64_yuv", "", "j2c",
+                    "-qstep 0.1 -dims {352,288} -num_comps 3 -downsamp"
+                    " {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed"
+                    " false,false,false");
+  run_ojph_expand("simple_enc_irv97_64x64_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_irv97_64x64_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used,
+// and the color components are subsampled.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
+// -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed false,false,false
+TEST(TestExecutables, SimpleEncIrv9764x64YuvCompare) {
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_irv97_64x64_yuv", "_compare", "j2c",
+                    "-qstep 0.1 -dims {352,288} -num_comps 3 -downsamp"
+                    " {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed"
+                    " false,false,false");
+  compare_files("simple_enc_irv97_64x64_yuv", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used,
+// and the color components are subsampled.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_yuv.j2c -reversible true -qstep 0.1 -dims
+// {352,288} -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed
+// false,false,false
+TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_rev53_64x64_yuv", "", "j2c",
+                    "-reversible true -qstep 0.1 -dims {352,288} -num_comps"
+                    " 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8"
+                    " -signed false,false,false");
+  run_ojph_expand("simple_enc_rev53_64x64_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_rev53_64x64_yuv", "yuv", "foreman_420.yuv",
+              ":352x288x8x420", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used,
+// and the color components are subsampled.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_yuv.j2c -reversible true -qstep 0.1 -dims
+// {352,288} -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed
+// false,false,false
+TEST(TestExecutables, SimpleEncRev5364x64YuvCompare) {
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_rev53_64x64_yuv", "_compare", "j2c",
+                    "-reversible true -qstep 0.1 -dims {352,288} -num_comps"
+                    " 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8"
+                    " -signed false,false,false");
+  compare_files("simple_enc_rev53_64x64_yuv", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_tall_narrow.j2c -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
+  double mse[3] = { 112.097, 79.2214, 71.1367};
+  int pae[3] = { 56, 41, 32};
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_irv97_tall_narrow", "", "j2c",
+                    "-qstep 0.1");
+  run_ojph_expand("simple_enc_irv97_tall_narrow", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_tall_narrow", "ppm", "tall_narrow.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_tall_narrow.j2c -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv97TallNarrowCompare) {
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_irv97_tall_narrow", "_compare", "j2c",
+                    "-qstep 0.1");
+  compare_files("simple_enc_irv97_tall_narrow", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
+  double mse[3] = { 96.7935, 69.6824, 66.7822};
+  int pae[3] = { 41, 39, 35};
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_irv97_tall_narrow1", "", "j2c",
+                    "-image_offset {1,0} -qstep 0.1");
+  run_ojph_expand("simple_enc_irv97_tall_narrow1", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_tall_narrow1", "ppm", "tall_narrow.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
+TEST(TestExecutables, SimpleEncIrv97TallNarrow1Compare) {
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_irv97_tall_narrow1", "_compare", "j2c",
+                    "-image_offset {1,0} -qstep 0.1");
+  compare_files("simple_enc_irv97_tall_narrow1", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_tall_narrow.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev53TallNarrow) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_rev53_tall_narrow", "", "j2c",
+                    "-reversible true");
+  run_ojph_expand("simple_enc_rev53_tall_narrow", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_tall_narrow", "ppm", "tall_narrow.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_tall_narrow.j2c -reversible true
+TEST(TestExecutables, SimpleEncRev53TallNarrowCompare) {
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_rev53_tall_narrow", "_compare", "j2c",
+                    "-reversible true");
+  compare_files("simple_enc_rev53_tall_narrow", "_compare", "j2c");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
+TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_rev53_tall_narrow1", "", "j2c",
+                    "-image_offset {1,0} -reversible true");
+  run_ojph_expand("simple_enc_rev53_tall_narrow1", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_tall_narrow1", "ppm", "tall_narrow.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing coded images, ignoring comments. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
+TEST(TestExecutables, SimpleEncRev53TallNarrow1Compare) {
+  run_ojph_compress("tall_narrow.ppm",
+                    "simple_enc_rev53_tall_narrow1", "_compare", "j2c",
+                    "-image_offset {1,0} -reversible true");
+  compare_files("simple_enc_rev53_tall_narrow1", "_compare", "j2c");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -38,6 +38,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 #include <cctype>
 #include "../common/ojph_img_io.h"
 #include "../common/ojph_mem.h"
@@ -177,7 +178,7 @@ void load_yuv(const char *filename, img_info& img)
     exit(-1);
   }
   
-  size s;
+  ojph::size s;
   s.w = (ui32)atoi(++p);
   p = strchr(p, 'x'); // p is either NULL or pointing to ':'
   if (p == NULL) {
@@ -328,29 +329,47 @@ int main(int argc, char *argv[])
   }
     
   img_info img1, img2;
-  if (is_pnm(argv[1]))
-    load_ppm(argv[1], img1);
-  else if (is_yuv(argv[1]))
-    load_yuv(argv[1], img1);
-  else {
-    printf("mse_pae does not know file format of %s\n", argv[1]);
-    printf("or a .yuv that does not have the expected format, which is\n");
-    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
-    printf("either 444, 422, or 420\n");
-    exit(-1);  
+  try {
+    if (is_pnm(argv[1]))
+      load_ppm(argv[1], img1);
+    else if (is_yuv(argv[1]))
+      load_yuv(argv[1], img1);
+    else {
+      printf("mse_pae does not know file format of %s\n", argv[1]);
+      printf("or a .yuv that does not have the expected format, which is\n");
+      printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+      printf("either 444, 422, or 420\n");
+      exit(-1);  
+    }
   }
-  
-  if (is_pnm(argv[2]))
-    load_ppm(argv[2], img2);
-  else if (is_yuv(argv[2]))
-    load_yuv(argv[2], img2);
-  else {
-    printf("mse_pae does not know file format of %s\n", argv[2]);
-    printf("or a .yuv that does not have the expected format, which is\n");
-    printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
-    printf("either 444, 422, or 420\n");
-    exit(-1);  
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+    exit(-1);
+  } 
+
+  try {  
+    if (is_pnm(argv[2]))
+      load_ppm(argv[2], img2);
+    else if (is_yuv(argv[2]))
+      load_yuv(argv[2], img2);
+    else {
+      printf("mse_pae does not know file format of %s\n", argv[2]);
+      printf("or a .yuv that does not have the expected format, which is\n");
+      printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
+      printf("either 444, 422, or 420\n");
+      exit(-1);  
+    }
   }
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+    exit(-1);
+  }  
   
   float mse[3]; ui32 pae[3];
   find_mse_pae(img1, img2, mse, pae);

@@ -78,8 +78,8 @@ void remove_double_spaces(std::string& str)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Removes back slash in \{ and \} sequence in strings
-void remove_back_slash(std::string& str)
+// Removes the back slash in \{ and \} sequences in strings
+void remove_back_slashes(std::string& str)
 {
   size_t pos;
   pos = str.find("\\{");
@@ -93,6 +93,25 @@ void remove_back_slash(std::string& str)
   {
     str.erase(pos, 1);
     pos = str.find("\\}");
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Convert { and } to \"{ and }\"
+void insert_quotes(std::string& str)
+{
+  size_t pos;
+  pos = str.find("{");
+  while (pos != std::string::npos)
+  {
+    str.insert(pos, "\\\"");
+    pos = str.find("{", pos + 4);
+  }
+  pos = str.find("}");
+  while (pos != std::string::npos)
+  {
+    str.insert(pos + 1, "\\\"");
+    pos = str.find("}", pos + 5);
   }
 }
 
@@ -139,11 +158,12 @@ void process_cmdlines(std::ifstream& file, const std::string base_filename,
         }
         // comment
         comment = line.substr(start_pos, end_pos - start_pos);
-        remove_back_slash(comment);
+        remove_back_slashes(comment);
 
         // extra_cmd_options
         start_pos = 0;
         extra_cmd_options = comment;
+        insert_quotes(extra_cmd_options);
         for (int i = 0; i < 2; ++i) // skip two spaces ("-o filename ")
           if (start_pos < extra_cmd_options.length())
             start_pos = extra_cmd_options.find(" ", start_pos) + 1;

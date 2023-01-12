@@ -4,8 +4,8 @@ set(CMAKE_SYSTEM_NAME Generic)
 
 project (openjphwasm DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../../../../OpenJPHDemo/frontend/app/decoder)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../../../../OpenJPHDemo/frontend/app/decoder)
 
 add_subdirectory("../.." openjph EXCLUDE_FROM_ALL)
 add_executable(libopenjph "src/ojph_wrapper.cpp")

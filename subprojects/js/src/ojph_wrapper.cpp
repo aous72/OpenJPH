@@ -187,6 +187,22 @@ extern "C"
 
   ////////////////////////////////////////////////////////////////////////////
   EMSCRIPTEN_KEEPALIVE
+  int get_j2c_num_decompositions(j2k_struct* j2c)
+  {
+      ojph::param_cod cod = j2c->codestream.access_cod();
+      return cod.get_num_decompositions();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
+  int get_j2c_progression_order(j2k_struct* j2c)
+  {
+    ojph::param_cod cod = j2c->codestream.access_cod();
+    return cod.get_progression_order();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  EMSCRIPTEN_KEEPALIVE
   int get_j2c_downsampling_x(j2k_struct* j2c, int comp_num)
   {
     ojph::param_siz siz = j2c->codestream.access_siz();

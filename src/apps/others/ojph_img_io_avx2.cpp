@@ -130,7 +130,7 @@ namespace ojph {
                                    (si64)0x0908060504020100);
 
     // 32 entries or entries in each loop
-    for ( ; count >= 32; count -= 32, sp0 += 32, sp1 += 32, sp2 += 32, p += 96)
+    for ( ; count >= 64; count -= 32, sp0 += 32, sp1 += 32, sp2 += 32, p += 96)
     {
       __m256i a, t, u, v, w;
       a = _mm256_load_si256((__m256i*)sp0);

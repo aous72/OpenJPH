@@ -1,6 +1,12 @@
 .DS_Store
 mytest/*
 others/*
+examples/pgm/*
+examples/ppm/*
+examples/yuv/samples/*
+examples/tiff/*
+out/*
+.vs/*
 
 .vscode
 build.sh

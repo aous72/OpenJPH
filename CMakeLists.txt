@@ -170,9 +170,9 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
 
   if( WIN32 )
 
-    set(TIFF_INCLUDE_DIR "C:\\Program Files\\tiff\\include" CACHE PATH "the directory containing the TIFF headers")
-    set(TIFF_LIBRARY_DEBUG   "C:\\Program Files\\tiff\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
-    set(TIFF_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
+    set(TIFF_INCLUDE_DIR "C:\\Users\\AliRajabi\\Sandbox\\vcpkg\\packages\\tiff_x64-windows\\include" CACHE PATH "the directory containing the TIFF headers")
+    set(TIFF_LIBRARY_DEBUG   "C:\\Users\\AliRajabi\\Sandbox\\vcpkg\\packages\\tiff_x64-windows\\debug\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
+    set(TIFF_LIBRARY_RELEASE "C:\\Users\\AliRajabi\\Sandbox\\vcpkg\\packages\\tiff_x64-windows\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
     set(TIFFXX_LIBRARY_DEBUG  "C:\\Program Files\\tiff\\lib\\tiffxxd.lib" CACHE FILEPATH "the path to the TIFFXX  library for debug configurations")
     set(TIFFXX_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiffxx.lib" CACHE FILEPATH "the path to the TIFFXX  library for release configurations")
 

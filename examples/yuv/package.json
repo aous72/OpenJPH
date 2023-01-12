@@ -1,0 +1,11 @@
+{
+  "name": "ycbcrsamplegenerator",
+  "version": "1.0.0",
+  "description": "A simple script to generate random binary pixel data in YCbCr color space",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ali Rajabi",
+  "license": "ISC"
+}

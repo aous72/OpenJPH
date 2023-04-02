@@ -608,6 +608,7 @@ int main(int argc, char * argv[]) {
 
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
+    ojph::raw_in raw;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
@@ -783,7 +784,7 @@ int main(int argc, char * argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (is_matching(".yuv", v) || is_matching(".raw", v))
+      else if (is_matching(".yuv", v))
       {
         ojph::param_siz siz = codestream.access_siz();
         if (dims.w == 0 || dims.h == 0)
@@ -854,6 +855,58 @@ int main(int argc, char * argv[]) {
 
         yuv.open(input_filename);
         base = &yuv;
+      }
+      else if (is_matching(".raw", v))
+      {
+        ojph::param_siz siz = codestream.access_siz();
+        if (dims.w == 0 || dims.h == 0)
+          OJPH_ERROR(0x01000081,
+            "-dims option must have positive dimensions\n");
+        siz.set_image_extent(ojph::point(image_offset.x + dims.w,
+          image_offset.y + dims.h));
+        if (num_components != 1)
+          OJPH_ERROR(0x01000082,
+            "-num_comps must be 1\n");
+        if (num_is_signed <= 0)
+          OJPH_ERROR(0x01000083,
+            "-signed option is missing and must be provided\n");
+        if (num_bit_depths <= 0)
+          OJPH_ERROR(0x01000084,
+            "-bit_depth option is missing and must be provided\n");
+        if (num_comp_downsamps <= 0)
+          OJPH_ERROR(0x01000085,
+            "-downsamp option is missing and must be provided\n");
+
+        raw.set_img_props(dims, bit_depth[0], is_signed);
+
+        siz.set_num_components(num_components);
+        siz.set_component(0, comp_downsampling[0], bit_depth[0], is_signed[0]);
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform != -1)
+          OJPH_ERROR(0x01000086,
+            "color transform is not meaningless since .raw files are single "
+            "component files");
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1.0f)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(true);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
+
+        raw.open(input_filename);
+        base = &raw;
       }
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT

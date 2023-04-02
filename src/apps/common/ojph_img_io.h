@@ -291,6 +291,54 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class raw_in : public image_in_base
+  {
+  public:
+    raw_in()
+    {
+      fh = NULL;
+      fname = NULL;
+      width = height = bit_depth = 0;
+      bytes_per_sample = 0;
+      is_signed = false;
+      cur_line = 0;
+      buffer = NULL;
+      buffer_size = 0;
+    }
+    virtual ~raw_in()
+    {
+      close();
+      if (buffer)
+        free(buffer);
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num = 0);
+    void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
+
+    void set_img_props(const size& s, ui32 bit_depth, bool is_signed);
+
+    ui32 get_bit_depth() { assert(fh); return bit_depth; }
+    bool get_is_signed() { assert(fh); return is_signed; }
+
+  private:
+    FILE *fh;
+    const char *fname;
+    ui32 width, height, bit_depth;
+    ui32 bytes_per_sample;
+    bool is_signed;
+    ui32 cur_line;
+    void* buffer;
+    size_t buffer_size;
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
   // Accelerators (defined in ojph_img_io_*)
   typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 

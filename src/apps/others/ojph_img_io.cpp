@@ -1208,6 +1208,120 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
+  void raw_in::open(const char* filename)
+  {
+    assert(fh == NULL);
+    fh = fopen(filename, "rb");
+    if (fh == NULL)
+      OJPH_ERROR(0x030000C1, "Unable to open file %s", filename);
+
+    cur_line = 0;
+    bytes_per_sample = (bit_depth + 7) >> 3;
+    buffer_size = width * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+    fname = filename;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 raw_in::read(const line_buf* line, ui32 comp_num)
+  {
+    assert(comp_num == 0);
+    size_t result = fread(buffer, bytes_per_sample, width, fh);
+    if (result != width)
+    {
+      close();
+      OJPH_ERROR(0x030000C2, "not enough data in file %s", fname);
+    }
+
+    if (bytes_per_sample > 3)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        si32* dp = line->i32;
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else if (bytes_per_sample > 2)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          si32 val = *sp & 0xFFFFFFu;
+          val = val | ((val & 0x800000) ? 0xFF000000u : 0u);
+          *dp++ = val;
+          // this only works for little endian architecture
+          sp = (si32*)((si8*)sp + 3);
+        }
+      }
+      else {
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          *dp++ = (si32)(*sp & 0xFFFFFFu);
+          // this only works for little endian architecture
+          sp = (ui32*)((ui8*)sp + 3);
+        }
+      }
+    }
+    else if (bytes_per_sample > 1)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si16* sp = (si16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui16* sp = (ui16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si8* sp = (si8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui8* sp = (ui8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+
+    return width;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::set_img_props(const size& s, ui32 bit_depth, bool is_signed)
+  {
+    assert(fh == NULL);
+    //need to extract this info from filename
+    this->width = s.w;
+    this->height = s.h;
+    this->bit_depth = bit_depth;
+    this->is_signed = is_signed;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
   raw_out::~raw_out()
   {
     close();

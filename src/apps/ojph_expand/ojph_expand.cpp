@@ -215,6 +215,7 @@ int main(int argc, char *argv[]) {
     ojph::tif_out tif;
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     ojph::yuv_out yuv;
+    ojph::raw_out raw;
     ojph::image_out_base *base = NULL;
     const char *v = get_file_extension(output_filename);
     if (v)
@@ -291,7 +292,7 @@ int main(int argc, char *argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (is_matching(".yuv", v) || is_matching(".raw", v))
+      else if (is_matching(".yuv", v))
       {
         codestream.set_planar(true);
         ojph::param_siz siz = codestream.access_siz();
@@ -299,13 +300,13 @@ int main(int argc, char *argv[]) {
         if (siz.get_num_components() != 3 && siz.get_num_components() != 1)
           OJPH_ERROR(0x020000004,
             "The file has %d color components; this cannot be saved to"
-             " .raw(yuv) file\n", siz.get_num_components());
+             " .yuv file\n", siz.get_num_components());
         ojph::param_cod cod = codestream.access_cod();
         if (cod.is_using_color_transform())
           OJPH_ERROR(0x020000005,
-            "The current implementation of raw(yuv) file object does not"
-            " support saving file when conversion from raw(yuv) to rgb is"
-            " needed; in any case, this is not the normal usage of raw(yuv)"
+            "The current implementation of yuv file object does not"
+            " support saving file when conversion from yuv to rgb is"
+            " needed; in any case, this is not the normal usage of yuv"
             "file.");
         ojph::ui32 comp_widths[3];
         ojph::ui32 max_bit_depth = 0;
@@ -319,9 +320,26 @@ int main(int argc, char *argv[]) {
         yuv.open(output_filename);
         base = &yuv;
       }
+      else if (is_matching(".raw", v))
+      {
+        ojph::param_siz siz = codestream.access_siz();
+
+        if (siz.get_num_components() != 1)
+          OJPH_ERROR(0x020000006,
+            "The file has %d color components; this cannot be saved to"
+            " .raw file (only one component is allowed).\n", 
+            siz.get_num_components());
+        ojph::param_cod cod = codestream.access_cod();
+        bool is_signed = siz.is_signed(0);
+        ojph::ui32 width = siz.get_recon_width(0);
+        ojph::ui32 bit_depth = siz.get_bit_depth(0);
+        raw.configure(is_signed, bit_depth, width);
+        raw.open(output_filename);
+        base = &raw;
+      }
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-        OJPH_ERROR(0x020000006,
+        OJPH_ERROR(0x020000007,
           "unknown output file extension; only pgm, ppm, tif(f) and raw(yuv))"
           " are supported\n");
 #else

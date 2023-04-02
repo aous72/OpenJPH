@@ -90,6 +90,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 };
 
 //////////////////////////////////////////////////////////////////////////////
+static
 bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
                    ojph::ui32& skipped_res_for_read, 
@@ -132,6 +133,7 @@ bool get_arguments(int argc, char *argv[],
 }
 
 /////////////////////////////////////////////////////////////////////////////
+static 
 const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
@@ -141,6 +143,22 @@ const char* get_file_extension(const char* filename)
       "no file extension is found, or there are no characters "
       "after the dot \'.\' for filename \"%s\" \n", filename);
   return p;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+static 
+bool is_matching(const char *ref, const char *other)
+{
+  size_t num_ele = strlen(ref);
+
+  if (num_ele != strlen(other))
+    return false;
+
+  for (int i = 0; i < num_ele; ++i)
+    if (ref[i] != other[i] && ref[i] != tolower(other[i]))
+      return false;
+
+  return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -208,7 +226,7 @@ int main(int argc, char *argv[]) {
         skipped_res_for_recon);
       ojph::param_siz siz = codestream.access_siz();
 
-      if (strncmp(".pgm", v, 4) == 0)
+      if (is_matching(".pgm", v))
       {
 
         if (siz.get_num_components() != 1)
@@ -220,7 +238,7 @@ int main(int argc, char *argv[]) {
         ppm.open(output_filename);
         base = &ppm;
       }
-      else if (strncmp(".ppm", v, 4) == 0)
+      else if (is_matching(".ppm", v))
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
@@ -246,7 +264,7 @@ int main(int argc, char *argv[]) {
         base = &ppm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
+      else if (is_matching(".tif", v) || is_matching(".tiff", v))
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
@@ -273,7 +291,7 @@ int main(int argc, char *argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
+      else if (is_matching(".yuv", v) || is_matching(".raw", v))
       {
         codestream.set_planar(true);
         ojph::param_siz siz = codestream.access_siz();

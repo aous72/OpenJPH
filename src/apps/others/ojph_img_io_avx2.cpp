@@ -205,15 +205,15 @@ namespace ojph {
       w = _mm256_or_si256(w, a);
       w = _mm256_shuffle_epi8(w, m0);
 
-      _mm_storeu_si128((__m128i*)((ui8*)p   ), _mm256_castsi256_si128(t));
-      _mm_storeu_si128((__m128i*)((ui8*)p+12), _mm256_extracti128_si256(t,1));
-      _mm_storeu_si128((__m128i*)((ui8*)p+24), _mm256_castsi256_si128(u));
-      _mm_storeu_si128((__m128i*)((ui8*)p+36), _mm256_extracti128_si256(u,1));
-      _mm_storeu_si128((__m128i*)((ui8*)p+48), _mm256_castsi256_si128(v));
-      _mm_storeu_si128((__m128i*)((ui8*)p+60), _mm256_extracti128_si256(v,1));
-      _mm_storeu_si128((__m128i*)((ui8*)p+72), _mm256_castsi256_si128(w));
-      *((si64*)p + 84) = _mm256_extract_epi64(w, 2);
-      *((si32*)p + 92) = _mm256_extract_epi32(w, 6);
+      _mm_storeu_si128((__m128i*)(p     ), _mm256_castsi256_si128(t));
+      _mm_storeu_si128((__m128i*)(p + 12), _mm256_extracti128_si256(t,1));
+      _mm_storeu_si128((__m128i*)(p + 24), _mm256_castsi256_si128(u));
+      _mm_storeu_si128((__m128i*)(p + 36), _mm256_extracti128_si256(u,1));
+      _mm_storeu_si128((__m128i*)(p + 48), _mm256_castsi256_si128(v));
+      _mm_storeu_si128((__m128i*)(p + 60), _mm256_extracti128_si256(v,1));
+      _mm_storeu_si128((__m128i*)(p + 72), _mm256_castsi256_si128(w));
+      *((si64*)(p + 84)) = _mm256_extract_epi64(w, 2);
+      *((si32*)(p + 92)) = _mm256_extract_epi32(w, 6);
 
       // this is an alterative slower implementation
       //__m256i tx, ux, vx, wx;

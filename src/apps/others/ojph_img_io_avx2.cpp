@@ -236,9 +236,9 @@ namespace ojph {
       //_mm256_storeu_si256(p + 2, a);
     }
 
-    const ui8* ssp0 = (ui8*)sp0;
-    const ui8* ssp1 = (ui8*)sp1;
-    const ui8* ssp2 = (ui8*)sp2;
+    const si32* ssp0 = (si32*)sp0;
+    const si32* ssp1 = (si32*)sp1;
+    const si32* ssp2 = (si32*)sp2;
     for ( ; count > 0; --count)
     {
       int val;

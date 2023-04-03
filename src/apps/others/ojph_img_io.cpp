@@ -1256,7 +1256,7 @@ namespace ojph {
         const si32* sp = (si32*)buffer;
         for (ui32 i = width; i > 0; --i) {
           si32 val = *sp & 0xFFFFFF;
-          val = val | ((val & 0x800000) ? 0xFF000000 : 0);
+          val |= (val & 0x800000) ? 0xFF000000 : 0;
           *dp++ = val;
           // this only works for little endian architecture
           sp = (si32*)((si8*)sp + 3);

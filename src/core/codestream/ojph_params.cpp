@@ -599,7 +599,7 @@ namespace ojph {
       {
         if (cptr != store)
           delete[] cptr;
-        cptr = new siz_comp_info[num_comps];
+        cptr = new siz_comp_info[(ui32)num_comps];
         old_Csiz = Csiz;
       }
       for (int c = 0; c < Csiz; ++c)

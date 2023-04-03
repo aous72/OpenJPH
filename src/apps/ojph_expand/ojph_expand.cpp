@@ -154,7 +154,7 @@ bool is_matching(const char *ref, const char *other)
   if (num_ele != strlen(other))
     return false;
 
-  for (int i = 0; i < num_ele; ++i)
+  for (ojph::ui32 i = 0; i < num_ele; ++i)
     if (ref[i] != other[i] && ref[i] != tolower(other[i]))
       return false;
 
@@ -329,7 +329,6 @@ int main(int argc, char *argv[]) {
             "The file has %d color components; this cannot be saved to"
             " .raw file (only one component is allowed).\n", 
             siz.get_num_components());
-        ojph::param_cod cod = codestream.access_cod();
         bool is_signed = siz.is_signed(0);
         ojph::ui32 width = siz.get_recon_width(0);
         ojph::ui32 bit_depth = siz.get_bit_depth(0);

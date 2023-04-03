@@ -1225,6 +1225,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   ui32 raw_in::read(const line_buf* line, ui32 comp_num)
   {
+    ojph_unused(comp_num);
     assert(comp_num == 0);
     size_t result = fread(buffer, bytes_per_sample, width, fh);
     if (result != width)
@@ -1254,8 +1255,8 @@ namespace ojph {
       if (is_signed) {
         const si32* sp = (si32*)buffer;
         for (ui32 i = width; i > 0; --i) {
-          si32 val = *sp & 0xFFFFFFu;
-          val = val | ((val & 0x800000) ? 0xFF000000u : 0u);
+          si32 val = *sp & 0xFFFFFF;
+          val = val | ((val & 0x800000) ? 0xFF000000 : 0);
           *dp++ = val;
           // this only works for little endian architecture
           sp = (si32*)((si8*)sp + 3);
@@ -1367,6 +1368,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   ui32 raw_out::write(const line_buf* line, ui32 comp_num)
   {
+    ojph_unused(comp_num);
     assert(fh);
     assert(comp_num == 0);
 

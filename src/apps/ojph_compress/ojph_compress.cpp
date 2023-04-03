@@ -472,7 +472,7 @@ bool is_matching(const char *ref, const char *other)
   if (num_ele != strlen(other))
     return false;
 
-  for (int i = 0; i < num_ele; ++i)
+  for (ojph::ui32 i = 0; i < num_ele; ++i)
     if (ref[i] != other[i] && ref[i] != tolower(other[i]))
       return false;
 

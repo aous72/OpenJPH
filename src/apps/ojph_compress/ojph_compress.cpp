@@ -357,6 +357,7 @@ struct tileparts_division_interpreter
 };
 
 //////////////////////////////////////////////////////////////////////////////
+static
 bool get_arguments(int argc, char *argv[], char *&input_filename,
                    char *&output_filename, char *&progression_order,
                    char *&profile_string, ojph::ui32 &num_decompositions,
@@ -450,6 +451,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 }
 
 /////////////////////////////////////////////////////////////////////////////
+static
 const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
@@ -459,6 +461,22 @@ const char* get_file_extension(const char* filename)
       "no file extension is found, or there are no characters "
       "after the dot \'.\' for filename \"%s\" \n", filename);
   return p;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+static 
+bool is_matching(const char *ref, const char *other)
+{
+  size_t num_ele = strlen(ref);
+
+  if (num_ele != strlen(other))
+    return false;
+
+  for (ojph::ui32 i = 0; i < num_ele; ++i)
+    if (ref[i] != other[i] && ref[i] != tolower(other[i]))
+      return false;
+
+  return true;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -590,6 +608,7 @@ int main(int argc, char * argv[]) {
 
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
+    ojph::raw_in raw;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
@@ -607,7 +626,7 @@ int main(int argc, char * argv[]) {
 
     if (v)
     {
-      if (strncmp(".pgm", v, 4) == 0)
+      if (is_matching(".pgm", v))
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -660,7 +679,7 @@ int main(int argc, char * argv[]) {
 
         base = &ppm;
       }
-      else if (strncmp(".ppm", v, 4) == 0)
+      else if (is_matching(".ppm", v))
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -715,7 +734,7 @@ int main(int argc, char * argv[]) {
         base = &ppm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
+      else if (is_matching(".tif", v) || is_matching(".tiff", v))
       {
         tif.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -768,7 +787,7 @@ int main(int argc, char * argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
+      else if (is_matching(".yuv", v))
       {
         ojph::param_siz siz = codestream.access_siz();
         if (dims.w == 0 || dims.h == 0)
@@ -840,20 +859,31 @@ int main(int argc, char * argv[]) {
         yuv.open(input_filename);
         base = &yuv;
       }
-#ifdef OJPH_ENABLE_DPX_SUPPORT
-      else if (strncmp(".dpx", v, 4) == 0 || strncmp(".DPX", v, 4) == 0)
+      else if (is_matching(".raw", v))
       {
-        dpx.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
-        siz.set_image_extent(ojph::point(image_offset.x + dpx.get_size().w,
-        image_offset.y + dpx.get_size().h));
-        ojph::ui32 num_comps = dpx.get_num_components();
-        siz.set_num_components(num_comps);
-        //if (num_bit_depths > 0)
-        //  dpx.set_bit_depth(num_bit_depths, bit_depth);
-        for (ojph::ui32 c = 0; c < num_comps; ++c)
-          siz.set_component(c, dpx.get_comp_subsampling(c),
-            dpx.get_bit_depth(c), dpx.get_is_signed(c));
+        if (dims.w == 0 || dims.h == 0)
+          OJPH_ERROR(0x01000081,
+            "-dims option must have positive dimensions\n");
+        siz.set_image_extent(ojph::point(image_offset.x + dims.w,
+          image_offset.y + dims.h));
+        if (num_components != 1)
+          OJPH_ERROR(0x01000082,
+            "-num_comps must be 1\n");
+        if (num_is_signed <= 0)
+          OJPH_ERROR(0x01000083,
+            "-signed option is missing and must be provided\n");
+        if (num_bit_depths <= 0)
+          OJPH_ERROR(0x01000084,
+            "-bit_depth option is missing and must be provided\n");
+        if (num_comp_downsamps <= 0)
+          OJPH_ERROR(0x01000085,
+            "-downsamp option is missing and must be provided\n");
+
+        raw.set_img_props(dims, bit_depth[0], is_signed);
+
+        siz.set_num_components(num_components);
+        siz.set_component(0, comp_downsampling[0], bit_depth[0], is_signed[0]);
         siz.set_image_offset(image_offset);
         siz.set_tile_size(tile_size);
         siz.set_tile_offset(tile_offset);
@@ -864,38 +894,25 @@ int main(int argc, char * argv[]) {
         if (num_precincts != -1)
           cod.set_precinct_size(num_precincts, precinct_size);
         cod.set_progression_order(prog_order);
-        if (employ_color_transform == -1 && num_comps >= 3)
-          cod.set_color_transform(true);
-        else
-          cod.set_color_transform(employ_color_transform == 1);
+        if (employ_color_transform != -1)
+          OJPH_ERROR(0x01000086,
+            "color transform is not meaningless since .raw files are single "
+            "component files");
         cod.set_reversible(reversible);
-        if (!reversible && quantization_step != -1)
+        if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        codestream.set_planar(false);
+        codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions,
-          tileparts_at_components);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
 
-        if (dims.w != 0 || dims.h != 0)
-          OJPH_WARN(0x01000071,
-            "-dims option is not needed and was not used\n");
-        if (num_components != 0)
-          OJPH_WARN(0x01000072,
-            "-num_comps is not needed and was not used\n");
-        if (is_signed[0] != -1)
-          OJPH_WARN(0x01000073,
-            "-signed is not needed and was not used\n");
-        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-          OJPH_WARN(0x01000075,
-            "-downsamp is not needed and was not used\n");
-
-        base = &dpx;
+        raw.open(input_filename);
+        base = &raw;
       }
-#endif // !OJPH_ENABLE_DPX_SUPPORT
       else
-#if defined( OJPH_ENABLE_TIFF_SUPPORT) && defined( OJPH_ENABLE_DPX_SUPPORT)
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only pgm, ppm, dpx, tif(f),"
           " or raw(yuv) are supported\n");

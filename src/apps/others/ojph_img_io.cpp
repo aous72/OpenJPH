@@ -1199,6 +1199,241 @@ namespace ojph {
     return w;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::open(const char* filename)
+  {
+    assert(fh == NULL);
+    fh = fopen(filename, "rb");
+    if (fh == NULL)
+      OJPH_ERROR(0x030000C1, "Unable to open file %s", filename);
+
+    cur_line = 0;
+    bytes_per_sample = (bit_depth + 7) >> 3;
+    buffer_size = width * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+    fname = filename;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 raw_in::read(const line_buf* line, ui32 comp_num)
+  {
+    ojph_unused(comp_num);
+    assert(comp_num == 0);
+    size_t result = fread(buffer, bytes_per_sample, width, fh);
+    if (result != width)
+    {
+      close();
+      OJPH_ERROR(0x030000C2, "not enough data in file %s", fname);
+    }
+
+    if (bytes_per_sample > 3)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        si32* dp = line->i32;
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else if (bytes_per_sample > 2)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          si32 val = *sp & 0xFFFFFF;
+          val |= (val & 0x800000) ? 0xFF000000 : 0;
+          *dp++ = val;
+          // this only works for little endian architecture
+          sp = (si32*)((si8*)sp + 3);
+        }
+      }
+      else {
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          *dp++ = (si32)(*sp & 0xFFFFFFu);
+          // this only works for little endian architecture
+          sp = (ui32*)((ui8*)sp + 3);
+        }
+      }
+    }
+    else if (bytes_per_sample > 1)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si16* sp = (si16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui16* sp = (ui16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si8* sp = (si8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui8* sp = (ui8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+
+    return width;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::set_img_props(const size& s, ui32 bit_depth, bool is_signed)
+  {
+    assert(fh == NULL);
+    //need to extract this info from filename
+    this->width = s.w;
+    this->height = s.h;
+    this->bit_depth = bit_depth;
+    this->is_signed = is_signed;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  raw_out::~raw_out()
+  {
+    close();
+    if (buffer)
+    {
+      free(buffer);
+      buffer = NULL;
+      buffer_size = 0;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_out::open(char *filename)
+  {
+    assert(fh == NULL); //configure before open
+    fh = fopen(filename, "wb");
+    if (fh == 0)
+      OJPH_ERROR(0x03000091, "Unable to open file %s", filename);
+    fname = filename;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_out::configure(bool is_signed, ui32 bit_depth, ui32 width)
+  {
+    assert(fh == NULL);
+    this->is_signed = is_signed;
+    this->bit_depth = bit_depth;
+    this->width = width;
+
+    if (is_signed) { 
+      upper_val = (1 << (bit_depth - 1));
+      lower_val = -(1 << (bit_depth - 1));
+    } else {
+      upper_val = 1 << bit_depth;
+      lower_val = 0;
+    }
+
+    bytes_per_sample = (bit_depth + 7) >> 3;
+    buffer_size = width * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 raw_out::write(const line_buf* line, ui32 comp_num)
+  {
+    ojph_unused(comp_num);
+    assert(fh);
+    assert(comp_num == 0);
+
+    if (bytes_per_sample > 3)
+    {
+      const si32* sp = line->i32;
+      ui32* dp = (ui32*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui32)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B1, "unable to write to file %s", fname);
+    }
+    else if (bytes_per_sample > 2)
+    {
+      const si32* sp = line->i32;
+      ui32* dp = (ui32*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp = (ui32)val;
+        // this only works for little endian architecture
+        dp = (ui32*)((ui8*)dp + 3);
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B2, "unable to write to file %s", fname);
+    }
+    else if (bytes_per_sample > 1)
+    {
+      const si32* sp = line->i32;
+      ui16* dp = (ui16*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui16)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B3, "unable to write to file %s", fname);
+    }
+    else
+    {
+      const si32* sp = line->i32;
+      ui8* dp = (ui8*)buffer;
+      for (ui32 i = bit_depth; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui8)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B4, "unable to write to file %s", fname);
+    }
+
+    return width;
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////
   //

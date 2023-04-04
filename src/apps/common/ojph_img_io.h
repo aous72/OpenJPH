@@ -349,7 +349,6 @@ namespace ojph {
       for (int i = 0; i < 3; ++i)
       {
         width[i] = height[i] = bit_depth[i] = 0;
-        is_signed[i] = false;
         subsampling[i] = point(1,1);
         comp_address[i] = 0;
         bytes_per_sample[i] = 0;
@@ -377,7 +376,6 @@ namespace ojph {
 
     ui32 get_num_components() { assert(fh); return num_com; }
     ui32 *get_bit_depth() { assert(fh); return bit_depth; }
-    bool *get_is_signed() { assert(fh); return is_signed; }
     point *get_comp_subsampling() { assert(fh); return subsampling; }
 
   private:
@@ -391,8 +389,55 @@ namespace ojph {
     ui32 cur_line, last_comp;
     bool planar;
     ui32 bit_depth[3];
-    bool is_signed[3];
     point subsampling[3];
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class raw_in : public image_in_base
+  {
+  public:
+    raw_in()
+    {
+      fh = NULL;
+      fname = NULL;
+      width = height = bit_depth = 0;
+      bytes_per_sample = 0;
+      is_signed = false;
+      cur_line = 0;
+      buffer = NULL;
+      buffer_size = 0;
+    }
+    virtual ~raw_in()
+    {
+      close();
+      if (buffer)
+        free(buffer);
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num = 0);
+    void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
+
+    void set_img_props(const size& s, ui32 bit_depth, bool is_signed);
+
+    ui32 get_bit_depth() { assert(fh); return bit_depth; }
+    bool get_is_signed() { assert(fh); return is_signed; }
+
+  private:
+    FILE *fh;
+    const char *fname;
+    ui32 width, height, bit_depth;
+    ui32 bytes_per_sample;
+    bool is_signed;
+    ui32 cur_line;
+    void* buffer;
+    size_t buffer_size;
   };
 
   ////////////////////////////////////////////////////////////////////////////
@@ -514,14 +559,15 @@ namespace ojph {
     const line_buf *lptr[3];
   };
 
-////////////////////////////////////////////////////////////////////////////
-//
-//
-//
-//
-//
-////////////////////////////////////////////////////////////////////////////
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
   class tif_out : public image_out_base
   {
   public:
@@ -613,7 +659,44 @@ namespace ojph {
     ui32 buffer_size;
   };
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class raw_out : public image_out_base
+  {
+  public:
+    raw_out()
+    {
+      fh = NULL;
+      fname = NULL;
+      is_signed = false;
+      bit_depth = bytes_per_sample = 0;
+      lower_val = upper_val = 0;
+      width = 0;
+      buffer = NULL;
+      buffer_size = 0;
+    }
+    virtual ~raw_out();
 
+    void open(char* filename);
+    void configure(bool is_signed, ui32 bit_depth, ui32 width);
+    virtual ui32 write(const line_buf* line, ui32 comp_num = 0);
+    virtual void close() { if (fh) { fclose(fh); fh = NULL; } fname = NULL; }
+
+  private:
+    FILE* fh;
+    const char* fname;
+    bool is_signed;
+    ui32 bit_depth, bytes_per_sample;
+    si32 lower_val, upper_val;
+    ui32 width;
+    ui8* buffer;
+    ui32 buffer_size;
+  };
 }
 
 #endif // !OJPH_IMG_IO_H

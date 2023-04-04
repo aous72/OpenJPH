@@ -1637,7 +1637,8 @@ namespace ojph {
 
     // handle DPX image data packing in file 
     ui32 number_of_samples_per_32_bit_word = 32 / bitdepth_for_image_element_1;
-    number_of_32_bit_words_per_line = (width * num_comps + (number_of_samples_per_32_bit_word - 1)) / number_of_samples_per_32_bit_word;
+    number_of_samples_per_line = width * num_comps;
+    number_of_32_bit_words_per_line = (number_of_samples_per_line + (number_of_samples_per_32_bit_word - 1)) / number_of_samples_per_32_bit_word;
 
     cur_line = 0;
 
@@ -1678,10 +1679,21 @@ namespace ojph {
 
       if (true == is_byte_swapping_necessary)
       {
-        ui32 *line_buffer_ptr = (ui32*)line_buffer;
-        for (size_t i = 0; i < number_of_32_bit_words_per_line; i++)
+        if (16 == bitdepth_for_image_element_1)
         {
-          line_buffer_ptr[i] = DPX_SWAP_BYTES_UINT32(line_buffer_ptr[i]);
+          ui16* line_buffer_ptr = (ui16*)line_buffer;
+          for (size_t i = 0; i < 2*number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = DPX_SWAP_BYTES_UINT16(line_buffer_ptr[i]);
+          }
+        }
+        else
+        {
+          ui32* line_buffer_ptr = (ui32*)line_buffer;
+          for (size_t i = 0; i < number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = DPX_SWAP_BYTES_UINT32(line_buffer_ptr[i]);
+          }
         }
       }
 
@@ -1690,15 +1702,23 @@ namespace ojph {
       if (10 == bitdepth_for_image_element_1 && 3 == num_comps && packing_for_image_element_1 == 1)
       {
         ui32* line_buffer_ptr = (ui32*)line_buffer;
-        for (ui32 i = 0; i < width*num_comps; i += 3)
+        for (ui32 i = 0; i < number_of_samples_per_line; i += 3)
         {
           // R
           line_buffer_16bit_samples[i + 0] = (line_buffer_ptr[word_index] & 0xFFC00000) >> 22;
           // G
           line_buffer_16bit_samples[i + 1] = (line_buffer_ptr[word_index] & 0x003FF000) >> 12;
           // B
-          line_buffer_16bit_samples[i + 2] = (line_buffer_ptr[word_index] & 0x00000FFC) >>  2;
+          line_buffer_16bit_samples[i + 2] = (line_buffer_ptr[word_index] & 0x00000FFC) >> 2;
           word_index++;
+        }
+      }
+      if (16 == bitdepth_for_image_element_1 && 3 == num_comps)
+      {
+        ui16* line_buffer_ptr = (ui16*)line_buffer;
+        for (ui32 i = 0; i < number_of_samples_per_line; i++)
+        {
+          line_buffer_16bit_samples[i] = line_buffer_ptr[i];
         }
       }
       else

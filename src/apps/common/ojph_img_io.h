@@ -244,6 +244,7 @@ namespace ojph {
       //bytes_per_sample = 0;
 
       //bytes_per_line = 0;
+      number_of_samples_per_line = 0;
 
       cur_line = 0;
 
@@ -302,6 +303,8 @@ namespace ojph {
     ui32 bit_depth[4];
     bool is_signed[4];
     point subsampling[4];
+
+    ui32 number_of_samples_per_line;
 
     ui16* line_buffer_16bit_samples;
 

@@ -229,6 +229,108 @@ namespace ojph {
   };
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
+#ifdef OJPH_ENABLE_DPX_SUPPORT
+  class dpx_in : public image_in_base
+  {
+  public:
+    dpx_in()
+    {
+      file_handle = NULL;
+      fname = NULL;
+      line_buffer = NULL;
+      line_buffer_16bit_samples = NULL;
+
+      width = height = num_comps = 0;
+      //bytes_per_sample = 0;
+
+      //bytes_per_line = 0;
+
+      cur_line = 0;
+
+      bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
+      is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
+      subsampling[3] = subsampling[2] = point(1, 1);
+      subsampling[1] = subsampling[0] = point(1, 1);
+
+      is_byte_swapping_necessary = false;
+    }
+    virtual ~dpx_in()
+    {
+      close();
+      if (line_buffer)
+        free(line_buffer);
+      if (line_buffer_16bit_samples)
+        free(line_buffer_16bit_samples);
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    void close() {
+      if (file_handle) {
+        fclose(file_handle);
+        file_handle = NULL;
+      }
+      fname = NULL;
+    }
+
+    size get_size() { assert(file_handle); return size(width, height); }
+    ui32 get_num_components() { assert(file_handle); return num_comps; }
+    //void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
+    ui32 get_bit_depth(ui32 comp_num)
+    {
+      assert(file_handle && comp_num < num_comps); return bit_depth[comp_num];
+    }
+    bool get_is_signed(ui32 comp_num)
+    {
+      assert(file_handle && comp_num < num_comps); return is_signed[comp_num];
+    }
+    point get_comp_subsampling(ui32 comp_num)
+    {
+      assert(file_handle && comp_num < num_comps); return subsampling[comp_num];
+    }
+
+  private:
+    FILE* file_handle;
+    //size_t bytes_per_line;
+
+    const char* fname;
+    void* line_buffer;
+    ui32 width, height;
+    ui32 num_comps;
+    //ui32 bytes_per_sample;
+    ui32 cur_line;
+    ui32 bit_depth[4];
+    bool is_signed[4];
+    point subsampling[4];
+
+    ui16* line_buffer_16bit_samples;
+
+    // DPX specific members
+    bool is_byte_swapping_necessary;
+    // file info header
+    ui32 offset_to_image_data_in_bytes;
+    char version[8];
+    ui32 total_image_file_size_in_bytes;
+    // image information header
+    ui16 image_orientation;
+    ui16 number_of_image_elements;
+    ui32 pixels_per_line;
+    ui32 lines_per_image_element;
+    // image element 1
+    ui32 data_sign_for_image_element_1;
+    ui8 descriptor_for_image_element_1;
+    ui8 transfer_characteristic_for_image_element_1;
+    ui8 colormetric_specification_for_image_element_1;
+    ui8 bitdepth_for_image_element_1;
+    ui16 packing_for_image_element_1;
+    ui16 encoding_for_image_element_1;
+    ui32 offset_to_data_for_image_element_1;
+
+    size_t number_of_32_bit_words_per_line;
+
+  };
+#endif // OJPH_ENABLE_DPX_SUPPORT
+
   ////////////////////////////////////////////////////////////////////////////
   //
   //

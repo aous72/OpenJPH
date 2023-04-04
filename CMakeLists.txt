@@ -201,6 +201,13 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
 endif() 
 ############################################################
 
+# enable DPX support
+if (MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_DPX_SUPPORT\"")
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_DPX_SUPPORT")
+endif()
+
 set(OJPH_EXPAND src/apps/ojph_expand/ojph_expand.cpp src/apps/others/ojph_img_io.cpp)
 set(OJPH_COMPRESS src/apps/ojph_compress/ojph_compress.cpp src/apps/others/ojph_img_io.cpp)
 set(OJPH_IMG_IO_SSE41 src/apps/others/ojph_img_io_sse41.cpp)

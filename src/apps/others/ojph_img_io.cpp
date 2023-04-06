@@ -1445,8 +1445,17 @@ namespace ojph {
 #ifdef OJPH_ENABLE_DPX_SUPPORT  
   ////////////////////////////////////////////////////////////////////////////
 
-#define DPX_SWAP_BYTES_UINT32(x) ( (((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8) | (((x) & 0x0000ff00) << 8) | (((x) & 0x000000ff) << 24) )
-#define DPX_SWAP_BYTES_UINT16(x) ( (((x) & 0xff00)     >>  8) | (((x) & 0x00ff)     << 8) )
+  ui32 DPX_SWAP_BYTES_UINT32(ui32 x)
+  {
+    return (((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8) | (((x) & 0x0000ff00) << 8) | (((x) & 0x000000ff) << 24);
+  }
+
+  ui16 DPX_SWAP_BYTES_UINT16(ui16 x)
+  {
+    const ui16 most  = (ui16) ((x & 0xff00) >> 8);
+    const ui16 least = (ui16) ((x & 0x00ff) << 8);
+    return most | least;
+  }
 
   void dpx_in::open(const char* filename)
   {
@@ -1705,15 +1714,15 @@ namespace ojph {
         for (ui32 i = 0; i < number_of_samples_per_line; i += 3)
         {
           // R
-          line_buffer_16bit_samples[i + 0] = (line_buffer_ptr[word_index] & 0xFFC00000) >> 22;
+          line_buffer_16bit_samples[i + 0] = (ui16) ((line_buffer_ptr[word_index] & 0xFFC00000) >> 22);
           // G
-          line_buffer_16bit_samples[i + 1] = (line_buffer_ptr[word_index] & 0x003FF000) >> 12;
+          line_buffer_16bit_samples[i + 1] = (ui16) ((line_buffer_ptr[word_index] & 0x003FF000) >> 12);
           // B
-          line_buffer_16bit_samples[i + 2] = (line_buffer_ptr[word_index] & 0x00000FFC) >> 2;
+          line_buffer_16bit_samples[i + 2] = (ui16) ((line_buffer_ptr[word_index] & 0x00000FFC) >>  2);
           word_index++;
         }
       }
-      if (16 == bitdepth_for_image_element_1 && 3 == num_comps)
+      else if (16 == bitdepth_for_image_element_1 && 3 == num_comps)
       {
         ui16* line_buffer_ptr = (ui16*)line_buffer;
         for (ui32 i = 0; i < number_of_samples_per_line; i++)
@@ -1723,7 +1732,8 @@ namespace ojph {
       }
       else
       {
-        OJPH_ERROR(0x0300000B2, "file %s uses DPX image formats that are not yet supported by this software", fname);
+        OJPH_ERROR(0x0300000B2, "file %s uses DPX image formats that are not yet supported by this software\n bitdepth_for_image_element_1 = %d\n num_comps=%d\npacking_for_image_element_1=%d\n descriptor_for_image_element_1=%d", 
+          fname, bitdepth_for_image_element_1, num_comps, packing_for_image_element_1, descriptor_for_image_element_1);
       }
       
       cur_line++;

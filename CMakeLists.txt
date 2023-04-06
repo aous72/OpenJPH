@@ -38,8 +38,14 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24.0")
   endif()
 endif()
 
+set(CMAKE_CXX_FLAGS_ASAN
+  "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O1"
+  CACHE STRING "Flags used by the C++ compiler during AddressSanitizer builds."
+  FORCE)
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
+  message( STATUS "To use AddressSanitizer, use \"cmake .. -DCMAKE_BUILD_TYPE=asan\"" )
 endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 

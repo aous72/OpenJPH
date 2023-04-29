@@ -175,7 +175,11 @@ namespace ojph {
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 
+#ifdef OJPH_ENABLE_INTEL_AVX512
+      encode_cb = ojph_encode_codeblock_avx512;
+#else
       encode_cb = ojph_encode_codeblock;
+#endif /* OJPH_ENABLE_INTEL_AVX512 */
     }
 
   }

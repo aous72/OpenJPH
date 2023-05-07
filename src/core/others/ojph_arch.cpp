@@ -117,7 +117,7 @@ namespace ojph {
                   osxsave_avail = ((mmx_abcd[2] & 0x08000000) == 0x08000000);
                   if (osxsave_avail)
                   {
-                    xcr_val = read_xcr(0);
+                    xcr_val = read_xcr(0); // _XCR_XFEATURE_ENABLED_MASK = 0
                     ymm_avail = osxsave_avail && ((xcr_val & 0x6) == 0x6);
                     avx_avail = ymm_avail && (mmx_abcd[2] & 0x10000000);
                   }
@@ -138,7 +138,7 @@ namespace ojph {
                         level = X86_CPU_EXT_LEVEL_AVX2FMA;
 
                         bool zmm_avail =
-                          osxsave_avail && ((xcr_val & 0xE) == 0xE);
+                          osxsave_avail && ((xcr_val & 0xE0) == 0xE0);
                         bool avx512vl_avail = (avx2_abcd[1] & 0x80000000) != 0;
                         bool avx512_avail = zmm_avail && avx512vl_avail;
                         if (avx512_avail)

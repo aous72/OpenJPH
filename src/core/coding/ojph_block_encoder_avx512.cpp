@@ -211,7 +211,7 @@ namespace ojph {
       {
         ulvc_cwd_pre[i] = 0;
         ulvc_cwd_pre_len[i] = 3;
-        ulvc_cwd_suf[i] = i-5;
+        ulvc_cwd_suf[i] = (ui32)(i-5);
         ulvc_cwd_suf_len[i] = 5;
       }
       return true;

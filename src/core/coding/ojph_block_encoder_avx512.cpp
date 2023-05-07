@@ -68,9 +68,9 @@ namespace ojph {
     static ui32 vlc_tbl1[2048] = { 0 };
 
     //UVLC encoding
-    static int ulvc_cwd_pre[33];
+    static ui32 ulvc_cwd_pre[33];
     static int ulvc_cwd_pre_len[33];
-    static int ulvc_cwd_suf[33];
+    static ui32 ulvc_cwd_suf[33];
     static int ulvc_cwd_suf_len[33];
 
     /////////////////////////////////////////////////////////////////////////
@@ -508,7 +508,7 @@ static void proc_pixel(__m512i *src_vec, ui32 p,
         val_vec[i] = _mm512_srli_epi32(val_vec[i], p);
 
         /* val &= ~1u; // 2 \mu_p */
-        val_vec[i] = _mm512_and_epi32(val_vec[i], _mm512_set1_epi32(~1u));
+        val_vec[i] = _mm512_and_epi32(val_vec[i], _mm512_set1_epi32((int)~1u));
 
         /* if (val) { */
         val_mask[i] = _mm512_cmpneq_epi32_mask(val_vec[i], ZERO);
@@ -677,9 +677,9 @@ static void proc_ms_encode(ms_struct *msp,
     rotate_matrix(s_vec);
 
     ui32 cwd[16];
-    ui32 cwd_len[16];
+    int cwd_len[16];
     ui64 _cwd = 0;
-    ui32 _cwd_len = 0;
+    int _cwd_len = 0;
 
     /* Each iteration process 8 bytes * 2 lines */
     for (ui32 i = 0; i < 4; ++i) {
@@ -899,7 +899,7 @@ static void proc_vlc_encode1(vlc_struct *vlcp, ui32 *tuple,
     for (ui32 i = 0; i < i_max; i += 2) {
         /* 7 bits */
         ui32 val = tuple[i + 0] >> 4;
-        ui32 size = tuple[i + 0] & 7;
+        int size = tuple[i + 0] & 7;
 
         if (i + 1 < i_max) {
             /* 7 bits */
@@ -967,7 +967,7 @@ static void proc_vlc_encode2(vlc_struct *vlcp, ui32 *tuple,
     for (ui32 i = 0; i < i_max; i += 2) {
         /* 7 bits */
         ui32 val = tuple[i + 0] >> 4;
-        ui32 size = tuple[i + 0] & 7;
+        int size = tuple[i + 0] & 7;
 
         if (i + 1 < i_max) {
             /* 7 bits */
@@ -1005,7 +1005,7 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
 {
     ojph_unused(num_passes);                      //currently not used
 
-    ui32 width = (_width + 31) & ~31;
+    ui32 width = (_width + 31) & ~31u;
     ui32 ignore = width - _width;
     const int ms_size = (16384 * 16 + 14) / 15; //more than enough
     const int mel_vlc_size = 3072;              //more than enough

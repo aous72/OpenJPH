@@ -218,8 +218,18 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    static bool vlc_tables_initialized = vlc_init_tables();
-    static bool uvlc_tables_initialized = uvlc_init_tables();
+    bool initialize_tables() {
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512) {
+        bool result;
+        result = vlc_init_tables();
+        result = result && uvlc_init_tables();
+        return result;
+      }
+      return false;
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    static bool tables_initialized = initialize_tables();
 
     /////////////////////////////////////////////////////////////////////////
     //

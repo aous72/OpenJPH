@@ -465,14 +465,6 @@ namespace ojph {
 #define ZERO _mm512_setzero_epi32()
 #define ONE  _mm512_set1_epi32(1)
 
-const auto right_shift = _mm512_set_epi32(
-    0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-);
-
-const auto left_shift = _mm512_set_epi32(
-    14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15
-);
-
 #if 0
 static void print_epi32(const char *msg, __m512i &val)
 {
@@ -528,7 +520,8 @@ static void proc_pixel(__m512i *src_vec, ui32 p,
         /*   s[0] = --val + (t >> 31); //v_n = 2(\mu_p-1) + s_n */
         val_vec[i] = _mm512_mask_sub_epi32(ZERO, val_mask[i], val_vec[i], ONE);
         _s_vec[i] = _mm512_mask_srli_epi32(ZERO, val_mask[i], src_vec[i], 31);
-        _s_vec[i] = _mm512_mask_add_epi32(ZERO, val_mask[i], _s_vec[i], val_vec[i]);
+        _s_vec[i] = 
+          _mm512_mask_add_epi32(ZERO, val_mask[i], _s_vec[i], val_vec[i]);
         /* } */
     }
 
@@ -544,31 +537,34 @@ static void proc_pixel(__m512i *src_vec, ui32 p,
     };
 
     /* Reorder from
-     * *_vec[0]: [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5] ... [0,14], [0,15]
-     * *_vec[1]: [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5] ... [1,14], [1,15]
-     * *_vec[2]: [0,16], [0,17], [0,18], [0,19], [0,20], [0,21] ... [0,30], [0,31]
-     * *_vec[3]: [1,16], [1,17], [1,18], [1,19], [1,20], [1,21] ... [1,30], [1,31]
+     * *_vec[0]:[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5]...[0,14], [0,15]
+     * *_vec[1]:[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5]...[1,14], [1,15]
+     * *_vec[2]:[0,16], [0,17], [0,18], [0,19], [0,20], [0,21]...[0,30], [0,31]
+     * *_vec[3]:[1,16], [1,17], [1,18], [1,19], [1,20], [1,21]...[1,30], [1,31]
      * to
-     * *_vec[0]: [0, 0], [0, 2] ... [0,14], [0,16], [0,18] ... [0,30]
-     * *_vec[1]: [1, 0], [1, 2] ... [1,14], [1,16], [1,18] ... [1,30]
-     * *_vec[2]: [0, 1], [0, 3] ... [0,15], [0,17], [0,19] ... [0,31]
-     * *_vec[3]: [1, 1], [1, 3] ... [1,15], [1,17], [1,19] ... [1,31]
+     * *_vec[0]:[0, 0], [0, 2] ... [0,14], [0,16], [0,18] ... [0,30]
+     * *_vec[1]:[1, 0], [1, 2] ... [1,14], [1,16], [1,18] ... [1,30]
+     * *_vec[2]:[0, 1], [0, 3] ... [0,15], [0,17], [0,19] ... [0,31]
+     * *_vec[3]:[1, 1], [1, 3] ... [1,15], [1,17], [1,19] ... [1,31]
      */
     for (ui32 i = 0; i < 4; ++i) {
         ui32 e_idx = i >> 1;
         ui32 o_idx = i & 0x1;
 
         eq_vec[i] = _mm512_permutexvar_epi32(idx[e_idx], _eq_vec[o_idx]);
-        eq_vec[i] = _mm512_mask_permutexvar_epi32(eq_vec[i], 0xFF00,
-                                                  idx[e_idx], _eq_vec[o_idx + 2]);
+        eq_vec[i] = _mm512_mask_permutexvar_epi32(eq_vec[i], 0xFF00, 
+                                                  idx[e_idx], 
+                                                  _eq_vec[o_idx + 2]);
 
         s_vec[i] = _mm512_permutexvar_epi32(idx[e_idx], _s_vec[o_idx]);
         s_vec[i] = _mm512_mask_permutexvar_epi32(s_vec[i], 0xFF00,
-                                                 idx[e_idx], _s_vec[o_idx + 2]);
+                                                 idx[e_idx], 
+                                                 _s_vec[o_idx + 2]);
 
         _rho_vec[i] = _mm512_permutexvar_epi32(idx[e_idx], val_vec[o_idx]);
         _rho_vec[i] = _mm512_mask_permutexvar_epi32(_rho_vec[i], 0xFF00,
-                                                    idx[e_idx], val_vec[o_idx + 2]);
+                                                    idx[e_idx], 
+                                                    val_vec[o_idx + 2]);
         _rho_vec[i] = _mm512_slli_epi32(_rho_vec[i], i);
 
         e_qmax_vec = _mm512_max_epi32(e_qmax_vec, eq_vec[i]);
@@ -658,15 +654,15 @@ static void proc_ms_encode(ms_struct *msp,
 
     rotate_matrix(m_vec);
     /* s_vec from
-     * s_vec[0]: [0, 0], [0, 2] ... [0,14], [0, 16], [0, 18] ... [0,30]
-     * s_vec[1]: [1, 0], [1, 2] ... [1,14], [1, 16], [1, 18] ... [1,30]
-     * s_vec[2]: [0, 1], [0, 3] ... [0,15], [0, 17], [0, 19] ... [0,31]
-     * s_vec[3]: [1, 1], [1, 3] ... [1,15], [1, 17], [1, 19] ... [1,31]
+     * s_vec[0]:[0, 0], [0, 2] ... [0,14], [0, 16], [0, 18] ... [0,30]
+     * s_vec[1]:[1, 0], [1, 2] ... [1,14], [1, 16], [1, 18] ... [1,30]
+     * s_vec[2]:[0, 1], [0, 3] ... [0,15], [0, 17], [0, 19] ... [0,31]
+     * s_vec[3]:[1, 1], [1, 3] ... [1,15], [1, 17], [1, 19] ... [1,31]
      * to
-     * s_vec[0]: [0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2] ... [0, 7], [1, 7]
-     * s_vec[1]: [0, 8], [1, 8], [0, 9], [1, 9], [0,10], [1,10] ... [0,15], [1,15]
-     * s_vec[2]: [0,16], [1,16], [0,17], [1,17], [0,18], [1,18] ... [0,23], [1,23]
-     * s_vec[3]: [0,24], [1,24], [0,25], [1,25], [0,26], [1,26] ... [0,31], [1,31]
+     * s_vec[0]:[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]...[0, 7], [1, 7]
+     * s_vec[1]:[0, 8], [1, 8], [0, 9], [1, 9], [0,10], [1,10]...[0,15], [1,15]
+     * s_vec[2]:[0,16], [1,16], [0,17], [1,17], [0,18], [1,18]...[0,23], [1,23]
+     * s_vec[3]:[0,24], [1,24], [0,25], [1,25], [0,26], [1,26]...[0,31], [1,31]
      */
     rotate_matrix(s_vec);
 
@@ -697,7 +693,8 @@ static void proc_ms_encode(ms_struct *msp,
     }
 }
 
-static __m512i cal_eps_vec(__m512i *eq_vec, __m512i &u_q_vec, __m512i &e_qmax_vec)
+static __m512i cal_eps_vec(__m512i *eq_vec, __m512i &u_q_vec, 
+                           __m512i &e_qmax_vec)
 {
     /* if (u_q[i] > 0) {
      *     eps[i] |= (e_q[i * 4 + 0] == e_qmax[i]);
@@ -730,7 +727,8 @@ static __m512i cal_eps_vec(__m512i *eq_vec, __m512i &u_q_vec, __m512i &e_qmax_ve
 }
 
 static void update_lep(ui32 x, __m512i &prev_e_val_vec,
-                       __m512i *eq_vec, __m512i *e_val_vec)
+                       __m512i *eq_vec, __m512i *e_val_vec,
+                       const __m512i left_shift)
 {
     /* lep[0] = ojph_max(lep[0], (ui8)e_q[1]); lep++;
      * lep[0] = (ui8)e_q[3];
@@ -738,20 +736,24 @@ static void update_lep(ui32 x, __m512i &prev_e_val_vec,
      */
     auto tmp = _mm512_mask_permutexvar_epi32(prev_e_val_vec, 0xFFFE,
                                              left_shift, eq_vec[3]);
-    prev_e_val_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, eq_vec[3]);
+    prev_e_val_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, 
+                                                   eq_vec[3]);
     e_val_vec[x] = _mm512_max_epi32(eq_vec[1], tmp);
 }
 
 
 static void update_lcxp(ui32 x, __m512i &prev_cx_val_vec,
-                        __m512i &rho_vec, __m512i *cx_val_vec)
+                        __m512i &rho_vec, __m512i *cx_val_vec,
+                        const __m512i left_shift)
 {
     /* lcxp[0] = (ui8)(lcxp[0] | (ui8)((rho[0] & 2) >> 1)); lcxp++;
      * lcxp[0] = (ui8)((rho[0] & 8) >> 3);
      * Or (rho[0] & 2) and (rho[0] of the previous round & 8).
      */
-    auto tmp = _mm512_mask_permutexvar_epi32(prev_cx_val_vec, 0xFFFE, left_shift, rho_vec);
-    prev_cx_val_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, rho_vec);
+    auto tmp = _mm512_mask_permutexvar_epi32(prev_cx_val_vec, 0xFFFE, 
+                                             left_shift, rho_vec);
+    prev_cx_val_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, 
+                                                    rho_vec);
 
     tmp = _mm512_and_epi32(tmp, _mm512_set1_epi32(8));
     tmp = _mm512_srli_epi32(tmp, 3);
@@ -772,10 +774,12 @@ static __m512i cal_tuple(__m512i &cq_vec, __m512i &rho_vec,
     return _mm512_i32gather_epi32(tmp, vlc_tbl, 4);
 }
 
-static __m512i proc_cq1(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec)
+static __m512i proc_cq1(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec, 
+                        const __m512i right_shift)
 {
-    (void)x;
-    (void)cx_val_vec;
+    ojph_unused(x);
+    ojph_unused(cx_val_vec);
+    ojph_unused(right_shift);
 
     /* c_q[i + 1] = (rho[i] >> 1) | (rho[i] & 1); */
     auto tmp = _mm512_srli_epi32(rho_vec, 1);
@@ -783,9 +787,11 @@ static __m512i proc_cq1(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec)
     return _mm512_or_epi32(tmp, tmp1);
 }
 
-static __m512i proc_cq2(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec)
+static __m512i proc_cq2(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec,
+                        const __m512i right_shift)
 {
-    /* c_q[i + 1] = (lcxp[i + 1] + (lcxp[i + 2] << 2)) | (((rho[i] & 4) >> 1) | ((rho[i] & 8) >> 2)); */
+    // c_q[i + 1] = (lcxp[i + 1] + (lcxp[i + 2] << 2)) 
+    //            | (((rho[i] & 4) >> 1) | ((rho[i] & 8) >> 2)); 
     auto lcxp1_vec = _mm512_permutexvar_epi32(right_shift, cx_val_vec[x]);
     auto lcxp2_vec = _mm512_permutexvar_epi32(right_shift, cx_val_vec[x + 1]);
     auto tmp = _mm512_permutexvar_epi32(right_shift, lcxp1_vec);
@@ -804,10 +810,11 @@ static __m512i proc_cq2(ui32 x, __m512i *cx_val_vec, __m512i &rho_vec)
     return _mm512_or_epi32(tmp, tmp1);
 }
 
-using fn_proc_cq = __m512i (*)(ui32, __m512i *, __m512i &);
+using fn_proc_cq = __m512i (*)(ui32, __m512i *, __m512i &, const __m512i);
 
-static void proc_mel_encode1(mel_struct *melp, __m512i &cq_vec, __m512i &rho_vec,
-                             __m512i u_q_vec, ui32 ignore)
+static void proc_mel_encode1(mel_struct *melp, __m512i &cq_vec, 
+                             __m512i &rho_vec, __m512i u_q_vec, ui32 ignore,
+                             const __m512i right_shift)
 {
     /* Prepare mel_encode params */
     /* if (c_q[i] == 0) { */
@@ -823,7 +830,8 @@ static void proc_mel_encode1(mel_struct *melp, __m512i &cq_vec, __m512i &rho_vec
 
     /* if (u_q[i] > 0 && u_q[i + 1] > 0) { } */
     auto mel_need_encode2 = (ui16)_mm512_cmpgt_epi32_mask(u_q_vec, ZERO);
-    mel_need_encode2 = mel_need_encode2 & (ui16)_mm512_cmpgt_epi32_mask(tmp, ZERO);
+    mel_need_encode2 = 
+      mel_need_encode2 & (ui16)_mm512_cmpgt_epi32_mask(tmp, ZERO);
 
     ui32 i_max = 16 - (ignore / 2);
 
@@ -846,10 +854,12 @@ static void proc_mel_encode1(mel_struct *melp, __m512i &cq_vec, __m512i &rho_vec
     }
 }
 
-static void proc_mel_encode2(mel_struct *melp, __m512i &cq_vec, __m512i &rho_vec,
-                             __m512i u_q_vec, ui32 ignore)
+static void proc_mel_encode2(mel_struct *melp, __m512i &cq_vec, 
+                             __m512i &rho_vec, __m512i u_q_vec, ui32 ignore,
+                             const __m512i right_shift)
 {
-    (void)u_q_vec;
+    ojph_unused(u_q_vec);
+    ojph_unused(right_shift);
 
     /* Prepare mel_encode params */
     /* if (c_q[i] == 0) { */
@@ -868,7 +878,8 @@ static void proc_mel_encode2(mel_struct *melp, __m512i &cq_vec, __m512i &rho_vec
     }
 }
 
-using fn_proc_mel_encode = void (*)(mel_struct *, __m512i &, __m512i &, __m512i, ui32);
+using fn_proc_mel_encode = void (*)(mel_struct *, __m512i &, __m512i &, 
+                                    __m512i, ui32, const __m512i);
 
 static void proc_vlc_encode1(vlc_struct *vlcp, ui32 *tuple,
                              ui32 *u_q, ui32 ignore)
@@ -976,13 +987,13 @@ static void proc_vlc_encode2(vlc_struct *vlcp, ui32 *tuple,
 
 using fn_proc_vlc_encode = void (*)(vlc_struct *, ui32 *, ui32 *, ui32);
 
-void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
-                                  ui32 _width, ui32 height, ui32 stride,
-                                  ui32* lengths,
+void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, 
+                                  ui32 num_passes, ui32 _width, ui32 height, 
+                                  ui32 stride, ui32* lengths,
                                   ojph::mem_elastic_allocator *elastic,
                                   ojph::coded_lists *& coded)
 {
-    (void)num_passes;                      //currently not used
+    ojph_unused(num_passes);                      //currently not used
 
     ui32 width = (_width + 31) & ~31;
     ui32 ignore = width - _width;
@@ -1014,7 +1025,8 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
     //For a 1024 pixels, we need 512 bytes, the 2 extra,
     // one for the non-existing earlier quad, and one for beyond the
     // the end
-    /* The maximum size of the width is 64 which is defined in the ojph_params_local.h
+    /* The maximum size of the width is 64 which is defined in the 
+     *  ojph_params_local.h
      *
      * struct param_cod {
      *     SPcod.block_width = 4;
@@ -1033,6 +1045,14 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
      * Do remember to change this implementation.
      *
      */
+    const __m512i right_shift = _mm512_set_epi32(
+      0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+    );
+
+    const __m512i left_shift = _mm512_set_epi32(
+      14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15
+    );
+
     __m512i e_val_vec[3];
     e_val_vec[0] = ZERO;
     e_val_vec[1] = ZERO;
@@ -1094,14 +1114,14 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
             sp += 32;
 
             /* src_vec layout:
-             * src_vec[0]: [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5] ... [0,15]
-             * src_vec[1]: [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5] ... [1,15]
-             * src_vec[2]: [0,16], [0,17], [0,18], [0,19], [0,20], [0,21] ... [0,31]
-             * src_vec[3]: [1,16], [1,17], [1,18], [1,19], [1,20], [1,21] ... [1,31]
+             * src_vec[0]:[0, 0],[0, 1],[0, 2],[0, 3],[0, 4],[0, 5]...[0,15]
+             * src_vec[1]:[1, 0],[1, 1],[1, 2],[1, 3],[1, 4],[1, 5]...[1,15]
+             * src_vec[2]:[0,16],[0,17],[0,18],[0,19],[0,20],[0,21]...[0,31]
+             * src_vec[3]:[1,16],[1,17],[1,18],[1,19],[1,20],[1,21]...[1,31]
              */
             proc_pixel(src_vec, p, eq_vec, s_vec, rho_vec, e_qmax_vec);
 
-            /* max_e[(i + 1) % num] = ojph_max(lep[i + 1], lep[i + 2]) - 1; */
+            // max_e[(i + 1) % num] = ojph_max(lep[i + 1], lep[i + 2]) - 1;
             tmp = _mm512_permutexvar_epi32(right_shift, e_val_vec[x]);
             tmp = _mm512_mask_permutexvar_epi32(tmp, 0x8000, right_shift,
                                                 e_val_vec[x + 1]);
@@ -1109,7 +1129,7 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
             auto max_e_vec = _mm512_mask_mov_epi32(tmp, mask, e_val_vec[x]);
             max_e_vec = _mm512_sub_epi32(max_e_vec, ONE);
 
-            /* kappa[i] = (rho[i] & (rho[i] - 1)) ? ojph_max(1, max_e[i]) : 1; */
+            // kappa[i] = (rho[i] & (rho[i] - 1)) ? ojph_max(1, max_e[i]) : 1;
             tmp = _mm512_max_epi32(max_e_vec, ONE);
             tmp1 = _mm512_sub_epi32(rho_vec, ONE);
             tmp1 = _mm512_and_epi32(rho_vec, tmp1);
@@ -1119,13 +1139,14 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
             /* cq[1 - 16] = cq_vec
              * cq[0] = prev_cq_vec[0]
              */
-            tmp = proc_cq(x, cx_val_vec, rho_vec);
+            tmp = proc_cq(x, cx_val_vec, rho_vec, right_shift);
             auto cq_vec = _mm512_mask_permutexvar_epi32(prev_cq_vec, 0xFFFE,
                                                         left_shift, tmp);
-            prev_cq_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, tmp);
+            prev_cq_vec = _mm512_mask_permutexvar_epi32(ZERO, 0x1, left_shift, 
+                                                        tmp);
 
-            update_lep(x, prev_e_val_vec, eq_vec, e_val_vec);
-            update_lcxp(x, prev_cx_val_vec, rho_vec, cx_val_vec);
+            update_lep(x, prev_e_val_vec, eq_vec, e_val_vec, left_shift);
+            update_lcxp(x, prev_cx_val_vec, rho_vec, cx_val_vec, left_shift);
 
             /* Uq[i] = ojph_max(e_qmax[i], kappa[i]); */
             /* u_q[i] = Uq[i] - kappa[i]; */
@@ -1136,13 +1157,13 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, ui32 num_passes,
             __m512i tuple_vec = cal_tuple(cq_vec, rho_vec, eps_vec, vlc_tbl);
             ui32 _ignore = ((n_loop - 1) == x) ? ignore : 0;
 
-            proc_mel_encode(&mel, cq_vec, rho_vec, u_q_vec, _ignore);
+            proc_mel_encode(&mel, cq_vec, rho_vec, u_q_vec, _ignore, 
+                            right_shift);
 
             proc_ms_encode(&ms, tuple_vec, uq_vec, rho_vec, s_vec);
 
-            /* vlc_encode(&vlc, tuple[i * 2 + 0] >> 8, (tuple[i * 2 + 0] >> 4) & 7);
-             * vlc_encode(&vlc, tuple[i * 2 + 1] >> 8, (tuple[i * 2 + 1] >> 4) & 7);
-             */
+            // vlc_encode(&vlc, tuple[i*2+0] >> 8, (tuple[i*2+0] >> 4) & 7);
+            // vlc_encode(&vlc, tuple[i*2+1] >> 8, (tuple[i*2+1] >> 4) & 7);
             ui32 u_q[16];
             ui32 tuple[16];
             /* The tuple is scaled by 4 due to:

@@ -45,10 +45,13 @@
 #include "ojph_block_encoder.h"
 #include "ojph_message.h"
 
-//#define debug
-
-#define likely(x)       __builtin_expect((x), 1)
-#define unlikely(x)     __builtin_expect((x), 0)
+#ifdef OJPH_COMPILER_MSVC
+  #define likely(x)       (x)
+  #define unlikely(x)     (x)
+#else
+  #define likely(x)       __builtin_expect((x), 1)
+  #define unlikely(x)     __builtin_expect((x), 0)
+#endif
 
 namespace ojph {
   namespace local {

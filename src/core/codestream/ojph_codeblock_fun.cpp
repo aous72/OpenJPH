@@ -106,8 +106,10 @@ namespace ojph {
 
 
     void codeblock_fun::init(bool reversible) {
+
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
+      // Default path, no acceleration.  We may change this later
       decode_cb = ojph_decode_codeblock;
       find_max_val = gen_find_max_val;
       mem_clear = gen_mem_clear;
@@ -120,9 +122,11 @@ namespace ojph {
         tx_to_cb = gen_irv_tx_to_cb;
         tx_from_cb = gen_irv_tx_from_cb;
       }
+      encode_cb = ojph_encode_codeblock;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
 
+      // Accelerated functions for INTEL/AMD CPUs
       if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
         mem_clear = sse_mem_clear;
 
@@ -157,10 +161,16 @@ namespace ojph {
         }
       }
 
+#ifdef OJPH_ENABLE_INTEL_AVX512
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+        encode_cb = ojph_encode_codeblock_avx512;
+#endif // !OJPH_ENABLE_INTEL_AVX512
+
 #endif // !OJPH_DISABLE_INTEL_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
 
+      // Accelerated functions for WASM SIMD.
       decode_cb = ojph_decode_codeblock_wasm;
       find_max_val = wasm_find_max_val;
       mem_clear = wasm_mem_clear;
@@ -175,12 +185,6 @@ namespace ojph {
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 
-#ifdef OJPH_ENABLE_INTEL_AVX512
-      encode_cb = ojph_encode_codeblock_avx512;
-#else
-      encode_cb = ojph_encode_codeblock;
-#endif /* OJPH_ENABLE_INTEL_AVX512 */
     }
-
-  }
-}
+  }  // local
+}  // ojph

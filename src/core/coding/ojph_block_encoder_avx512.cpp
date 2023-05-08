@@ -1035,26 +1035,6 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
     //For a 1024 pixels, we need 512 bytes, the 2 extra,
     // one for the non-existing earlier quad, and one for beyond the
     // the end
-    /* The maximum size of the width is 64 which is defined in the 
-     *  ojph_params_local.h
-     *
-     * struct param_cod {
-     *     SPcod.block_width = 4;
-     *
-     *     size get_block_dims() const
-     *     {
-     *         return size(1 << (SPcod.block_width + 2),
-     *                     1 << (SPcod.block_height + 2));
-     *     }
-     * };
-     *
-     * So we use 3 * ZMM registers to save the e_val
-     * The 3rd ZMM is used to save the shifted bytes.
-     *
-     * If the maximum size of the width is changed in the future.
-     * Do remember to change this implementation.
-     *
-     */
     const __m512i right_shift = _mm512_set_epi32(
       0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
     );
@@ -1063,12 +1043,13 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
       14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15
     );
 
-    __m512i e_val_vec[3];
-    e_val_vec[0] = ZERO;
-    e_val_vec[1] = ZERO;
+    __m512i e_val_vec[33];
+    for (ui32 i = 0; i < 32; ++i) {
+        e_val_vec[i] = ZERO;
+    }
     __m512i prev_e_val_vec = ZERO;
 
-    __m512i cx_val_vec[3];
+    __m512i cx_val_vec[33];
     __m512i prev_cx_val_vec = ZERO;
 
     __m512i prev_cq_vec = ZERO;

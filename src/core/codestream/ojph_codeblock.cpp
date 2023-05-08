@@ -56,8 +56,10 @@ namespace ojph {
                               const size& nominal)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      
-      ui32 stride = (nominal.w + 7) & ~7U; // a multiple of 8
+
+      assert(byte_alignment / sizeof(ui32) > 1);
+      const ui32 f = byte_alignment / sizeof(ui32) - 1;
+      ui32 stride = (nominal.w + f) & ~f; // a multiple of 8
       allocator->pre_alloc_data<ui32>(nominal.h * stride, 0);
     }
 
@@ -70,7 +72,8 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
-      this->stride = (nominal.w + 7) & ~7U; // a multiple of 8
+      const ui32 f = byte_alignment / sizeof(ui32) - 1;
+      this->stride = (nominal.w + f) & ~f; // a multiple of 8
       this->buf_size = this->stride * nominal.h;
       this->buf = allocator->post_alloc_data<ui32>(this->buf_size, 0);
 

@@ -36,6 +36,24 @@ jobs:
     - name: test
       run: ctest --output-on-failure
       working-directory: build
+      
+  test_windows:
+    name: tests on Windows
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=off -DOJPH_BUILD_TESTS=yes ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure
+      working-directory: build
 
 #jobs:
 #  ci:

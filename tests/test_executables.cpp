@@ -93,13 +93,23 @@ int execute(const std::string& cmd, std::string& result)
 //                                 MACROS
 ////////////////////////////////////////////////////////////////////////////////
 
-#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
-#define OUT_FILE_DIR "./"
-#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
-#define MSE_PAE_PATH  "./mse_pae"
-#define COMPARE_FILES_PATH  "./compare_files"
-#define EXPAND_EXECUTABLE "../../bin/ojph_expand"
-#define COMPRESS_EXECUTABLE "../../bin/ojph_compress"
+#ifdef OJPH_OS_WINDOWS
+	#define SRC_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\"
+	#define OUT_FILE_DIR ".\\"
+	#define REF_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\references\\"
+	#define MSE_PAE_PATH  ".\\Release\\mse_pae"
+	#define COMPARE_FILES_PATH  ".\\Release\\compare_files"
+	#define EXPAND_EXECUTABLE "..\\..\\bin\\Release\\ojph_expand.exe"
+	#define COMPRESS_EXECUTABLE "..\\..\\bin\\Release\\ojph_compress.exe"
+#else
+	#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
+	#define OUT_FILE_DIR "./"
+	#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
+	#define MSE_PAE_PATH  "./mse_pae"
+	#define COMPARE_FILES_PATH  "./compare_files"
+	#define EXPAND_EXECUTABLE "../../bin/ojph_expand"
+	#define COMPRESS_EXECUTABLE "../../bin/ojph_compress"
+#endif
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1
 

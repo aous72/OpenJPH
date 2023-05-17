@@ -41,3 +41,8 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
+
+add_custom_command(TARGET test_executables POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest.dll" "./Release/"
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest_main.dll" "./Release/"
+)

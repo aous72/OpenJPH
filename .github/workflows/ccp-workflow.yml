@@ -52,7 +52,7 @@ jobs:
       run: cmake --build . --config Release
       working-directory: build
     - name: test
-      run: ctest --output-on-failure
+      run: ctest --output-on-failure -C Release
       working-directory: build
 
 #jobs:

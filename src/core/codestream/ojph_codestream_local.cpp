@@ -94,7 +94,7 @@ namespace ojph {
     codestream::~codestream()
     {
       if (user_com)
-        delete user_com;
+        free(user_com);
       if (qcc_store != qcc)
         delete[] qcc;
       if (allocator)

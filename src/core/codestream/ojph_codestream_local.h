@@ -104,6 +104,7 @@ namespace ojph {
       void restrict_input_resolution(ui32 skipped_res_for_data,
         ui32 skipped_res_for_recon);
       void read();
+      void set_user_com(const char *s);
       void set_planar(int planar);
       void set_profile(const char *s);
       void set_tilepart_divisions(ui32 value);
@@ -149,6 +150,7 @@ namespace ojph {
       int profile;
       ui32 tilepart_div;    // tilepart division value
       bool need_tlm;       // true if tlm markers are needed
+      char* user_com;
       
     private:
       param_siz siz;

@@ -72,6 +72,8 @@ namespace ojph {
     ~codestream();
 
     OJPH_EXPORT
+    void set_user_com(const char *s);
+    OJPH_EXPORT
     void set_planar(bool planar);
     OJPH_EXPORT
     void set_profile(const char* s);

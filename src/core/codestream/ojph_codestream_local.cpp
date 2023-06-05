@@ -70,7 +70,6 @@ namespace ojph {
       profile = OJPH_PN_UNDEFINED;
       tilepart_div = OJPH_TILEPART_NODIVSIONS;
       need_tlm = false;
-      user_com = NULL;
 
       cur_comp = 0;
       cur_line = 0;
@@ -93,8 +92,6 @@ namespace ojph {
     ////////////////////////////////////////////////////////////////////////////
     codestream::~codestream()
     {
-      if (user_com)
-        free(user_com);
       if (qcc_store != qcc)
         delete[] qcc;
       if (allocator)
@@ -552,7 +549,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::write_headers(outfile_base *file)
+    void codestream::write_headers(outfile_base *file, 
+                                   const comment_exchange* comments,
+                                   ui32 num_comments)
     {
       //finalize
       siz.check_validity();
@@ -653,19 +652,25 @@ namespace ojph {
       if (file->write(buf, len) != len)
         OJPH_ERROR(0x00030027, "Error writing to file");
 
-      t = swap_byte(JP2K_MARKER::COM);
-      if (file->write(&t, 2) != 2)
-        OJPH_ERROR(0x00030028, "Error writing to file");
-      len = strlen(user_com);
-      t = swap_byte((ui16)(len - 2));
-      if (file->write(&t, 2) != 2)
-        OJPH_ERROR(0x00030029, "Error writing to file");
-      //1 for General use (IS 8859-15:1999 (Latin) values)
-      t = swap_byte((ui16)(1));
-      if (file->write(&t, 2) != 2)
-        OJPH_ERROR(0x0003002A, "Error writing to file");
-      if (file->write(user_com, len) != len)
-        OJPH_ERROR(0x0003002B, "Error writing to file");
+      for (ui32 i = 0; i < num_comments; ++i)
+      {
+        char* data = comments[i].data;
+        ui32 Rcom = comments[i].Rcom;
+        ui32 len = comments[i].len;
+
+        t = swap_byte(JP2K_MARKER::COM);
+        if (file->write(&t, 2) != 2)
+          OJPH_ERROR(0x00030028, "Error writing to file");
+        t = swap_byte((ui16)(len + 4));
+        if (file->write(&t, 2) != 2)
+          OJPH_ERROR(0x00030029, "Error writing to file");
+        //1 for General use (IS 8859-15:1999 (Latin) values)
+        t = swap_byte(Rcom);
+        if (file->write(&t, 2) != 2)
+          OJPH_ERROR(0x0003002A, "Error writing to file");
+        if (file->write(data, len) != len)
+          OJPH_ERROR(0x0003002B, "Error writing to file");
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1032,34 +1037,6 @@ namespace ojph {
         else if (marker_idx == 1)
           break;
       }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void codestream::set_user_com(const char *s)
-    {
-      if (user_com) {
-        free(user_com);
-        user_com = NULL;
-      }
-
-      if (!s)
-        return;
-
-      size_t src_sz = strlen(s);
-
-      if (src_sz > 65530) {
-          OJPH_ERROR(0x000300D0, "COM marker string length must be smaller than 65531");
-        return;
-      }
-
-      user_com = (char*) malloc(src_sz + 1);
-
-      if (!user_com) {
-        OJPH_ERROR(0x000300D1, "cannot allocate memory for COM marker");
-        return;
-      }
-
-      strncpy (user_com, s, src_sz + 1);
     }
 
     //////////////////////////////////////////////////////////////////////////

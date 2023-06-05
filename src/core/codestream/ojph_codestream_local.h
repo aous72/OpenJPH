@@ -97,14 +97,14 @@ namespace ojph {
       outfile_base* get_file() { return outfile; }
 
       line_buf* exchange(line_buf* line, ui32& next_component);
-      void write_headers(outfile_base *file);
+      void write_headers(outfile_base *file, const comment_exchange* comments,
+                         ui32 num_comments);
       void enable_resilience();
       bool is_resilient() { return resilient; }
       void read_headers(infile_base *file);
       void restrict_input_resolution(ui32 skipped_res_for_data,
         ui32 skipped_res_for_recon);
       void read();
-      void set_user_com(const char *s);
       void set_planar(int planar);
       void set_profile(const char *s);
       void set_tilepart_divisions(ui32 value);
@@ -150,7 +150,6 @@ namespace ojph {
       int profile;
       ui32 tilepart_div;    // tilepart division value
       bool need_tlm;       // true if tlm markers are needed
-      char* user_com;
       
     private:
       param_siz siz;

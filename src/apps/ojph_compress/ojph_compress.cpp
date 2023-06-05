@@ -928,14 +928,12 @@ int main(int argc, char * argv[]) {
         "Please supply a proper input filename with a proper three-letter "
         "extension\n");
 
-    // add the command-line specified COM marker
-
+    ojph::comment_exchange com_ex;
     if (com_string)
-      codestream.set_user_com(com_string);
-
+      com_ex.set_string(com_string);
     ojph::j2c_outfile j2c_file;
     j2c_file.open(output_filename);
-    codestream.write_headers(&j2c_file);
+    codestream.write_headers(&j2c_file, &com_ex, com_string ? 1 : 0);
 
     ojph::ui32 next_comp;
     ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);

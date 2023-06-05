@@ -359,6 +359,37 @@ namespace ojph {
     state->set_delta(delta);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////
+  void comment_exchange::set_string(char* str)
+  { 
+    size_t t = strlen(str);
+    if (len > 65531)
+      OJPH_ERROR(0x000500C1, 
+        "COM marker string length cannot be larger than 65531");
+    this->data = str; 
+    this->len = (ui16)t;
+    this->Rcom = 1;
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  void comment_exchange::set_data(char* data, ui16 len)
+  { 
+    if (len > 65531)
+      OJPH_ERROR(0x000500C2, 
+        "COM marker string length cannot be larger than 65531");
+    this->data = data;
+    this->len = len; 
+    this->Rcom = 0; 
+  }
+
   //////////////////////////////////////////////////////////////////////////
   //
   //

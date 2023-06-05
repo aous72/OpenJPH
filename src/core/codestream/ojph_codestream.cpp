@@ -85,12 +85,6 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::set_user_com(const char *s)
-  {
-    state->set_user_com(s);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
   void codestream::set_planar(bool planar)
   {
     state->set_planar(planar ? 1 : 0);
@@ -127,9 +121,11 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::write_headers(outfile_base *file)
+  void codestream::write_headers(outfile_base *file, 
+                                 const comment_exchange* comments,
+                                 ui32 num_comments)
   {
-    state->write_headers(file);
+    state->write_headers(file, comments, num_comments);
   }
 
   ////////////////////////////////////////////////////////////////////////////

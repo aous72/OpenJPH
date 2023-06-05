@@ -56,6 +56,7 @@ namespace ojph {
   class param_siz;
   class param_cod;
   class param_qcd;
+  class comment_exchange;
   class mem_fixed_allocator;
   struct point;
   struct line_buf;
@@ -72,8 +73,6 @@ namespace ojph {
     ~codestream();
 
     OJPH_EXPORT
-    void set_user_com(const char *s);
-    OJPH_EXPORT
     void set_planar(bool planar);
     OJPH_EXPORT
     void set_profile(const char* s);
@@ -83,7 +82,9 @@ namespace ojph {
     void request_tlm_marker(bool needed);    
 
     OJPH_EXPORT
-    void write_headers(outfile_base *file);
+    void write_headers(outfile_base *file, 
+                       const comment_exchange* comments = NULL, 
+                       ui32 num_comments = 0);
     OJPH_EXPORT
     line_buf* exchange(line_buf* line, ui32& next_component);
     OJPH_EXPORT

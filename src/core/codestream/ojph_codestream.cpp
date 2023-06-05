@@ -85,6 +85,12 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  void codestream::set_user_com(const char *s)
+  {
+    state->set_user_com(s);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void codestream::set_planar(bool planar)
   {
     state->set_planar(planar ? 1 : 0);

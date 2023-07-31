@@ -574,7 +574,8 @@ int main(int argc, char * argv[]) {
     "               BROADCAST and IMF are supported.  This automatically \n"
     "               sets tlm_marker to true and tileparts to C.\n"
     " -com          (None) if set, inserts a COM marker with the specified\n"
-    "               string.\n"
+    "               string. If the string has spaces, please use\n"
+    "               double quotes, as in -com \"This is a comment\"\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"

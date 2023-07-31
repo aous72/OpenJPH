@@ -664,7 +664,7 @@ namespace ojph {
         t = swap_byte(comments[i].Rcom);
         if (file->write(&t, 2) != 2)
           OJPH_ERROR(0x0003002A, "Error writing to file");
-        if (file->write(comments[i].data, len) != len)
+        if (file->write(comments[i].data, comments[i].len) != comments[i].len)
           OJPH_ERROR(0x0003002B, "Error writing to file");
       }
     }

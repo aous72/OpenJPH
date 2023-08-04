@@ -1420,7 +1420,7 @@ namespace ojph {
     {
       const si32* sp = line->i32;
       ui8* dp = (ui8*)buffer;
-      for (ui32 i = bit_depth; i > 0; --i)
+      for (ui32 i = width; i > 0; --i)
       {
         int val = *sp++;
         val = val < upper_val ? val : upper_val;

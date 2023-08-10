@@ -30,6 +30,7 @@ option(OJPH_ENABLE_INTEL_AVX512 "enables the use of AVX512 SIMD instructions and
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
+option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 
 # This is related to how the timestamp is set for URL downloaded files.
 # Set DOWNLOAD_EXTRACT_TIMESTAMP
@@ -229,8 +230,10 @@ if(NOT OJPH_DISABLE_INTEL_SIMD)
   list(APPEND OJPH_COMPRESS ${OJPH_IMG_IO_AVX2})
 endif()
 
-add_executable(ojph_expand ${OJPH_EXPAND})
-add_executable(ojph_compress ${OJPH_COMPRESS})
+if(OJPH_BUILD_EXECUTABLES)
+  add_executable(ojph_expand ${OJPH_EXPAND})
+  add_executable(ojph_compress ${OJPH_COMPRESS})
+endif()
 
 if (MSVC)
   set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
@@ -239,12 +242,14 @@ else()
   set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif()
 
-if( USE_TIFF )
-  target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
-  target_link_libraries(ojph_compress PUBLIC openjph ${TIFF_LIBRARIES})
-else()
-  target_link_libraries(ojph_expand PUBLIC openjph)
-  target_link_libraries(ojph_compress PUBLIC openjph)
+if(OJPH_BUILD_EXECUTABLES)
+  if( USE_TIFF )
+    target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
+    target_link_libraries(ojph_compress PUBLIC openjph ${TIFF_LIBRARIES})
+  else()
+    target_link_libraries(ojph_expand PUBLIC openjph)
+    target_link_libraries(ojph_compress PUBLIC openjph)
+  endif()
 endif()
 
 
@@ -252,11 +257,13 @@ endif()
 # Install
 ################################################################################################
 
-install(TARGETS ojph_expand
-  DESTINATION bin)
+if(OJPH_BUILD_EXECUTABLES)
+  install(TARGETS ojph_expand
+    DESTINATION bin)
 
-install(TARGETS ojph_compress
-	DESTINATION bin)
+  install(TARGETS ojph_compress
+          DESTINATION bin)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS openjph LIBRARY

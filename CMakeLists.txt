@@ -240,11 +240,11 @@ else()
 endif()
 
 if( USE_TIFF )
-  target_link_libraries(ojph_expand openjph ${TIFF_LIBRARIES})
-  target_link_libraries(ojph_compress openjph ${TIFF_LIBRARIES})
+  target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
+  target_link_libraries(ojph_compress PUBLIC openjph ${TIFF_LIBRARIES})
 else()
-  target_link_libraries(ojph_expand openjph)
-  target_link_libraries(ojph_compress openjph)
+  target_link_libraries(ojph_expand PUBLIC openjph)
+  target_link_libraries(ojph_compress PUBLIC openjph)
 endif()
 
 

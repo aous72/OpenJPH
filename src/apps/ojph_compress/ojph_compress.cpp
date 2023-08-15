@@ -614,12 +614,11 @@ int main(int argc, char * argv[]) {
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
     ojph::raw_in raw;
+    ojph::dpx_in dpx;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-#ifdef OJPH_ENABLE_DPX_SUPPORT
-    ojph::dpx_in dpx;
-#endif // OJPH_ENABLE_DPX_SUPPORT
+
     ojph::image_in_base *base = NULL;
     if (input_filename == NULL)
       OJPH_ERROR(0x01000007, "please specify an input file name using"
@@ -916,7 +915,6 @@ int main(int argc, char * argv[]) {
         raw.open(input_filename);
         base = &raw;
       }
-#ifdef OJPH_ENABLE_DPX_SUPPORT
       else if (is_matching(".dpx", v))
       {
       dpx.open(input_filename);
@@ -969,25 +967,16 @@ int main(int argc, char * argv[]) {
 
       base = &dpx;
       }
-#endif // !OJPH_ENABLE_DPX_SUPPORT
       else
-#if defined( OJPH_ENABLE_TIFF_SUPPORT) && defined( OJPH_ENABLE_DPX_SUPPORT)
+#if defined( OJPH_ENABLE_TIFF_SUPPORT)
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only pgm, ppm, dpx, tif(f),"
           " or raw(yuv) are supported\n");
-#elif defined( OJPH_ENABLE_TIFF_SUPPORT)
-      OJPH_ERROR(0x01000041,
-      "unknown input file extension; only pgm, ppm, tif(f),"
-      " or raw(yuv) are supported\n");
-#elif defined( OJPH_ENABLE_DPX_SUPPORT)
-      OJPH_ERROR(0x01000041,
-      "unknown input file extension; only pgm, ppm, dpx,"
-      " or raw(yuv) are supported\n");
 #else
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only pgm, ppm, and raw(yuv))"
-          " are supported\n");
-#endif // !OJPH_ENABLE_TIFF_SUPPORT !OJPH_ENABLE_DPX_SUPPORT
+          "unknown input file extension; only pgm, ppm, dpx,"
+          " or raw(yuv) are supported\n");
+#endif // !OJPH_ENABLE_TIFF_SUPPORT 
     }
     else
       OJPH_ERROR(0x01000051,

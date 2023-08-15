@@ -372,7 +372,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
                    ojph::ui32& num_bit_depths, ojph::ui32*& bit_depth,
                    ojph::ui32& num_is_signed, ojph::si32*& is_signed,
                    bool& tlm_marker, bool& tileparts_at_resolutions,
-                   bool& tileparts_at_components)
+                   bool& tileparts_at_components, char *&com_string)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -387,6 +387,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   interpreter.reinterpret_to_bool("-colour_trans", employ_color_transform);
   interpreter.reinterpret("-num_comps", num_comps);
   interpreter.reinterpret("-tlm_marker", tlm_marker);
+  interpreter.reinterpret("-com", com_string);
 
   size_interpreter block_interpreter(block_size);
   size_interpreter dims_interpreter(dims);
@@ -490,6 +491,7 @@ int main(int argc, char * argv[]) {
   char *prog_order = prog_order_store;
   char profile_string_store[] = "";
   char *profile_string = profile_string_store;
+  char *com_string = NULL;
   ojph::ui32 num_decompositions = 5;
   float quantization_step = -1.0f;
   bool reversible = false;
@@ -571,6 +573,9 @@ int main(int argc, char * argv[]) {
     "               selected options meet the profile.  Currently only \n"
     "               BROADCAST and IMF are supported.  This automatically \n"
     "               sets tlm_marker to true and tileparts to C.\n"
+    " -com          (None) if set, inserts a COM marker with the specified\n"
+    "               string. If the string has spaces, please use\n"
+    "               double quotes, as in -com \"This is a comment\"\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"
@@ -595,7 +600,7 @@ int main(int argc, char * argv[]) {
                      num_comp_downsamps, comp_downsampling,
                      num_bit_depths, bit_depth, num_is_signed, is_signed,
                      tlm_marker, tileparts_at_resolutions,
-                     tileparts_at_components))
+                     tileparts_at_components, com_string))
   {
     return -1;
   }
@@ -989,9 +994,12 @@ int main(int argc, char * argv[]) {
         "Please supply a proper input filename with a proper three-letter "
         "extension\n");
 
+    ojph::comment_exchange com_ex;
+    if (com_string)
+      com_ex.set_string(com_string);
     ojph::j2c_outfile j2c_file;
     j2c_file.open(output_filename);
-    codestream.write_headers(&j2c_file);
+    codestream.write_headers(&j2c_file, &com_ex, com_string ? 1 : 0);
 
     ojph::ui32 next_comp;
     ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);

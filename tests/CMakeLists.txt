@@ -3,7 +3,7 @@
 include(FetchContent)
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
+  URL https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -41,3 +41,10 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
+
+if (WIN32)
+	add_custom_command(TARGET test_executables POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest.dll" "./Release/"
+		COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest_main.dll" "./Release/"
+	)
+endif()

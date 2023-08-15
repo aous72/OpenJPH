@@ -26,9 +26,11 @@ set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH
 ############################################################
 
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
+option(OJPH_ENABLE_INTEL_AVX512 "enables the use of AVX512 SIMD instructions and associated files" ON)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
+option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 
 # This is related to how the timestamp is set for URL downloaded files.
 # Set DOWNLOAD_EXTRACT_TIMESTAMP
@@ -65,6 +67,14 @@ if (OJPH_DISABLE_INTEL_SIMD)
 	endif()
 endif()
 
+if (OJPH_ENABLE_INTEL_AVX512)
+	if (MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_INTEL_AVX512\"")
+	else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_INTEL_AVX512")
+	endif()
+endif()
+
 if (BUILD_SHARED_LIBS AND MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_BUILD_SHARED_LIBRARY\"")
 endif()
@@ -88,6 +98,7 @@ file(GLOB CODESTREAM_WASM  "src/core/codestream/*_wasm.cpp")
 file(GLOB CODING           "src/core/coding/*.cpp" "src/core/coding/*.h")
 file(GLOB CODING_SSSE3     "src/core/coding/*_ssse3.cpp")
 file(GLOB CODING_WASM      "src/core/coding/*_wasm.cpp")
+file(GLOB CODING_AVX512    "src/core/coding/*_avx512.cpp")
 file(GLOB COMMON           "src/core/common/*.h")
 file(GLOB OTHERS           "src/core/others/*.cpp")
 file(GLOB TRANSFORM        "src/core/transform/*.cpp" "src/core/transform/*.h")
@@ -98,7 +109,7 @@ file(GLOB TRANSFORM_AVX2   "src/core/transform/*_avx2.cpp")
 file(GLOB TRANSFORM_WASM   "src/core/transform/*_wasm.cpp")
 
 list(REMOVE_ITEM CODESTREAM ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2} ${CODESTREAM_WASM})
-list(REMOVE_ITEM CODING ${CODING_SSSE3} ${CODING_WASM})
+list(REMOVE_ITEM CODING ${CODING_SSSE3} ${CODING_WASM} ${CODING_AVX512})
 list(REMOVE_ITEM TRANSFORM ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2} ${TRANSFORM_WASM})
 list(APPEND SOURCES ${CODESTREAM} ${CODING} ${COMMON} ${OTHERS} ${TRANSFORM})
 
@@ -131,6 +142,10 @@ elseif(NOT OJPH_DISABLE_INTEL_SIMD)
   source_group("codestream" FILES ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2})
   source_group("coding" FILES ${CODING_SSSE3})
   source_group("transform" FILES ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2})
+  if (OJPH_ENABLE_INTEL_AVX512)
+    target_sources(openjph PRIVATE ${CODING_AVX512})
+    source_group("coding" FILES ${CODING_AVX512})
+  endif()
 else()
   add_library(openjph ${SOURCES})
 endif()
@@ -157,18 +172,20 @@ endif()
 if (MSVC)
   set_source_files_properties(src/core/codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
   set_source_files_properties(src/core/codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-	set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
-	set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-	set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
-	set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+  set_source_files_properties(src/core/coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX512")
+  set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
+  set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+  set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
+  set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
 else()
   set_source_files_properties(src/core/codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
   set_source_files_properties(src/core/codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
   set_source_files_properties(src/core/coding/ojph_block_decoder_ssse3.cpp PROPERTIES COMPILE_FLAGS -mssse3)
-	set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
-	set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-	set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
-	set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+  set_source_files_properties(src/core/coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512cd)
+  set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+  set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+  set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+  set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif()
 
 ############################################################
@@ -226,22 +243,26 @@ if(NOT OJPH_DISABLE_INTEL_SIMD)
   list(APPEND OJPH_COMPRESS ${OJPH_IMG_IO_AVX2})
 endif()
 
-add_executable(ojph_expand ${OJPH_EXPAND})
-add_executable(ojph_compress ${OJPH_COMPRESS})
+if(OJPH_BUILD_EXECUTABLES)
+  add_executable(ojph_expand ${OJPH_EXPAND})
+  add_executable(ojph_compress ${OJPH_COMPRESS})
+endif()
 
 if (MSVC)
   set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
 else()
-set_source_files_properties(src/apps/others/ojph_img_io_sse41.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
-set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+  set_source_files_properties(src/apps/others/ojph_img_io_sse41.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
+  set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
 endif()
 
-if( USE_TIFF )
-  target_link_libraries(ojph_expand openjph ${TIFF_LIBRARIES})
-  target_link_libraries(ojph_compress openjph ${TIFF_LIBRARIES})
-else()
-  target_link_libraries(ojph_expand openjph)
-  target_link_libraries(ojph_compress openjph)
+if(OJPH_BUILD_EXECUTABLES)
+  if( USE_TIFF )
+    target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
+    target_link_libraries(ojph_compress PUBLIC openjph ${TIFF_LIBRARIES})
+  else()
+    target_link_libraries(ojph_expand PUBLIC openjph)
+    target_link_libraries(ojph_compress PUBLIC openjph)
+  endif()
 endif()
 
 
@@ -249,11 +270,13 @@ endif()
 # Install
 ################################################################################################
 
-install(TARGETS ojph_expand
-  DESTINATION bin)
+if(OJPH_BUILD_EXECUTABLES)
+  install(TARGETS ojph_expand
+    DESTINATION bin)
 
-install(TARGETS ojph_compress
-	DESTINATION bin)
+  install(TARGETS ojph_compress
+          DESTINATION bin)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS openjph LIBRARY

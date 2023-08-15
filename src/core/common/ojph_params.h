@@ -51,6 +51,7 @@ namespace ojph {
     struct param_qcd;
     struct param_qcc;
     struct param_cap;
+    class codestream;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -166,6 +167,23 @@ namespace ojph {
 
   private:
     local::param_qcd* state;
+  };
+
+  ////////////////////////////////////////////////////////////////////////////
+  class comment_exchange
+  {
+    friend class local::codestream;
+  public:
+    comment_exchange() : data(NULL), len(0), Rcom(0) {}
+    OJPH_EXPORT
+    void set_string(char* str);
+    OJPH_EXPORT
+    void set_data(char* data, ui16 len);
+
+  private:
+    char* data;
+    ui16 len;
+    ui16 Rcom;
   };
 
   ////////////////////////////////////////////////////////////////////////////

@@ -1442,7 +1442,7 @@ namespace ojph {
   //
   //
   ////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_ENABLE_DPX_SUPPORT  
+  
   ////////////////////////////////////////////////////////////////////////////
 
   ui32 DPX_SWAP_BYTES_UINT32(ui32 x)
@@ -1754,7 +1754,5 @@ namespace ojph {
 
     return width;
   }
-
-#endif /* OJPH_ENABLE_DPX_SUPPORT */
 
 } 

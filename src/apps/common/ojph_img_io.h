@@ -229,7 +229,9 @@ namespace ojph {
   };
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
-#ifdef OJPH_ENABLE_DPX_SUPPORT
+  // A simple DPX file reader supporting commonly used 10bit and 16bit formats  
+  // DPX is an uncompressed file format used by the motion picture industry
+  // DPX is standardized by SMPTE ST 268-1:2014
   class dpx_in : public image_in_base
   {
   public:
@@ -330,7 +332,6 @@ namespace ojph {
     size_t number_of_32_bit_words_per_line;
 
   };
-#endif // OJPH_ENABLE_DPX_SUPPORT
 
   ////////////////////////////////////////////////////////////////////////////
   //

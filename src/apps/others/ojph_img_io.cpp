@@ -1433,4 +1433,326 @@ namespace ojph {
 
     return width;
   }
-}
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  ////////////////////////////////////////////////////////////////////////////
+
+  ui32 DPX_SWAP_BYTES_UINT32(ui32 x)
+  {
+    return (((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8) | (((x) & 0x0000ff00) << 8) | (((x) & 0x000000ff) << 24);
+  }
+
+  ui16 DPX_SWAP_BYTES_UINT16(ui16 x)
+  {
+    const ui16 most  = (ui16) ((x & 0xff00) >> 8);
+    const ui16 least = (ui16) ((x & 0x00ff) << 8);
+    return most | least;
+  }
+
+  void dpx_in::open(const char* filename)
+  {
+    assert(file_handle == 0);
+    file_handle = fopen(filename, "rb");
+    if (0 == file_handle)
+      OJPH_ERROR(0x0300000B1, "Unable to open file %s", filename);
+    fname = filename;
+
+    // read magic number
+    uint32_t magic_number;
+    if (fread(&magic_number, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // check magic number
+    const uint32_t dpx_magic_number = 0x53445058;
+    if (dpx_magic_number == magic_number)
+    {
+      // magic number is a match - no byte swapping necessary
+      is_byte_swapping_necessary = false;
+    }
+    else if (dpx_magic_number == DPX_SWAP_BYTES_UINT32(magic_number))
+    {
+      // magic number is a match after bytes swapping - the data read from this file needs byte swapping
+      is_byte_swapping_necessary = true;
+    }
+    else
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s - this does not appear to be a valid DPX file.  It has magic number = 0x%08X.  The magic number of a DPX file is 0x%08X.", 
+        filename, magic_number, dpx_magic_number );
+    }
+
+    // read offset to data
+    if (fread(&offset_to_image_data_in_bytes, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      offset_to_image_data_in_bytes = DPX_SWAP_BYTES_UINT32(offset_to_image_data_in_bytes);
+    // read version
+    if (fread(version, sizeof(uint8_t), 8, file_handle) != 8)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    // read image file size in bytes
+    if (fread(&total_image_file_size_in_bytes, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      total_image_file_size_in_bytes = DPX_SWAP_BYTES_UINT32(total_image_file_size_in_bytes);
+    
+    // seek to image info header
+    if (fseek(file_handle,768, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read image_orientation
+    if (fread(&image_orientation, sizeof(uint16_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      image_orientation = DPX_SWAP_BYTES_UINT16(image_orientation);
+
+    // read number of image elements
+    if (fread(&number_of_image_elements, sizeof(uint16_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      number_of_image_elements = DPX_SWAP_BYTES_UINT16(number_of_image_elements);
+
+    // read pixels per line
+    if (fread(&pixels_per_line, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      pixels_per_line = DPX_SWAP_BYTES_UINT32(pixels_per_line);
+
+    // read lines per image element
+    if (fread(&lines_per_image_element, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      lines_per_image_element = DPX_SWAP_BYTES_UINT32(lines_per_image_element);
+
+    // seek to data structure for image element 1
+    if (fseek(file_handle, 780, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read data sign for image element
+    if (fread(&data_sign_for_image_element_1, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      data_sign_for_image_element_1 = DPX_SWAP_BYTES_UINT32(data_sign_for_image_element_1);
+
+    // seek to core data elements in image element 1
+    if (fseek(file_handle, 800, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read descriptor
+    if (fread(&descriptor_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read transfer characteristic
+    if (fread(&transfer_characteristic_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read colorimetric specification
+    if (fread(&colormetric_specification_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read bit depth
+    if (fread(&bitdepth_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // read packing
+    if (fread(&packing_for_image_element_1, sizeof(uint16_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      packing_for_image_element_1 = DPX_SWAP_BYTES_UINT16(packing_for_image_element_1);
+
+    // read encoding
+    if (fread(&encoding_for_image_element_1, sizeof(uint16_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      encoding_for_image_element_1 = DPX_SWAP_BYTES_UINT16(encoding_for_image_element_1);
+      
+    // read offset to data
+    if (fread(&offset_to_data_for_image_element_1, sizeof(uint32_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      offset_to_data_for_image_element_1 = DPX_SWAP_BYTES_UINT32(offset_to_data_for_image_element_1);
+
+    // set to starting point of image data
+    if (fseek(file_handle, offset_to_image_data_in_bytes, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
+    }
+
+    // set ojph properties
+    width = pixels_per_line;
+    height = lines_per_image_element;
+    num_comps = 3;  // note that descriptor field can indicate 1, 3, or 4 components
+    for ( ojph::ui32 c = 0; c < get_num_components(); c++)
+    {
+      bit_depth[c] = bitdepth_for_image_element_1;
+      is_signed[c] = false;
+      subsampling[c] = point(1,1);
+    }
+
+    // handle DPX image data packing in file 
+    ui32 number_of_samples_per_32_bit_word = 32 / bitdepth_for_image_element_1;
+    number_of_samples_per_line = width * num_comps;
+    number_of_32_bit_words_per_line = (number_of_samples_per_line + (number_of_samples_per_32_bit_word - 1)) / number_of_samples_per_32_bit_word;
+
+    cur_line = 0;
+
+    // allocate linebuffer to hold a line of image data from the file
+    line_buffer = malloc(number_of_32_bit_words_per_line * sizeof(ui32) );
+    if (NULL == line_buffer)
+      OJPH_ERROR(0x0300000B2, "Unable to allocate %d bytes for line_buffer[] "
+        "for file %s", number_of_32_bit_words_per_line * sizeof(ui32), filename);
+
+    // allocate line_buffer_16bit_samples to hold a line of image data in memory
+    line_buffer_16bit_samples = (ui16*) malloc(width * num_comps * sizeof(ui16));
+    if (NULL == line_buffer_16bit_samples)
+      OJPH_ERROR(0x0300000B2, "Unable to allocate %d bytes for line_buffer_16bit_samples[] "
+        "for file %s", width * num_comps * sizeof(ui16), filename);
+
+    cur_line = 0;
+
+    return;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 dpx_in::read(const line_buf* line, ui32 comp_num)
+  {
+    assert(file_handle != 0 && comp_num < num_comps);
+    assert((ui32)line->size >= width);
+
+    // read from file if trying to read the first component
+    if (0 == comp_num)
+    {
+      if (fread(line_buffer, sizeof(uint32_t), number_of_32_bit_words_per_line, file_handle) != number_of_32_bit_words_per_line)
+      {
+        close();
+        OJPH_ERROR(0x0300000B2, "Error reading file %s", fname);
+      }
+
+      if (true == is_byte_swapping_necessary)
+      {
+        if (16 == bitdepth_for_image_element_1)
+        {
+          ui16* line_buffer_ptr = (ui16*)line_buffer;
+          for (size_t i = 0; i < 2*number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = DPX_SWAP_BYTES_UINT16(line_buffer_ptr[i]);
+          }
+        }
+        else
+        {
+          ui32* line_buffer_ptr = (ui32*)line_buffer;
+          for (size_t i = 0; i < number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = DPX_SWAP_BYTES_UINT32(line_buffer_ptr[i]);
+          }
+        }
+      }
+
+      // extract samples from 32bit words from file read into RGB ordered buffer
+      ui32 word_index = 0;
+      if (10 == bitdepth_for_image_element_1 && 3 == num_comps && packing_for_image_element_1 == 1)
+      {
+        ui32* line_buffer_ptr = (ui32*)line_buffer;
+        for (ui32 i = 0; i < number_of_samples_per_line; i += 3)
+        {
+          // R
+          line_buffer_16bit_samples[i + 0] = (ui16) ((line_buffer_ptr[word_index] & 0xFFC00000) >> 22);
+          // G
+          line_buffer_16bit_samples[i + 1] = (ui16) ((line_buffer_ptr[word_index] & 0x003FF000) >> 12);
+          // B
+          line_buffer_16bit_samples[i + 2] = (ui16) ((line_buffer_ptr[word_index] & 0x00000FFC) >>  2);
+          word_index++;
+        }
+      }
+      else if (16 == bitdepth_for_image_element_1 && 3 == num_comps)
+      {
+        ui16* line_buffer_ptr = (ui16*)line_buffer;
+        for (ui32 i = 0; i < number_of_samples_per_line; i++)
+        {
+          line_buffer_16bit_samples[i] = line_buffer_ptr[i];
+        }
+      }
+      else
+      {
+        OJPH_ERROR(0x0300000B2, "file %s uses DPX image formats that are not yet supported by this software\n bitdepth_for_image_element_1 = %d\n num_comps=%d\npacking_for_image_element_1=%d\n descriptor_for_image_element_1=%d", 
+          fname, bitdepth_for_image_element_1, num_comps, packing_for_image_element_1, descriptor_for_image_element_1);
+      }
+      
+      cur_line++;
+    }
+
+    // copy sample data from the unpacked line buffer into a single-component buffer to be used by the openjph core
+    const ui16* sp = (ui16*)line_buffer_16bit_samples + comp_num;
+    si32* dp = line->i32;
+    for (ui32 i = width; i > 0; --i, sp += num_comps)
+      *dp++ = (si32)*sp;
+
+    return width;
+  }
+
+} 

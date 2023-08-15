@@ -197,17 +197,17 @@ namespace ojph {
     size get_size() { assert(tiff_handle); return size(width, height); }
     ui32 get_num_components() { assert(tiff_handle); return num_comps; }
     void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
-    ui32 get_bit_depth(ui32 comp_num)
-    {
-      assert(tiff_handle && comp_num < num_comps); return bit_depth[comp_num];
+    ui32 get_bit_depth(ui32 comp_num) {
+      assert(tiff_handle && comp_num < num_comps);
+      return bit_depth[comp_num];
     }
-    bool get_is_signed(ui32 comp_num)
-    {
-      assert(tiff_handle && comp_num < num_comps); return is_signed[comp_num];
+    bool get_is_signed(ui32 comp_num) {
+      assert(tiff_handle && comp_num < num_comps);
+      return is_signed[comp_num];
     }
-    point get_comp_subsampling(ui32 comp_num)
-    {
-      assert(tiff_handle && comp_num < num_comps); return subsampling[comp_num];
+    point get_comp_subsampling(ui32 comp_num) {
+      assert(tiff_handle && comp_num < num_comps);
+      return subsampling[comp_num];
     }
 
   private:
@@ -229,9 +229,13 @@ namespace ojph {
   };
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
+  ////////////////////////////////////////////////////////////////////////////
   // A simple DPX file reader supporting commonly used 10bit and 16bit formats  
   // DPX is an uncompressed file format used by the motion picture industry
   // DPX is standardized by SMPTE ST 268-1:2014
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
   class dpx_in : public image_in_base
   {
   public:
@@ -278,17 +282,17 @@ namespace ojph {
 
     size get_size() { assert(file_handle); return size(width, height); }
     ui32 get_num_components() { assert(file_handle); return num_comps; }
-    ui32 get_bit_depth(ui32 comp_num)
-    {
-      assert(file_handle && comp_num < num_comps); return bit_depth[comp_num];
+    ui32 get_bit_depth(ui32 comp_num) {
+      assert(file_handle && comp_num < num_comps);
+      return bit_depth[comp_num];
     }
-    bool get_is_signed(ui32 comp_num)
-    {
-      assert(file_handle && comp_num < num_comps); return is_signed[comp_num];
+    bool get_is_signed(ui32 comp_num) {
+      assert(file_handle && comp_num < num_comps);
+      return is_signed[comp_num];
     }
-    point get_comp_subsampling(ui32 comp_num)
-    {
-      assert(file_handle && comp_num < num_comps); return subsampling[comp_num];
+    point get_comp_subsampling(ui32 comp_num) {
+      assert(file_handle && comp_num < num_comps);
+      return subsampling[comp_num];
     }
 
   private:

@@ -112,7 +112,7 @@ namespace ojph {
     void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
     void set_planar(bool planar) { this->planar = planar; }
 
-    //size get_size() { assert(fh); return size(width, height); }
+    size get_size() { assert(fh); return size(width, height); }
     ui32 get_width() { assert(fh); return width; }
     ui32 get_height() { assert(fh); return height; }
     ui32 get_max_val() { assert(fh); return max_val; }
@@ -237,13 +237,13 @@ namespace ojph {
     {
       file_handle = NULL;
       fname = NULL;
+
       line_buffer = NULL;
       line_buffer_16bit_samples = NULL;
 
-      width = height = num_comps = 0;
-      //bytes_per_sample = 0;
+      width = height = 0;
+      num_comps = 0;
 
-      //bytes_per_line = 0;
       number_of_samples_per_line = 0;
 
       cur_line = 0;
@@ -276,7 +276,6 @@ namespace ojph {
 
     size get_size() { assert(file_handle); return size(width, height); }
     ui32 get_num_components() { assert(file_handle); return num_comps; }
-    //void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
     ui32 get_bit_depth(ui32 comp_num)
     {
       assert(file_handle && comp_num < num_comps); return bit_depth[comp_num];
@@ -292,13 +291,12 @@ namespace ojph {
 
   private:
     FILE* file_handle;
-    //size_t bytes_per_line;
 
     const char* fname;
     void* line_buffer;
     ui32 width, height;
     ui32 num_comps;
-    //ui32 bytes_per_sample;
+
     ui32 cur_line;
     ui32 bit_depth[4];
     bool is_signed[4];

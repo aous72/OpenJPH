@@ -1521,6 +1521,7 @@ namespace ojph {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read image_orientation
     if (fread(&image_orientation, sizeof(uint16_t), 1, file_handle) != 1)
     {
@@ -1529,6 +1530,7 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       image_orientation = DPX_SWAP_BYTES_UINT16(image_orientation);
+
     // read number of image elements
     if (fread(&number_of_image_elements, sizeof(uint16_t), 1, file_handle) != 1)
     {
@@ -1537,6 +1539,7 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       number_of_image_elements = DPX_SWAP_BYTES_UINT16(number_of_image_elements);
+
     // read pixels per line
     if (fread(&pixels_per_line, sizeof(uint32_t), 1, file_handle) != 1)
     {
@@ -1561,6 +1564,7 @@ namespace ojph {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read data sign for image element
     if (fread(&data_sign_for_image_element_1, sizeof(uint32_t), 1, file_handle) != 1)
     {
@@ -1569,36 +1573,42 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       data_sign_for_image_element_1 = DPX_SWAP_BYTES_UINT32(data_sign_for_image_element_1);
+
     // seek to core data elements in image element 1
     if (fseek(file_handle, 800, SEEK_SET) != 0)
     {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read descriptor
     if (fread(&descriptor_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
     {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read transfer characteristic
     if (fread(&transfer_characteristic_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
     {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read colorimetric specification
     if (fread(&colormetric_specification_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
     {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read bit depth
     if (fread(&bitdepth_for_image_element_1, sizeof(uint8_t), 1, file_handle) != 1)
     {
       close();
       OJPH_ERROR(0x0300000B2, "Error reading file %s", filename);
     }
+
     // read packing
     if (fread(&packing_for_image_element_1, sizeof(uint16_t), 1, file_handle) != 1)
     {
@@ -1607,6 +1617,7 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       packing_for_image_element_1 = DPX_SWAP_BYTES_UINT16(packing_for_image_element_1);
+
     // read encoding
     if (fread(&encoding_for_image_element_1, sizeof(uint16_t), 1, file_handle) != 1)
     {
@@ -1615,6 +1626,7 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       encoding_for_image_element_1 = DPX_SWAP_BYTES_UINT16(encoding_for_image_element_1);
+      
     // read offset to data
     if (fread(&offset_to_data_for_image_element_1, sizeof(uint32_t), 1, file_handle) != 1)
     {
@@ -1634,15 +1646,13 @@ namespace ojph {
     // set ojph properties
     width = pixels_per_line;
     height = lines_per_image_element;
-    num_comps = 3;  // not that descriptor field can indicate 1, 3, or 4 components
+    num_comps = 3;  // note that descriptor field can indicate 1, 3, or 4 components
     for ( ojph::ui32 c = 0; c < get_num_components(); c++)
     {
       bit_depth[c] = bitdepth_for_image_element_1;
       is_signed[c] = false;
       subsampling[c] = point(1,1);
     }
-    //bytes_per_sample = (bitdepth_for_image_element_1 + 7) / 8;
-    //bytes_per_line = bytes_per_sample * width * num_comps;
 
     // handle DPX image data packing in file 
     ui32 number_of_samples_per_32_bit_word = 32 / bitdepth_for_image_element_1;
@@ -1663,7 +1673,6 @@ namespace ojph {
       OJPH_ERROR(0x0300000B2, "Unable to allocate %d bytes for line_buffer_16bit_samples[] "
         "for file %s", width * num_comps * sizeof(ui16), filename);
 
-
     cur_line = 0;
 
     return;
@@ -1674,8 +1683,6 @@ namespace ojph {
   {
     assert(file_handle != 0 && comp_num < num_comps);
     assert((ui32)line->size >= width);
-
-    //printf("cur_line = %d comp_num = %d\n", cur_line, comp_num);
 
     // read from file if trying to read the first component
     if (0 == comp_num)

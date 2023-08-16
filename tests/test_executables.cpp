@@ -156,6 +156,25 @@ void run_ojph_expand(const std::string& base_filename,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//                            run_ojph_compress
+////////////////////////////////////////////////////////////////////////////////
+void run_ojph_compress_expand(const std::string& base_filename, 
+                              const std::string& out_ext,
+                              const std::string& decode_ext)
+{
+  try {
+    std::string result, command;
+    command = std::string(EXPAND_EXECUTABLE) 
+      + " -i " + OUT_FILE_DIR + base_filename + "." + out_ext
+      + " -o " + OUT_FILE_DIR + base_filename + "." + decode_ext;
+    EXPECT_EQ(execute(command, result), 0);
+  }
+  catch(const std::runtime_error& error) {
+    FAIL() << error.what();
+  }  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //                             run_mse_pae
 ////////////////////////////////////////////////////////////////////////////////
 void run_mse_pae(const std::string& base_filename, 
@@ -815,9 +834,9 @@ TEST(TestExecutables, SimpleEncIrv9764x64) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_64x64", "", "j2c",
                     "-qstep 0.1");
-  run_ojph_expand("simple_enc_irv97_64x64", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_64x64", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_64x64", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -831,9 +850,9 @@ TEST(TestExecutables, SimpleEncIrv9732x32) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_32x32", "", "j2c",
                     "-qstep 0.01 -block_size \"{32,32}\"");
-  run_ojph_expand("simple_enc_irv97_32x32", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_32x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_32x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_32x32", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -847,9 +866,9 @@ TEST(TestExecutables, SimpleEncIrv9716x16) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_16x16", "", "j2c",
                     "-qstep 0.01 -block_size \"{16,16}\"");
-  run_ojph_expand("simple_enc_irv97_16x16", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_16x16", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_16x16", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_16x16", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -863,9 +882,9 @@ TEST(TestExecutables, SimpleEncIrv974x4) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_4x4", "", "j2c",
                     "-qstep 0.01 -block_size \"{4,4}\"");
-  run_ojph_expand("simple_enc_irv97_4x4", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_4x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_4x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_4x4", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -879,9 +898,9 @@ TEST(TestExecutables, SimpleEncIrv971024x4) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_1024x4", "", "j2c",
                     "-qstep 0.01 -block_size \"{4,1024}\"");
-  run_ojph_expand("simple_enc_irv97_1024x4", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_1024x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_1024x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_1024x4", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -895,9 +914,9 @@ TEST(TestExecutables, SimpleEncIrv974x1024) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_4x1024", "", "j2c",
                     "-qstep 0.01 -block_size \"{1024,4}\"");
-  run_ojph_expand("simple_enc_irv97_4x1024", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_4x1024", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_4x1024", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_4x1024", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -911,9 +930,9 @@ TEST(TestExecutables, SimpleEncIrv97512x8) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_512x8", "", "j2c",
                     "-qstep 0.01 -block_size \"{8,512}\"");
-  run_ojph_expand("simple_enc_irv97_512x8", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_512x8", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_512x8", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_512x8", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -927,9 +946,9 @@ TEST(TestExecutables, SimpleEncIrv978x512) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_8x512", "", "j2c",
                     "-qstep 0.01 -block_size \"{512,8}\"");
-  run_ojph_expand("simple_enc_irv97_8x512", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_8x512", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_8x512", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_8x512", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -943,9 +962,9 @@ TEST(TestExecutables, SimpleEncIrv97256x16) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_256x16", "", "j2c",
                     "-qstep 0.01 -block_size \"{16,256}\"");
-  run_ojph_expand("simple_enc_irv97_256x16", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_256x16", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_256x16", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_256x16", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -959,9 +978,9 @@ TEST(TestExecutables, SimpleEncIrv9716x256) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_16x256", "", "j2c",
                     "-qstep 0.01 -block_size \"{256,16}\"");
-  run_ojph_expand("simple_enc_irv97_16x256", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_16x256", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_16x256", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_16x256", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -975,9 +994,9 @@ TEST(TestExecutables, SimpleEncIrv97128x32) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_128x32", "", "j2c",
                     "-qstep 0.01 -block_size \"{32,128}\"");
-  run_ojph_expand("simple_enc_irv97_128x32", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_128x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_128x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_128x32", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -991,9 +1010,9 @@ TEST(TestExecutables, SimpleEncIrv9732x128) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_irv97_32x128", "", "j2c",
                     "-qstep 0.01 -block_size \"{128,32}\"");
-  run_ojph_expand("simple_enc_irv97_32x128", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_32x128", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_32x128", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_32x128", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1007,9 +1026,9 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
   run_ojph_compress("mm.ppm",
                     "simple_enc_irv97_64x64_16bit", "", "j2c",
                     "-qstep 0.01");
-  run_ojph_expand("simple_enc_irv97_64x64_16bit", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_64x64_16bit", "ppm", "mm.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_64x64_16bit", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64_16bit", "ppm",
+              "mm.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1023,9 +1042,9 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
   run_ojph_compress("mm.pgm",
                     "simple_enc_irv97_64x64_16bit_gray", "", "j2c",
                     "-qstep 0.01");
-  run_ojph_expand("simple_enc_irv97_64x64_16bit_gray", "j2c", "pgm");
-  run_mse_pae("simple_enc_irv97_64x64_16bit_gray", "pgm", "mm.pgm",
-              "", 1, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_64x64_16bit_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_irv97_64x64_16bit_gray", "pgm",
+              "mm.pgm", "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1039,9 +1058,9 @@ TEST(TestExecutables, SimpleEncRev5364x6416bit) {
   run_ojph_compress("mm.ppm",
                     "simple_enc_rev53_64x64_16bit", "", "j2c",
                     "-reversible true");
-  run_ojph_expand("simple_enc_rev53_64x64_16bit", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_64x64_16bit", "ppm", "mm.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_64x64_16bit", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64_16bit", "ppm",
+              "mm.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1055,9 +1074,9 @@ TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
   run_ojph_compress("mm.pgm",
                     "simple_enc_rev53_64x64_16bit_gray", "", "j2c",
                     "-reversible true");
-  run_ojph_expand("simple_enc_rev53_64x64_16bit_gray", "j2c", "pgm");
-  run_mse_pae("simple_enc_rev53_64x64_16bit_gray", "pgm", "mm.pgm",
-              "", 1, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_64x64_16bit_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_rev53_64x64_16bit_gray", "pgm",
+              "mm.pgm", "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1071,9 +1090,9 @@ TEST(TestExecutables, SimpleEncRev5364x64) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_rev53_64x64", "", "j2c",
                     "-reversible true");
-  run_ojph_expand("simple_enc_rev53_64x64", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_64x64", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_64x64", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1087,9 +1106,9 @@ TEST(TestExecutables, SimpleEncRev5332x32) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_rev53_32x32", "", "j2c",
                     "-reversible true -block_size \"{32,32}\"");
-  run_ojph_expand("simple_enc_rev53_32x32", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_32x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_32x32", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_32x32", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1103,9 +1122,9 @@ TEST(TestExecutables, SimpleEncRev534x4) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_rev53_4x4", "", "j2c",
                     "-reversible true -block_size \"{4,4}\"");
-  run_ojph_expand("simple_enc_rev53_4x4", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_4x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_4x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_4x4", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1119,9 +1138,9 @@ TEST(TestExecutables, SimpleEncRev531024x4) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_rev53_1024x4", "", "j2c",
                     "-reversible true -block_size \"{4,1024}\"");
-  run_ojph_expand("simple_enc_rev53_1024x4", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_1024x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_1024x4", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_1024x4", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1135,14 +1154,13 @@ TEST(TestExecutables, SimpleEncRev534x1024) {
   run_ojph_compress("Malamute.ppm",
                     "simple_enc_rev53_4x1024", "", "j2c",
                     "-reversible true -block_size \"{1024,4}\"");
-  run_ojph_expand("simple_enc_rev53_4x1024", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_4x1024", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_4x1024", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_4x1024", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the irv97 wavelet is used,
-// and the color components are subsampled.
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
@@ -1155,14 +1173,13 @@ TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
                     "-qstep 0.1 -dims \"{352,288}\" -num_comps 3 -downsamp"
                     " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
                     " -signed false,false,false");
-  run_ojph_expand("simple_enc_irv97_64x64_yuv", "j2c", "yuv");
-  run_mse_pae("simple_enc_irv97_64x64_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_64x64_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_irv97_64x64_yuv", "yuv",
+              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Test ojph_compress with codeblocks when the rev53 wavelet is used,
-// and the color components are subsampled.
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_yuv.j2c -reversible true -qstep 0.1 -dims
@@ -1176,9 +1193,9 @@ TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
                     "-reversible true -qstep 0.1 -dims \"{352,288}\""
                     " -num_comps 3 -downsamp \"{1,1}\",\"{2,2}\",\"{2,2}\""
                     " -bit_depth 8,8,8 -signed false,false,false");
-  run_ojph_expand("simple_enc_rev53_64x64_yuv", "j2c", "yuv");
-  run_mse_pae("simple_enc_rev53_64x64_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_64x64_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_rev53_64x64_yuv", "yuv",
+              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1192,9 +1209,9 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_irv97_tall_narrow", "", "j2c",
                     "-qstep 0.1");
-  run_ojph_expand("simple_enc_irv97_tall_narrow", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_tall_narrow", "ppm", "tall_narrow.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_tall_narrow", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_tall_narrow", "ppm",
+              "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1208,9 +1225,9 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_irv97_tall_narrow1", "", "j2c",
                     "-image_offset \"{1,0}\" -qstep 0.1");
-  run_ojph_expand("simple_enc_irv97_tall_narrow1", "j2c", "ppm");
-  run_mse_pae("simple_enc_irv97_tall_narrow1", "ppm", "tall_narrow.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_irv97_tall_narrow1", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_tall_narrow1", "ppm",
+              "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1224,9 +1241,9 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow) {
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_rev53_tall_narrow", "", "j2c",
                     "-reversible true");
-  run_ojph_expand("simple_enc_rev53_tall_narrow", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_tall_narrow", "ppm", "tall_narrow.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_tall_narrow", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_tall_narrow", "ppm",
+              "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1240,9 +1257,105 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_rev53_tall_narrow1", "", "j2c",
                     "-image_offset \"{1,0}\" -reversible true");
-  run_ojph_expand("simple_enc_rev53_tall_narrow1", "j2c", "ppm");
-  run_mse_pae("simple_enc_rev53_tall_narrow1", "ppm", "tall_narrow.ppm",
-              "", 3, mse, pae);
+  run_ojph_compress_expand("simple_enc_rev53_tall_narrow1", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_tall_narrow1", "ppm",
+              "tall_narrow.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_10bit_le_nuke11.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72010bitLeNuke11) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_10bit.ppm",
+                    "dpx_enc_1280x720_10bit_le_nuke11", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_10bit_le_nuke11", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_10bit_le_nuke11", "ppm",
+              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_10bit_be_nuke11.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72010bitBeNuke11) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_10bit.ppm",
+                    "dpx_enc_1280x720_10bit_be_nuke11", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_10bit_be_nuke11", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_10bit_be_nuke11", "ppm",
+              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_16bit_le_nuke11.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72016bitLeNuke11) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_16bit.ppm",
+                    "dpx_enc_1280x720_16bit_le_nuke11", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_16bit_le_nuke11", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_16bit_le_nuke11", "ppm",
+              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_16bit_be_nuke11.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72016bitBeNuke11) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_16bit.ppm",
+                    "dpx_enc_1280x720_16bit_be_nuke11", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_16bit_be_nuke11", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_16bit_be_nuke11", "ppm",
+              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_10bit_resolve18.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72010bitResolve18) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_10bit.ppm",
+                    "dpx_enc_1280x720_10bit_resolve18", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_10bit_resolve18", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_10bit_resolve18", "ppm",
+              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o dpx_enc_1280x720_16bit_resolve18.j2c -reversible true
+TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("dpx_1280x720_16bit.ppm",
+                    "dpx_enc_1280x720_16bit_resolve18", "", "j2c",
+                    "-reversible true");
+  run_ojph_compress_expand("dpx_enc_1280x720_16bit_resolve18", "j2c", "ppm");
+  run_mse_pae("dpx_enc_1280x720_16bit_resolve18", "ppm",
+              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

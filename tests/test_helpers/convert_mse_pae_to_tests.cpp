@@ -135,7 +135,9 @@ std::string prepare_test_name(std::string name)
 // Reads and processes ht_cmdlines.txt to extract the command line for
 // base_filename, extracting the command line and yuv_specs if they exist.
 // Extra_cmd_options are only useful for encoding (ojph_compress)
-void process_cmdlines(std::ifstream& file, const std::string base_filename,
+void process_cmdlines(std::ifstream& file, 
+                      const std::string base_filename,
+                      std::string& src_filename,
                       std::string& comment, std::string& yuv_specs,
                       std::string& extra_cmd_options) 
 {
@@ -144,12 +146,27 @@ void process_cmdlines(std::ifstream& file, const std::string base_filename,
   {
     std::string line;
     std::getline(file, line);
+    remove_double_spaces(line);
+
     size_t pos = line.find(base_filename);
     if (pos != std::string::npos)
     {
-      remove_double_spaces(line);
+      size_t start_pos = line.find("-i");
+      if (start_pos != std::string::npos) {
+        start_pos = line.find("/", start_pos);
+        if (start_pos == std::string::npos) {
+          printf("Formatting error in cmdlines file, pos -1\n");
+          exit(-1);
+        }        
+        size_t end_pos = line.find(" ", start_pos);
+        if (start_pos == std::string::npos) {
+          printf("Formatting error in cmdlines file, pos 0\n");
+          exit(-1);
+        }        
+        src_filename = line.substr(start_pos + 1, end_pos - start_pos - 1);
+      }
 
-      size_t start_pos = line.find("-o");
+      start_pos = line.find("-o");
       if (start_pos != std::string::npos) {
         size_t end_pos = line.find("\"", start_pos);
         if (end_pos == std::string::npos) {
@@ -259,9 +276,11 @@ void write_expand_test(std::ofstream& file,
 ////////////////////////////////////////////////////////////////////////////////
 // Write the run_ojph_expand command line for test_executables.cpp
 void write_compress_test(std::ofstream& file, 
+                         const std::string& src_filename, 
                          const std::string& ref_filename, 
                          const std::string& base_filename,
                          const std::string& out_ext, 
+                         const std::string& decode_ext,
                          const std::string& yuv_specs,
                          std::string comment,
                          std::string extra_cmd_options,
@@ -349,13 +368,13 @@ void write_compress_test(std::ofstream& file,
   }
   
   // expand
-  file << "  run_ojph_expand(\"" << base_filename << "\", \"" 
-    << "j2c" << "\", \"" << out_ext << "\");" << std::endl;
+  file << "  run_ojph_compress_expand(\"" << base_filename << "\", \"" 
+    << "j2c" << "\", \"" << decode_ext << "\");" << std::endl;
 
   // error
   file << "  run_mse_pae(\"" << base_filename << "\", \"" 
-    << out_ext << "\", \"" << ref_filename << "\"," << std::endl;
-  file << "              \"" << yuv_specs << "\", " 
+    << decode_ext << "\"," << std::endl;
+  file << "              \"" << ref_filename << "\", \"" << yuv_specs << "\", " 
     << num_components << ", mse, pae);" << std::endl;
 
   // end function
@@ -480,7 +499,7 @@ int main(int argc, char *argv[])
   while (mse_pae_file.good()) 
   {
     // read files line and process it
-    std::string ht_filename, ref_filename;
+    std::string ht_filename, src_filename, ref_filename;
     mse_pae_file >> ht_filename;
     std::string base_filename = ht_filename.substr(0, ht_filename.rfind("."));
     std::string src_ext = ht_filename.substr(ht_filename.rfind(".") + 1);
@@ -489,10 +508,10 @@ int main(int argc, char *argv[])
     ref_filename = ref_filename.substr(ref_filename.rfind("/") + 1);
 
     // Uncomment to print values
-    // std::cout << "base_filename = " << base_filename << std::endl;
-    // std::cout << "src_ext = " << src_ext << std::endl;
-    // std::cout << "out_ext = " << out_ext << std::endl;
-    // std::cout << "ref_filename = " << ref_filename << std::endl;
+    std::cout << "base_filename = " << base_filename << std::endl;
+    std::cout << "src_ext = " << src_ext << std::endl;
+    std::cout << "out_ext = " << out_ext << std::endl;
+    std::cout << "ref_filename = " << ref_filename << std::endl;
 
     constexpr int max_components = 10;
     int num_components = 0;
@@ -507,8 +526,8 @@ int main(int argc, char *argv[])
           << mse_pae_filename << "; this is not supported." <<  std::endl;
       mse_pae_file >> mse[num_components];
       mse_pae_file >> pae[num_components];
-      // std::cout << "mse = " << mse[num_components] << std::endl;
-      // std::cout << "pae = " << pae[num_components] << std::endl;
+      std::cout << "mse = " << mse[num_components] << std::endl;
+      std::cout << "pae = " << pae[num_components] << std::endl;
       ++num_components;
       eat_white_spaces(mse_pae_file);
       c = mse_pae_file.peek();
@@ -518,8 +537,8 @@ int main(int argc, char *argv[])
     if (base_filename.find("_dec_") != std::string::npos) 
     {
       std::string yuv_specs, comment, extra_cmd_options;
-      process_cmdlines(cmdlines_file, base_filename, comment, yuv_specs, 
-                       extra_cmd_options);
+      process_cmdlines(cmdlines_file, base_filename, src_filename, comment, 
+                       yuv_specs, extra_cmd_options);
       write_expand_test(out_file, base_filename, src_ext, out_ext, 
         ref_filename, yuv_specs, comment, num_components, mse, pae);
     }
@@ -529,10 +548,12 @@ int main(int argc, char *argv[])
     if (base_filename.find("_enc_") != std::string::npos) 
     {
       std::string yuv_specs, comment, extra_cmd_options;
-      process_cmdlines(cmdlines_file, base_filename, comment, yuv_specs, 
-                       extra_cmd_options);
-      write_compress_test(out_file, ref_filename, base_filename, out_ext, 
-        yuv_specs, comment, extra_cmd_options, num_components, mse, pae);
+      process_cmdlines(cmdlines_file, base_filename, src_filename, comment, 
+                       yuv_specs, extra_cmd_options);
+      std::cout << "src_filename = " << src_filename << std::endl;
+      write_compress_test(out_file, src_filename, ref_filename, base_filename, 
+        src_ext, out_ext, yuv_specs, comment, extra_cmd_options, num_components,
+        mse, pae);
       // write_file_compare(out_file, ref_filename, base_filename, out_ext,
       //   comment, extra_cmd_options);
     }

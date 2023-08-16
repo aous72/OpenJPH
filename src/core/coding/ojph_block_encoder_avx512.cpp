@@ -1085,19 +1085,25 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
 
         ui32 *sp = buf + y * stride;
 
-        /* Clear the ignore bytes */
-        memset(&sp[width - ignore], 0, ignore * sizeof(*sp));
-        memset(&sp[width + stride - ignore], 0, ignore * sizeof(*sp));
-
         /* 32 bytes per iteration */
         for (ui32 x = 0; x < n_loop; ++x) {
+
+            // mask to stop loading unnecessary data
+            si32 true_x = (si32)x << 5;
+            ui32 mask32 = 0xFFFFFFFFu;
+            si32 entries = true_x + 32 - (si32)_width;
+            mask32 >>= ((entries >= 0) ? entries : 0);
+            __mmask16 load_mask0 = _cvtu32_mask16(mask32);
+            __mmask16 load_mask1 = _cvtu32_mask16(mask32 >> 16);
+
             /* t = sp[i]; */
-            src_vec[0] = _mm512_load_epi32(sp);
-            src_vec[2] = _mm512_load_epi32(sp + 16);
+            src_vec[0] = _mm512_maskz_loadu_epi32(load_mask0, sp);
+            src_vec[2] = _mm512_maskz_loadu_epi32(load_mask1, sp + 16);
 
             if (y + 1 < height) {
-                src_vec[1] = _mm512_load_epi32(sp + stride);
-                src_vec[3] = _mm512_load_epi32(sp + 16 + stride);
+                src_vec[1] = _mm512_maskz_loadu_epi32(load_mask0, sp + stride);
+                src_vec[3] = 
+                  _mm512_maskz_loadu_epi32(load_mask1, sp + 16 + stride);
             } else {
                 src_vec[1] = ZERO;
                 src_vec[3] = ZERO;

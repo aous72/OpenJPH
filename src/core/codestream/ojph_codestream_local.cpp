@@ -652,20 +652,22 @@ namespace ojph {
       if (file->write(buf, len) != len)
         OJPH_ERROR(0x00030027, "Error writing to file");
 
-      for (ui32 i = 0; i < num_comments; ++i)
-      {
-        t = swap_byte(JP2K_MARKER::COM);
-        if (file->write(&t, 2) != 2)
-          OJPH_ERROR(0x00030028, "Error writing to file");
-        t = swap_byte((ui16)(comments[i].len + 4));
-        if (file->write(&t, 2) != 2)
-          OJPH_ERROR(0x00030029, "Error writing to file");
-        //1 for General use (IS 8859-15:1999 (Latin) values)
-        t = swap_byte(comments[i].Rcom);
-        if (file->write(&t, 2) != 2)
-          OJPH_ERROR(0x0003002A, "Error writing to file");
-        if (file->write(comments[i].data, comments[i].len) != comments[i].len)
-          OJPH_ERROR(0x0003002B, "Error writing to file");
+      if (comments != NULL) {
+        for (ui32 i = 0; i < num_comments; ++i)
+        {
+          t = swap_byte(JP2K_MARKER::COM);
+          if (file->write(&t, 2) != 2)
+            OJPH_ERROR(0x00030028, "Error writing to file");
+          t = swap_byte((ui16)(comments[i].len + 4));
+          if (file->write(&t, 2) != 2)
+            OJPH_ERROR(0x00030029, "Error writing to file");
+          //1 for General use (IS 8859-15:1999 (Latin) values)
+          t = swap_byte(comments[i].Rcom);
+          if (file->write(&t, 2) != 2)
+            OJPH_ERROR(0x0003002A, "Error writing to file");
+          if (file->write(comments[i].data, comments[i].len)!=comments[i].len)
+            OJPH_ERROR(0x0003002B, "Error writing to file");
+        }
       }
     }
 

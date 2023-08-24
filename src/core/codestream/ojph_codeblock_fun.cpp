@@ -182,6 +182,7 @@ namespace ojph {
         tx_to_cb = wasm_irv_tx_to_cb;
         tx_from_cb = wasm_irv_tx_from_cb;
       }
+      encode_cb = ojph_encode_codeblock;
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 

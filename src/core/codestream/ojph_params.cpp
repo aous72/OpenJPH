@@ -585,44 +585,44 @@ namespace ojph {
     void param_siz::read(infile_base *file)
     {
       if (file->read(&Lsiz, 2) != 2)
-        OJPH_ERROR(0x00050041, "error reading SIZ marker");
+        OJPH_ERROR(0x00050041, "error reading SIZ marker, truncated file");
       Lsiz = swap_byte(Lsiz);
       int num_comps = (Lsiz - 38) / 3;
       if (Lsiz != 38 + 3 * num_comps)
-        OJPH_ERROR(0x00050042, "error in SIZ marker length");
+        OJPH_ERROR(0x00050042, "error in SIZ marker length %d with components %d", Lsiz, num_comps);
       if (file->read(&Rsiz, 2) != 2)
-        OJPH_ERROR(0x00050043, "error reading SIZ marker");
+        OJPH_ERROR(0x00050043, "error reading RSIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
         OJPH_ERROR(0x00050044, "Rsiz bit 14 not set (this is not a JPH file)");
       if (Rsiz & 0xBFFF)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
-        OJPH_ERROR(0x00050045, "error reading SIZ marker");
+        OJPH_ERROR(0x00050045, "error reading XSIZ marker");
       Xsiz = swap_byte(Xsiz);
       if (file->read(&Ysiz, 4) != 4)
-        OJPH_ERROR(0x00050046, "error reading SIZ marker");
+        OJPH_ERROR(0x00050046, "error reading YSIZ marker");
       Ysiz = swap_byte(Ysiz);
       if (file->read(&XOsiz, 4) != 4)
-        OJPH_ERROR(0x00050047, "error reading SIZ marker");
+        OJPH_ERROR(0x00050047, "error reading XOSIZ marker");
       XOsiz = swap_byte(XOsiz);
       if (file->read(&YOsiz, 4) != 4)
-        OJPH_ERROR(0x00050048, "error reading SIZ marker");
+        OJPH_ERROR(0x00050048, "error reading YOSIZ marker");
       YOsiz = swap_byte(YOsiz);
       if (file->read(&XTsiz, 4) != 4)
-        OJPH_ERROR(0x00050049, "error reading SIZ marker");
+        OJPH_ERROR(0x00050049, "error reading XTSIZ marker");
       XTsiz = swap_byte(XTsiz);
       if (file->read(&YTsiz, 4) != 4)
-        OJPH_ERROR(0x0005004A, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004A, "error reading YTSIZ marker");
       YTsiz = swap_byte(YTsiz);
       if (file->read(&XTOsiz, 4) != 4)
-        OJPH_ERROR(0x0005004B, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004B, "error reading XTOSIZ marker");
       XTOsiz = swap_byte(XTOsiz);
       if (file->read(&YTOsiz, 4) != 4)
-        OJPH_ERROR(0x0005004C, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004C, "error reading YTOSIZ marker");
       YTOsiz = swap_byte(YTOsiz);
       if (file->read(&Csiz, 2) != 2)
-        OJPH_ERROR(0x0005004D, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004D, "error reading CSIZ marker");
       Csiz = swap_byte(Csiz);
       if (Csiz != num_comps)
         OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
@@ -636,11 +636,11 @@ namespace ojph {
       for (int c = 0; c < Csiz; ++c)
       {
         if (file->read(&cptr[c].SSiz, 1) != 1)
-          OJPH_ERROR(0x00050051, "error reading SIZ marker");
+          OJPH_ERROR(0x00050051, "error reading SSIZ marker");
         if (file->read(&cptr[c].XRsiz, 1) != 1)
-          OJPH_ERROR(0x00050052, "error reading SIZ marker");
+          OJPH_ERROR(0x00050052, "error reading XRSIZ marker");
         if (file->read(&cptr[c].YRsiz, 1) != 1)
-          OJPH_ERROR(0x00050053, "error reading SIZ marker");
+          OJPH_ERROR(0x00050053, "error reading YRSIZ marker");
       }
     }
 

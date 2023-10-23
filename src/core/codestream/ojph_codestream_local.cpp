@@ -74,7 +74,7 @@ namespace ojph {
       cur_comp = 0;
       cur_line = 0;
       cur_tile_row = 0;
-      resilient = false;
+      resilient = true;
       skipped_res_for_read = skipped_res_for_recon = 0;
 
       precinct_scratch_needed_bytes = 0;

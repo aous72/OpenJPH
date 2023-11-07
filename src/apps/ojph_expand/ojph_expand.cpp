@@ -90,6 +90,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 };
 
 //////////////////////////////////////////////////////////////////////////////
+static
 bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
                    ojph::ui32& skipped_res_for_read, 
@@ -132,6 +133,7 @@ bool get_arguments(int argc, char *argv[],
 }
 
 /////////////////////////////////////////////////////////////////////////////
+static 
 const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
@@ -141,6 +143,22 @@ const char* get_file_extension(const char* filename)
       "no file extension is found, or there are no characters "
       "after the dot \'.\' for filename \"%s\" \n", filename);
   return p;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+static 
+bool is_matching(const char *ref, const char *other)
+{
+  size_t num_ele = strlen(ref);
+
+  if (num_ele != strlen(other))
+    return false;
+
+  for (ojph::ui32 i = 0; i < num_ele; ++i)
+    if (ref[i] != other[i] && ref[i] != tolower(other[i]))
+      return false;
+
+  return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -197,6 +215,7 @@ int main(int argc, char *argv[]) {
     ojph::tif_out tif;
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     ojph::yuv_out yuv;
+    ojph::raw_out raw;
     ojph::image_out_base *base = NULL;
     const char *v = get_file_extension(output_filename);
     if (v)
@@ -208,7 +227,7 @@ int main(int argc, char *argv[]) {
         skipped_res_for_recon);
       ojph::param_siz siz = codestream.access_siz();
 
-      if (strncmp(".pgm", v, 4) == 0)
+      if (is_matching(".pgm", v))
       {
 
         if (siz.get_num_components() != 1)
@@ -220,7 +239,7 @@ int main(int argc, char *argv[]) {
         ppm.open(output_filename);
         base = &ppm;
       }
-      else if (strncmp(".ppm", v, 4) == 0)
+      else if (is_matching(".ppm", v))
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
@@ -246,7 +265,7 @@ int main(int argc, char *argv[]) {
         base = &ppm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
+      else if (is_matching(".tif", v) || is_matching(".tiff", v))
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
@@ -273,7 +292,7 @@ int main(int argc, char *argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
+      else if (is_matching(".yuv", v))
       {
         codestream.set_planar(true);
         ojph::param_siz siz = codestream.access_siz();
@@ -281,13 +300,13 @@ int main(int argc, char *argv[]) {
         if (siz.get_num_components() != 3 && siz.get_num_components() != 1)
           OJPH_ERROR(0x020000004,
             "The file has %d color components; this cannot be saved to"
-             " .raw(yuv) file\n", siz.get_num_components());
+             " .yuv file\n", siz.get_num_components());
         ojph::param_cod cod = codestream.access_cod();
         if (cod.is_using_color_transform())
           OJPH_ERROR(0x020000005,
-            "The current implementation of raw(yuv) file object does not"
-            " support saving file when conversion from raw(yuv) to rgb is"
-            " needed; in any case, this is not the normal usage of raw(yuv)"
+            "The current implementation of yuv file object does not"
+            " support saving file when conversion from yuv to rgb is"
+            " needed; in any case, this is not the normal usage of yuv"
             "file.");
         ojph::ui32 comp_widths[3];
         ojph::ui32 max_bit_depth = 0;
@@ -301,9 +320,25 @@ int main(int argc, char *argv[]) {
         yuv.open(output_filename);
         base = &yuv;
       }
+      else if (is_matching(".raw", v))
+      {
+        ojph::param_siz siz = codestream.access_siz();
+
+        if (siz.get_num_components() != 1)
+          OJPH_ERROR(0x020000006,
+            "The file has %d color components; this cannot be saved to"
+            " .raw file (only one component is allowed).\n", 
+            siz.get_num_components());
+        bool is_signed = siz.is_signed(0);
+        ojph::ui32 width = siz.get_recon_width(0);
+        ojph::ui32 bit_depth = siz.get_bit_depth(0);
+        raw.configure(is_signed, bit_depth, width);
+        raw.open(output_filename);
+        base = &raw;
+      }
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-        OJPH_ERROR(0x020000006,
+        OJPH_ERROR(0x020000007,
           "unknown output file extension; only pgm, ppm, tif(f) and raw(yuv))"
           " are supported\n");
 #else

@@ -30,94 +30,54 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.h
+// File: ojph_precinct.h
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
 
 
-#ifndef OJPH_CODESTREAM_H
-#define OJPH_CODESTREAM_H
-
-#include <cstdlib>
+#ifndef OJPH_PRECINCT_H
+#define OJPH_PRECINCT_H
 
 #include "ojph_defs.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  //local prototyping
-  namespace local {
-    class codestream;
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  class param_siz;
-  class param_cod;
-  class param_qcd;
-  class comment_exchange;
-  class mem_fixed_allocator;
-  struct point;
-  struct line_buf;
-  class outfile_base;
-  class infile_base;
+  class mem_elastic_allocator;
+  struct coded_lists;
 
-  ////////////////////////////////////////////////////////////////////////////
-  class codestream
-  {
-  public:
-    OJPH_EXPORT
-    codestream();
-    OJPH_EXPORT
-    ~codestream();
+  namespace local {
 
-    OJPH_EXPORT
-    void set_planar(bool planar);
-    OJPH_EXPORT
-    void set_profile(const char* s);
-    OJPH_EXPORT    
-    void set_tilepart_divisions(bool at_resolutions, bool at_components);
-    OJPH_EXPORT    
-    void request_tlm_marker(bool needed);    
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    class subband;
+    
+    //////////////////////////////////////////////////////////////////////////
+    struct precinct
+    {
+      precinct() {
+        scratch = NULL; bands = NULL; coded = NULL;
+        num_bands = 0; may_use_sop = uses_eph = false;
+      }
+      ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
+                            mem_elastic_allocator *elastic);
+      void write(outfile_base *file);
+      void parse(int tag_tree_size, ui32* lev_idx,
+                 mem_elastic_allocator *elastic,
+                 ui32& data_left, infile_base *file, bool skipped);
 
-    OJPH_EXPORT
-    void write_headers(outfile_base *file, 
-                       const comment_exchange* comments = NULL, 
-                       ui32 num_comments = 0);
-    OJPH_EXPORT
-    line_buf* exchange(line_buf* line, ui32& next_component);
-    OJPH_EXPORT
-    void flush();
+      ui8 *scratch;
+      point img_point;   //the precinct projected to full resolution
+      rect cb_idxs[4]; //indices of codeblocks
+      subband *bands;  //the subbands
+      coded_lists* coded;
+      ui32 num_bands;
+      bool may_use_sop, uses_eph;
+    };
 
-    OJPH_EXPORT
-    void enable_resilience();             // before read_headers
-    OJPH_EXPORT
-    void read_headers(infile_base *file); // before resolution restrictions
-    OJPH_EXPORT
-    void restrict_input_resolution(ui32 skipped_res_for_data,
-      ui32 skipped_res_for_recon);         // before create
-    OJPH_EXPORT
-    void create(); 
-    OJPH_EXPORT
-    line_buf* pull(ui32 &comp_num);
-
-    OJPH_EXPORT
-    void close();
-
-    OJPH_EXPORT
-    param_siz access_siz();
-    OJPH_EXPORT
-    param_cod access_cod();
-    OJPH_EXPORT
-    param_qcd access_qcd();
-    OJPH_EXPORT
-    bool is_planar() const;
-
-  private:
-    local::codestream* state;
-  };
-
+  }
 }
 
-#endif // !OJPH_CODESTREAM_H
+#endif // !OJPH_PRECINCT_H

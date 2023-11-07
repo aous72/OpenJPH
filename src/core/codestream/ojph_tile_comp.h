@@ -1,3 +1,4 @@
+
 //***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
@@ -30,94 +31,73 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.h
+// File: ojph_tile_comp.h
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
 
 
-#ifndef OJPH_CODESTREAM_H
-#define OJPH_CODESTREAM_H
-
-#include <cstdlib>
+#ifndef OJPH_TILE_COMP_H
+#define OJPH_TILE_COMP_H
 
 #include "ojph_defs.h"
+#include "ojph_base.h"
+#include "ojph_file.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  //local prototyping
-  namespace local {
-    class codestream;
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  class param_siz;
-  class param_cod;
-  class param_qcd;
-  class comment_exchange;
-  class mem_fixed_allocator;
-  struct point;
   struct line_buf;
-  class outfile_base;
-  class infile_base;
+  class codestream;
 
-  ////////////////////////////////////////////////////////////////////////////
-  class codestream
-  {
-  public:
-    OJPH_EXPORT
-    codestream();
-    OJPH_EXPORT
-    ~codestream();
+  namespace local {
 
-    OJPH_EXPORT
-    void set_planar(bool planar);
-    OJPH_EXPORT
-    void set_profile(const char* s);
-    OJPH_EXPORT    
-    void set_tilepart_divisions(bool at_resolutions, bool at_components);
-    OJPH_EXPORT    
-    void request_tlm_marker(bool needed);    
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    class tile;
+    class resolution;
 
-    OJPH_EXPORT
-    void write_headers(outfile_base *file, 
-                       const comment_exchange* comments = NULL, 
-                       ui32 num_comments = 0);
-    OJPH_EXPORT
-    line_buf* exchange(line_buf* line, ui32& next_component);
-    OJPH_EXPORT
-    void flush();
+    //////////////////////////////////////////////////////////////////////////
+    class tile_comp
+    {
+    public:
+      static void pre_alloc(codestream *codestream, const rect& comp_rect,
+                            const rect& recon_comp_rect);
+      void finalize_alloc(codestream *codestream, tile *parent,
+                          ui32 comp_num, const rect& comp_rect,
+                          const rect& recon_comp_rect);
 
-    OJPH_EXPORT
-    void enable_resilience();             // before read_headers
-    OJPH_EXPORT
-    void read_headers(infile_base *file); // before resolution restrictions
-    OJPH_EXPORT
-    void restrict_input_resolution(ui32 skipped_res_for_data,
-      ui32 skipped_res_for_recon);         // before create
-    OJPH_EXPORT
-    void create(); 
-    OJPH_EXPORT
-    line_buf* pull(ui32 &comp_num);
+      ui32 get_num_resolutions() { return num_decomps + 1; }
+      ui32 get_num_decompositions() { return num_decomps; }
+      tile* get_tile() { return parent_tile; }
+      line_buf* get_line();
+      void push_line();
+      line_buf* pull_line();
 
-    OJPH_EXPORT
-    void close();
+      ui32 prepare_precincts();
+      void write_precincts(ui32 res_num, outfile_base *file);
+      bool get_top_left_precinct(ui32 res_num, point &top_left);
+      void write_one_precinct(ui32 res_num, outfile_base *file);
+      void parse_precincts(ui32 res_num, ui32& data_left, infile_base *file);
+      void parse_one_precinct(ui32 res_num, ui32& data_left, 
+                              infile_base *file);
 
-    OJPH_EXPORT
-    param_siz access_siz();
-    OJPH_EXPORT
-    param_cod access_cod();
-    OJPH_EXPORT
-    param_qcd access_qcd();
-    OJPH_EXPORT
-    bool is_planar() const;
+      ui32 get_num_bytes() const { return num_bytes; }
+      ui32 get_num_bytes(ui32 resolution_num) const;
 
-  private:
-    local::codestream* state;
-  };
+    private:
+      tile *parent_tile;
+      resolution *res;
+      rect comp_rect;
+      ojph::point comp_downsamp;
+      ui32 num_decomps;
+      ui32 comp_num;
+      ui32 num_bytes; // number of bytes in this tile component
+                      // used for tilepart length
+    };
 
+  }
 }
 
-#endif // !OJPH_CODESTREAM_H
+#endif // !OJPH_TILE_COMP_H

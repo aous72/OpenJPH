@@ -57,6 +57,16 @@ namespace ojph {
     return (ui16)((v<<8) | (v>>8));
   }
 
+  //////////////////////////////////////////////////////////////////////////
+  static inline
+  ui32 be2le(const ui32 t)
+  {
+    ui32 u = be2le((ui16)(t & 0xFFFFu));
+    u <<= 16;
+    u |= be2le((ui16)(t >> 16));
+    return u;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   static
   void eat_white_spaces(FILE *fh)
@@ -1198,4 +1208,580 @@ namespace ojph {
 
     return w;
   }
-}
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::open(const char* filename)
+  {
+    assert(fh == NULL);
+    fh = fopen(filename, "rb");
+    if (fh == NULL)
+      OJPH_ERROR(0x030000C1, "Unable to open file %s", filename);
+
+    cur_line = 0;
+    bytes_per_sample = (bit_depth + 7) >> 3;
+    buffer_size = width * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+    fname = filename;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 raw_in::read(const line_buf* line, ui32 comp_num)
+  {
+    ojph_unused(comp_num);
+    assert(comp_num == 0);
+    size_t result = fread(buffer, bytes_per_sample, width, fh);
+    if (result != width)
+    {
+      close();
+      OJPH_ERROR(0x030000C2, "not enough data in file %s", fname);
+    }
+
+    if (bytes_per_sample > 3)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        si32* dp = line->i32;
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else if (bytes_per_sample > 2)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si32* sp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          si32 val = *sp & 0xFFFFFF;
+          val |= (val & 0x800000) ? 0xFF000000 : 0;
+          *dp++ = val;
+          // this only works for little endian architecture
+          sp = (si32*)((si8*)sp + 3);
+        }
+      }
+      else {
+        const ui32* sp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i) {
+          *dp++ = (si32)(*sp & 0xFFFFFFu);
+          // this only works for little endian architecture
+          sp = (ui32*)((ui8*)sp + 3);
+        }
+      }
+    }
+    else if (bytes_per_sample > 1)
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si16* sp = (si16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui16* sp = (ui16*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+    else
+    {
+      si32* dp = line->i32;
+      if (is_signed) {
+        const si8* sp = (si8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = *sp;
+      }
+      else {
+        const ui8* sp = (ui8*)buffer;
+        for (ui32 i = width; i > 0; --i, ++sp)
+          *dp++ = (si32)*sp;
+      }
+    }
+
+    return width;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_in::set_img_props(const size& s, ui32 bit_depth, bool is_signed)
+  {
+    assert(fh == NULL);
+    //need to extract this info from filename
+    this->width = s.w;
+    this->height = s.h;
+    this->bit_depth = bit_depth;
+    this->is_signed = is_signed;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  raw_out::~raw_out()
+  {
+    close();
+    if (buffer)
+    {
+      free(buffer);
+      buffer = NULL;
+      buffer_size = 0;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_out::open(char *filename)
+  {
+    assert(fh == NULL); //configure before open
+    fh = fopen(filename, "wb");
+    if (fh == 0)
+      OJPH_ERROR(0x03000091, "Unable to open file %s", filename);
+    fname = filename;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void raw_out::configure(bool is_signed, ui32 bit_depth, ui32 width)
+  {
+    assert(fh == NULL);
+    this->is_signed = is_signed;
+    this->bit_depth = bit_depth;
+    this->width = width;
+
+    if (is_signed) { 
+      upper_val = (1 << (bit_depth - 1));
+      lower_val = -(1 << (bit_depth - 1));
+    } else {
+      upper_val = 1 << bit_depth;
+      lower_val = 0;
+    }
+
+    bytes_per_sample = (bit_depth + 7) >> 3;
+    buffer_size = width * bytes_per_sample;
+    buffer = (ui8*)malloc(buffer_size);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 raw_out::write(const line_buf* line, ui32 comp_num)
+  {
+    ojph_unused(comp_num);
+    assert(fh);
+    assert(comp_num == 0);
+
+    if (bytes_per_sample > 3)
+    {
+      const si32* sp = line->i32;
+      ui32* dp = (ui32*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui32)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B1, "unable to write to file %s", fname);
+    }
+    else if (bytes_per_sample > 2)
+    {
+      const si32* sp = line->i32;
+      ui32* dp = (ui32*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp = (ui32)val;
+        // this only works for little endian architecture
+        dp = (ui32*)((ui8*)dp + 3);
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B2, "unable to write to file %s", fname);
+    }
+    else if (bytes_per_sample > 1)
+    {
+      const si32* sp = line->i32;
+      ui16* dp = (ui16*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui16)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B3, "unable to write to file %s", fname);
+    }
+    else
+    {
+      const si32* sp = line->i32;
+      ui8* dp = (ui8*)buffer;
+      for (ui32 i = width; i > 0; --i)
+      {
+        int val = *sp++;
+        val = val < upper_val ? val : upper_val;
+        val = val >= lower_val ? val : lower_val;
+        *dp++ = (ui8)val;
+      }
+      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+        OJPH_ERROR(0x030000B4, "unable to write to file %s", fname);
+    }
+
+    return width;
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  
+  ////////////////////////////////////////////////////////////////////////////
+
+  void dpx_in::open(const char* filename)
+  {
+    assert(file_handle == 0);
+    file_handle = fopen(filename, "rb");
+    if (0 == file_handle)
+      OJPH_ERROR(0x0300000D1, "Unable to open file %s", filename);
+    fname = filename;
+
+    // read magic number
+    ui32 magic_number;
+    if (fread(&magic_number, sizeof(ui32), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000D2, "Error reading file %s", filename);
+    }
+
+    // check magic number
+    const ui32 dpx_magic_number = 0x53445058;
+    if (dpx_magic_number == magic_number)
+    {
+      // magic number is a match - no byte swapping necessary
+      is_byte_swapping_necessary = false;
+    }
+    else if (dpx_magic_number == be2le(magic_number))
+    {
+      // magic number is a match after bytes swapping - 
+      // the data read from this file needs byte swapping
+      is_byte_swapping_necessary = true;
+    }
+    else
+    {
+      close();
+      OJPH_ERROR(0x0300000D3, "Error reading file %s - this does not appear "
+        "to be a valid DPX file.  It has magic number = 0x%08X.  The magic "
+        "number of a DPX file is 0x%08X.", filename, magic_number, 
+        dpx_magic_number);
+    }
+
+    // read offset to data
+    if (fread(&offset_to_image_data_in_bytes, sizeof(ui32), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000D4, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      offset_to_image_data_in_bytes = be2le(offset_to_image_data_in_bytes);
+    // read version
+    if (fread(version, sizeof(uint8_t), 8, file_handle) != 8)
+    {
+      close();
+      OJPH_ERROR(0x0300000D5, "Error reading file %s", filename);
+    }
+    // read image file size in bytes
+    if (fread(&total_image_file_size_in_bytes, sizeof(ui32), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000D6, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      total_image_file_size_in_bytes = be2le(total_image_file_size_in_bytes);
+    
+    // seek to image info header
+    if (fseek(file_handle,768, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000D7, "Error reading file %s", filename);
+    }
+
+    // read image_orientation
+    if (fread(&image_orientation, sizeof(uint16_t), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000D8, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      image_orientation = be2le(image_orientation);
+
+    // read number of image elements
+    if (fread(&number_of_image_elements, sizeof(uint16_t), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000D9, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      number_of_image_elements = be2le(number_of_image_elements);
+
+    // read pixels per line
+    if (fread(&pixels_per_line, sizeof(ui32), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000DA, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      pixels_per_line = be2le(pixels_per_line);
+
+    // read lines per image element
+    if (fread(&lines_per_image_element, sizeof(ui32), 1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000DB, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      lines_per_image_element = be2le(lines_per_image_element);
+
+    // seek to data structure for image element 1
+    if (fseek(file_handle, 780, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000DC, "Error reading file %s", filename);
+    }
+
+    // read data sign for image element
+    if (fread(&data_sign_for_image_element_1, sizeof(ui32), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000DE, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      data_sign_for_image_element_1 = be2le(data_sign_for_image_element_1);
+
+    // seek to core data elements in image element 1
+    if (fseek(file_handle, 800, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000DF, "Error reading file %s", filename);
+    }
+
+    // read descriptor
+    if (fread(&descriptor_for_image_element_1, sizeof(uint8_t), 1, file_handle)
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E0, "Error reading file %s", filename);
+    }
+
+    // read transfer characteristic
+    if (fread(&transfer_characteristic_for_image_element_1, sizeof(uint8_t),
+              1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E1, "Error reading file %s", filename);
+    }
+
+    // read colorimetric specification
+    if (fread(&colormetric_specification_for_image_element_1, sizeof(uint8_t), 
+        1, file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E2, "Error reading file %s", filename);
+    }
+
+    // read bit depth
+    if (fread(&bitdepth_for_image_element_1, sizeof(uint8_t), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E3, "Error reading file %s", filename);
+    }
+
+    // read packing
+    if (fread(&packing_for_image_element_1, sizeof(uint16_t), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E4, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      packing_for_image_element_1 = be2le(packing_for_image_element_1);
+
+    // read encoding
+    if (fread(&encoding_for_image_element_1, sizeof(uint16_t), 1, file_handle) 
+        != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E5, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      encoding_for_image_element_1 = be2le(encoding_for_image_element_1);
+      
+    // read offset to data
+    if (fread(&offset_to_data_for_image_element_1, sizeof(ui32), 1, 
+              file_handle) != 1)
+    {
+      close();
+      OJPH_ERROR(0x0300000E6, "Error reading file %s", filename);
+    }
+    if (is_byte_swapping_necessary)
+      offset_to_data_for_image_element_1 = 
+        be2le(offset_to_data_for_image_element_1);
+
+    // set to starting point of image data
+    if (fseek(file_handle, offset_to_image_data_in_bytes, SEEK_SET) != 0)
+    {
+      close();
+      OJPH_ERROR(0x0300000E7, "Error reading file %s", filename);
+    }
+
+    // set ojph properties
+    width = pixels_per_line;
+    height = lines_per_image_element;
+    num_comps = 3;  // descriptor field can indicate 1, 3, or 4 comps
+    for ( ojph::ui32 c = 0; c < get_num_components(); c++)
+    {
+      bit_depth[c] = bitdepth_for_image_element_1;
+      is_signed[c] = false;
+      subsampling[c] = point(1,1);
+    }
+
+    // handle DPX image data packing in file 
+    ui32 number_of_samples_per_32_bit_word = 32 / bitdepth_for_image_element_1;
+    number_of_samples_per_line = width * num_comps;
+    number_of_32_bit_words_per_line =
+      (number_of_samples_per_line + (number_of_samples_per_32_bit_word - 1))
+      / number_of_samples_per_32_bit_word;
+
+    cur_line = 0;
+
+    // allocate linebuffer to hold a line of image data from the file
+    line_buffer = malloc(number_of_32_bit_words_per_line * sizeof(ui32) );
+    if (NULL == line_buffer)
+      OJPH_ERROR(0x0300000E8, "Unable to allocate %d bytes for line_buffer[] "
+        "for file %s", 
+        number_of_32_bit_words_per_line * sizeof(ui32), filename);
+
+    // allocate line_buffer_16bit_samples to hold a line of image data in memory
+    line_buffer_16bit_samples = 
+      (ui16*) malloc(width * num_comps * sizeof(ui16));
+    if (NULL == line_buffer_16bit_samples)
+      OJPH_ERROR(0x0300000E9, "Unable to allocate %d bytes for "
+        "line_buffer_16bit_samples[] for file %s", 
+        width * num_comps * sizeof(ui16), filename);
+
+    cur_line = 0;
+
+    return;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 dpx_in::read(const line_buf* line, ui32 comp_num)
+  {
+    assert(file_handle != 0 && comp_num < num_comps);
+    assert((ui32)line->size >= width);
+
+    // read from file if trying to read the first component
+    if (0 == comp_num)
+    {
+      if (fread(line_buffer, sizeof(ui32), number_of_32_bit_words_per_line, 
+          file_handle) != number_of_32_bit_words_per_line)
+      {
+        close();
+        OJPH_ERROR(0x0300000F1, "Error reading file %s", fname);
+      }
+
+      if (true == is_byte_swapping_necessary)
+      {
+        if (16 == bitdepth_for_image_element_1)
+        {
+          ui16* line_buffer_ptr = (ui16*)line_buffer;
+          for (size_t i = 0; i < 2*number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = be2le(line_buffer_ptr[i]);
+          }
+        }
+        else
+        {
+          ui32* line_buffer_ptr = (ui32*)line_buffer;
+          for (size_t i = 0; i < number_of_32_bit_words_per_line; i++)
+          {
+            line_buffer_ptr[i] = be2le(line_buffer_ptr[i]);
+          }
+        }
+      }
+
+      // extract samples from 32bit words from file read into 
+      // RGB ordered buffer
+      ui32 word_index = 0;
+      if (10 == bitdepth_for_image_element_1 && 3 == num_comps 
+          && packing_for_image_element_1 == 1)
+      {
+        ui32* line_buffer_ptr = (ui32*)line_buffer;
+        for (ui32 i = 0; i < number_of_samples_per_line; i += 3)
+        {
+          // R
+          line_buffer_16bit_samples[i + 0] = 
+            (ui16) ((line_buffer_ptr[word_index] & 0xFFC00000) >> 22);
+          // G
+          line_buffer_16bit_samples[i + 1] = 
+            (ui16) ((line_buffer_ptr[word_index] & 0x003FF000) >> 12);
+          // B
+          line_buffer_16bit_samples[i + 2] = 
+            (ui16) ((line_buffer_ptr[word_index] & 0x00000FFC) >>  2);
+          word_index++;
+        }
+      }
+      else if (16 == bitdepth_for_image_element_1 && 3 == num_comps)
+      {
+        ui16* line_buffer_ptr = (ui16*)line_buffer;
+        for (ui32 i = 0; i < number_of_samples_per_line; i++)
+        {
+          line_buffer_16bit_samples[i] = line_buffer_ptr[i];
+        }
+      }
+      else
+      {
+        OJPH_ERROR(0x0300000F2, "file %s uses DPX image formats that are not "
+          "yet supported by this software\n bitdepth_for_image_element_1 = "
+          "%d\n num_comps=%d\npacking_for_image_element_1=%d\n "
+          "descriptor_for_image_element_1=%d", fname, 
+          bitdepth_for_image_element_1, num_comps, 
+          packing_for_image_element_1, descriptor_for_image_element_1);
+      }
+      
+      cur_line++;
+    }
+
+    // copy sample data from the unpacked line buffer into a 
+    // single-component buffer to be used by the openjph core
+    const ui16* sp = (ui16*)line_buffer_16bit_samples + comp_num;
+    si32* dp = line->i32;
+    for (ui32 i = width; i > 0; --i, sp += num_comps)
+      *dp++ = (si32)*sp;
+
+    return width;
+  }
+
+} 

@@ -117,33 +117,34 @@ namespace ojph {
                                 const line_buf *ln2, void *dp, 
                                 ui32 bit_depth, ui32 count)
   {
-    const si32 *sp0 = ln0->i32;
-    const si32 *sp1 = ln1->i32;
-    const si32 *sp2 = ln2->i32;
-    ui8* p = (ui8 *)dp;
-
-    __m256i max_val_vec = _mm256_set1_epi32((1 << bit_depth) - 1);
+    int max_val = (1 << bit_depth) - 1;
+    __m256i max_val_vec = _mm256_set1_epi32(max_val);
     __m256i zero = _mm256_setzero_si256();
     __m256i m0 = _mm256_set_epi64x((si64)0xFFFFFFFF0E0D0C0A,
                                    (si64)0x0908060504020100,
                                    (si64)0xFFFFFFFF0E0D0C0A,
                                    (si64)0x0908060504020100);
 
-    // 32 entries or entries in each loop
-    for ( ; count >= 32; count -= 32, sp0 += 32, sp1 += 32, sp2 += 32, p += 96)
+    // 32 entries in each loop
+    const __m256i* sp0 = (__m256i*)ln0->i32;
+    const __m256i* sp1 = (__m256i*)ln1->i32;
+    const __m256i* sp2 = (__m256i*)ln2->i32;
+    ui8* p = (ui8*)dp;
+    for ( ; count >= 32; count -= 32, sp0 += 4, sp1 += 4, sp2 += 4, p += 96)
     {
       __m256i a, t, u, v, w;
-      a = _mm256_load_si256((__m256i*)sp0);
+
+      a = _mm256_load_si256(sp0);
       a = _mm256_max_epi32(a, zero);
       t = _mm256_min_epi32(a, max_val_vec);
 
-      a = _mm256_load_si256((__m256i*)sp1);
+      a = _mm256_load_si256(sp1);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 8);
       t = _mm256_or_si256(t, a);
 
-      a = _mm256_load_si256((__m256i*)sp2);
+      a = _mm256_load_si256(sp2);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 16);
@@ -151,17 +152,17 @@ namespace ojph {
       t = _mm256_shuffle_epi8(t, m0);
 
 
-      a = _mm256_load_si256((__m256i*)sp0 + 1);
+      a = _mm256_load_si256(sp0 + 1);
       a = _mm256_max_epi32(a, zero);
       u = _mm256_min_epi32(a, max_val_vec);
 
-      a = _mm256_load_si256((__m256i*)sp1 + 1);
+      a = _mm256_load_si256(sp1 + 1);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 8);
       u = _mm256_or_si256(u, a);
 
-      a = _mm256_load_si256((__m256i*)sp2 + 1);
+      a = _mm256_load_si256(sp2 + 1);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 16);
@@ -169,17 +170,17 @@ namespace ojph {
       u = _mm256_shuffle_epi8(u, m0);
 
 
-      a = _mm256_load_si256((__m256i*)sp0 + 2);
+      a = _mm256_load_si256(sp0 + 2);
       a = _mm256_max_epi32(a, zero);
       v = _mm256_min_epi32(a, max_val_vec);
 
-      a = _mm256_load_si256((__m256i*)sp1 + 2);
+      a = _mm256_load_si256(sp1 + 2);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 8);
       v = _mm256_or_si256(v, a);
 
-      a = _mm256_load_si256((__m256i*)sp2 + 2);
+      a = _mm256_load_si256(sp2 + 2);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 16);
@@ -187,17 +188,17 @@ namespace ojph {
       v = _mm256_shuffle_epi8(v, m0);
 
 
-      a = _mm256_load_si256((__m256i*)sp0 + 3);
+      a = _mm256_load_si256(sp0 + 3);
       a = _mm256_max_epi32(a, zero);
       w = _mm256_min_epi32(a, max_val_vec);
 
-      a = _mm256_load_si256((__m256i*)sp1 + 3);
+      a = _mm256_load_si256(sp1 + 3);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 8);
       w = _mm256_or_si256(w, a);
 
-      a = _mm256_load_si256((__m256i*)sp2 + 3);
+      a = _mm256_load_si256(sp2 + 3);
       a = _mm256_max_epi32(a, zero);
       a = _mm256_min_epi32(a, max_val_vec);
       a = _mm256_slli_epi32(a, 16);
@@ -205,28 +206,51 @@ namespace ojph {
       w = _mm256_shuffle_epi8(w, m0);
 
       _mm_storeu_si128((__m128i*)(p     ), _mm256_castsi256_si128(t));
-      _mm_storeu_si128((__m128i*)(p + 12), _mm256_extracti128_si256(t, 1));
+      _mm_storeu_si128((__m128i*)(p + 12), _mm256_extracti128_si256(t,1));
       _mm_storeu_si128((__m128i*)(p + 24), _mm256_castsi256_si128(u));
-      _mm_storeu_si128((__m128i*)(p + 36), _mm256_extracti128_si256(u, 1));
+      _mm_storeu_si128((__m128i*)(p + 36), _mm256_extracti128_si256(u,1));
       _mm_storeu_si128((__m128i*)(p + 48), _mm256_castsi256_si128(v));
-      _mm_storeu_si128((__m128i*)(p + 60), _mm256_extracti128_si256(v, 1));
+      _mm_storeu_si128((__m128i*)(p + 60), _mm256_extracti128_si256(v,1));
       _mm_storeu_si128((__m128i*)(p + 72), _mm256_castsi256_si128(w));
-      _mm_storeu_si128((__m128i*)(p + 84), _mm256_extracti128_si256(w, 1));
+      *((si64*)(p + 84)) = _mm256_extract_epi64(w, 2);
+      *((si32*)(p + 92)) = _mm256_extract_epi32(w, 6);
+
+      // this is an alterative slower implementation
+      //__m256i tx, ux, vx, wx;
+      //tx = _mm256_permute2x128_si256(t, v, 0x20);
+      //ux = _mm256_permute2x128_si256(t, v, 0x31);
+      //vx = _mm256_permute2x128_si256(u, w, 0x20);
+      //wx = _mm256_permute2x128_si256(u, w, 0x31);
+
+      //tx = _mm256_or_si256(tx, _mm256_bslli_epi128(ux, 12));
+      //ux = _mm256_or_si256(_mm256_bsrli_epi128(ux, 4), 
+      //                     _mm256_bslli_epi128(vx, 8));
+      //vx = _mm256_or_si256(_mm256_bsrli_epi128(vx, 8), 
+      //                     _mm256_bslli_epi128(wx, 4));
+
+      //a = _mm256_permute2x128_si256(tx, ux, 0x20);
+      //_mm256_storeu_si256(p, a);
+      //a = _mm256_permute2x128_si256(vx, tx, 0x30);
+      //_mm256_storeu_si256(p + 1, a);
+      //a = _mm256_permute2x128_si256(ux, vx, 0x31);
+      //_mm256_storeu_si256(p + 2, a);
     }
 
-    int max_val = (1<<bit_depth) - 1;
+    const si32* ssp0 = (si32*)sp0;
+    const si32* ssp1 = (si32*)sp1;
+    const si32* ssp2 = (si32*)sp2;
     for ( ; count > 0; --count)
     {
       int val;
-      val = *sp0++;
+      val = *ssp0++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
       *p++ = (ui8) val;
-      val = *sp1++;
+      val = *ssp1++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
       *p++ = (ui8) val;
-      val = *sp2++;
+      val = *ssp2++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
       *p++ = (ui8) val;

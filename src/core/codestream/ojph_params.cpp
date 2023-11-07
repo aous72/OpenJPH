@@ -359,6 +359,37 @@ namespace ojph {
     state->set_delta(delta);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////
+  void comment_exchange::set_string(char* str)
+  { 
+    size_t t = strlen(str);
+    if (len > 65531)
+      OJPH_ERROR(0x000500C1, 
+        "COM marker string length cannot be larger than 65531");
+    this->data = str; 
+    this->len = (ui16)t;
+    this->Rcom = 1;
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  void comment_exchange::set_data(char* data, ui16 len)
+  { 
+    if (len > 65531)
+      OJPH_ERROR(0x000500C2, 
+        "COM marker string length cannot be larger than 65531");
+    this->data = data;
+    this->len = len; 
+    this->Rcom = 0; 
+  }
+
   //////////////////////////////////////////////////////////////////////////
   //
   //
@@ -554,44 +585,44 @@ namespace ojph {
     void param_siz::read(infile_base *file)
     {
       if (file->read(&Lsiz, 2) != 2)
-        OJPH_ERROR(0x00050041, "error reading SIZ marker");
+        OJPH_ERROR(0x00050041, "error reading SIZ marker, truncated file");
       Lsiz = swap_byte(Lsiz);
       int num_comps = (Lsiz - 38) / 3;
       if (Lsiz != 38 + 3 * num_comps)
-        OJPH_ERROR(0x00050042, "error in SIZ marker length");
+        OJPH_ERROR(0x00050042, "error in SIZ marker length %d with components %d", Lsiz, num_comps);
       if (file->read(&Rsiz, 2) != 2)
-        OJPH_ERROR(0x00050043, "error reading SIZ marker");
+        OJPH_ERROR(0x00050043, "error reading RSIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
         OJPH_ERROR(0x00050044, "Rsiz bit 14 not set (this is not a JPH file)");
       if (Rsiz & 0xBFFF)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
-        OJPH_ERROR(0x00050045, "error reading SIZ marker");
+        OJPH_ERROR(0x00050045, "error reading XSIZ marker");
       Xsiz = swap_byte(Xsiz);
       if (file->read(&Ysiz, 4) != 4)
-        OJPH_ERROR(0x00050046, "error reading SIZ marker");
+        OJPH_ERROR(0x00050046, "error reading YSIZ marker");
       Ysiz = swap_byte(Ysiz);
       if (file->read(&XOsiz, 4) != 4)
-        OJPH_ERROR(0x00050047, "error reading SIZ marker");
+        OJPH_ERROR(0x00050047, "error reading XOSIZ marker");
       XOsiz = swap_byte(XOsiz);
       if (file->read(&YOsiz, 4) != 4)
-        OJPH_ERROR(0x00050048, "error reading SIZ marker");
+        OJPH_ERROR(0x00050048, "error reading YOSIZ marker");
       YOsiz = swap_byte(YOsiz);
       if (file->read(&XTsiz, 4) != 4)
-        OJPH_ERROR(0x00050049, "error reading SIZ marker");
+        OJPH_ERROR(0x00050049, "error reading XTSIZ marker");
       XTsiz = swap_byte(XTsiz);
       if (file->read(&YTsiz, 4) != 4)
-        OJPH_ERROR(0x0005004A, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004A, "error reading YTSIZ marker");
       YTsiz = swap_byte(YTsiz);
       if (file->read(&XTOsiz, 4) != 4)
-        OJPH_ERROR(0x0005004B, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004B, "error reading XTOSIZ marker");
       XTOsiz = swap_byte(XTOsiz);
       if (file->read(&YTOsiz, 4) != 4)
-        OJPH_ERROR(0x0005004C, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004C, "error reading YTOSIZ marker");
       YTOsiz = swap_byte(YTOsiz);
       if (file->read(&Csiz, 2) != 2)
-        OJPH_ERROR(0x0005004D, "error reading SIZ marker");
+        OJPH_ERROR(0x0005004D, "error reading CSIZ marker");
       Csiz = swap_byte(Csiz);
       if (Csiz != num_comps)
         OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
@@ -599,17 +630,17 @@ namespace ojph {
       {
         if (cptr != store)
           delete[] cptr;
-        cptr = new siz_comp_info[num_comps];
+        cptr = new siz_comp_info[(ui32)num_comps];
         old_Csiz = Csiz;
       }
       for (int c = 0; c < Csiz; ++c)
       {
         if (file->read(&cptr[c].SSiz, 1) != 1)
-          OJPH_ERROR(0x00050051, "error reading SIZ marker");
+          OJPH_ERROR(0x00050051, "error reading SSIZ marker");
         if (file->read(&cptr[c].XRsiz, 1) != 1)
-          OJPH_ERROR(0x00050052, "error reading SIZ marker");
+          OJPH_ERROR(0x00050052, "error reading XRSIZ marker");
         if (file->read(&cptr[c].YRsiz, 1) != 1)
-          OJPH_ERROR(0x00050053, "error reading SIZ marker");
+          OJPH_ERROR(0x00050053, "error reading YRSIZ marker");
       }
     }
 
@@ -727,7 +758,9 @@ namespace ojph {
       if (file->read(&SGCod.prog_order, 1) != 1)
         OJPH_ERROR(0x00050073, "error reading COD marker");
       if (file->read(&SGCod.num_layers, 2) != 2)
-        OJPH_ERROR(0x00050074, "error reading COD marker");
+      { OJPH_ERROR(0x00050074, "error reading COD marker"); }
+      else
+        SGCod.num_layers = swap_byte(SGCod.num_layers);
       if (file->read(&SGCod.mc_trans, 1) != 1)
         OJPH_ERROR(0x00050075, "error reading COD marker");
       if (file->read(&SPcod.num_decomp, 1) != 1)
@@ -1181,6 +1214,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_tlm::init(ui32 num_pairs, Ttlm_Ptlm_pair *store)
     {
+      if (4 + 6 * num_pairs > 65535)
+        OJPH_ERROR(0x000500B1, "Trying to allocate more than 65535 bytes for "
+                   "a TLM marker; this can be resolved by having more than "
+                   "one TLM marker, but the code does not support this. "
+                   "In any case, this limit means that we have 10922 "
+                   "tileparts or more, which is a huge number.");
       this->num_pairs = num_pairs;
       pairs = (Ttlm_Ptlm_pair*)store;
       Ltlm = (ui16)(4 + 6 * num_pairs);

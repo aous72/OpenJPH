@@ -4,32 +4,56 @@ name: C/C++ CI
 on: push
 
 jobs:
-   build:
-     name: main build for Unix-like
-     runs-on: ${{ matrix.os }}
-     strategy:
-       matrix:
-         os: [macos-10.15, macos-latest, ubuntu-18.04, ubuntu-latest]
-     steps:
-     - uses: actions/checkout@v2
-     - name: cmake
-       run: cmake ..
-       working-directory: build
-     - name: build
-       run: make
-       working-directory: build
+  build:
+    name: main build for Unix-like
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-20.04, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build
 
-   test:
-     name: test on linux
-     runs-on: ubuntu-latest
-     steps:
-     - uses: actions/checkout@v2
-     - name: cmake
-       run: cmake -DOJPH_BUILD_TEST=ON ..
-       working-directory: build
-     - name: build
-       run: make && make test
-       working-directory: build
+  test:
+    name: tests on Linux and MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake -DOJPH_BUILD_TESTS=yes ..
+      working-directory: build
+    - name: build
+      run: make
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure
+      working-directory: build
+      
+  test_windows:
+    name: tests on Windows
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: cmake
+      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=off -DOJPH_BUILD_TESTS=yes ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure -C Release
+      working-directory: build
 
 #jobs:
 #  ci:

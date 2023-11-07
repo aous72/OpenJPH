@@ -73,7 +73,7 @@ namespace ojph {
     void init(int argc, char *argv[]) {
       assert(avail == avail_store);
       if (argc > 128)
-        avail = new ui8[(argc + 7) >> 3];
+        avail = new ui8[((ui32)argc + 7u) >> 3];
       memset(avail, 0, 
         ojph_max(sizeof(avail_store), (size_t)((argc + 7) >> 3)));
       this->argv = argv;

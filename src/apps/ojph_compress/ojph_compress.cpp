@@ -320,9 +320,44 @@ struct si32_to_bool_list_interpreter
   ojph::ui32& num_eles;
 };
 
+/////////////////////////////////////////////////////////////////////////////
+struct tileparts_division_interpreter
+: public ojph::cli_interpreter::arg_inter_base
+{
+  tileparts_division_interpreter(bool& at_resolutions, 
+                                 bool& at_components)
+  : at_resolutions(at_resolutions), at_components(at_components) {}
 
+  virtual void operate(const char *str)
+  {
+    size_t len = strlen(str);
+    if (len == 1 && strncmp(str, "C", 2) == 0)
+    {
+      at_resolutions = false;
+      at_components = true;
+    }
+    else if (len == 1 && strncmp(str, "R", 2) == 0)
+    {
+      at_resolutions = true;
+      at_components = false;
+    }
+    else if (len == 2 && 
+             (strncmp(str, "RC", 3) == 0 || strncmp(str, "CR", 3) == 0))
+    {
+      at_resolutions = true;
+      at_components = true;
+    }
+    else 
+      throw "could not interpret -tileparts fields; allowed values are "
+            "\"R\" \"C\" and \"RC\"";
+  }
+
+  bool& at_resolutions;
+  bool& at_components;
+};
 
 //////////////////////////////////////////////////////////////////////////////
+static
 bool get_arguments(int argc, char *argv[], char *&input_filename,
                    char *&output_filename, char *&progression_order,
                    char *&profile_string, ojph::ui32 &num_decompositions,
@@ -335,7 +370,9 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
                    ojph::ui32& max_num_comps, ojph::ui32& num_comps,
                    ojph::ui32& num_comp_downsamps, ojph::point*& comp_downsamp,
                    ojph::ui32& num_bit_depths, ojph::ui32*& bit_depth,
-                   ojph::ui32& num_is_signed, ojph::si32*& is_signed)
+                   ojph::ui32& num_is_signed, ojph::si32*& is_signed,
+                   bool& tlm_marker, bool& tileparts_at_resolutions,
+                   bool& tileparts_at_components, char *&com_string)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -349,6 +386,8 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   interpreter.reinterpret("-reversible", reversible);
   interpreter.reinterpret_to_bool("-colour_trans", employ_color_transform);
   interpreter.reinterpret("-num_comps", num_comps);
+  interpreter.reinterpret("-tlm_marker", tlm_marker);
+  interpreter.reinterpret("-com", com_string);
 
   size_interpreter block_interpreter(block_size);
   size_interpreter dims_interpreter(dims);
@@ -378,7 +417,8 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   point_interpreter img_off_interpreter(image_offset);
   size_interpreter tile_size_interpreter(tile_size);
   point_interpreter tile_off_interpreter(tile_offset);
-
+  tileparts_division_interpreter tp_div_interpreter(tileparts_at_resolutions,
+                                                    tileparts_at_components);
   try
   {
     interpreter.reinterpret("-block_size", &block_interpreter);
@@ -390,6 +430,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
     interpreter.reinterpret("-downsamp", &pointlist);
     interpreter.reinterpret("-bit_depth", &ilist);
     interpreter.reinterpret("-signed", &blist);
+    interpreter.reinterpret("-tileparts", &tp_div_interpreter);
   }
   catch (const char *s)
   {
@@ -411,6 +452,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
 }
 
 /////////////////////////////////////////////////////////////////////////////
+static
 const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
@@ -420,6 +462,22 @@ const char* get_file_extension(const char* filename)
       "no file extension is found, or there are no characters "
       "after the dot \'.\' for filename \"%s\" \n", filename);
   return p;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+static 
+bool is_matching(const char *ref, const char *other)
+{
+  size_t num_ele = strlen(ref);
+
+  if (num_ele != strlen(other))
+    return false;
+
+  for (ojph::ui32 i = 0; i < num_ele; ++i)
+    if (ref[i] != other[i] && ref[i] != tolower(other[i]))
+      return false;
+
+  return true;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -433,6 +491,7 @@ int main(int argc, char * argv[]) {
   char *prog_order = prog_order_store;
   char profile_string_store[] = "";
   char *profile_string = profile_string_store;
+  char *com_string = NULL;
   ojph::ui32 num_decompositions = 5;
   float quantization_step = -1.0f;
   bool reversible = false;
@@ -459,6 +518,9 @@ int main(int argc, char * argv[]) {
   ojph::ui32 num_comp_downsamps = 0;
   ojph::point downsampling_store[initial_num_comps];
   ojph::point *comp_downsampling = downsampling_store;
+  bool tlm_marker = false;
+  bool tileparts_at_resolutions = false;
+  bool tileparts_at_components = false;
 
   if (argc <= 1) {
     std::cout <<
@@ -503,9 +565,17 @@ int main(int argc, char * argv[]) {
     " -tile_offset  {x,y} tile offset. \n"
     " -tile_size    {x,y} tile width and height. \n"
     " -image_offset {x,y} image offset from origin. \n"
+    " -tileparts    (None) employ tilepart divisions at each resolution, \n"
+    "               indicated by the letter R, and/or component, indicated \n"
+    "               by the letter C. For both, use \"-tileparts RC\".\n"
+    " -tlm_marker   (false) insert a TLM marker, either \"true\" or \"false\"\n"
     " -profile      (None) is the profile, the code will check if the \n"
     "               selected options meet the profile.  Currently only \n"
-    "               BROADCAST and IMF are supported\n"
+    "               BROADCAST and IMF are supported.  This automatically \n"
+    "               sets tlm_marker to true and tileparts to C.\n"
+    " -com          (None) if set, inserts a COM marker with the specified\n"
+    "               string. If the string has spaces, please use\n"
+    "               double quotes, as in -com \"This is a comment\"\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"
@@ -528,7 +598,9 @@ int main(int argc, char * argv[]) {
                      block_size, dims, image_offset, tile_size, tile_offset,
                      max_num_comps, num_components,
                      num_comp_downsamps, comp_downsampling,
-                     num_bit_depths, bit_depth, num_is_signed, is_signed))
+                     num_bit_depths, bit_depth, num_is_signed, is_signed,
+                     tlm_marker, tileparts_at_resolutions,
+                     tileparts_at_components, com_string))
   {
     return -1;
   }
@@ -541,9 +613,12 @@ int main(int argc, char * argv[]) {
 
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
+    ojph::raw_in raw;
+    ojph::dpx_in dpx;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
+
     ojph::image_in_base *base = NULL;
     if (input_filename == NULL)
       OJPH_ERROR(0x01000007, "please specify an input file name using"
@@ -555,7 +630,7 @@ int main(int argc, char * argv[]) {
 
     if (v)
     {
-      if (strncmp(".pgm", v, 4) == 0)
+      if (is_matching(".pgm", v))
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -583,6 +658,9 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
 
         if (employ_color_transform != -1)
           OJPH_WARN(0x01000001,
@@ -605,7 +683,7 @@ int main(int argc, char * argv[]) {
 
         base = &ppm;
       }
-      else if (strncmp(".ppm", v, 4) == 0)
+      else if (is_matching(".ppm", v))
       {
         ppm.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -637,6 +715,9 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);          
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000011,
@@ -657,7 +738,7 @@ int main(int argc, char * argv[]) {
         base = &ppm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".tif", v, 4) == 0 || strncmp(".tiff", v, 5) == 0)
+      else if (is_matching(".tif", v) || is_matching(".tiff", v))
       {
         tif.open(input_filename);
         ojph::param_siz siz = codestream.access_siz();
@@ -690,6 +771,9 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000061,
@@ -707,7 +791,7 @@ int main(int argc, char * argv[]) {
         base = &tif;
       }
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-      else if (strncmp(".yuv", v, 4) == 0 || strncmp(".raw", v, 4) == 0)
+      else if (is_matching(".yuv", v))
       {
         ojph::param_siz siz = codestream.access_siz();
         if (dims.w == 0 || dims.h == 0)
@@ -772,29 +856,139 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);          
 
         yuv.open(input_filename);
         base = &yuv;
       }
+      else if (is_matching(".raw", v))
+      {
+        ojph::param_siz siz = codestream.access_siz();
+        if (dims.w == 0 || dims.h == 0)
+          OJPH_ERROR(0x01000081,
+            "-dims option must have positive dimensions\n");
+        siz.set_image_extent(ojph::point(image_offset.x + dims.w,
+          image_offset.y + dims.h));
+        if (num_components != 1)
+          OJPH_ERROR(0x01000082,
+            "-num_comps must be 1\n");
+        if (num_is_signed <= 0)
+          OJPH_ERROR(0x01000083,
+            "-signed option is missing and must be provided\n");
+        if (num_bit_depths <= 0)
+          OJPH_ERROR(0x01000084,
+            "-bit_depth option is missing and must be provided\n");
+        if (num_comp_downsamps <= 0)
+          OJPH_ERROR(0x01000085,
+            "-downsamp option is missing and must be provided\n");
+
+        raw.set_img_props(dims, bit_depth[0], is_signed);
+
+        siz.set_num_components(num_components);
+        siz.set_component(0, comp_downsampling[0], bit_depth[0], is_signed[0]);
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform != -1)
+          OJPH_ERROR(0x01000086,
+            "color transform is not meaningless since .raw files are single "
+            "component files");
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1.0f)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(true);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
+
+        raw.open(input_filename);
+        base = &raw;
+      }
+      else if (is_matching(".dpx", v))
+      {
+      dpx.open(input_filename);
+      ojph::param_siz siz = codestream.access_siz();
+      siz.set_image_extent(ojph::point(image_offset.x + dpx.get_size().w,
+        image_offset.y + dpx.get_size().h));
+      ojph::ui32 num_comps = dpx.get_num_components();
+      siz.set_num_components(num_comps);
+      //if (num_bit_depths > 0)
+      //  dpx.set_bit_depth(num_bit_depths, bit_depth);
+      for (ojph::ui32 c = 0; c < num_comps; ++c)
+        siz.set_component(c, dpx.get_comp_subsampling(c),
+          dpx.get_bit_depth(c), dpx.get_is_signed(c));
+      siz.set_image_offset(image_offset);
+      siz.set_tile_size(tile_size);
+      siz.set_tile_offset(tile_offset);
+
+      ojph::param_cod cod = codestream.access_cod();
+      cod.set_num_decomposition(num_decompositions);
+      cod.set_block_dims(block_size.w, block_size.h);
+      if (num_precincts != -1)
+        cod.set_precinct_size(num_precincts, precinct_size);
+      cod.set_progression_order(prog_order);
+      if (employ_color_transform == -1 && num_comps >= 3)
+        cod.set_color_transform(true);
       else
-#ifdef OJPH_ENABLE_TIFF_SUPPORT
+        cod.set_color_transform(employ_color_transform == 1);
+      cod.set_reversible(reversible);
+      if (!reversible && quantization_step != -1)
+        codestream.access_qcd().set_irrev_quant(quantization_step);
+      codestream.set_planar(false);
+      if (profile_string[0] != '\0')
+        codestream.set_profile(profile_string);
+      codestream.set_tilepart_divisions(tileparts_at_resolutions,
+        tileparts_at_components);
+      codestream.request_tlm_marker(tlm_marker);
+
+      if (dims.w != 0 || dims.h != 0)
+        OJPH_WARN(0x01000071,
+          "-dims option is not needed and was not used\n");
+      if (num_components != 0)
+        OJPH_WARN(0x01000072,
+          "-num_comps is not needed and was not used\n");
+      if (is_signed[0] != -1)
+        OJPH_WARN(0x01000073,
+          "-signed is not needed and was not used\n");
+      if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+        OJPH_WARN(0x01000075,
+          "-downsamp is not needed and was not used\n");
+
+      base = &dpx;
+      }
+      else
+#if defined( OJPH_ENABLE_TIFF_SUPPORT)
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only pgm, ppm, tif(f), or"
-          " raw(yuv) are supported\n");
+          "unknown input file extension; only pgm, ppm, dpx, tif(f),"
+          " or raw(yuv) are supported\n");
 #else
         OJPH_ERROR(0x01000041,
-          "unknown input file extension; only pgm, ppm, and raw(yuv)) are"
-          " supported\n");
-#endif // !OJPH_ENABLE_TIFF_SUPPORT
+          "unknown input file extension; only pgm, ppm, dpx,"
+          " or raw(yuv) are supported\n");
+#endif // !OJPH_ENABLE_TIFF_SUPPORT 
     }
     else
       OJPH_ERROR(0x01000051,
         "Please supply a proper input filename with a proper three-letter "
         "extension\n");
 
+    ojph::comment_exchange com_ex;
+    if (com_string)
+      com_ex.set_string(com_string);
     ojph::j2c_outfile j2c_file;
     j2c_file.open(output_filename);
-    codestream.write_headers(&j2c_file);
+    codestream.write_headers(&j2c_file, &com_ex, com_string ? 1 : 0);
 
     ojph::ui32 next_comp;
     ojph::line_buf* cur_line = codestream.exchange(NULL, next_comp);

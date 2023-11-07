@@ -30,94 +30,74 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.h
+// File: ojph_subband.h
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
 
 
-#ifndef OJPH_CODESTREAM_H
-#define OJPH_CODESTREAM_H
-
-#include <cstdlib>
+#ifndef OJPH_SUBBAND_H
+#define OJPH_SUBBAND_H
 
 #include "ojph_defs.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  //local prototyping
-  namespace local {
-    class codestream;
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  class param_siz;
-  class param_cod;
-  class param_qcd;
-  class comment_exchange;
-  class mem_fixed_allocator;
-  struct point;
   struct line_buf;
-  class outfile_base;
-  class infile_base;
+  class mem_elastic_allocator;
+  class codestream;
 
-  ////////////////////////////////////////////////////////////////////////////
-  class codestream
-  {
-  public:
-    OJPH_EXPORT
-    codestream();
-    OJPH_EXPORT
-    ~codestream();
+  namespace local {
 
-    OJPH_EXPORT
-    void set_planar(bool planar);
-    OJPH_EXPORT
-    void set_profile(const char* s);
-    OJPH_EXPORT    
-    void set_tilepart_divisions(bool at_resolutions, bool at_components);
-    OJPH_EXPORT    
-    void request_tlm_marker(bool needed);    
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    class resolution;
+    struct precinct;
+    class codeblock;
+    struct coded_cb_header;
+  
+  //////////////////////////////////////////////////////////////////////////
+    class subband
+    {
+      friend struct precinct;
+    public:
+      static void pre_alloc(codestream *codestream, const rect& band_rect,
+                            ui32 res_num);
+      void finalize_alloc(codestream *codestream, const rect& band_rect,
+                          resolution* res, ui32 res_num, ui32 subband_num);
 
-    OJPH_EXPORT
-    void write_headers(outfile_base *file, 
-                       const comment_exchange* comments = NULL, 
-                       ui32 num_comments = 0);
-    OJPH_EXPORT
-    line_buf* exchange(line_buf* line, ui32& next_component);
-    OJPH_EXPORT
-    void flush();
+      void exchange_buf(line_buf* l);
+      line_buf* get_line() { return lines; }
+      void push_line();
 
-    OJPH_EXPORT
-    void enable_resilience();             // before read_headers
-    OJPH_EXPORT
-    void read_headers(infile_base *file); // before resolution restrictions
-    OJPH_EXPORT
-    void restrict_input_resolution(ui32 skipped_res_for_data,
-      ui32 skipped_res_for_recon);         // before create
-    OJPH_EXPORT
-    void create(); 
-    OJPH_EXPORT
-    line_buf* pull(ui32 &comp_num);
+      void get_cb_indices(const size& num_precincts, precinct *precincts);
+      float get_delta() { return delta; }
 
-    OJPH_EXPORT
-    void close();
+      line_buf* pull_line();
 
-    OJPH_EXPORT
-    param_siz access_siz();
-    OJPH_EXPORT
-    param_cod access_cod();
-    OJPH_EXPORT
-    param_qcd access_qcd();
-    OJPH_EXPORT
-    bool is_planar() const;
+    private:
+      ui32 res_num, band_num;
+      bool reversible;
+      bool empty;
+      rect band_rect;
+      line_buf *lines;
+      resolution* parent;
+      codeblock* blocks;
+      size num_blocks;
+      size log_PP;
+      ui32 xcb_prime, ycb_prime;
+      ui32 cur_cb_row;
+      int cur_line;
+      int cur_cb_height;
+      float delta, delta_inv;
+      ui32 K_max;
+      coded_cb_header *coded_cbs;
+      mem_elastic_allocator *elastic;
+    };
 
-  private:
-    local::codestream* state;
-  };
-
+  }
 }
 
-#endif // !OJPH_CODESTREAM_H
+#endif // !OJPH_SUBBAND_H

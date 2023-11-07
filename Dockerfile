@@ -5,9 +5,13 @@ RUN apt-get update
 # disable interactive install 
 ENV DEBIAN_FRONTEND noninteractive
 
+# install developement tools
 RUN apt-get -y install cmake
 RUN apt-get -y install g++
 RUN apt-get -y install libtiff-dev
+
+# install developement debugging tools
+RUN apt-get -y install valgrind
 
 # OpenJPH
 WORKDIR /usr/src/openjph/
@@ -25,4 +29,4 @@ WORKDIR /usr/src/openjph
 # docker build --rm -f Dockerfile -t openjph:latest .
 # step 2 - run docker image
 # docker run -it --rm openjph:latest
-# docker run -it --rm -v C:\\temp:/usr/src/openjph/build openjph:latest
+# docker run -it --rm -v C:\\temp:/tmp openjph:latest

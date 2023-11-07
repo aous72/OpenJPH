@@ -1,3 +1,4 @@
+
 //***************************************************************************/
 // This software is released under the 2-Clause BSD license, included
 // below.
@@ -30,94 +31,87 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_codestream.h
+// File: ojph_codeblock.h
 // Author: Aous Naman
 // Date: 28 August 2019
 //***************************************************************************/
 
 
-#ifndef OJPH_CODESTREAM_H
-#define OJPH_CODESTREAM_H
-
-#include <cstdlib>
+#ifndef OJPH_CODEBLOCK_H
+#define OJPH_CODEBLOCK_H
 
 #include "ojph_defs.h"
+#include "ojph_file.h"
+#include "ojph_codeblock_fun.h"
 
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-  //local prototyping
-  namespace local {
-    class codestream;
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  class param_siz;
-  class param_cod;
-  class param_qcd;
-  class comment_exchange;
-  class mem_fixed_allocator;
-  struct point;
   struct line_buf;
-  class outfile_base;
-  class infile_base;
+  class mem_elastic_allocator;
+  class codestream;
+  struct coded_lists;
 
-  ////////////////////////////////////////////////////////////////////////////
-  class codestream
-  {
-  public:
-    OJPH_EXPORT
-    codestream();
-    OJPH_EXPORT
-    ~codestream();
+  namespace local {
 
-    OJPH_EXPORT
-    void set_planar(bool planar);
-    OJPH_EXPORT
-    void set_profile(const char* s);
-    OJPH_EXPORT    
-    void set_tilepart_divisions(bool at_resolutions, bool at_components);
-    OJPH_EXPORT    
-    void request_tlm_marker(bool needed);    
+    //////////////////////////////////////////////////////////////////////////
+    //defined here
+    struct precinct;
+    class subband;
+    struct coded_cb_header;
 
-    OJPH_EXPORT
-    void write_headers(outfile_base *file, 
-                       const comment_exchange* comments = NULL, 
-                       ui32 num_comments = 0);
-    OJPH_EXPORT
-    line_buf* exchange(line_buf* line, ui32& next_component);
-    OJPH_EXPORT
-    void flush();
+    //////////////////////////////////////////////////////////////////////////
+    class codeblock
+    {
+      friend struct precinct;
+    public:
+      static void pre_alloc(codestream *codestream, const size& nominal);
+      void finalize_alloc(codestream *codestream, subband* parent,
+                          const size& nominal, const size& cb_size,
+                          coded_cb_header* coded_cb,
+                          ui32 K_max, int tbx0);
+      void push(line_buf *line);
+      void encode(mem_elastic_allocator *elastic);
+      void recreate(const size& cb_size, coded_cb_header* coded_cb);
 
-    OJPH_EXPORT
-    void enable_resilience();             // before read_headers
-    OJPH_EXPORT
-    void read_headers(infile_base *file); // before resolution restrictions
-    OJPH_EXPORT
-    void restrict_input_resolution(ui32 skipped_res_for_data,
-      ui32 skipped_res_for_recon);         // before create
-    OJPH_EXPORT
-    void create(); 
-    OJPH_EXPORT
-    line_buf* pull(ui32 &comp_num);
+      void decode();
+      void pull_line(line_buf *line);
 
-    OJPH_EXPORT
-    void close();
+    private:
+      ui32* buf;
+      size nominal_size;
+      size cb_size;
+      ui32 stride;
+      ui32 buf_size;
+      subband* parent;
+      int line_offset;
+      ui32 cur_line;
+      float delta, delta_inv;
+      ui32 K_max;
+      bool reversible;
+      bool resilient;
+      bool stripe_causal;
+      bool zero_block; // true when the decoded block is all zero
+      ui32 max_val[8]; // supports up to 256 bits
+      coded_cb_header* coded_cb;
+      codeblock_fun codeblock_functions;
+    };
 
-    OJPH_EXPORT
-    param_siz access_siz();
-    OJPH_EXPORT
-    param_cod access_cod();
-    OJPH_EXPORT
-    param_qcd access_qcd();
-    OJPH_EXPORT
-    bool is_planar() const;
+    //////////////////////////////////////////////////////////////////////////
+    struct coded_cb_header
+    {
+      ui32 pass_length[2];
+      ui32 num_passes;
+      ui32 Kmax;
+      ui32 missing_msbs;
+      coded_lists *next_coded;
 
-  private:
-    local::codestream* state;
-  };
+      static const int prefix_buf_size = 8;
+      static const int suffix_buf_size = 16;
+    };
 
+  }
 }
 
-#endif // !OJPH_CODESTREAM_H
+#endif // !OJPH_CODEBLOCK_H

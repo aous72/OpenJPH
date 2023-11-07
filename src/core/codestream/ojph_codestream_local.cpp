@@ -1027,7 +1027,8 @@ namespace ojph {
         int marker_idx = find_marker(infile, next_markers, 2);
         if (marker_idx == -1)
         {
-          OJPH_INFO(0x00030067, "File terminated early");
+          // This is common, so don't log unless needed
+          // OJPH_INFO(0x00030067, "File terminated early");
           break;
         }
         else if (marker_idx == 0)

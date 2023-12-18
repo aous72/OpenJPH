@@ -1,30 +1,14 @@
 cmake_minimum_required(VERSION 3.11.0)
 
+## project
 project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ################################################################################################
 # Building OpenJPH
 ################################################################################################
 
-############################################################
-# Parse version file
-# credit: https://stackoverflow.com/a/47084079
-
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/common/ojph_version.h" VERFILE)
-if (NOT VERFILE)
-    message(FATAL_ERROR "Failed to parse ojph_version.h!")
-endif()
-
-string(REGEX MATCH "OPENJPH_VERSION_MAJOR ([0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_MAJOR ${CMAKE_MATCH_1})
-string(REGEX MATCH "OPENJPH_VERSION_MINOR ([0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_MINOR ${CMAKE_MATCH_1})
-string(REGEX MATCH "OPENJPH_VERSION_PATCH ([a-z0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_PATCH ${CMAKE_MATCH_1})
-
-set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}")
-############################################################
-
+## options
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(OJPH_ENABLE_INTEL_AVX512 "enables the use of AVX512 SIMD instructions and associated files" ON)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
@@ -45,6 +29,7 @@ set(CMAKE_CXX_FLAGS_ASAN
   CACHE STRING "Flags used by the C++ compiler during AddressSanitizer builds."
   FORCE)
 
+  ## build type
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
   message( STATUS "To use AddressSanitizer, use \"cmake .. -DCMAKE_BUILD_TYPE=asan\"" )
@@ -85,6 +70,13 @@ endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../lib)
 
 include_directories(src/core/common)
 include_directories(src/apps/common)
@@ -150,24 +142,12 @@ else()
   add_library(openjph ${SOURCES})
 endif()
 
+## include library version/name
+include(ojph_libname.cmake)
+
 target_include_directories(openjph PUBLIC src/core/common)
 
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
-
-if (OPENJPH_VERSION)
-  if (WIN32)
-    set_target_properties(openjph
-      PROPERTIES
-        OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
-  else()
-    set_target_properties(openjph
-      PROPERTIES
-        SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
-        VERSION "${OPENJPH_VERSION}")
-  endif()
-else()
-  message(FATAL_ERROR "OPENJPH_VERSION is not set")
-endif()
 
 if (MSVC)
   set_source_files_properties(src/core/codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
@@ -238,7 +218,7 @@ endif()
 
 if(OJPH_BUILD_EXECUTABLES)
   add_executable(ojph_expand ${OJPH_EXPAND})
-  add_executable(ojph_compress ${OJPH_COMPRESS})
+  add_executable(ojph_compress ${OJPH_COMPRESS})  
 endif()
 
 if (MSVC)
@@ -264,11 +244,11 @@ endif()
 ################################################################################################
 
 if(OJPH_BUILD_EXECUTABLES)
-  install(TARGETS ojph_expand
+  install(TARGETS ojph_expand    
     DESTINATION bin)
 
-  install(TARGETS ojph_compress
-          DESTINATION bin)
+    install(TARGETS ojph_compress  
+    DESTINATION bin)
 endif()
 
 include(GNUInstallDirs)

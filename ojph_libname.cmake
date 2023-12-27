@@ -21,17 +21,9 @@ set(OPENJPH_VERSION_PATCH ${CMAKE_MATCH_1})
 set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}")
 ############################################################
 
+message(STATUS "OpenJPH library version: ${OPENJPH_VERSION}")
+
 if (OPENJPH_VERSION)
-  if (WIN32)
-    set_target_properties(openjph
-      PROPERTIES
-        OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
-  else()
-    set_target_properties(openjph
-      PROPERTIES
-        SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
-        VERSION "${OPENJPH_VERSION}")
-  endif()
 else()
   message(FATAL_ERROR "OPENJPH_VERSION is not set")
 endif()

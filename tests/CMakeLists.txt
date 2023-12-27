@@ -43,12 +43,12 @@ include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 
 if (WIN32)
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  if(CMAKE_BUILD_TYPE MATCHES "Debug")
     add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Debug/gtest.dll" "./Debug/"
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Debug/gtest_main.dll" "./Debug/"
     )
-  elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+  elseif(CMAKE_BUILD_TYPE MATCHES "Release")
     add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest.dll" "./Release/"
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest_main.dll" "./Release/"

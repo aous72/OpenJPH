@@ -75,6 +75,12 @@ if (BUILD_SHARED_LIBS AND MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_BUILD_SHARED_LIBRARY\"")
 endif()
 
+## specify output directories 
+## this will be refined further for Debug and Release builds in included CMakeLists.txt
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../lib)
+
 ## Build library and applications
 add_subdirectory(src/core)
 if (OJPH_BUILD_EXECUTABLES)

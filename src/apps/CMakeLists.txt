@@ -24,12 +24,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
   if( TIFF_FOUND )
     set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
     include_directories( ${TIFF_INCLUDE_DIR} ) 
-    if (MSVC)
-		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_TIFF_SUPPORT\"")
-	  else()
-		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_TIFF_SUPPORT")
-	  endif()
-    #include_directories(${CMAKE_BINARY_DIR}/libtiff) # for tiffconf.h on windows
+    add_definitions(-DOJPH_ENABLE_TIFF_SUPPORT)
   endif( TIFF_FOUND )
 
 endif() 

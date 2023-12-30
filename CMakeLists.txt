@@ -49,30 +49,28 @@ include(ojph_libname.cmake)
 ## C++ version and flags
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
+  add_compile_options(
+  -fexceptions 
+  -Wall 
+  -Wextra 
+  -Wconversion 
+  -Wunused-parameter
+  )
 endif()
 
 ## The option OJPH_DISABLE_INTEL_SIMD and OJPH_ENABLE_INTEL_AVX512
 if (OJPH_DISABLE_INTEL_SIMD)
-	if (MSVC)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_DISABLE_INTEL_SIMD\"")
-	else()
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_DISABLE_INTEL_SIMD")
-	endif()
+  add_definitions(-DOJPH_DISABLE_INTEL_SIMD)
 elseif (OJPH_ENABLE_INTEL_AVX512)
-  if (MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_INTEL_AVX512\"")
-  else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_INTEL_AVX512")
-  endif()
+  add_definitions(-DOJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## The option BUILD_SHARED_LIBS
 if (BUILD_SHARED_LIBS AND MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_BUILD_SHARED_LIBRARY\"")
+  add_definitions(-DOJPH_BUILD_SHARED_LIBRARY)
 endif()
 
 ## specify output directories 

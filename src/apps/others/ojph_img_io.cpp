@@ -1650,7 +1650,7 @@ namespace ojph {
         be2le(offset_to_data_for_image_element_1);
 
     // set to starting point of image data
-    if (fseek(file_handle, offset_to_image_data_in_bytes, SEEK_SET) != 0)
+    if (fseek(file_handle, (long)offset_to_image_data_in_bytes, SEEK_SET) != 0)
     {
       close();
       OJPH_ERROR(0x0300000E7, "Error reading file %s", filename);

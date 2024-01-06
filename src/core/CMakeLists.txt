@@ -38,11 +38,6 @@ source_group("common"            FILES ${COMMON})
 source_group("others"            FILES ${OTHERS})
 source_group("transform"         FILES ${TRANSFORM})
 
-configure_file(
-  "../pkg-config.pc.cmake"
-  "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
-)
-
 if(EMSCRIPTEN)
   add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD)
   add_library(openjph ${SOURCES})
@@ -64,6 +59,11 @@ elseif(NOT OJPH_DISABLE_INTEL_SIMD)
   endif()
 else()
   add_library(openjph ${SOURCES})
+endif()
+
+## The option BUILD_SHARED_LIBS
+if (BUILD_SHARED_LIBS AND WIN32)
+  target_compile_definitions(openjph PRIVATE OJPH_BUILD_SHARED_LIBRARY)
 endif()
 
 ## include library version/name

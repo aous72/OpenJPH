@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.11.0)
 
+## Library name/version
+include(ojph_libname.cmake)
+
 ## project
-project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+project (openjph VERSION ${OPENJPH_VERSION} DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ################################################################################################
@@ -43,13 +46,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
-## Library name
-include(ojph_libname.cmake)
-
 ## C++ version and flags
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
-  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   add_compile_options(
@@ -63,14 +63,9 @@ endif()
 
 ## The option OJPH_DISABLE_INTEL_SIMD and OJPH_ENABLE_INTEL_AVX512
 if (OJPH_DISABLE_INTEL_SIMD)
-  add_definitions(-DOJPH_DISABLE_INTEL_SIMD)
+  add_compile_options(-DOJPH_DISABLE_INTEL_SIMD)
 elseif (OJPH_ENABLE_INTEL_AVX512)
-  add_definitions(-DOJPH_ENABLE_INTEL_AVX512)
-endif()
-
-## The option BUILD_SHARED_LIBS
-if (BUILD_SHARED_LIBS AND MSVC)
-  add_definitions(-DOJPH_BUILD_SHARED_LIBRARY)
+  add_compile_options(-DOJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## specify output directories 
@@ -89,17 +84,28 @@ endif()
 # Install
 ################################################################################################
 
-include(GNUInstallDirs)
-install(TARGETS openjph LIBRARY 
-  DESTINATION ${CMAKE_INSTALL_LIBDIR})
+set(PKG_CONFIG_INCLUDEDIR "\${prefix}/include")
+set(PKG_CONFIG_LIBDIR "\${prefix}/lib")
+set(PKG_CONFIG_LIBS "-lopenjph")
 
-install (DIRECTORY src/core/common/
+include(GNUInstallDirs)
+install(TARGETS openjph
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(DIRECTORY src/core/common/
   DESTINATION include/openjph
   FILES_MATCHING
   PATTERN "*.h")
 
-install(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
+install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
+  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+)
 
 ################################################################################################
 # Testing (OJPH_BUILD_TESTS)

@@ -2,7 +2,7 @@
 ############################################################
 if( OJPH_ENABLE_TIFF_SUPPORT )
 
-  if( WIN32 )
+  if( MSVC )
 
     set(TIFF_INCLUDE_DIR "C:\\Program Files\\tiff\\include" CACHE PATH "the directory containing the TIFF headers")
     set(TIFF_LIBRARY_DEBUG   "C:\\Program Files\\tiff\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
@@ -17,7 +17,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
     message( STATUS "   TIFFXX_LIBRARY_DEBUG : \"${TIFFXX_LIBRARY_DEBUG}\"  " )
     message( STATUS "   TIFFXX_LIBRARY_RELEASE : \"${TIFFXX_LIBRARY_RELEASE}\"  " )
 
-  endif( WIN32 )
+  endif( MSVC )
 
   FIND_PACKAGE( TIFF )
 

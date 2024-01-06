@@ -87,6 +87,7 @@ endif()
 set(PKG_CONFIG_INCLUDEDIR "\${prefix}/include")
 set(PKG_CONFIG_LIBDIR "\${prefix}/lib")
 set(PKG_CONFIG_LIBS "-L\${prefix}/lib -lopenjph")
+SET(PKG_CONFIG_CFLAGS "-I\${includedir}")
 
 include(GNUInstallDirs)
 install(TARGETS openjph

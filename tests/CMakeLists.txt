@@ -42,7 +42,7 @@ target_link_libraries(
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 
-if (WIN32)
+if (MSVC)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
     add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Debug/gtest.dll" "./Debug/"
@@ -54,4 +54,9 @@ if (WIN32)
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest_main.dll" "./Release/"
     )
   endif()
+elseif(MSYS)
+  add_custom_command(TARGET test_executables POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest.dll" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest_main.dll" "./"
+  )
 endif()

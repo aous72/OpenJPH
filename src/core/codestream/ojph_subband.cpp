@@ -85,7 +85,7 @@ namespace ojph {
 
       allocator->pre_alloc_obj<codeblock>(num_blocks.w);
       //allocate codeblock headers
-      allocator->pre_alloc_obj<coded_cb_header>(num_blocks.area());
+      allocator->pre_alloc_obj<coded_cb_header>((size_t)num_blocks.area());
 
       for (ui32 i = 0; i < num_blocks.w; ++i)
         codeblock::pre_alloc(codestream, nominal);
@@ -152,8 +152,8 @@ namespace ojph {
       blocks = allocator->post_alloc_obj<codeblock>(num_blocks.w);
       //allocate codeblock headers
       coded_cb_header *cp = coded_cbs =
-        allocator->post_alloc_obj<coded_cb_header>(num_blocks.area());
-      memset(coded_cbs, 0, sizeof(coded_cb_header) * num_blocks.area());
+        allocator->post_alloc_obj<coded_cb_header>((size_t)num_blocks.area());
+      memset(coded_cbs, 0, sizeof(coded_cb_header) * (size_t)num_blocks.area());
       for (int i = (int)num_blocks.area(); i > 0; --i, ++cp)
         cp->Kmax = K_max;
 

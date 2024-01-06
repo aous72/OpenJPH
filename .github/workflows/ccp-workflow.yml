@@ -5,11 +5,15 @@ on: push
 
 jobs:
   build:
-    name: main build for Unix-like
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-20.04, ubuntu-latest]
+        include: [
+          { system: MacOS,          runner: macos-latest },
+          { system: Ubuntu-20,      runner: ubuntu-20.04 },
+          { system: Ubuntu-latest,  runner: ubuntu-latest },
+        ]
+    name: ${{ matrix.system }} Build
+    runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v3
     - name: cmake
@@ -20,11 +24,14 @@ jobs:
       working-directory: build
 
   test:
-    name: tests on Linux and MacOS
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        include: [
+          { system: MacOS,          runner: macos-latest },
+          { system: Ubuntu-latest,  runner: ubuntu-latest },
+        ]
+    name: ${{ matrix.system }} Test
+    runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v3
     - name: cmake
@@ -38,11 +45,13 @@ jobs:
       working-directory: build
       
   test_windows:
-    name: tests on Windows
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest]
+        include: [
+          { system: Windows,  runner: windows-latest },
+        ]
+    name: ${{ matrix.system }} Test
+    runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v3
     - name: cmake

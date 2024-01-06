@@ -160,7 +160,7 @@ namespace ojph {
         num_precincts.w -= trx0 >> log_PP.w;
         num_precincts.h = (try1 + (1 << log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
-        allocator->pre_alloc_obj<precinct>(num_precincts.area());
+        allocator->pre_alloc_obj<precinct>((size_t)num_precincts.area());
       }
 
       //allocate lines
@@ -262,7 +262,8 @@ namespace ojph {
         num_precincts.w -= trx0 >> log_PP.w;
         num_precincts.h = (try1 + (1 << log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
-        precincts = allocator->post_alloc_obj<precinct>(num_precincts.area());
+        precincts = 
+          allocator->post_alloc_obj<precinct>((size_t)num_precincts.area());
         ui64 num = num_precincts.area();
         for (ui64 i = 0; i < num; ++i)
           precincts[i] = precinct();

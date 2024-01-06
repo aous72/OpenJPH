@@ -71,7 +71,7 @@ namespace ojph {
 
 
   ////////////////////////////////////////////////////////////////////////////
-  class outfile_base
+  class OJPH_EXPORT outfile_base
   {
   public:
 
@@ -84,24 +84,17 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class j2c_outfile : public outfile_base
+  class OJPH_EXPORT j2c_outfile : public outfile_base
   {
   public:
-    OJPH_EXPORT
     j2c_outfile() { fh = 0; }
-    OJPH_EXPORT
-    ~j2c_outfile() { if (fh) fclose(fh); }
+    ~j2c_outfile() override { if (fh) fclose(fh); }
 
-    OJPH_EXPORT
     void open(const char *filename);
-    OJPH_EXPORT
-    virtual size_t write(const void *ptr, size_t size);
-    OJPH_EXPORT
-    virtual si64 tell();
-    OJPH_EXPORT
-    virtual void flush();
-    OJPH_EXPORT
-    virtual void close();
+    size_t write(const void *ptr, size_t size) override;
+    si64 tell() override;
+    void flush() override;
+    void close() override;
 
   private:
     FILE *fh;
@@ -120,15 +113,13 @@ namespace ojph {
    *
    *  memory data can be accessed using get_data()
    */
-  class mem_outfile : public outfile_base
+  class OJPH_EXPORT mem_outfile : public outfile_base
   {
   public:
     /**  A constructor */
-    OJPH_EXPORT
     mem_outfile();
     /**  A destructor */
-    OJPH_EXPORT
-    ~mem_outfile();
+    ~mem_outfile() override;
 
     /**  Call this function to open a memory file.
 	 *
@@ -138,7 +129,6 @@ namespace ojph {
      *  @param initial_size is the initial memory buffer size.
      *         The default value is 2^16.
      */
-    OJPH_EXPORT
     void open(size_t initial_size = 65536);
 
     /**  Call this function to write data to the memory file.
@@ -149,23 +139,20 @@ namespace ojph {
      *  @param ptr is the address of the new data.
      *  @param size the number of bytes in the new data.
      */
-    OJPH_EXPORT
-    virtual size_t write(const void *ptr, size_t size);
+    size_t write(const void *ptr, size_t size) override;
 
     /** Call this function to know the file size (i.e., number of bytes used
      *  to store the file).
      *
      *  @return the file size.
      */
-    OJPH_EXPORT
-    virtual si64 tell() { return cur_ptr - buf; }
+    si64 tell() override { return cur_ptr - buf; }
 
     /** Call this function to close the file and deallocate memory
 	 *
      *  The object can be used again after calling close
      */
-    OJPH_EXPORT
-    virtual void close();
+    void close() override;
 
     /** Call this function to access memory file data.
 	 *
@@ -174,7 +161,6 @@ namespace ojph {
      *
      *  @return a constant pointer to the data.
      */
-    OJPH_EXPORT
     const ui8* get_data() { return buf; }
 
     /** Call this function to access memory file data (for const objects)
@@ -184,7 +170,6 @@ namespace ojph {
      *
      *  @return a constant pointer to the data.
      */
-    OJPH_EXPORT
     const ui8* get_data() const { return buf; }
 
   private:
@@ -195,7 +180,7 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class infile_base
+  class OJPH_EXPORT infile_base
   {
   public:
     enum seek : int {
@@ -216,64 +201,46 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class j2c_infile : public infile_base
+  class OJPH_EXPORT j2c_infile : public infile_base
   {
   public:
-    OJPH_EXPORT
     j2c_infile() { fh = 0; }
-    OJPH_EXPORT
-    ~j2c_infile() { if (fh) fclose(fh); }
+    ~j2c_infile() override { if (fh) fclose(fh); }
 
-    OJPH_EXPORT
     void open(const char *filename);
 
     //read reads size bytes, returns the number of bytes read
-    OJPH_EXPORT
-    virtual size_t read(void *ptr, size_t size);
+    size_t read(void *ptr, size_t size) override;
     //seek returns 0 on success
-    OJPH_EXPORT
-    virtual int seek(si64 offset, enum infile_base::seek origin);
-    OJPH_EXPORT
-    virtual si64 tell();
-    OJPH_EXPORT
-    virtual bool eof() { return feof(fh) != 0; }
-    OJPH_EXPORT
-    virtual void close();
+    int seek(si64 offset, enum infile_base::seek origin) override;
+    si64 tell() override;
+    bool eof() override { return feof(fh) != 0; }
+    void close() override;
 
   private:
     FILE *fh;
-
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class mem_infile : public infile_base
+  class OJPH_EXPORT mem_infile : public infile_base
   {
   public:
-    OJPH_EXPORT
     mem_infile() { close(); }
-    OJPH_EXPORT
-    ~mem_infile() { }
+    ~mem_infile() override { }
 
-    OJPH_EXPORT
     void open(const ui8* data, size_t size);
 
     //read reads size bytes, returns the number of bytes read
-    OJPH_EXPORT
-    virtual size_t read(void *ptr, size_t size);
+    size_t read(void *ptr, size_t size) override;
     //seek returns 0 on success
-    OJPH_EXPORT
-    virtual int seek(si64 offset, enum infile_base::seek origin);
-    OJPH_EXPORT
-    virtual si64 tell() { return cur_ptr - data; }
-    OJPH_EXPORT
-    virtual bool eof() { return cur_ptr >= data + size; }
-    OJPH_EXPORT
-    virtual void close() { data = cur_ptr = NULL; size = 0; }
+    int seek(si64 offset, enum infile_base::seek origin) override;
+    si64 tell() override { return cur_ptr - data; }
+    bool eof() override { return cur_ptr >= data + size; }
+    void close() override { data = cur_ptr = NULL; size = 0; }
 
   private:
     const ui8 *data, *cur_ptr;
     size_t size;
-
   };
 
 

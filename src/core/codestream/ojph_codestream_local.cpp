@@ -112,7 +112,7 @@ namespace ojph {
         OJPH_ERROR(0x00030011, "number of tiles cannot exceed 65535");
 
       //allocate tiles
-      allocator->pre_alloc_obj<tile>(num_tiles.area());
+      allocator->pre_alloc_obj<tile>((size_t)num_tiles.area());
 
       ui32 num_tileparts = 0;
       point index;
@@ -208,7 +208,7 @@ namespace ojph {
         allocator->post_alloc_obj<ui8>(precinct_scratch_needed_bytes);
 
       //get tiles
-      tiles = this->allocator->post_alloc_obj<tile>(num_tiles.area());
+      tiles = this->allocator->post_alloc_obj<tile>((size_t)num_tiles.area());
 
       ui32 num_tileparts = 0;
       point index;

@@ -5,11 +5,19 @@ on: push
 
 jobs:
   build:
-    name: main build for Unix-like
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-20.04, ubuntu-latest]
+        include: [
+          { system: MINGW64, runner: windows-2022 },
+          { system: MINGW32, runner: windows-2022 },
+          { system: UCRT64,  runner: windows-2022 },
+          { system: CLANG64, runner: windows-2022 },
+          { system: CLANG32, runner: windows-2022 },
+          { system: MACOS,   runner: macos-latest },
+          { system: UBUNTU,  runner: ubuntu-latest },
+        ]
+    name: ${{ matrix.system }}
+    runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v3
     - name: cmake

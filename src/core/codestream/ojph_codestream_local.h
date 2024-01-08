@@ -104,6 +104,7 @@ namespace ojph {
       void read_headers(infile_base *file);
       void restrict_input_resolution(ui32 skipped_res_for_data,
         ui32 skipped_res_for_recon);
+      void restrict_recon_region(rect region);
       void read();
       void set_planar(int planar);
       void set_profile(const char *s);

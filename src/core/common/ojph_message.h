@@ -53,18 +53,16 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class message_base {
+  class OJPH_EXPORT message_base {
   public:
-    OJPH_EXPORT
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char *fmt, ...) = 0;
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class message_info : public message_base
+  class OJPH_EXPORT message_info : public message_base
   {
     public:
-      OJPH_EXPORT
       virtual void operator() (int info_code, const char* file_name,
         int line_num, const char* fmt, ...);
   };
@@ -78,10 +76,9 @@ namespace ojph {
     message_info& get_info();
 
   ////////////////////////////////////////////////////////////////////////////
-  class message_warning : public message_base
+  class OJPH_EXPORT message_warning : public message_base
   {
     public:
-      OJPH_EXPORT
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char* fmt, ...);
   };
@@ -95,10 +92,9 @@ namespace ojph {
     message_warning& get_warning();
 
   ////////////////////////////////////////////////////////////////////////////
-  class message_error : public message_base
+  class OJPH_EXPORT message_error : public message_base
   {
     public:
-      OJPH_EXPORT
       virtual void operator() (int warn_code, const char* file_name,
         int line_num, const char *fmt, ...);
   };

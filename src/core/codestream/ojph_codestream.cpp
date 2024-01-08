@@ -147,6 +147,11 @@ namespace ojph {
     state->restrict_input_resolution(skipped_res_for_read,
       skipped_res_for_recon);
   }
+  ////////////////////////////////////////////////////////////////////////////
+  void codestream::restrict_recon_region(rect region)
+  {
+    state->restrict_recon_region(region);
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   void codestream::create()

@@ -90,12 +90,135 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 };
 
 //////////////////////////////////////////////////////////////////////////////
+struct region_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  region_interpreter(float region[4], bool& region_set)
+  : region(region), region_set(region_set) {}
+
+  virtual void operate(const char *str)
+  {
+    const char *np = str;
+    char *ep;
+
+    if (*np != '{')
+      throw "region must start with {";
+    ++np;
+    region[0] = strtof(np, &ep);
+    if (ep == np)
+      throw "improperly formatted first float number in region";
+    np = ep;
+    if (*np != ',')
+      throw "first number in region must be followed by a comma \",\"";
+    ++np;
+    region[1] = strtof(np, &ep);
+    if (ep == np)
+      throw "improperly formatted second float number in region";
+    np = ep;
+    if (*np != '}')
+      throw "second float number in region must be followed by a curly bracket"
+      " \"}\"";
+    ++np;
+    if (*np != ',')
+      throw "curly bracket \"{\" in region must be followed by a comma \",\"";
+    ++np;
+    if (*np != '{')
+      throw "comma \",\" proceeding third number in region must be followed"
+      " by a curly bracket \"{\"";
+    ++np;
+    region[2] = strtof(np, &ep);
+    if (ep == np)
+      throw "improperly formatted third float number in region";
+    np = ep;
+    if (*np != ',')
+      throw "third number in region must be followed by a comma \",\"";
+    ++np;
+    region[3] = strtof(np, &ep);
+    if (ep == np)
+      throw "improperly formatted fourth float number in region";
+    np = ep;
+    if (*np != '}')
+      throw "fourth float number in region must be followed by a curly bracket"
+      " \"}\"";
+    ++np;
+    if (*np != '\0')
+      throw "No character can exist after the closing curly bracket"
+      " \"}\" after the fourth float in region";
+
+    region_set = true;
+  }
+  float* region;
+  bool& region_set;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+struct abs_region_interpreter : public ojph::cli_interpreter::arg_inter_base
+{
+  abs_region_interpreter(ojph::rect& region, bool& region_set)
+  : region(region), region_set(region_set) {}
+
+  virtual void operate(const char *str)
+  {
+    const char *np = str;
+    char *ep;
+
+    if (*np != '{')
+      throw "region must start with {";
+    ++np;
+    region.org.y = (ojph::ui32)strtoul(np, &ep, 10);
+    if (ep == np)
+      throw "improperly formatted first integer in region";
+    np = ep;
+    if (*np != ',')
+      throw "first number in region must be followed by a comma \",\"";
+    ++np;
+    region.org.x = (ojph::ui32)strtoul(np, &ep, 10);
+    if (ep == np)
+      throw "improperly formatted second integer in region";
+    np = ep;
+    if (*np != '}')
+      throw "second integer in region must be followed by a curly bracket"
+      " \"}\"";
+    ++np;
+    if (*np != ',')
+      throw "curly bracket \"{\" in region must be followed by a comma \",\"";
+    ++np;
+    if (*np != '{')
+      throw "comma \",\" proceeding third number in region must be followed"
+      " by a curly bracket \"{\"";
+    ++np;
+    region.siz.h = (ojph::ui32)strtoul(np, &ep, 10);
+    if (ep == np)
+      throw "improperly formatted third integer in region";
+    np = ep;
+    if (*np != ',')
+      throw "third number in region must be followed by a comma \",\"";
+    ++np;
+    region.siz.w = (ojph::ui32)strtoul(np, &ep, 10);
+    if (ep == np)
+      throw "improperly formatted fourth integer in region";
+    np = ep;
+    if (*np != '}')
+      throw "fourth integer in region must be followed by a curly bracket"
+      " \"}\"";
+    ++np;
+    if (*np != '\0')
+      throw "No character can exist after the closing curly bracket"
+      " \"}\" after the fourth integer in region";
+
+    region_set = true;
+  }
+  ojph::rect& region;
+  bool& region_set;
+};
+
+//////////////////////////////////////////////////////////////////////////////
 static
 bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
                    ojph::ui32& skipped_res_for_read, 
                    ojph::ui32& skipped_res_for_recon,
-                   bool& resilient)
+                   bool& resilient, float region[4], bool& region_set,
+                   ojph::rect& abs_region, bool& abs_region_set)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -103,11 +226,15 @@ bool get_arguments(int argc, char *argv[],
   ojph::ui32 skipped_res[2] = {0, 0};
   int num_skipped_res = 0;
   ui32_list_interpreter ilist(2, num_skipped_res, skipped_res);
+  region_interpreter iregion(region, region_set);
+  abs_region_interpreter iabs_region(abs_region, abs_region_set);
 
   interpreter.reinterpret("-i", input_filename);
   interpreter.reinterpret("-o", output_filename);
   interpreter.reinterpret("-skip_res", &ilist);
   interpreter.reinterpret("-resilient", resilient);
+  interpreter.reinterpret("-region", &iregion);
+  interpreter.reinterpret("-abs_region", &iabs_region);
 
   //interpret skipped_string
   if (num_skipped_res > 0)
@@ -117,6 +244,12 @@ bool get_arguments(int argc, char *argv[],
       skipped_res_for_recon = skipped_res[1];
     else
       skipped_res_for_recon = skipped_res_for_read;
+  }
+
+  if (region_set && abs_region_set)
+  {
+    printf("Do not use both -region and -abs_region at the same time.\n");
+    return false;
   }
 
   if (interpreter.is_exhausted() == false) {
@@ -169,6 +302,9 @@ int main(int argc, char *argv[]) {
   ojph::ui32 skipped_res_for_read = 0;
   ojph::ui32 skipped_res_for_recon = 0;
   bool resilient = false;
+  float region[4] = {0.0f};
+  ojph::rect abs_region;
+  bool region_set = false, abs_region_set = false;
 
   if (argc <= 1) {
     std::cout <<
@@ -180,21 +316,41 @@ int main(int argc, char *argv[]) {
     " -o output file name (either pgm, ppm, or raw(yuv))\n\n"
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     "The following arguments are options:\n"
-    " -skip_res  x,y a comma-separated list of two elements containing the\n"
-    "            number of resolutions to skip. You can specify 1 or 2\n"
-    "            parameters; the first specifies the number of resolution\n"
-    "            for which data reading is skipped. The second is the\n"
-    "            number of skipped resolution for reconstruction, which is\n"
-    "            either equal to the first or smaller. If the second is not\n"
-    "            specified, it is made to equal to the first.\n"
-    " -resilient true if you want the decoder to be more tolerant of errors\n"
-    "            in the codestream\n\n"
-    ;
+    " -skip_res     x,y\n"
+    "               An option to skip a number of resolutions. x,y is\n"
+    "               comma-separated list of two elements containing\n"
+    "               the number of resolutions to skip. You can specify 1\n"
+    "               or 2 parameters; the first specifies the number of\n"
+    "               resolutions for which data reading is skipped. The\n"
+    "               second is the number of skipped resolutions for\n"
+    "               reconstruction, which should be either equal to the\n"
+    "               first or smaller. If the second is not specified, it is\n"
+    "               made to equal to the first.\n"
+    " -resilient    true\n"
+    "               if you want the decoder to be more tolerant of\n"
+    "               errors in the codestream\n"
+    " -region       {top,left},{height,width}\n"
+    "               An option to enable the caller to select a region of\n"
+    "               the image to decode.  The caller selects the top, left,\n"
+    "               height, and width of the desired region.  The values\n"
+    "               provided are proportional, in the range beween 0 and 1.\n"
+    "               For example, {0,0.1},{0.5,0.5} produces an image that\n"
+    "               skips 0.1 of the image on the left, and has half width\n"
+    "               and height. See also next option.\n"
+    " -abs_region   {top,left},{height,width}\n"
+    "               This is similar to the option above, but the coordinates\n"
+    "               are absolute; that is defined on the full-resolution\n"
+    "               target image grid. Obviously, the caller must know the\n"
+    "               grid coordinates of the compressed image.  This option\n"
+    "               corresponds to the internal API to which -region values\n"
+    "               are converted\n"
+    "\n";
     return -1;
   }
   if (!get_arguments(argc, argv, input_filename, output_filename,
                      skipped_res_for_read, skipped_res_for_recon,
-                     resilient))
+                     resilient, region, region_set, abs_region, 
+                     abs_region_set))
   {
     return -1;
   }

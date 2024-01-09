@@ -84,11 +84,6 @@ endif()
 # Install
 ################################################################################################
 
-set(PKG_CONFIG_INCLUDEDIR "\${prefix}/include")
-set(PKG_CONFIG_LIBDIR "\${prefix}/lib")
-set(PKG_CONFIG_LIBS "-L\${libdir} -lopenjph")
-set(PKG_CONFIG_CFLAGS "-I\${includedir}")
-
 include(GNUInstallDirs)
 install(TARGETS openjph
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -96,16 +91,22 @@ install(TARGETS openjph
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(DIRECTORY src/core/common/
-  DESTINATION include/openjph
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openjph
   FILES_MATCHING
   PATTERN "*.h")
 
 install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
+set(PKG_CONFIG_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+set(PKG_CONFIG_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
+set(PKG_CONFIG_LIBS "-L\${libdir} -lopenjph")
+set(PKG_CONFIG_CFLAGS "-I\${includedir}")
+
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
   "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+  @ONLY
 )
 
 ################################################################################################

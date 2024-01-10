@@ -838,7 +838,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::restrict_recon_region(rect region)
+    void codestream::restrict_recon_region(const rect& region)
     {
       
     }

@@ -86,7 +86,7 @@ namespace ojph {
     void read_headers(infile_base *file); // before resolution restrictions
     void restrict_input_resolution(ui32 skipped_res_for_data,
                                    ui32 skipped_res_for_recon); //before create
-    void restrict_recon_region(rect region); // before create
+    void restrict_recon_region(const rect& region); // before create
     void create(); 
     line_buf* pull(ui32 &comp_num);
 

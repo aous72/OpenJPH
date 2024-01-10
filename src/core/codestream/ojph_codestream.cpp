@@ -148,7 +148,7 @@ namespace ojph {
       skipped_res_for_recon);
   }
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::restrict_recon_region(rect region)
+  void codestream::restrict_recon_region(const rect& region)
   {
     state->restrict_recon_region(region);
   }

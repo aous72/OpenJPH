@@ -92,7 +92,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 //////////////////////////////////////////////////////////////////////////////
 struct region_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  region_interpreter(float region[4], bool& region_set)
+  region_interpreter(double region[4], bool& region_set)
   : region(region), region_set(region_set) {}
 
   virtual void operate(const char *str)
@@ -103,14 +103,14 @@ struct region_interpreter : public ojph::cli_interpreter::arg_inter_base
     if (*np != '{')
       throw "region must start with {";
     ++np;
-    region[0] = strtof(np, &ep);
+    region[0] = strtod(np, &ep);
     if (ep == np)
       throw "improperly formatted first float number in region";
     np = ep;
     if (*np != ',')
       throw "first number in region must be followed by a comma \",\"";
     ++np;
-    region[1] = strtof(np, &ep);
+    region[1] = strtod(np, &ep);
     if (ep == np)
       throw "improperly formatted second float number in region";
     np = ep;
@@ -119,20 +119,20 @@ struct region_interpreter : public ojph::cli_interpreter::arg_inter_base
       " \"}\"";
     ++np;
     if (*np != ',')
-      throw "curly bracket \"{\" in region must be followed by a comma \",\"";
+      throw "curly bracket \"}\" in region must be followed by a comma \",\"";
     ++np;
     if (*np != '{')
       throw "comma \",\" proceeding third number in region must be followed"
       " by a curly bracket \"{\"";
     ++np;
-    region[2] = strtof(np, &ep);
+    region[2] = strtod(np, &ep);
     if (ep == np)
       throw "improperly formatted third float number in region";
     np = ep;
     if (*np != ',')
       throw "third number in region must be followed by a comma \",\"";
     ++np;
-    region[3] = strtof(np, &ep);
+    region[3] = strtod(np, &ep);
     if (ep == np)
       throw "improperly formatted fourth float number in region";
     np = ep;
@@ -146,7 +146,7 @@ struct region_interpreter : public ojph::cli_interpreter::arg_inter_base
 
     region_set = true;
   }
-  float* region;
+  double* region;
   bool& region_set;
 };
 
@@ -180,7 +180,7 @@ struct abs_region_interpreter : public ojph::cli_interpreter::arg_inter_base
       " \"}\"";
     ++np;
     if (*np != ',')
-      throw "curly bracket \"{\" in region must be followed by a comma \",\"";
+      throw "curly bracket \"}\" in region must be followed by a comma \",\"";
     ++np;
     if (*np != '{')
       throw "comma \",\" proceeding third number in region must be followed"
@@ -217,7 +217,7 @@ bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
                    ojph::ui32& skipped_res_for_read, 
                    ojph::ui32& skipped_res_for_recon,
-                   bool& resilient, float region[4], bool& region_set,
+                   bool& resilient, double region[4], bool& region_set,
                    ojph::rect& abs_region, bool& abs_region_set)
 {
   ojph::cli_interpreter interpreter;
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
   ojph::ui32 skipped_res_for_read = 0;
   ojph::ui32 skipped_res_for_recon = 0;
   bool resilient = false;
-  float region[4] = {0.0f};
+  double region[4] = {0.0};
   ojph::rect abs_region;
   bool region_set = false, abs_region_set = false;
 
@@ -382,6 +382,34 @@ int main(int argc, char *argv[]) {
       codestream.restrict_input_resolution(skipped_res_for_read, 
         skipped_res_for_recon);
       ojph::param_siz siz = codestream.access_siz();
+      if (region_set || abs_region_set)
+      {
+        ojph::point e = siz.get_image_extent();
+        ojph::point o = siz.get_image_offset();
+        if (region_set) // convert region to abs_region
+        {
+          ojph::size s;
+          s.w = e.x - o.x;
+          s.h = e.y - o.y;
+          double t;
+          // top
+          t = (double)o.y + region[0] * (double)s.h;
+          abs_region.org.y = (ojph::ui32)floor(t);
+          // left
+          t = (double)o.x + region[1] * (double)s.w;
+          abs_region.org.x = (ojph::ui32)floor(t);
+          // bottom
+
+          // right
+
+        }
+        abs_region.org.y = ojph_max(abs_region.org.y, o.y);
+        abs_region.org.y = ojph_min(abs_region.org.y, e.y);
+        abs_region.org.x = ojph_max(abs_region.org.x, o.x);
+        abs_region.org.x = ojph_min(abs_region.org.x, e.x);
+
+        codestream.restrict_recon_region(abs_region);
+      }
 
       if (is_matching(".pgm", v))
       {

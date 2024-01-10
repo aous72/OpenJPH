@@ -70,7 +70,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
       char *endptr;
       si32list[num_eles] = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "res number is improperly formatted";
+        throw "resolution number is improperly formatted";
       next_char = endptr;
       ++num_eles;
     }

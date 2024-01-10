@@ -63,14 +63,14 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
     {
       if (num_eles)
       {
-        if (*next_char != ',') //separate sizes by a comma
-          throw "sizes in a sizes list must be separated by a comma";
+        if (*next_char != ',') //separate res by a comma
+          throw "resolutions in a list must be separated by a comma";
         next_char++;
       }
       char *endptr;
       si32list[num_eles] = (ojph::ui32)strtoul(next_char, &endptr, 10);
       if (endptr == next_char)
-        throw "size number is improperly formatted";
+        throw "resolution number is improperly formatted";
       next_char = endptr;
       ++num_eles;
     }
@@ -81,7 +81,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
         throw "list elements must separated by a "",""";
     }
     else if (*next_char)
-        throw "there are too many elements in the size list";
+        throw "there are too many elements in the resolution list";
   }
 
   const int max_num_eles;
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
   try {
     if (output_filename == NULL)
       OJPH_ERROR(0x020000008,
-                 "Please provide and output file using the -o option\n");
+                 "Please provide an output file using the -o option\n");
 
     ojph::j2c_infile j2c_file;
     j2c_file.open(input_filename);
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
         if (siz.get_num_components() != 1)
           OJPH_ERROR(0x020000001,
             "The file has more than one color component, but .pgm can "
-            "contain only on color component\n");
+            "contain only one color component\n");
         ppm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
                       siz.get_num_components(), siz.get_bit_depth(0));
         ppm.open(output_filename);
@@ -258,7 +258,7 @@ int main(int argc, char *argv[]) {
         if (!all_same)
           OJPH_ERROR(0x020000003,
             "To save an image to ppm, all the components must have the "
-            "downsampling ratio\n");
+            "same downsampling ratio\n");
         ppm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
                       siz.get_num_components(), siz.get_bit_depth(0));
         ppm.open(output_filename);
@@ -280,7 +280,7 @@ int main(int argc, char *argv[]) {
         if (!all_same)
           OJPH_ERROR(0x020000008,
             "To save an image to tif(f), all the components must have the "
-            "downsampling ratio\n");
+            "same downsampling ratio\n");
         ojph::ui32 bit_depths[4] = { 0, 0, 0, 0 };
         for (ojph::ui32 c = 0; c < siz.get_num_components(); c++)
         {

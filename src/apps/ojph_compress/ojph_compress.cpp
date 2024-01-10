@@ -560,7 +560,7 @@ int main(int argc, char * argv[]) {
     "               a codeblock. In unix-like environment, { and } must be\n"
     "               proceeded by a ""\\""\n"
     " -precincts    {x,y},{x,y},...,{x,y} where {x,y} is the precinct size\n"
-    "               starting from the coarest resolution; the last precinct\n"
+    "               starting from the coarsest resolution; the last precinct\n"
     "               is repeated for all finer resolutions\n"
     " -tile_offset  {x,y} tile offset. \n"
     " -tile_size    {x,y} tile width and height. \n"
@@ -900,7 +900,7 @@ int main(int argc, char * argv[]) {
         cod.set_progression_order(prog_order);
         if (employ_color_transform != -1)
           OJPH_ERROR(0x01000086,
-            "color transform is not meaningless since .raw files are single "
+            "color transform is meaningless since .raw files are single "
             "component files");
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)

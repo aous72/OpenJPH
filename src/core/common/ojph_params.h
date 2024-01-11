@@ -136,11 +136,11 @@ namespace ojph {
     friend class local::codestream;
   public:
     comment_exchange() : data(NULL), len(0), Rcom(0) {}
-    void set_string(char* str);
-    void set_data(char* data, ui16 len);
+    void set_string(const char* str);
+    void set_data(const char* data, ui16 len);
 
   private:
-    char* data;
+    const char* data;
     ui16 len;
     ui16 Rcom;
   };

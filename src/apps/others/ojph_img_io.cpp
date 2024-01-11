@@ -276,7 +276,7 @@ namespace ojph {
     {
       close();
       OJPH_ERROR(0x030000005, "wrong file extension, a file with keyword P6 "
-        "must have a .ppm extension fir file %s", filename);
+        "must have a .ppm extension for file %s", filename);
     }
 
     // set number of components based on file-type
@@ -309,7 +309,7 @@ namespace ojph {
           temp_buf = malloc(temp_buf_byte_size);
         if (temp_buf == NULL) { // failed to allocate memory
           if (t) free(t); // the original buffer is still valid
-          OJPH_ERROR(0x030000007, "error allocating mmeory");
+          OJPH_ERROR(0x030000007, "error allocating memory");
         }
       }
       else
@@ -586,7 +586,7 @@ namespace ojph {
     // Error on known incompatilbe input formats
     if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 )
     {
-      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited to file limited"
+      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited"
         " to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \n"
         "input file = %s has TIFFTAG_BITSPERSAMPLE=%d", 
         filename, tiff_bits_per_sample);

@@ -75,6 +75,7 @@ namespace ojph {
     void set_profile(const char* s);
     void set_tilepart_divisions(bool at_resolutions, bool at_components);
     void request_tlm_marker(bool needed);    
+    bool is_tlm_requested();
 
     void write_headers(outfile_base *file, 
                        const comment_exchange* comments = NULL, 

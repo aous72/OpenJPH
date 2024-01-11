@@ -368,7 +368,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////
-  void comment_exchange::set_string(char* str)
+  void comment_exchange::set_string(const char* str)
   { 
     size_t t = strlen(str);
     if (len > 65531)
@@ -380,7 +380,7 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
-  void comment_exchange::set_data(char* data, ui16 len)
+  void comment_exchange::set_data(const char* data, ui16 len)
   { 
     if (len > 65531)
       OJPH_ERROR(0x000500C2, 

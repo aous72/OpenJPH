@@ -642,6 +642,11 @@ namespace ojph {
         if (file->read(&cptr[c].YRsiz, 1) != 1)
           OJPH_ERROR(0x00050053, "error reading SIZ marker");
       }
+
+      recon_region.org.x = XOsiz;
+      recon_region.org.y = YOsiz;
+      recon_region.siz.w = Xsiz - XOsiz;
+      recon_region.siz.h = Ysiz - YOsiz;
     }
 
     //////////////////////////////////////////////////////////////////////////

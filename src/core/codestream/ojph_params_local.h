@@ -256,6 +256,10 @@ namespace ojph {
         ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
         return t;
       }
+      void set_recon_region(const rect& region) 
+      {
+        this->recon_region = region;
+      }
 
     private:
       ui16 Lsiz;
@@ -273,6 +277,7 @@ namespace ojph {
 
     private:
       ui32 skipped_resolutions;
+      rect recon_region;
       int old_Csiz;
       siz_comp_info store[4];
       param_siz(const param_siz&) = delete; //prevent copy constructor

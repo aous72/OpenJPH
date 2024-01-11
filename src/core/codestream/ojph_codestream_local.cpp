@@ -838,9 +838,37 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::restrict_recon_region(const rect& region)
+    void codestream::restrict_recon_region(rect region)
     {
-      
+      ojph::param_siz sz = access_siz();
+      point o = sz.get_image_offset();
+      point e = sz.get_image_extent();
+
+      ui32 ex = region.org.x + region.siz.w;
+      ui32 ey = region.org.y + region.siz.h;
+
+      region.org.x = ojph_max(region.org.x, o.x);
+      region.org.x = ojph_min(region.org.x, e.x);
+      region.org.y = ojph_max(region.org.y, o.y);
+      region.org.y = ojph_min(region.org.y, e.y);
+
+      ex = ojph_max(ex, o.x);
+      ex = ojph_min(ex, e.x);
+      ey = ojph_max(ey, o.y);
+      ey = ojph_min(ey, e.y);
+
+      region.siz.w = ex - region.org.x;
+      region.siz.h = ey - region.org.y;
+
+      if (region.siz.w <= 0 || region.siz.h <= 0)
+        OJPH_ERROR(0x000300D1, "Error in region specifications.  After "
+          "calculation, the region requested is (top,left),(height,width) "
+          "is (%d,%d),(%d,%d), when the image offset (x,y) and extent "
+          "are (x,y) are (%d,%d) and (%d,%d)\n", 
+          region.org.y, region.org.x, region.siz.h, region.siz.w,
+          o.x, o.y, e.x, e.y);
+
+      siz.set_recon_region(region);
     }
 
     //////////////////////////////////////////////////////////////////////////

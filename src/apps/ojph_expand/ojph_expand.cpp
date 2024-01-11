@@ -388,26 +388,15 @@ int main(int argc, char *argv[]) {
         ojph::point o = siz.get_image_offset();
         if (region_set) // convert region to abs_region
         {
-          ojph::size s;
-          s.w = e.x - o.x;
-          s.h = e.y - o.y;
+          ojph::size s(e.x - o.x, e.y - o.y);
           double t;
-          // top
-          t = (double)o.y + region[0] * (double)s.h;
+          t = (double)o.y + region[0] * (double)s.h; // top
           abs_region.org.y = (ojph::ui32)floor(t);
-          // left
-          t = (double)o.x + region[1] * (double)s.w;
+          t = (double)o.x + region[1] * (double)s.w; // left
           abs_region.org.x = (ojph::ui32)floor(t);
-          // bottom
-
-          // right
-
+          abs_region.siz.h = (ojph::ui32)ceil(region[2] * (double)s.h);//bottom
+          abs_region.siz.w = (ojph::ui32)ceil(region[3] * (double)s.w); //right
         }
-        abs_region.org.y = ojph_max(abs_region.org.y, o.y);
-        abs_region.org.y = ojph_min(abs_region.org.y, e.y);
-        abs_region.org.x = ojph_max(abs_region.org.x, o.x);
-        abs_region.org.x = ojph_min(abs_region.org.x, e.x);
-
         codestream.restrict_recon_region(abs_region);
       }
 

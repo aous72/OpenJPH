@@ -79,7 +79,9 @@ namespace ojph {
     OJPH_EXPORT    
     void set_tilepart_divisions(bool at_resolutions, bool at_components);
     OJPH_EXPORT    
-    void request_tlm_marker(bool needed);    
+    void request_tlm_marker(bool needed);
+    OJPH_EXPORT
+    bool is_tlm_requested();
 
     OJPH_EXPORT
     void write_headers(outfile_base *file, 

@@ -78,6 +78,11 @@ namespace ojph {
     void set_profile(const char* s);
     OJPH_EXPORT    
     void set_tilepart_divisions(bool at_resolutions, bool at_components);
+    OJPH_EXPORT
+    bool is_tilepart_division_at_resolutions();
+    OJPH_EXPORT
+    bool is_tilepart_division_at_components();
+
     OJPH_EXPORT    
     void request_tlm_marker(bool needed);
     OJPH_EXPORT

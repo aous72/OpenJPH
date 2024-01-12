@@ -95,8 +95,8 @@ namespace ojph {
   const char OJPH_PN_STRING_IMF[] = "IMF";
 
   ////////////////////////////////////////////////////////////////////////////
-  enum OJPH_TILEPART_DIVISONS: ui32 {
-    OJPH_TILEPART_NODIVSIONS  = 0x0, // no divisions to tile parts
+  enum OJPH_TILEPART_DIVISIONS: ui32 {
+    OJPH_TILEPART_NO_DIVISIONS  = 0x0, // no divisions to tile parts
     OJPH_TILEPART_RESOLUTIONS = 0x1,
     OJPH_TILEPART_COMPONENTS  = 0x2,
     OJPH_TILEPART_LAYERS      = 0x4, // these are meaningless with HTJ2K

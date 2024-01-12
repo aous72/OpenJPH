@@ -68,7 +68,7 @@ namespace ojph {
       employ_color_transform = false;
       planar = -1;
       profile = OJPH_PN_UNDEFINED;
-      tilepart_div = OJPH_TILEPART_NODIVSIONS;
+      tilepart_div = OJPH_TILEPART_NO_DIVISIONS;
       need_tlm = false;
 
       cur_comp = 0;

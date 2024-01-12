@@ -74,32 +74,32 @@ namespace ojph {
   enum OJPH_PROFILE_NUM : si32
   {
     OJPH_PN_UNDEFINED = 0,
-    OJPH_PN_PROFILE0 = 1,
-    OJPH_PN_PROFILE1 = 2,
-    OJPH_PN_CINEMA2K = 3,
-    OJPH_PN_CINEMA4K = 4,
+    OJPH_PN_PROFILE0  = 1,
+    OJPH_PN_PROFILE1  = 2,
+    OJPH_PN_CINEMA2K  = 3,
+    OJPH_PN_CINEMA4K  = 4,
     OJPH_PN_CINEMAS2K = 5,
     OJPH_PN_CINEMAS4K = 6,
     OJPH_PN_BROADCAST = 7,
-    OJPH_PN_IMF = 8
+    OJPH_PN_IMF       = 8
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  const char OJPH_PN_STRING_PROFILE0[] = "PROFILE0";
-  const char OJPH_PN_STRING_PROFILE1[] = "PROFILE1";
-  const char OJPH_PN_STRING_CINEMA2K[] = "CINEMA2K";
-  const char OJPH_PN_STRING_CINEMA4K[] = "CINEMA4K";
+  const char OJPH_PN_STRING_PROFILE0[]  = "PROFILE0";
+  const char OJPH_PN_STRING_PROFILE1[]  = "PROFILE1";
+  const char OJPH_PN_STRING_CINEMA2K[]  = "CINEMA2K";
+  const char OJPH_PN_STRING_CINEMA4K[]  = "CINEMA4K";
   const char OJPH_PN_STRING_CINEMAS2K[] = "CINEMAS2K";
   const char OJPH_PN_STRING_CINEMAS4K[] = "CINEMAS4K";
   const char OJPH_PN_STRING_BROADCAST[] = "BROADCAST";
-  const char OJPH_PN_STRING_IMF[] = "IMF";
+  const char OJPH_PN_STRING_IMF[]       = "IMF";
 
   ////////////////////////////////////////////////////////////////////////////
-  enum OJPH_TILEPART_DIVISONS: ui32 {
-    OJPH_TILEPART_NODIVSIONS  = 0x0, // no divisions to tile parts
-    OJPH_TILEPART_RESOLUTIONS = 0x1,
-    OJPH_TILEPART_COMPONENTS  = 0x2,
-    OJPH_TILEPART_LAYERS      = 0x4, // these are meaningless with HTJ2K
+  enum OJPH_TILEPART_DIVISIONS: ui32 {
+    OJPH_TILEPART_NO_DIVISIONS = 0x0, // no divisions to tile parts
+    OJPH_TILEPART_RESOLUTIONS  = 0x1,
+    OJPH_TILEPART_COMPONENTS   = 0x2,
+    OJPH_TILEPART_LAYERS       = 0x4, // these are meaningless with HTJ2K
   };
 
   namespace local {

@@ -412,7 +412,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void tile::fill_tlm(param_tlm *tlm)
     {
-      if (tilepart_div == OJPH_TILEPART_NODIVSIONS) {
+      if (tilepart_div == OJPH_TILEPART_NO_DIVISIONS) {
         tlm->set_next_pair(sot.get_tile_index(), this->num_bytes);
       }
       else if (tilepart_div == OJPH_TILEPART_RESOLUTIONS)
@@ -471,7 +471,7 @@ namespace ojph {
         max_decompositions = ojph_max(max_decompositions,
           comps[c].get_num_decompositions());
 
-      if (tilepart_div == OJPH_TILEPART_NODIVSIONS)
+      if (tilepart_div == OJPH_TILEPART_NO_DIVISIONS)
       {
         //write tile header
         if (!sot.write(file, this->num_bytes))
@@ -487,7 +487,7 @@ namespace ojph {
       //sequence the writing of precincts according to progression order
       if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
       {
-        if (tilepart_div == OJPH_TILEPART_NODIVSIONS) 
+        if (tilepart_div == OJPH_TILEPART_NO_DIVISIONS)
         {
           for (ui32 r = 0; r <= max_decompositions; ++r)
             for (ui32 c = 0; c < num_comps; ++c)

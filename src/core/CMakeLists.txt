@@ -1,14 +1,4 @@
 
-## change folders but only for Microsoft
-if (MSVC)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../bin)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../bin)
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/../lib)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../bin)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../bin)
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../lib)
-endif()
-
 include_directories(common)
 
 file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h")
@@ -103,4 +93,21 @@ else()
     PROPERTIES
       SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
       VERSION "${OPENJPH_VERSION}")
+endif()
+
+## copy target files to the top bin folder
+add_custom_command(TARGET openjph POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjph>" ${OJPH_DESTINATION_BINARY}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_ARCHIVE}
+  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_LINKER_FILE:openjph>" ${OJPH_DESTINATION_ARCHIVE}
+)
+if (MSVC)
+  add_custom_command(TARGET openjph POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_LINKER_FILE_DIR:openjph>/${OJPH_LIB_NAME_STRING}.exp" ${OJPH_DESTINATION_ARCHIVE}
+  )
+endif()
+if(EMSCRIPTEN)
+  add_custom_command(TARGET openjphsimd POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjphsimd>" ${OJPH_DESTINATION_BINARY}
+  )
 endif()

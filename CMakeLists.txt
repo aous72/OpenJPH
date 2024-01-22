@@ -19,6 +19,15 @@ option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 
+## specify output directories 
+set(OJPH_DESTINATION_BINARY ${CMAKE_BINARY_DIR}/../bin)
+set(OJPH_DESTINATION_ARCHIVE ${CMAKE_BINARY_DIR}/../lib)
+
+## specify the top directory for TIFF library (only for Micrsoft)
+if (MSVC)
+  set(TIFF_PATH "C:\\Program Files\\tiff")
+endif()
+
 ## Setting some of the options if EMSCRIPTEN is the compiler
 if(EMSCRIPTEN)
   set(OJPH_DISABLE_INTEL_SIMD ON)
@@ -67,12 +76,6 @@ if (OJPH_DISABLE_INTEL_SIMD)
 elseif (OJPH_ENABLE_INTEL_AVX512)
   add_compile_options(-DOJPH_ENABLE_INTEL_AVX512)
 endif()
-
-## specify output directories 
-## this will be refined further for Debug and Release builds in included CMakeLists.txt
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../lib)
 
 ## Build library and applications
 add_subdirectory(src/core)

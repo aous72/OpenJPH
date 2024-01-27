@@ -41,6 +41,7 @@
 
 #include <cstdlib>
 
+#include "ojph_arch.h"
 #include "ojph_defs.h"
 
 namespace ojph {

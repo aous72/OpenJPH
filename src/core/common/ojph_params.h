@@ -39,6 +39,7 @@
 #ifndef OJPH_PARAMS_H
 #define OJPH_PARAMS_H
 
+#include "ojph_arch.h"
 #include "ojph_base.h"
 
 namespace ojph {

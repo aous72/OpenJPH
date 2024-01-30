@@ -43,17 +43,28 @@ include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 
 if (MSVC)
-  if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    add_custom_command(TARGET test_executables POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy "../bin/Debug/gtest.dll" "./Debug/"
-      COMMAND ${CMAKE_COMMAND} -E copy "../bin/Debug/gtest_main.dll" "./Debug/"
-    )
-  elseif(CMAKE_BUILD_TYPE MATCHES "Release")
-    add_custom_command(TARGET test_executables POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest.dll" "./Release/"
-      COMMAND ${CMAKE_COMMAND} -E copy "../bin/Release/gtest_main.dll" "./Release/"
-    )
-  endif()
+  add_custom_command(TARGET test_executables POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/\$(Configuration)/gtest.dll" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "../bin/\$(Configuration)/gtest_main.dll" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_compress>" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_expand>" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjph>" "./"
+  )
+  add_custom_command(TARGET compare_files POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "./\$(Configuration)/compare_files.exe" "./"
+  )
+  add_custom_command(TARGET mse_pae POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "./\$(Configuration)/mse_pae.exe" "./"
+  )
+  if (MSVC AND OJPH_ENABLE_TIFF_SUPPORT)
+    if (CMAKE_BUILD_TYPE MATCHES "Release")
+      file(COPY "${TIFF_PATH}\\bin\\tiff.dll" DESTINATION "./")
+      file(COPY "${TIFF_PATH}\\bin\\tiffxx.dll" DESTINATION "./")
+    elseif(CMAKE_BUILD_TYPE MATCHES "Debug")
+      file(COPY "${TIFF_PATH}\\bin\\tiffd.dll" DESTINATION "./")
+      file(COPY "${TIFF_PATH}\\bin\\tiffxxd.dll" DESTINATION "./")
+    endif()
+  endif() 
 elseif(MSYS)
   add_custom_command(TARGET test_executables POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest.dll" "./"

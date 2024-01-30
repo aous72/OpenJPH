@@ -799,7 +799,7 @@ namespace ojph {
           skip_marker(file, "CRG", "CRG has been ignored; CRG is related to"
             " where the Cb and Cr colour components are co-sited or located"
             " with respect to the Y' luma component. Perhaps, it is better"
-            " to get the indivdual components and assemble the samples"
+            " to get the individual components and assemble the samples"
             " according to your needs",
             OJPH_MSG_LEVEL::INFO, false);
         else if (marker_idx == 13)

@@ -48,5 +48,9 @@ else()
   endif()
 
   install(TARGETS ojph_expand DESTINATION bin)
-
 endif()
+
+## copy target files to the top bin folder
+add_custom_command(TARGET ojph_expand POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_expand>" ${OJPH_DESTINATION_BINARY}
+)

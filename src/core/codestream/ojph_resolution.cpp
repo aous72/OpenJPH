@@ -585,6 +585,9 @@ namespace ojph {
             }
             else
             {
+              float* sp = lines[0].f32;
+              for (ui32 i = width; i > 0; --i)
+                *sp++ *= 2.0f;
               //push to H
               irrev_horz_wvlt_fwd_tx(lines, bands[2].get_line(),
                 bands[3].get_line(), width, horz_even);

@@ -553,8 +553,10 @@ namespace ojph {
                 bands[1].push_line();
                 child_res->push_line();
               }
-              irrev_vert_wvlt_K(lines + 2, lines + 5,
-                                false, width);
+              if (cur_line >= 2)
+                irrev_vert_wvlt_K(lines + 2, lines + 5, false, width);
+              else
+                irrev_vert_wvlt_K(lines, lines + 5, false, width);
               irrev_horz_wvlt_fwd_tx(lines + 5, bands[2].get_line(),
                 bands[3].get_line(), width, horz_even);
               bands[2].push_line();
@@ -585,6 +587,9 @@ namespace ojph {
             }
             else
             {
+              float* sp = lines[0].f32;
+              for (ui32 i = width; i > 0; --i)
+                *sp++ *= 2.0f;
               //push to H
               irrev_horz_wvlt_fwd_tx(lines, bands[2].get_line(),
                 bands[3].get_line(), width, horz_even);

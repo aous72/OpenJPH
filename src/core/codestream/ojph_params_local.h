@@ -192,7 +192,7 @@ namespace ojph {
       void check_validity()
       {
         if (XTsiz == 0 && YTsiz == 0)
-        { XTsiz = Xsiz - XOsiz; YTsiz = Ysiz - YOsiz; }
+        { XTsiz = Xsiz + XOsiz; YTsiz = Ysiz + YOsiz; }
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
           OJPH_ERROR(0x00040001, 
             "You cannot set image extent nor tile size to zero");

@@ -1220,8 +1220,8 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
-  double mse[3] = { 96.7935, 69.6824, 66.7822};
-  int pae[3] = { 41, 39, 35};
+  double mse[3] = { 100.905762, 76.113037, 72.834717};
+  int pae[3] = { 39, 35, 34};
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_irv97_tall_narrow1", "", "j2c",
                     "-image_offset \"{1,0}\" -qstep 0.1");

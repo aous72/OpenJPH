@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
     "               target image grid. Obviously, the caller must know the\n"
     "               grid coordinates of the compressed image.  This option\n"
     "               corresponds to the internal API to which -region values\n"
-    "               are converted\n"
+    "               are converted.\n"
     "\n";
     return -1;
   }

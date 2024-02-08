@@ -97,6 +97,7 @@ endif()
 
 ## copy target files to the top bin folder
 add_custom_command(TARGET openjph POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_BINARY}
   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjph>" ${OJPH_DESTINATION_BINARY}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_ARCHIVE}
   COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_LINKER_FILE:openjph>" ${OJPH_DESTINATION_ARCHIVE}

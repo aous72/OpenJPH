@@ -19,11 +19,7 @@ option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 
-## specify output directories 
-set(OJPH_DESTINATION_BINARY ${CMAKE_BINARY_DIR}/../bin)
-set(OJPH_DESTINATION_ARCHIVE ${CMAKE_BINARY_DIR}/../lib)
-
-## specify the top directory for TIFF library (only for Micrsoft)
+## specify the top directory for TIFF library (only for Microsoft Visual Studio)
 if (MSVC)
   set(TIFF_PATH "C:\\Program Files\\tiff")
 endif()

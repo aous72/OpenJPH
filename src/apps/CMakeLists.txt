@@ -34,13 +34,3 @@ endif()
 ## Build executables
 add_subdirectory(ojph_expand)
 add_subdirectory(ojph_compress)
-
-if (MSVC AND OJPH_ENABLE_TIFF_SUPPORT)
-  if (CMAKE_BUILD_TYPE MATCHES "Release")
-    file(COPY "${TIFF_PATH}\\bin\\tiff.dll" DESTINATION "${OJPH_DESTINATION_BINARY}")
-    file(COPY "${TIFF_PATH}\\bin\\tiffxx.dll" DESTINATION "${OJPH_DESTINATION_BINARY}")
-  elseif(CMAKE_BUILD_TYPE MATCHES "Debug")
-    file(COPY "${TIFF_PATH}\\bin\\tiffd.dll" DESTINATION "${OJPH_DESTINATION_BINARY}")
-    file(COPY "${TIFF_PATH}\\bin\\tiffxxd.dll" DESTINATION "${OJPH_DESTINATION_BINARY}")
-  endif()
-endif()

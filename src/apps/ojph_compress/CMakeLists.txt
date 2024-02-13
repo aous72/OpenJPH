@@ -49,9 +49,3 @@ else()
 
   install(TARGETS ojph_compress DESTINATION bin)
 endif()
-
-## copy target files to the top bin folder
-add_custom_command(TARGET ojph_compress POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_BINARY}
-  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_compress>" ${OJPH_DESTINATION_BINARY}
-)

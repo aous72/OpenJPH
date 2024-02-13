@@ -94,21 +94,3 @@ else()
       SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
       VERSION "${OPENJPH_VERSION}")
 endif()
-
-## copy target files to the top bin folder
-add_custom_command(TARGET openjph POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_BINARY}
-  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjph>" ${OJPH_DESTINATION_BINARY}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${OJPH_DESTINATION_ARCHIVE}
-  COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_LINKER_FILE:openjph>" ${OJPH_DESTINATION_ARCHIVE}
-)
-if (MSVC)
-  add_custom_command(TARGET openjph POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_LINKER_FILE_DIR:openjph>/${OJPH_LIB_NAME_STRING}.exp" ${OJPH_DESTINATION_ARCHIVE}
-  )
-endif()
-if(EMSCRIPTEN)
-  add_custom_command(TARGET openjphsimd POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjphsimd>" ${OJPH_DESTINATION_BINARY}
-  )
-endif()

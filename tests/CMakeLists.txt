@@ -9,6 +9,7 @@ FetchContent_Declare(
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+option(INSTALL_GTEST "Enable installation of googletest." OFF)
 FetchContent_MakeAvailable(googletest)
 
 # Fetch test files
@@ -66,9 +67,15 @@ if (MSVC)
       file(COPY "${TIFF_PATH}\\bin\\tiffxxd.dll" DESTINATION "./")
     endif()
   endif() 
-elseif(MSYS)
+else()
   add_custom_command(TARGET test_executables POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest.dll" "./"
-    COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest_main.dll" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_expand>" "./"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_compress>" "./"
   )
+  if(MSYS)
+    add_custom_command(TARGET test_executables POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest.dll" "./"
+      COMMAND ${CMAKE_COMMAND} -E copy "../bin/msys-gtest_main.dll" "./"
+    )
+  endif()
 endif()

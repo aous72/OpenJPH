@@ -19,11 +19,6 @@ option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 
-## specify the top directory for TIFF library (only for Microsoft Visual Studio)
-if (MSVC)
-  set(TIFF_PATH "C:\\Program Files\\tiff")
-endif()
-
 ## Setting some of the options if EMSCRIPTEN is the compiler
 if(EMSCRIPTEN)
   set(OJPH_DISABLE_INTEL_SIMD ON)
@@ -52,6 +47,7 @@ endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 ## C++ version and flags
+# C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
   add_compile_options(-D_CRT_SECURE_NO_WARNINGS)

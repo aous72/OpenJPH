@@ -3,29 +3,16 @@
 ############################################################
 if( OJPH_ENABLE_TIFF_SUPPORT )
 
-  if( MSVC )
-
-    set(TIFF_INCLUDE_DIR "${TIFF_PATH}\\include" CACHE PATH "the directory containing the TIFF headers")
-    set(TIFF_LIBRARY_DEBUG   "${TIFF_PATH}\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
-    set(TIFF_LIBRARY_RELEASE "${TIFF_PATH}\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
-    set(TIFFXX_LIBRARY_DEBUG  "${TIFF_PATH}\\lib\\tiffxxd.lib" CACHE FILEPATH "the path to the TIFFXX  library for debug configurations")
-    set(TIFFXX_LIBRARY_RELEASE "${TIFF_PATH}\\lib\\tiffxx.lib" CACHE FILEPATH "the path to the TIFFXX  library for release configurations")
-
-    message( STATUS "WIN32 detected: Setting CMakeCache TIFF values as follows, use CMake-gui Advanced to modify them" )
-    message( STATUS "   TIFF_INCLUDE_DIR : \"${TIFF_INCLUDE_DIR}\"  " )
-    message( STATUS "   TIFF_LIBRARY_DEBUG : \"${TIFF_LIBRARY_DEBUG}\"  " )
-    message( STATUS "   TIFF_LIBRARY_RELEASE : \"${TIFF_LIBRARY_RELEASE}\"  " )
-    message( STATUS "   TIFFXX_LIBRARY_DEBUG : \"${TIFFXX_LIBRARY_DEBUG}\"  " )
-    message( STATUS "   TIFFXX_LIBRARY_RELEASE : \"${TIFFXX_LIBRARY_RELEASE}\"  " )
-
-  endif( MSVC )
-
   FIND_PACKAGE( TIFF )
 
   if( TIFF_FOUND )
     set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
     include_directories( ${TIFF_INCLUDE_DIR} ) 
     add_definitions(-DOJPH_ENABLE_TIFF_SUPPORT)
+  elseif(MSVC)
+    message(STATUS "TIFF support has been enabled by no path to the TIFF library "
+    "has been specified; please configure with -DCMAKE_PREFIX_PATH=<TIFF library directory>, "
+    "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
   endif( TIFF_FOUND )
 
 endif() 

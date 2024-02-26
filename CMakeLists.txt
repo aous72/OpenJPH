@@ -14,7 +14,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ## options
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(OJPH_ENABLE_INTEL_AVX512 "enables the use of AVX512 SIMD instructions and associated files" ON)
-option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)

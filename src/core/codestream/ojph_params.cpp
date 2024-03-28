@@ -1425,36 +1425,46 @@ namespace ojph {
         K = swap_byte(v);
       }
       else if (coeff_type == 2) { // float
-        if (file->read(&K, 4) != 4) return false;
-        ui32 t = swap_byte(*(ui32*)&K);
-        K = *(float*)&t;
+        union {
+          float f;
+          ui32 i;
+        } v;
+        if (file->read(&v.i, 4) != 4) return false;
+        v.i = swap_byte(v.i);
+        K = v.f;
       }
       else if (coeff_type == 3) { // double
-        double v;
-        if (file->read(&v, 8) != 8) return false;
-        ui64 t = swap_byte(*(ui64*)&v);
-        double u = *(float*)&t;
-        K = (float)u;
+        union {
+          double d;
+          ui64 i;
+        } v;
+        if (file->read(&v.i, 8) != 8) return false;
+        v.i = swap_byte(v.i);
+        K = (float)v.d;
       }
       else if (coeff_type == 4) { // 128 bit float
         ui64 v, v1;
         if (file->read(&v, 8) != 8) return false;
-        if (file->read(&v1, 8) != 8) return false; // not needed
+        if (file->read(&v1, 8) != 8) return false; // v1 not needed
         v = swap_byte(v);
 
+        union {
+          float f;
+          ui32 i;
+        } s;
         // convert the MSB of 128b float to 32b float
         // 32b float has 1 sign bit, 8 exponent (offset 127), 23 mantissa
         // 128b float has 1 sign bit, 15 exponent (offset 16383), 112 mantissa
-        si32 t1 = (si32)((v >> 48) & 0x7FFF); // exponent
-        t1 -= 16383;
-        t1 += 127;
-        t1 = t1 & 0xFF;                      // removes MSBs if negative
-        t1 <<= 23;                           // move bits to their location
-        ui32 t = 0;
-        t |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
-        t |= t1;                             // copy exponent
-        t |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
-        K = *(float*)&t;
+        si32 e = (si32)((v >> 48) & 0x7FFF);   // exponent
+        e -= 16383;
+        e += 127;
+        e = e & 0xFF;                          // removes MSBs if negative
+        e <<= 23;                              // move bits to their location
+        s.i = 0;
+        s.i |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
+        s.i |= e;                              // copy exponent
+        s.i |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
+        K = s.f;
       }
       return true;
     }

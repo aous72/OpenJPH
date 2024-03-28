@@ -418,6 +418,16 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    static inline
+    ui64 swap_byte(ui64 t)
+    {
+      ui64 u = swap_byte((ui32)(t & 0xFFFFFFFFu));
+      u <<= 32;
+      u |= swap_byte((ui32)(t >> 32));
+      return u;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     //
     //
     //
@@ -790,7 +800,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_rev_quant(ui32 bit_depth,
+    void param_qcd::set_rev_quant(int num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
@@ -815,7 +825,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_irrev_quant()
+    void param_qcd::set_irrev_quant(int num_decomps)
     {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
@@ -859,13 +869,17 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 param_qcd::get_MAGBp() const
     { //this can be written better, but it is only executed once
+
+      // this assumes a bi-directional wavelet (conventional DWT)
+      ui32 num_decomps = (num_subbands - 1) / 3;
+
       ui32 B = 0;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible
-        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1u);
       else if (irrev == 2) //scalar expounded
-        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
           B = ojph_max(B, (u16_SPqcd[i] >> 11) + get_num_guard_bits() - nb);
@@ -877,14 +891,24 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd::irrev_get_delta(ui32 resolution, ui32 subband) const
+    float param_qcd::irrev_get_delta(const param_dfs* dfs, 
+                                     ui32 num_decompositions,
+                                     ui32 resolution, ui32 subband) const
     {
-      assert((resolution == 0 && subband == 0) ||
-             (resolution <= num_decomps && subband > 0 && subband<4));
-      assert((Sqcd & 0x1F) == 2);
       float arr[] = { 1.0f, 2.0f, 2.0f, 4.0f };
+      assert((Sqcd & 0x1F) == 2);
 
-      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
+      ui32 idx = 
+        dfs->get_subband_idx(num_decompositions, resolution, subband);
+      if (idx >= num_subbands) {
+        OJPH_INFO(0x00050101, "Trying to access quantization step size for "
+          "subband %d when the QCD/QCC marker segment specifies "
+          "quantization step sizes for %d subbands only.  To continue "
+          "decoding, we are using the step size for subband %d, which can "
+          "produce incorrect results", 
+          idx + 1, num_subbands, num_subbands - 1);
+        idx = num_subbands - 1;
+      }
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
       mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
@@ -900,12 +924,22 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 param_qcd::get_Kmax(ui32 resolution, ui32 subband) const
+    ui32 param_qcd::get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
+                             ui32 resolution, ui32 subband) const
     {
-      assert((resolution == 0 && subband == 0) ||
-             (resolution <= num_decomps && subband > 0 && subband<4));
       ui32 num_bits = get_num_guard_bits();
-      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
+      ui32 idx = 
+        dfs->get_subband_idx(num_decompositions, resolution, subband);
+      if (idx >= num_subbands) {
+        OJPH_INFO(0x00050111, "Trying to access quantization step size for "
+          "subband %d when the QCD/QCC marker segment specifies "
+          "quantization step sizes for %d subbands only.  To continue "
+          "decoding, we are using the step size for subband %d, which can "
+          "produce incorrect results", 
+          idx + 1, num_subbands, num_subbands - 1);
+        idx = num_subbands - 1;
+      }
+
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible; this is (10.22) from the J2K book
       {
@@ -926,7 +960,6 @@ namespace ojph {
     bool param_qcd::write(outfile_base *file)
     {
       int irrev = Sqcd & 0x1F;
-      ui32 num_subbands = 1 + 3 * num_decomps;
 
       //marker size excluding header
       Lqcd = 3;
@@ -976,16 +1009,16 @@ namespace ojph {
         OJPH_ERROR(0x00050082, "error reading QCD marker");
       if ((Sqcd & 0x1F) == 0)
       {
-        num_decomps = (Lqcd - 4) / 3;
-        if (Lqcd != 4 + 3 * num_decomps)
+        num_subbands = (Lqcd - 3);
+        if (Lqcd != 3 + num_subbands)
           OJPH_ERROR(0x00050083, "wrong Lqcd value in QCD marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x00050084, "error reading QCD marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        num_decomps = 0;
+        num_subbands = 0;
         OJPH_ERROR(0x00050089, 
           "Scalar derived quantization is not supported yet in QCD marker");
         if (Lqcd != 5)
@@ -993,10 +1026,10 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        num_decomps = (Lqcd - 5) / 6;
-        if (Lqcd != 5 + 6 * num_decomps)
+        num_subbands = (Lqcd - 3) / 2;
+        if (Lqcd != 3 + 2 * num_subbands)
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x00050087, "error reading QCD marker");
@@ -1036,20 +1069,19 @@ namespace ojph {
       }
       if (file->read(&Sqcd, 1) != 1)
         OJPH_ERROR(0x000500A4, "error reading QCC marker");
+      ui32 offset = num_comps < 257 ? 4 : 5;
       if ((Sqcd & 0x1F) == 0)
       {
-        ui32 offset = num_comps < 257 ? 5 : 6;
-        num_decomps = (Lqcd - offset) / 3;
-        if (Lqcd != offset + 3 * num_decomps)
+        num_subbands = (Lqcd - offset);
+        if (Lqcd != offset + num_subbands)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x000500A6, "error reading QCC marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        ui32 offset = num_comps < 257 ? 6 : 7;
-        num_decomps = 0;
+        num_subbands = 0;
         OJPH_ERROR(0x000500AB, 
           "Scalar derived quantization is not supported yet in QCC marker");
         if (Lqcd != offset)
@@ -1057,11 +1089,10 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        ui32 offset = num_comps < 257 ? 6 : 7;
-        num_decomps = (Lqcd - offset) / 6;
-        if (Lqcd != offset + 6 * num_decomps)
+        num_subbands = (Lqcd - offset) / 2;
+        if (Lqcd != offset + 2 * num_subbands)
           OJPH_ERROR(0x000500A8, "wrong Lqcc value in QCC marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
@@ -1260,6 +1291,280 @@ namespace ojph {
       return result;
     }
 
-  }
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
-}
+    //////////////////////////////////////////////////////////////////////////
+    const param_dfs* param_dfs::get_dfs(int index) const
+    {
+      const param_dfs* p = this;
+      while (p && p->Sdfs != index)
+        p = p->next;
+      return p;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_dfs::dfs_dwt_type param_dfs::get_dwt_type(ui32 decomp_level) const
+    { 
+      assert(decomp_level > 0 && decomp_level <= Ids);
+
+      decomp_level = ojph_min(decomp_level, Ids);
+      ui8 d = decomp_level - 1;          // decomp_level starts from 1
+      ui8 idx = d >> 2;                  // complete bytes
+      ui8 bits = d & 0x3;                // bit within the bytes
+      ui8 val = (Ddfs[idx] >> (6 - 2 * bits)) & 0x3;
+      return (dfs_dwt_type)val;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    int param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
+                                   ui32 subband) const
+    {
+      int idx;
+      if (this != NULL)
+      {
+        assert((resolution == 0 && subband == 0) || 
+               (resolution > 0 && resolution <= Ids && 
+                subband > 0 && subband < 4));
+
+        ui32 ns[4] = { 0, 3, 2, 2 };
+        ui32 off[4] = {};
+
+        idx = 0;
+        if (resolution > 0)
+        {
+          idx = 0;
+          ui32 i = 1;
+          for (; i < resolution; ++i)
+            idx += ns[get_dwt_type(num_decompositions - i + 1)];
+          dfs_dwt_type t = get_dwt_type(num_decompositions - i + 1);
+          idx += subband;
+          if (t == VERT_DWT && subband == 2)
+            --idx;
+        }
+      }
+      else 
+      {
+        assert(subband >= 0 && subband < 4);
+        idx = resolution ? (resolution - 1) * 3 + subband : 0;
+      }
+
+      return idx;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_dfs::read(infile_base *file)
+    {
+      if (Ldfs != 0) { // this param_dfs is used
+        param_dfs* p = this;
+        while (p->next != NULL)
+          p = p->next;
+        p->next = new param_dfs;
+        p = p->next;
+        return p->read(file);
+      }
+
+      if (file->read(&Ldfs, 2) != 2)
+        OJPH_ERROR(0x000500D1, "error reading DFS-Ldfs parameter");
+      Ldfs = swap_byte(Ldfs);
+      if (file->read(&Sdfs, 2) != 2)
+        OJPH_ERROR(0x000500D2, "error reading DFS-Sdfs parameter");
+      Sdfs = swap_byte(Sdfs);
+      if (Sdfs > 15)
+        OJPH_ERROR(0x000500D3, "The DFS-Sdfs parameter is %d, which is "
+          "larger than the permissible 15", Sdfs);
+      ui8 t, l_Ids = 0;
+      if (file->read(&l_Ids, 1) != 1)
+        OJPH_ERROR(0x000500D4, "error reading DFS-Ids parameter");
+      constexpr int max_Ddfs = sizeof(Ddfs) * 4;
+      if (l_Ids > max_Ddfs)
+        OJPH_INFO(0x000500D5, "The DFS-Ids parameter is %d; while this is "
+          "valid, the number is unnessarily large -- you do not need more "
+          "than %d.  Please contact me regarding this issue.", 
+          l_Ids, max_Ddfs);
+      Ids = l_Ids < max_Ddfs ? l_Ids : max_Ddfs;
+      for (int i = 0; i < Ids; i += 4)
+        if (file->read(&Ddfs[i / 4], 1) != 1)
+          OJPH_ERROR(0x000500D6, "error reading DFS-Ddfs parameters");
+      for (int i = Ids; i < l_Ids; i += 4)
+        if (file->read(&t, 1) != 1)
+          OJPH_ERROR(0x000500D7, "error reading DFS-Ddfs parameters");
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    const param_atk* param_atk::get_atk(int index) const
+    {
+      const param_atk* p = this;
+      while (p && p->get_index() != index)
+        p = p->next;
+      return p;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read_coefficient(infile_base *file, float &K)
+    {
+      int coeff_type = get_coeff_type();
+      if (coeff_type == 0) { // 8bit
+        ui8 v;
+        if (file->read(&v, 1) != 1) return false;
+        K = v;
+      }
+      else if (coeff_type == 1) { // 16bit
+        ui16 v;
+        if (file->read(&v, 2) != 2) return false;
+        K = swap_byte(v);
+      }
+      else if (coeff_type == 2) { // float
+        if (file->read(&K, 4) != 4) return false;
+        ui32 t = swap_byte(*(ui32*)&K);
+        K = *(float*)&t;
+      }
+      else if (coeff_type == 3) { // double
+        double v;
+        if (file->read(&v, 8) != 8) return false;
+        ui64 t = swap_byte(*(ui64*)&v);
+        double u = *(float*)&t;
+        K = (float)u;
+      }
+      else if (coeff_type == 4) { // 128 bit float
+        ui64 v, v1;
+        if (file->read(&v, 8) != 8) return false;
+        if (file->read(&v1, 8) != 8) return false; // not needed
+        v = swap_byte(v);
+
+        // convert the MSB of 128b float to 32b float
+        // 32b float has 1 sign bit, 8 exponent (offset 127), 23 mantissa
+        // 128b float has 1 sign bit, 15 exponent (offset 16383), 112 mantissa
+        si32 t1 = (si32)((v >> 48) & 0x7FFF); // exponent
+        t1 -= 16383;
+        t1 += 127;
+        t1 = t1 & 0xFF;                      // removes MSBs if negative
+        t1 <<= 23;                           // move bits to their location
+        ui32 t = 0;
+        t |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
+        t |= t1;                             // copy exponent
+        t |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
+        K = *(float*)&t;
+      }
+      return true;
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read_coefficient(infile_base *file, si16 &K)
+    {
+      int coeff_type = get_coeff_type();
+      if (coeff_type == 0) {
+        ui8 v;
+        if (file->read(&v, 1) != 1) return false;
+        K = v;
+      }
+      else if (coeff_type == 1) {
+        ui16 v;
+        if (file->read(&v, 2) != 2) return false;
+        v = swap_byte(v);
+        K = v;
+      }
+      else
+        return false;
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read(infile_base *file)
+    {
+      if (Latk != 0) { // this param_atk is used
+        param_atk *p = this;
+        while (p->next != NULL)
+          p = p->next;
+        p->next = new param_atk;
+        p = p->next;
+        return p->read(file);
+      }
+
+      if (file->read(&Latk, 2) != 2)
+        OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter"); 
+      Latk = swap_byte(Latk);
+      if (file->read(&Satk, 2) != 2)
+        OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter"); 
+      Satk = swap_byte(Satk);
+      if (is_m_init0() == false)  // only even-indexed is supported
+        OJPH_ERROR(0x000500E3, "ATK-Satk parameter sets m_init to 1, "
+          "requiring odd-indexed subsequence in first reconstruction step, "
+          "which is not supported yet.");
+      if (is_whole_sample() == false)  // ARB filter not supported
+        OJPH_ERROR(0x000500E4, "ATK-Satk parameter specified ARB filter, "
+          "which is not supported yet."); 
+      if (is_reversible() && get_coeff_type() >= 2) // reversible & float
+        OJPH_ERROR(0x000500E5, "ATK-Satk parameter does not make sense. "
+          "It employs floats with reversible filtering."); 
+      if (is_reversible() == false) 
+        if (read_coefficient(file, Katk) == false)
+          OJPH_ERROR(0x000500E6, "error reading ATK-Katk parameter"); 
+      if (file->read(&Natk, 1) != 1)
+        OJPH_ERROR(0x000500E7, "error reading ATK-Natk parameter");
+      if (Natk > max_steps) {
+        if (d != d_store) // was this allocated -- very unlikely
+          delete[] d;
+        d = new data[Natk];
+        max_steps = Natk;
+      }
+
+      if (is_reversible())
+      {
+        for (int s = 0; s < Natk; ++s)
+        {
+          if (file->read(&d[s].rev.Eatk, 1) != 1)
+            OJPH_ERROR(0x000500E8, "error reading ATK-Eatk parameter");           
+          if (file->read(&d[s].rev.Batk, 2) != 2)
+            OJPH_ERROR(0x000500E9, "error reading ATK-Batk parameter");           
+          d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
+          ui8 LCatk;
+          if (file->read(&LCatk, 1) != 1)
+            OJPH_ERROR(0x000500EA, "error reading ATK-LCatk parameter");
+          if (LCatk == 0)
+            OJPH_ERROR(0x000500EB, "Encountered a ATK-LCatk value of zero; "
+              "something is wrong.");
+          if (LCatk > 1)
+            OJPH_ERROR(0x000500EC, "ATK-LCatk value greater than 1; "
+              "that is, a multitap filter is not supported");
+          if (read_coefficient(file, d[s].rev.Aatk) == false)
+            OJPH_ERROR(0x000500ED, "Error reding ATK-Aatk parameter");
+        }
+      }
+      else
+      {
+        for (int s = 0; s < Natk; ++s)
+        {
+          ui8 LCatk;
+          if (file->read(&LCatk, 1) != 1)
+            OJPH_ERROR(0x000500EE, "error reading ATK-LCatk parameter");
+          if (LCatk == 0)
+            OJPH_ERROR(0x000500EF, "Encountered a ATK-LCatk value of zero; "
+              "something is wrong.");
+          if (LCatk > 1)
+            OJPH_ERROR(0x000500F0, "ATK-LCatk value greater than 1; "
+              "that is, a multitap filter is not supported.");
+          if (read_coefficient(file, d[s].irv.Aatk) == false)
+            OJPH_ERROR(0x000500F1, "Error reding ATK-Aatk parameter");
+        }
+      }
+
+      return true;
+    }
+  } // !local namespace
+}  // !ojph namespace

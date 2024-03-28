@@ -81,6 +81,8 @@ namespace ojph {
 
       used_qcc_fields = 0;
       qcc = qcc_store;
+      used_coc_fields = 0;
+      coc = coc_store;
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
@@ -717,15 +719,15 @@ namespace ojph {
       {
         if (msg_level == OJPH_MSG_LEVEL::INFO)
         {
-          OJPH_INFO(0x00030001, "%s\n", msg);
+          OJPH_INFO(0x00030001, "%s", msg);
         }
         else if (msg_level == OJPH_MSG_LEVEL::WARN)
         {
-          OJPH_WARN(0x00030001, "%s\n", msg);
+          OJPH_WARN(0x00030001, "%s", msg);
         }
         else if (msg_level == OJPH_MSG_LEVEL::ERROR)
         {
-          OJPH_ERROR(0x00030001, "%s\n", msg);
+          OJPH_ERROR(0x00030001, "%s", msg);
         }
         else
           assert(0);
@@ -736,8 +738,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::read_headers(infile_base *file)
     {
-      ui16 marker_list[17] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
-        RGN, POC, PPM, TLM, PLM, CRG, COM, SOT };
+      ui16 marker_list[19] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
+        RGN, POC, PPM, TLM, PLM, CRG, COM, DFS, ATK, SOT };
       find_marker(file, marker_list, 1); //find SOC
       find_marker(file, marker_list + 1, 1); //find SIZ
       siz.read(file);
@@ -745,7 +747,7 @@ namespace ojph {
       int received_markers = 0; //check that COD, & QCD received
       while (true)
       {
-        marker_idx = find_marker(file, marker_list + 2, 15);
+        marker_idx = find_marker(file, marker_list + 2, 17);
         if (marker_idx == 0)
           cap.read(file);
         else if (marker_idx == 1)
@@ -805,10 +807,16 @@ namespace ojph {
         else if (marker_idx == 13)
           skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 14)
+          dfs.read(file);
+        else if (marker_idx == 15)
+          atk.read(file);
+        else if (marker_idx == 16)
           break;
         else
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
+
+      //qcd.update(&dfs);
 
       if (received_markers != 3)
         OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");

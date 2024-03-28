@@ -124,11 +124,14 @@ namespace ojph {
       cur_cb_row = 0;
       cur_line = 0;
       cur_cb_height = 0;
-      param_qcd *qcd = codestream->access_qcd(parent->get_comp_num());
-      this->K_max = qcd->get_Kmax(this->res_num, band_num);
+      param_qcd* qcd = codestream->access_qcd(parent->get_comp_num());
+      const param_cod* cod = codestream->get_cod();
+      int num_decomps = cod->get_num_decompositions();
+      this->K_max = qcd->get_Kmax(NULL, num_decomps, this->res_num, band_num);
       if (!reversible)
       {
-        float d = qcd->irrev_get_delta(res_num, subband_num);
+        float d = 
+          qcd->irrev_get_delta(NULL, num_decomps, res_num, subband_num);
         d /= (float)(1u << (31 - this->K_max));
         delta = d;
         delta_inv = (1.0f/d);

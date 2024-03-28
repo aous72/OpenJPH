@@ -96,13 +96,25 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   enum OJPH_TILEPART_DIVISIONS: ui32 {
-    OJPH_TILEPART_NO_DIVISIONS  = 0x0, // no divisions to tile parts
-    OJPH_TILEPART_RESOLUTIONS = 0x1,
-    OJPH_TILEPART_COMPONENTS  = 0x2,
-    OJPH_TILEPART_LAYERS      = 0x4, // these are meaningless with HTJ2K
+    OJPH_TILEPART_NO_DIVISIONS = 0x0, // no divisions to tile parts
+    OJPH_TILEPART_RESOLUTIONS  = 0x1,
+    OJPH_TILEPART_COMPONENTS   = 0x2,
+    OJPH_TILEPART_LAYERS       = 0x4, // these are meaningless with HTJ2K
   };
 
   namespace local {
+
+    //defined here
+    struct param_siz;
+    struct param_cod;
+    struct param_qcd;
+    struct param_qcc;
+    struct param_cap;
+    struct param_sot;
+    struct param_tlm;
+    struct param_coc;
+    struct param_dfs;
+    struct param_atk;
 
     //////////////////////////////////////////////////////////////////////////
     enum JP2K_MARKER : ui16
@@ -111,6 +123,7 @@ namespace ojph {
       CAP = 0xFF50, //extended capability
       SIZ = 0xFF51, //image and tile size (required)
       COD = 0xFF52, //coding style default (required)
+      COC = 0xFF53, //coding style component
       TLM = 0xFF55, //tile-part lengths
       PRF = 0xFF56, //profile
       PLM = 0xFF57, //packet length, main header
@@ -118,19 +131,20 @@ namespace ojph {
       CPF = 0xFF59, //corresponding profile values
       QCD = 0xFF5C, //qunatization default (required)
       QCC = 0xFF5D, //quantization component
-      COM = 0xFF64, //comment
-      SOT = 0xFF90, //start of tile-part
-      SOP = 0xFF91, //start of packet
-      EPH = 0xFF92, //end of packet
-      SOD = 0xFF93, //start of data
-      EOC = 0xFFD9, //end of codestream (required)
-
-      COC = 0xFF53, //coding style component
       RGN = 0xFF5E, //region of interest
       POC = 0xFF5F, //progression order change
       PPM = 0xFF60, //packed packet headers, main header
       PPT = 0xFF61, //packed packet headers, tile-part header
       CRG = 0xFF63, //component registration
+      COM = 0xFF64, //comment
+      DFS = 0xFF72, //downsampling factor styles
+      ADS = 0xFF73, //arbitrary decomposition styles
+      ATK = 0xFF79, //arbitrary transformation kernels
+      SOT = 0xFF90, //start of tile-part
+      SOP = 0xFF91, //start of packet
+      EPH = 0xFF92, //end of packet
+      SOD = 0xFF93, //start of data
+      EOC = 0xFFD9, //end of codestream (required)
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -442,23 +456,23 @@ namespace ojph {
         Sqcd = 0;
         for (int i = 0; i < 97; ++i)
           u16_SPqcd[i] = 0;
-        num_decomps = 0;
-        base_delta = -1.0f; 
+        num_subbands = 0;
+        base_delta = -1.0f;
       }
 
       void set_delta(float delta) { base_delta = delta; }
-      void set_rev_quant(ui32 bit_depth, bool is_employing_color_transform);
-      void set_irrev_quant();
 
       void check_validity(const param_siz& siz, const param_cod& cod)
       {
-        num_decomps = cod.get_num_decompositions();
+        int num_decomps = cod.get_num_decompositions();
+        num_subbands = 1 + 3 * num_decomps;
         if (cod.is_reversible())
         {
           ui32 bit_depth = 0;
           for (ui32 i = 0; i < siz.get_num_components(); ++i)
             bit_depth = ojph_max(bit_depth, siz.get_bit_depth(i));
-          set_rev_quant(bit_depth, cod.is_employing_color_transform());
+          set_rev_quant(num_decomps, bit_depth,
+            cod.is_employing_color_transform());
         }
         else
         {
@@ -466,20 +480,27 @@ namespace ojph {
             ui32 bit_depth = 0;
             for (ui32 i = 0; i < siz.get_num_components(); ++i)
               bit_depth =
-                ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
+              ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
             base_delta = 1.0f / (float)(1 << bit_depth);
           }
-          set_irrev_quant();
-         }
+          set_irrev_quant(num_decomps);
+        }
       }
-
       ui32 get_num_guard_bits() const;
       ui32 get_MAGBp() const;
-      ui32 get_Kmax(ui32 resolution, ui32 subband) const;
-      float irrev_get_delta(ui32 resolution, ui32 subband) const;
+      ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
+                    ui32 resolution, ui32 subband) const;
+      float irrev_get_delta(const param_dfs* dfs,
+                            ui32 num_decompositions,
+                            ui32 resolution, ui32 subband) const;
 
       bool write(outfile_base *file);
       void read(infile_base *file);
+
+    protected:
+      void set_rev_quant(int num_decomps, ui32 bit_depth, 
+                         bool is_employing_color_transform);
+      void set_irrev_quant(int num_decomps);
 
     protected:
       ui16 Lqcd;
@@ -489,8 +510,9 @@ namespace ojph {
         ui8 u8_SPqcd[97];
         ui16 u16_SPqcd[97];
       };
-      ui32 num_decomps;
-      float base_delta;
+      ui32 num_subbands;        // number of subbands
+      float base_delta;         // base quantization step size -- all other
+                                // step sizes are derived from it.
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -502,7 +524,6 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct param_qcc : public param_qcd
     {
-      //friend ::ojph::param_qcc;
     public:
       param_qcc() : param_qcd()
       { comp_idx = 0; }
@@ -627,9 +648,136 @@ namespace ojph {
       Ttlm_Ptlm_pair* pairs;
       ui32 num_pairs;
       ui32 next_pair_index;
-      
     };
-  }
-}
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    struct param_coc : public param_cod
+    {
+
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    struct param_dfs
+    {
+    public:
+      enum dfs_dwt_type : ui8 {
+        NO_DWT    = 0,  // no wavelet transform
+        BIDIR_DWT = 1,  // bidirectional DWT (this the conventional DWT)
+        HORZ_DWT  = 2,  // horizontal only DWT transform
+        VERT_DWT  = 3,  // vertical only DWT transform
+      };
+
+    public: // member functions
+      param_dfs() { memset(this, 0, sizeof(param_dfs)); }
+      ~param_dfs() { if (next) delete next; }
+      void init() { memset(this, 0, sizeof(param_dfs)); }
+      bool read(infile_base *file);
+      bool exists() const { return Ldfs != 0; }
+
+      // get_dfs return a dfs structure Sdfs == index, or NULL if not found
+      const param_dfs* get_dfs(int index) const;
+      // decomp_level is the decomposition level, starting from 1 for highest
+      // resolution to num_decomps for the coarsest resolution
+      dfs_dwt_type get_dwt_type(ui32 decomp_level) const;
+      int get_subband_idx(ui32 num_decompositions, ui32 resolution, 
+                          ui32 subband) const;
+
+    private: // member variables
+      ui16 Ldfs;       // length of the segment marker
+      ui16 Sdfs;       // index of this DFS marker segment
+      ui8 Ids;         // number of elements in Ddfs, 2 bits per sub-level
+      ui8 Ddfs[8];     // a string defining number of decomposition sub-levels
+                       // 8 bytes should be enough for 32 levels
+      param_dfs* next; // used for linking other dfs segments
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    struct param_atk
+    {
+      // Limitations:
+      // Arbitrary filters (ARB) are not supported
+      // Up to 6 steps are supported -- more than 6 are not supported
+      // Only one coefficient per step -- first order filter
+      // Only even-indexed subsequence in first reconstruction step,
+      //   m_init = 0 is supported
+
+    public: // data structures used by this object
+      struct irv_data {
+        // si8 Oatk;     // only for arbitrary filter
+        // ui8 LCatk;    // number of lifting coefficients in a step
+        float Aatk;      // lifting coefficient
+      };
+
+      struct rev_data {
+        // si8 Oatk;     // only for arbitrary filter, offset of filter
+        ui8 Eatk;        // only for reversible, epsilon, the power of 2
+        si16 Batk;       // only for reversible, beta, the additive residue
+        // ui8 LCatk;    // number of lifting coefficients in a step
+        si16 Aatk;       // lifting coefficient
+      };
+
+      union data {
+        irv_data irv;
+        rev_data rev;
+      };
+
+    public: // member functions
+      param_atk() { init(); }
+      ~param_atk() {
+        if (next) delete next;
+        if (d != NULL && d != d_store) {
+          delete[] d;
+          init(false);
+        }
+      }
+      bool read(infile_base *file);
+      bool read_coefficient(infile_base *file, float &K);
+      bool read_coefficient(infile_base *file, si16 &K);
+      void init(bool clear_all = true) { 
+        if (clear_all)
+          memset(this, 0, sizeof(param_atk));
+        d = d_store; max_steps = sizeof(d_store) / sizeof(data); 
+      }
+
+      ui8 get_index() const { return (ui8)(Satk & 0xFF); }
+      int get_coeff_type() const { return (Satk >> 8) & 0x7; }
+      bool is_whole_sample() const { return (Satk & 0x800) != 0; }
+      bool is_reversible() const { return (Satk & 0x1000) != 0; }
+      bool is_m_init0() const { return (Satk & 0x2000) == 0; }
+      bool is_using_ws_extension() const { return (Satk & 0x4000) != 0x4000; }
+      const param_atk* get_atk(int index) const;
+      const data* get_step(ui32 s) const { assert(s < Natk); return d + s; }
+
+    private: // member variables
+      ui16 Latk;         // structure length
+      ui16 Satk;         // carries a variety of information
+      float Katk;        // only for irreversible scaling factor K
+      ui8 Natk;          // number of lifting steps
+      data* d;           // pointer to data, initialized to d_store
+      int max_steps;     // maximum number of steps without memory allocation
+      data d_store[6];   // step coefficient
+      param_atk* next;   // used for chaining if more than one atk segment
+                         // exist in the codestream
+    };
+  } // !local namespace
+} // !ojph namespace
 
 #endif // !OJPH_PARAMS_LOCAL_H

@@ -898,8 +898,11 @@ namespace ojph {
       float arr[] = { 1.0f, 2.0f, 2.0f, 4.0f };
       assert((Sqcd & 0x1F) == 2);
 
-      ui32 idx = 
-        dfs->get_subband_idx(num_decompositions, resolution, subband);
+      ui32 idx;
+      if (dfs != NULL && dfs->exists())
+        idx = dfs->get_subband_idx(num_decompositions, resolution, subband);
+      else
+        idx = resolution ? (resolution - 1) * 3 + subband : 0;
       if (idx >= num_subbands) {
         OJPH_INFO(0x00050101, "Trying to access quantization step size for "
           "subband %d when the QCD/QCC marker segment specifies "
@@ -928,8 +931,11 @@ namespace ojph {
                              ui32 resolution, ui32 subband) const
     {
       ui32 num_bits = get_num_guard_bits();
-      ui32 idx = 
-        dfs->get_subband_idx(num_decompositions, resolution, subband);
+      ui32 idx;
+      if (dfs != NULL && dfs->exists())
+        idx = dfs->get_subband_idx(num_decompositions, resolution, subband);
+      else
+        idx = resolution ? (resolution - 1) * 3 + subband : 0;
       if (idx >= num_subbands) {
         OJPH_INFO(0x00050111, "Trying to access quantization step size for "
           "subband %d when the QCD/QCC marker segment specifies "
@@ -1314,10 +1320,10 @@ namespace ojph {
       assert(decomp_level > 0 && decomp_level <= Ids);
 
       decomp_level = ojph_min(decomp_level, Ids);
-      ui8 d = decomp_level - 1;          // decomp_level starts from 1
-      ui8 idx = d >> 2;                  // complete bytes
-      ui8 bits = d & 0x3;                // bit within the bytes
-      ui8 val = (Ddfs[idx] >> (6 - 2 * bits)) & 0x3;
+      ui32 d = decomp_level - 1;          // decomp_level starts from 1
+      ui32 idx = d >> 2;                  // complete bytes
+      ui32 bits = d & 0x3;                // bit within the bytes
+      ui32 val = (Ddfs[idx] >> (6 - 2 * bits)) & 0x3;
       return (dfs_dwt_type)val;
     }
 
@@ -1325,33 +1331,23 @@ namespace ojph {
     int param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
                                    ui32 subband) const
     {
-      int idx;
-      if (this != NULL)
+      assert((resolution == 0 && subband == 0) || 
+              (resolution > 0 && resolution <= Ids && 
+              subband > 0 && subband < 4));
+
+      ui32 ns[4] = { 0, 3, 2, 2 };
+
+      int idx = 0;
+      if (resolution > 0)
       {
-        assert((resolution == 0 && subband == 0) || 
-               (resolution > 0 && resolution <= Ids && 
-                subband > 0 && subband < 4));
-
-        ui32 ns[4] = { 0, 3, 2, 2 };
-        ui32 off[4] = {};
-
         idx = 0;
-        if (resolution > 0)
-        {
-          idx = 0;
-          ui32 i = 1;
-          for (; i < resolution; ++i)
-            idx += ns[get_dwt_type(num_decompositions - i + 1)];
-          dfs_dwt_type t = get_dwt_type(num_decompositions - i + 1);
-          idx += subband;
-          if (t == VERT_DWT && subband == 2)
-            --idx;
-        }
-      }
-      else 
-      {
-        assert(subband >= 0 && subband < 4);
-        idx = resolution ? (resolution - 1) * 3 + subband : 0;
+        ui32 i = 1;
+        for (; i < resolution; ++i)
+          idx += ns[get_dwt_type(num_decompositions - i + 1)];
+        dfs_dwt_type t = get_dwt_type(num_decompositions - i + 1);
+        idx += subband;
+        if (t == VERT_DWT && subband == 2)
+          --idx;
       }
 
       return idx;

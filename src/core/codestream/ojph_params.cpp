@@ -850,7 +850,7 @@ namespace ojph {
         for (int i = 0; i <= get_num_decompositions(); ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
             OJPH_ERROR(0x0005012A, "error reading COC segment");
-      ui16 t = 9;
+      ui32 t = 9;
       t += num_comps < 257 ? 0 : 1;
       t += (Scod & 1) ? 1 + get_num_decompositions() : 0;
       if (Lcod != t)

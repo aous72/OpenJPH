@@ -275,7 +275,12 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::is_reversible() const
   {
-    return state->is_reversible();
+    if (state->SPcod.wavelet_trans <= 1)
+      return state->get_wavelet_kern() == local::param_cod::DWT_REV53;
+    else {
+      assert(state->atk != NULL);
+      return state->atk->is_reversible();
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -604,8 +609,9 @@ namespace ojph {
         OJPH_ERROR(0x00050043, "error reading SIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
-        OJPH_ERROR(0x00050044, "Rsiz bit 14 not set (this is not a JPH file)");
-      if (Rsiz & 0xBFFF)
+        OJPH_ERROR(0x00050044, 
+          "Rsiz bit 14 is not set (this is not a JPH file)");
+      if ((Rsiz & 0x8000) != 0 && (Rsiz & 0xF5F) != 0)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
         OJPH_ERROR(0x00050045, "error reading SIZ marker");
@@ -652,6 +658,9 @@ namespace ojph {
         if (file->read(&cptr[c].YRsiz, 1) != 1)
           OJPH_ERROR(0x00050053, "error reading SIZ marker");
       }
+
+      ws_kern_support_needed = (Rsiz & 0x20) != 0;
+      dfs_support_needed = (Rsiz & 0x80) != 0;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -720,6 +729,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
     {
+      assert(type == COD_MAIN);
+
       //marker size excluding header
       Lcod = 12;
       Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
@@ -758,37 +769,106 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::read(infile_base *file)
+    void param_cod::read(infile_base *file, param_cod::cod_type type)
     {
+      assert(this->type == UNDEFINED);
+      assert(type == COD_MAIN);
+
+      this->type = type;
       if (file->read(&Lcod, 2) != 2)
-        OJPH_ERROR(0x00050071, "error reading COD marker");
+        OJPH_ERROR(0x00050071, "error reading COD segment");
       Lcod = swap_byte(Lcod);
       if (file->read(&Scod, 1) != 1)
-        OJPH_ERROR(0x00050072, "error reading COD marker");
+        OJPH_ERROR(0x00050072, "error reading COD segment");
       if (file->read(&SGCod.prog_order, 1) != 1)
-        OJPH_ERROR(0x00050073, "error reading COD marker");
+        OJPH_ERROR(0x00050073, "error reading COD segment");
       if (file->read(&SGCod.num_layers, 2) != 2)
-      { OJPH_ERROR(0x00050074, "error reading COD marker"); }
+      { OJPH_ERROR(0x00050074, "error reading COD segment"); }
       else
         SGCod.num_layers = swap_byte(SGCod.num_layers);
       if (file->read(&SGCod.mc_trans, 1) != 1)
-        OJPH_ERROR(0x00050075, "error reading COD marker");
+        OJPH_ERROR(0x00050075, "error reading COD segment");
       if (file->read(&SPcod.num_decomp, 1) != 1)
-        OJPH_ERROR(0x00050076, "error reading COD marker");
+        OJPH_ERROR(0x00050076, "error reading COD segment");
       if (file->read(&SPcod.block_width, 1) != 1)
-        OJPH_ERROR(0x00050077, "error reading COD marker");
+        OJPH_ERROR(0x00050077, "error reading COD segment");
       if (file->read(&SPcod.block_height, 1) != 1)
-        OJPH_ERROR(0x00050078, "error reading COD marker");
+        OJPH_ERROR(0x00050078, "error reading COD segment");
       if (file->read(&SPcod.block_style, 1) != 1)
-        OJPH_ERROR(0x00050079, "error reading COD marker");
+        OJPH_ERROR(0x00050079, "error reading COD segment");
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
-        OJPH_ERROR(0x0005007A, "error reading COD marker");
+        OJPH_ERROR(0x0005007A, "error reading COD segment");
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
-            OJPH_ERROR(0x0005007B, "error reading COD marker");
+            OJPH_ERROR(0x0005007B, "error reading COD segment");
       if (Lcod != 12 + ((Scod & 1) ? 1 + SPcod.num_decomp : 0))
-        OJPH_ERROR(0x0005007C, "error in COD marker length");
+        OJPH_ERROR(0x0005007C, "error in COD segment length");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_cod::read(infile_base* file, param_cod::cod_type type, 
+                         ui32 num_comps, param_cod *cod)
+    {
+      assert(this->type == UNDEFINED);
+      assert(type == COC_MAIN);
+      assert(cod != NULL);
+
+      this->type = type;
+      this->SGCod = cod->SGCod;
+      this->parent = cod;
+      if (file->read(&Lcod, 2) != 2)
+        OJPH_ERROR(0x00050121, "error reading COC segment");
+      Lcod = swap_byte(Lcod);
+      if (num_comps < 257) {
+        ui8 t;
+        if (file->read(&t, 1) != 1)
+          OJPH_ERROR(0x00050122, "error reading COC segment");
+        comp_idx = t;
+      }
+      else {
+        if (file->read(&comp_idx, 2) != 2)
+          OJPH_ERROR(0x00050123, "error reading COC segment");
+        comp_idx = swap_byte(comp_idx);
+      }
+      if (file->read(&Scod, 1) != 1)
+        OJPH_ERROR(0x00050124, "error reading COC segment");
+      if (Scod & 0xF8)
+        OJPH_WARN(0x00050011, 
+          "Unsupported options in Scoc field of the COC segment");
+      if (file->read(&SPcod.num_decomp, 1) != 1)
+        OJPH_ERROR(0x00050125, "error reading COC segment");
+      if (file->read(&SPcod.block_width, 1) != 1)
+        OJPH_ERROR(0x00050126, "error reading COC segment");
+      if (file->read(&SPcod.block_height, 1) != 1)
+        OJPH_ERROR(0x00050127, "error reading COC segment");
+      if (file->read(&SPcod.block_style, 1) != 1)
+        OJPH_ERROR(0x00050128, "error reading COC segment");
+      if (file->read(&SPcod.wavelet_trans, 1) != 1)
+        OJPH_ERROR(0x00050129, "error reading COC segment");
+      if (Scod & 1)
+        for (int i = 0; i <= get_num_decompositions(); ++i)
+          if (file->read(&SPcod.precinct_size[i], 1) != 1)
+            OJPH_ERROR(0x0005012A, "error reading COC segment");
+      ui16 t = 9;
+      t += num_comps < 257 ? 0 : 1;
+      t += (Scod & 1) ? 1 + get_num_decompositions() : 0;
+      if (Lcod != t)
+        OJPH_ERROR(0x0005012B, "error in COC segment length");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_cod::update_atk(const param_atk* atk)
+    {
+      if (SPcod.wavelet_trans > 1) {
+        this->atk = atk->get_atk(SPcod.wavelet_trans);
+        if (this->atk == NULL)
+          OJPH_ERROR(0x00050131, "A COD/COC segment employs the DWT kernel "
+            "atk=%d, but a corresponding ATK segment cannot be found", 
+            SPcod.wavelet_trans);
+      }
+      else
+        this->atk = NULL;
     }
 
     //////////////////////////////////////////////////////////////////////////

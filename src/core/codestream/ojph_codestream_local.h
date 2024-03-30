@@ -163,8 +163,8 @@ namespace ojph {
       param_qcc *qcc;         // quantization component
       param_qcc qcc_store[4]; // we allocate 4, we allocate more if needed
       int used_coc_fields;
-      param_coc *coc;         // coding style component
-      param_coc coc_store[4]; // we allocate 4, we allocate more if needed
+      param_cod *coc;         // coding style component
+      param_cod coc_store[4]; // we allocate 4, we allocate more if needed
 
     private:  // these are from Part 2 of the standard
       param_dfs dfs;         // downsmapling factor styles

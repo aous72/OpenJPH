@@ -112,7 +112,6 @@ namespace ojph {
     struct param_cap;
     struct param_sot;
     struct param_tlm;
-    struct param_coc;
     struct param_dfs;
     struct param_atk;
 
@@ -173,6 +172,7 @@ namespace ojph {
         cptr = store;
         old_Csiz = 4;
         Rsiz = 0x4000; //for jph, bit 14 of Rsiz is 1
+        ws_kern_support_needed = dfs_support_needed = false;
       }
 
       ~param_siz()
@@ -270,6 +270,8 @@ namespace ojph {
         ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
         return t;
       }
+      bool is_ws_kern_support_needed() { return ws_kern_support_needed; }
+      bool is_dfs_support_needed() { return dfs_support_needed; }
 
     private:
       ui16 Lsiz;
@@ -289,6 +291,8 @@ namespace ojph {
       ui32 skipped_resolutions;
       int old_Csiz;
       siz_comp_info store[4];
+      bool ws_kern_support_needed;
+      bool dfs_support_needed;
       param_siz(const param_siz&) = delete; //prevent copy constructor
       param_siz& operator=(const param_siz&) = delete; //prevent copy
     };
@@ -308,10 +312,18 @@ namespace ojph {
       ui8 block_style;
       ui8 wavelet_trans;
       ui8 precinct_size[33]; //num_decomp is in [0,32]
-    };
 
-    ///////////////////////////////////////////////////////////////////////////
-    typedef cod_SPcod cod_SPcoc;
+      size get_log_block_dims() const
+      { return size(block_width + 2, block_height + 2); }
+      size get_block_dims() const 
+      { size t = get_log_block_dims(); return size(1 << t.w, 1 << t.h); }
+      size get_log_precinct_size(ui32 res_num) const
+      {
+        assert(res_num <= num_decomp);
+        size ps(precinct_size[res_num] & 0xF, precinct_size[res_num] >> 4);
+        return ps;
+      }
+    };
 
     ///////////////////////////////////////////////////////////////////////////
     struct cod_SGcod
@@ -324,38 +336,65 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct param_cod
     {
+      // serves for both COD and COC markers
+
       friend ::ojph::param_cod;
+      ////////////////////////////////////////
       enum BLOCK_CODING_STYLES {
         VERT_CAUSAL_MODE = 0x8,
         HT_MODE = 0x40
       };
-    public:
+      ////////////////////////////////////////
+      enum cod_type : ui8 {
+        UNDEFINED = 0,
+        COD_MAIN  = 1,
+        COC_MAIN  = 2,
+        COD_TILE  = 3,
+        COC_TILE  = 4
+      };
+      ////////////////////////////////////////
+      enum dwt_type : ui8 {
+        DWT_IRV97 = 0,
+        DWT_REV53 = 1,
+      };
+
+    public: // COD_MAIN and COC_MAIN common functions
+      ////////////////////////////////////////
       param_cod()
       {
         memset(this, 0, sizeof(param_cod));
         SPcod.block_style = HT_MODE;
-        SGCod.prog_order = 2;
+        SGCod.prog_order = OJPH_PO_RPCL;
         SGCod.num_layers = 1;
         SGCod.mc_trans = 0;
         SPcod.num_decomp = 5;
         SPcod.block_width = 4; //64
         SPcod.block_height = 4; //64
-        set_reversible(false);
       }
 
+      ////////////////////////////////////////
       void set_reversible(bool reversible)
       {
-        SPcod.wavelet_trans = reversible ? 1 : 0;
+        assert(type == UNDEFINED || type == COD_MAIN);
+        type = COD_MAIN;
+        SPcod.wavelet_trans = reversible ? DWT_REV53 : DWT_IRV97;
       }
 
+      ////////////////////////////////////////
       void employ_color_transform(ui8 val)
       {
         assert(val == 0 || val == 1);
+        assert(type == UNDEFINED || type == COD_MAIN);
+        type = COD_MAIN;
         SGCod.mc_trans = val;
       }
 
+      ////////////////////////////////////////
       void check_validity(const param_siz& siz)
       {
+        assert(type == UNDEFINED || type == COD_MAIN);
+        type = COD_MAIN;
+
         //check that colour transform and match number of components and
         // downsampling
         int num_comps = siz.get_num_components();
@@ -393,50 +432,97 @@ namespace ojph {
         }
       }
 
+      ////////////////////////////////////////
       ui8 get_num_decompositions() const
-      { return SPcod.num_decomp; }
-      size get_block_dims() const
       {
-        return size(1 << (SPcod.block_width + 2),
-                    1 << (SPcod.block_height + 2));
+        if (type == COD_MAIN)
+          return SPcod.num_decomp;
+        else if (type == COC_MAIN)
+        {
+          if (is_dfs_defined())
+            return parent->get_num_decompositions();
+          else
+            return SPcod.num_decomp;
+        }
+        else {
+          assert(0);
+          return 0; // just in case
+        }
       }
-      bool is_reversible() const
-      { return (SPcod.wavelet_trans == 1); }
+
+      ////////////////////////////////////////
+      size get_block_dims() const
+      { return SPcod.get_block_dims(); }
+
+      ////////////////////////////////////////
+      size get_log_block_dims() const
+      { return SPcod.get_log_block_dims(); }
+
+      ////////////////////////////////////////
+      ui8 get_wavelet_kern() const
+      { return SPcod.wavelet_trans; }
+
+      ////////////////////////////////////////
       bool is_employing_color_transform() const
       { return (SGCod.mc_trans == 1); }
-      size get_log_block_dims() const
-      { return size(SPcod.block_width + 2, SPcod.block_height + 2); }
+
+      ////////////////////////////////////////
       size get_precinct_size(ui32 res_num) const
       {
         size t = get_log_precinct_size(res_num);
-        t.w = 1 << t.w;
-        t.h = 1 << t.h;
-        return t;
+        return size(1 << t.w, 1 << t.h);
       }
+
+      ////////////////////////////////////////
       size get_log_precinct_size(ui32 res_num) const
-      {
-        assert(res_num <= SPcod.num_decomp);
-        size ps(15, 15);
+      { 
         if (Scod & 1)
-        {
-          ps.w = SPcod.precinct_size[res_num] & 0xF;
-          ps.h = SPcod.precinct_size[res_num] >> 4;
-        }
-        return ps;
+          return SPcod.get_log_precinct_size(res_num);
+        else
+          return size(15, 15);
       }
+
+      ////////////////////////////////////////
       bool packets_may_use_sop() const
       { return (Scod & 2) == 2; }
+
+      ////////////////////////////////////////
       bool packets_use_eph() const
       { return (Scod & 4) == 4; }
 
+      ////////////////////////////////////////
       bool write(outfile_base *file);
-      void read(infile_base *file);
 
-    private:
-      ui16 Lcod;
-      ui8 Scod;
-      cod_SGcod SGCod;
-      cod_SPcod SPcod;
+      ////////////////////////////////////////
+      void read(infile_base *file, cod_type type);
+
+      ////////////////////////////////////////
+      void read(infile_base* file, cod_type type, ui32 num_comps, 
+                param_cod* cod);
+
+      ////////////////////////////////////////
+      void update_atk(const param_atk* atk);
+
+    public: // COC_MAIN only functions
+      ////////////////////////////////////////
+      bool is_dfs_defined() const 
+      { return (SPcod.num_decomp & 0x80) != 0; }
+
+      ////////////////////////////////////////
+      ui16 get_dfs_index() const  // cannot be more than 15
+      { return SPcod.num_decomp & 0xF; }
+
+    private: // Common variables
+      cod_type type;        // The type of this cod structure
+      ui16 Lcod;            // serves as Lcod and Scod
+      ui8 Scod;             // serves as Scod and Scoc
+      cod_SGcod SGCod;      // Used in COD and copied to COC
+      cod_SPcod SPcod;      // serves as SPcod and SPcoc
+
+    private: // COC only variables
+      param_cod* parent;    // parent COD structure
+      ui16 comp_idx;        // component index of this COC structure
+      const param_atk* atk; // useful when SPcod.wavelet_trans > 1
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -452,11 +538,7 @@ namespace ojph {
     public:
       param_qcd()
       { 
-        Lqcd = 0;
-        Sqcd = 0;
-        for (int i = 0; i < 97; ++i)
-          u16_SPqcd[i] = 0;
-        num_subbands = 0;
+        memset(this, 0, sizeof(param_qcd));
         base_delta = -1.0f;
       }
 
@@ -466,7 +548,7 @@ namespace ojph {
       {
         int num_decomps = cod.get_num_decompositions();
         num_subbands = 1 + 3 * num_decomps;
-        if (cod.is_reversible())
+        if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
         {
           ui32 bit_depth = 0;
           for (ui32 i = 0; i < siz.get_num_components(); ++i)
@@ -474,7 +556,7 @@ namespace ojph {
           set_rev_quant(num_decomps, bit_depth,
             cod.is_employing_color_transform());
         }
-        else
+        else if (cod.get_wavelet_kern() == param_cod::DWT_IRV97)
         {
           if (base_delta == -1.0f) {
             ui32 bit_depth = 0;
@@ -485,6 +567,8 @@ namespace ojph {
           }
           set_irrev_quant(num_decomps);
         }
+        else
+          assert(0);
       }
       ui32 get_num_guard_bits() const;
       ui32 get_MAGBp() const;
@@ -554,7 +638,7 @@ namespace ojph {
 
       void check_validity(const param_cod& cod, const param_qcd& qcd)
       {
-        if (cod.is_reversible())
+        if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
           Ccap[0] &= 0xFFDF;
         else
           Ccap[0] |= 0x0020;
@@ -648,18 +732,6 @@ namespace ojph {
       Ttlm_Ptlm_pair* pairs;
       ui32 num_pairs;
       ui32 next_pair_index;
-    };
-
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    //
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
-    struct param_coc : public param_cod
-    {
-
     };
 
     ///////////////////////////////////////////////////////////////////////////

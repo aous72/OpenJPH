@@ -758,7 +758,8 @@ namespace ojph {
           skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
         { 
-          cod.read(file); received_markers |= 1; 
+          cod.read(file, param_cod::COD_MAIN); 
+          received_markers |= 1;
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
           if (num_qlayers != 1)
@@ -766,21 +767,32 @@ namespace ojph {
               "1 quality layer only.  This codestream has %d quality layers",
               num_qlayers);
         }
-        else if (marker_idx == 4)
-          skip_marker(file, "COC", "COC is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
-        else if (marker_idx == 5)
-        { qcd.read(file); received_markers |= 2; }
-        else if (marker_idx == 6)
+        else if (marker_idx == 4) 
+        {
+          ui32 num_comps = siz.get_num_components();
+          if (coc == coc_store && 
+              num_comps * sizeof(param_cod) > sizeof(coc_store))
           {
-            ui32 num_comps = siz.get_num_components();
-            if (qcc == qcc_store && 
-                num_comps * sizeof(param_qcc) > sizeof(qcc_store))
-            {
-              qcc = new param_qcc[num_comps];
-            }
-            qcc[used_qcc_fields++].read(file, num_comps);
+            coc = new param_cod[num_comps];
           }
+          coc[used_coc_fields++].read(
+            file, param_cod::COC_MAIN, num_comps, &cod);
+        }
+        else if (marker_idx == 5)
+        { 
+          qcd.read(file); 
+          received_markers |= 2; 
+        }
+        else if (marker_idx == 6)
+        {
+          ui32 num_comps = siz.get_num_components();
+          if (qcc == qcc_store && 
+              num_comps * sizeof(param_qcc) > sizeof(qcc_store))
+          {
+            qcc = new param_qcc[num_comps];
+          }
+          qcc[used_qcc_fields++].read(file, num_comps);
+        }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
             OJPH_MSG_LEVEL::WARN, false);
@@ -816,7 +828,9 @@ namespace ojph {
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
 
-      //qcd.update(&dfs);
+      cod.update_atk(&atk);
+      for (int i = 0; i < used_coc_fields; ++i)
+        coc[i].update_atk(&atk);
 
       if (received_markers != 3)
         OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");

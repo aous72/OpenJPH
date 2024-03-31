@@ -1551,15 +1551,14 @@ namespace ojph {
     {
       int coeff_type = get_coeff_type();
       if (coeff_type == 0) {
-        ui8 v;
+        si8 v;
         if (file->read(&v, 1) != 1) return false;
         K = v;
       }
       else if (coeff_type == 1) {
-        ui16 v;
+        si16 v;
         if (file->read(&v, 2) != 2) return false;
-        v = swap_byte(v);
-        K = v;
+        K = (si16)swap_byte((ui16)v);
       }
       else
         return false;

@@ -166,7 +166,7 @@ namespace ojph {
       //allocate lines
       if (skipped_res_for_recon == false)
       {
-        bool reversible = (cdp->get_wavelet_kern() == param_cod::DWT_REV53);
+        bool reversible = cdp->access_atk()->is_reversible();
         ui32 num_lines = reversible ? 4 : 6;
         allocator->pre_alloc_obj<line_buf>(num_lines);
 
@@ -321,7 +321,7 @@ namespace ojph {
       //allocate lines
       if (skipped_res_for_recon == false)
       {
-        this->reversible = cdp->get_wavelet_kern() == param_cod::DWT_REV53;
+        this->reversible = cdp->access_atk()->is_reversible();
         this->num_lines = this->reversible ? 4 : 6;
         lines = allocator->post_alloc_obj<line_buf>(num_lines);
 

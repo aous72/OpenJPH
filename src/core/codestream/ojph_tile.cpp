@@ -214,7 +214,7 @@ namespace ojph {
 
       //allocate lines
       const param_cod* cdp = codestream->get_cod();
-      this->reversible = cdp->get_wavelet_kern() == param_cod::DWT_REV53;
+      this->reversible = cdp->access_atk()->is_reversible();
       this->employ_color_transform = cdp->is_employing_color_transform();
       if (this->employ_color_transform)
       {

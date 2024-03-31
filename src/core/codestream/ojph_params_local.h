@@ -503,6 +503,9 @@ namespace ojph {
       ////////////////////////////////////////
       void update_atk(const param_atk* atk);
 
+      ////////////////////////////////////////
+      const param_atk* access_atk() const { return atk; }
+
     public: // COC_MAIN only functions
       ////////////////////////////////////////
       bool is_dfs_defined() const 
@@ -814,7 +817,10 @@ namespace ojph {
     public: // member functions
       param_atk() { init(); }
       ~param_atk() {
-        if (next) delete next;
+        if (next && alloced_next) {
+          delete next;
+          next = NULL;
+        }
         if (d != NULL && d != d_store) {
           delete[] d;
           init(false);
@@ -828,13 +834,17 @@ namespace ojph {
           memset(this, 0, sizeof(param_atk));
         d = d_store; max_steps = sizeof(d_store) / sizeof(data); 
       }
+      void init_irv97();
+      void init_rev53();
+      void link(param_atk* next) 
+      { assert(this->next == NULL); this->next = next; alloced_next = false; }
 
       ui8 get_index() const { return (ui8)(Satk & 0xFF); }
       int get_coeff_type() const { return (Satk >> 8) & 0x7; }
       bool is_whole_sample() const { return (Satk & 0x800) != 0; }
       bool is_reversible() const { return (Satk & 0x1000) != 0; }
       bool is_m_init0() const { return (Satk & 0x2000) == 0; }
-      bool is_using_ws_extension() const { return (Satk & 0x4000) != 0x4000; }
+      bool is_using_ws_extension() const { return (Satk & 0x4000) != 0; }
       const param_atk* get_atk(int index) const;
       const data* get_step(ui32 s) const { assert(s < Natk); return d + s; }
 
@@ -848,6 +858,8 @@ namespace ojph {
       data d_store[6];   // step coefficient
       param_atk* next;   // used for chaining if more than one atk segment
                          // exist in the codestream
+      bool alloced_next; // true if next was allocated, not just set to an
+                         // existing object
     };
   } // !local namespace
 } // !ojph namespace

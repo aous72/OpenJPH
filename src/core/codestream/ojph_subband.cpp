@@ -112,7 +112,7 @@ namespace ojph {
       this->parent = res;
 
       const param_cod* cdp = codestream->get_cod();
-      this->reversible = cdp->get_wavelet_kern() == param_cod::DWT_REV53;
+      this->reversible = cdp->access_atk()->is_reversible();
       size log_cb = cdp->get_log_block_dims();
       log_PP = cdp->get_log_precinct_size(res_num);
 

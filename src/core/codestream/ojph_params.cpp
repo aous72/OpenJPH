@@ -279,7 +279,7 @@ namespace ojph {
       return state->get_wavelet_kern() == local::param_cod::DWT_REV53;
     else {
       assert(state->atk != NULL);
-      return state->atk->is_reversible();
+      return state->access_atk()->is_reversible();
     }
   }
 
@@ -1578,6 +1578,7 @@ namespace ojph {
         while (p->next != NULL)
           p = p->next;
         p->next = new param_atk;
+        p->alloced_next = true;
         p = p->next;
         return p->read(file);
       }
@@ -1598,11 +1599,14 @@ namespace ojph {
       if (is_reversible() && get_coeff_type() >= 2) // reversible & float
         OJPH_ERROR(0x000500E5, "ATK-Satk parameter does not make sense. "
           "It employs floats with reversible filtering."); 
+      if (is_using_ws_extension() == false)  // only sym. ext is supported
+        OJPH_ERROR(0x000500E6, "ATK-Satk parameter requires constant "
+          "boundary extension, which is not supported yet.");
       if (is_reversible() == false) 
         if (read_coefficient(file, Katk) == false)
-          OJPH_ERROR(0x000500E6, "error reading ATK-Katk parameter"); 
+          OJPH_ERROR(0x000500E7, "error reading ATK-Katk parameter"); 
       if (file->read(&Natk, 1) != 1)
-        OJPH_ERROR(0x000500E7, "error reading ATK-Natk parameter");
+        OJPH_ERROR(0x000500E8, "error reading ATK-Natk parameter");
       if (Natk > max_steps) {
         if (d != d_store) // was this allocated -- very unlikely
           delete[] d;
@@ -1615,21 +1619,21 @@ namespace ojph {
         for (int s = 0; s < Natk; ++s)
         {
           if (file->read(&d[s].rev.Eatk, 1) != 1)
-            OJPH_ERROR(0x000500E8, "error reading ATK-Eatk parameter");           
+            OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");           
           if (file->read(&d[s].rev.Batk, 2) != 2)
-            OJPH_ERROR(0x000500E9, "error reading ATK-Batk parameter");           
+            OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");           
           d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
-            OJPH_ERROR(0x000500EA, "error reading ATK-LCatk parameter");
+            OJPH_ERROR(0x000500EB, "error reading ATK-LCatk parameter");
           if (LCatk == 0)
-            OJPH_ERROR(0x000500EB, "Encountered a ATK-LCatk value of zero; "
+            OJPH_ERROR(0x000500EC, "Encountered a ATK-LCatk value of zero; "
               "something is wrong.");
           if (LCatk > 1)
-            OJPH_ERROR(0x000500EC, "ATK-LCatk value greater than 1; "
+            OJPH_ERROR(0x000500ED, "ATK-LCatk value greater than 1; "
               "that is, a multitap filter is not supported");
           if (read_coefficient(file, d[s].rev.Aatk) == false)
-            OJPH_ERROR(0x000500ED, "Error reding ATK-Aatk parameter");
+            OJPH_ERROR(0x000500EE, "Error reding ATK-Aatk parameter");
         }
       }
       else
@@ -1638,19 +1642,47 @@ namespace ojph {
         {
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
-            OJPH_ERROR(0x000500EE, "error reading ATK-LCatk parameter");
+            OJPH_ERROR(0x000500EF, "error reading ATK-LCatk parameter");
           if (LCatk == 0)
-            OJPH_ERROR(0x000500EF, "Encountered a ATK-LCatk value of zero; "
+            OJPH_ERROR(0x000500F0, "Encountered a ATK-LCatk value of zero; "
               "something is wrong.");
           if (LCatk > 1)
-            OJPH_ERROR(0x000500F0, "ATK-LCatk value greater than 1; "
+            OJPH_ERROR(0x000500F1, "ATK-LCatk value greater than 1; "
               "that is, a multitap filter is not supported.");
           if (read_coefficient(file, d[s].irv.Aatk) == false)
-            OJPH_ERROR(0x000500F1, "Error reding ATK-Aatk parameter");
+            OJPH_ERROR(0x000500F2, "Error reding ATK-Aatk parameter");
         }
       }
 
       return true;
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_atk::init_irv97()
+    {
+      Satk = 0x4a00;     // illegal because ATK = 0
+      Katk = (float)1.230174104914001;
+      Natk = 4;
+      Latk = 5 + Natk + sizeof(float) * (1 + Natk); // (A-4) in T.801
+      d[0].irv.Aatk = (float)-1.586134342059924;
+      d[1].irv.Aatk = (float)-0.052980118572961;
+      d[2].irv.Aatk = (float)0.882911075530934;
+      d[3].irv.Aatk = (float)0.443506852043971;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_atk::init_rev53()
+    {
+      Satk = 0x5801;     // illegal because ATK = 1
+      Natk = 2;
+      Latk = 5 + 2 * Natk + sizeof(ui8) * (Natk + Natk); // (A-4) in T.801
+      d[0].rev.Aatk = -1;
+      d[0].rev.Batk = 0;
+      d[0].rev.Eatk = 1;
+      d[1].rev.Aatk = 1;
+      d[1].rev.Batk = 2;
+      d[1].rev.Eatk = 2;
+    }
+
   } // !local namespace
 }  // !ojph namespace

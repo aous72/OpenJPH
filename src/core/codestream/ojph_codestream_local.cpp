@@ -84,6 +84,12 @@ namespace ojph {
       used_coc_fields = 0;
       coc = coc_store;
 
+      atk = atk_store;
+      atk[0].init_irv97();
+      atk[0].link(atk_store + 1);
+      atk[1].init_rev53();
+      atk[1].link(atk_store + 2);
+
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
 
@@ -557,7 +563,8 @@ namespace ojph {
     {
       //finalize
       siz.check_validity();
-      cod.check_validity(siz);
+      cod.check_validity(siz);  
+      cod.update_atk(atk);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
       if (profile == OJPH_PN_IMF)
@@ -821,16 +828,16 @@ namespace ojph {
         else if (marker_idx == 14)
           dfs.read(file);
         else if (marker_idx == 15)
-          atk.read(file);
+          atk[2].read(file);
         else if (marker_idx == 16)
           break;
         else
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
 
-      cod.update_atk(&atk);
+      cod.update_atk(atk);
       for (int i = 0; i < used_coc_fields; ++i)
-        coc[i].update_atk(&atk);
+        coc[i].update_atk(atk);
 
       if (received_markers != 3)
         OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");

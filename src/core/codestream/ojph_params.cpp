@@ -876,7 +876,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_rev_quant(int num_decomps, ui32 bit_depth,
+    void param_qcd::set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
@@ -901,7 +901,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_irrev_quant(int num_decomps)
+    void param_qcd::set_irrev_quant(ui32 num_decomps)
     {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
@@ -1404,8 +1404,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    int param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
-                                   ui32 subband) const
+    ui32 param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
+                                    ui32 subband) const
     {
       assert((resolution == 0 && subband == 0) || 
               (resolution > 0 && resolution <= Ids && 
@@ -1413,7 +1413,7 @@ namespace ojph {
 
       ui32 ns[4] = { 0, 3, 2, 2 };
 
-      int idx = 0;
+      ui32 idx = 0;
       if (resolution > 0)
       {
         idx = 0;
@@ -1538,7 +1538,7 @@ namespace ojph {
         e <<= 23;                              // move bits to their location
         s.i = 0;
         s.i |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
-        s.i |= e;                              // copy exponent
+        s.i |= (ui32)e;                        // copy exponent
         s.i |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
         K = s.f;
       }

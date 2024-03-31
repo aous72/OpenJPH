@@ -126,7 +126,7 @@ namespace ojph {
       cur_cb_height = 0;
       param_qcd* qcd = codestream->access_qcd(parent->get_comp_num());
       const param_cod* cod = codestream->get_cod();
-      int num_decomps = cod->get_num_decompositions();
+      ui32 num_decomps = cod->get_num_decompositions();
       this->K_max = qcd->get_Kmax(NULL, num_decomps, this->res_num, band_num);
       if (!reversible)
       {

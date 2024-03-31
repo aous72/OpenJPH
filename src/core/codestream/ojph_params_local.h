@@ -541,7 +541,10 @@ namespace ojph {
     public:
       param_qcd()
       { 
-        memset(this, 0, sizeof(param_qcd));
+        Lqcd = 0;
+        Sqcd = 0;
+        memset(u16_SPqcd, 0, sizeof(u16_SPqcd));
+        num_subbands = 0;
         base_delta = -1.0f;
       }
 
@@ -549,7 +552,7 @@ namespace ojph {
 
       void check_validity(const param_siz& siz, const param_cod& cod)
       {
-        int num_decomps = cod.get_num_decompositions();
+        ui32 num_decomps = cod.get_num_decompositions();
         num_subbands = 1 + 3 * num_decomps;
         if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
         {
@@ -585,9 +588,9 @@ namespace ojph {
       void read(infile_base *file);
 
     protected:
-      void set_rev_quant(int num_decomps, ui32 bit_depth, 
+      void set_rev_quant(ui32 num_decomps, ui32 bit_depth, 
                          bool is_employing_color_transform);
-      void set_irrev_quant(int num_decomps);
+      void set_irrev_quant(ui32 num_decomps);
 
     protected:
       ui16 Lqcd;
@@ -766,8 +769,8 @@ namespace ojph {
       // decomp_level is the decomposition level, starting from 1 for highest
       // resolution to num_decomps for the coarsest resolution
       dfs_dwt_type get_dwt_type(ui32 decomp_level) const;
-      int get_subband_idx(ui32 num_decompositions, ui32 resolution, 
-                          ui32 subband) const;
+      ui32 get_subband_idx(ui32 num_decompositions, ui32 resolution,
+                           ui32 subband) const;
 
     private: // member variables
       ui16 Ldfs;       // length of the segment marker

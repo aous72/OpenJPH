@@ -860,15 +860,11 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_cod::update_atk(const param_atk* atk)
     {
-      if (SPcod.wavelet_trans > 1) {
-        this->atk = atk->get_atk(SPcod.wavelet_trans);
-        if (this->atk == NULL)
-          OJPH_ERROR(0x00050131, "A COD/COC segment employs the DWT kernel "
-            "atk=%d, but a corresponding ATK segment cannot be found", 
-            SPcod.wavelet_trans);
-      }
-      else
-        this->atk = NULL;
+      this->atk = atk->get_atk(SPcod.wavelet_trans);
+      if (this->atk == NULL)
+        OJPH_ERROR(0x00050131, "A COD/COC segment employs the DWT kernel "
+          "atk=%d, but a corresponding ATK segment cannot be found", 
+          SPcod.wavelet_trans);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1663,7 +1659,8 @@ namespace ojph {
       Satk = 0x4a00;     // illegal because ATK = 0
       Katk = (float)1.230174104914001;
       Natk = 4;
-      Latk = 5 + Natk + sizeof(float) * (1 + Natk); // (A-4) in T.801
+      // next is (A-4) in T.801 second line
+      Latk = (ui16)(5 + Natk + sizeof(float) * (1 + Natk));
       d[0].irv.Aatk = (float)-1.586134342059924;
       d[1].irv.Aatk = (float)-0.052980118572961;
       d[2].irv.Aatk = (float)0.882911075530934;
@@ -1675,7 +1672,8 @@ namespace ojph {
     {
       Satk = 0x5801;     // illegal because ATK = 1
       Natk = 2;
-      Latk = 5 + 2 * Natk + sizeof(ui8) * (Natk + Natk); // (A-4) in T.801
+      // next is (A-4) in T.801 fourth line
+      Latk = (ui16)(5 + 2 * Natk + sizeof(ui8) * (Natk + Natk));
       d[0].rev.Aatk = -1;
       d[0].rev.Batk = 0;
       d[0].rev.Eatk = 1;

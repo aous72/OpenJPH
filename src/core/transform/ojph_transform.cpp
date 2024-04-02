@@ -41,6 +41,8 @@
 #include "ojph_mem.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
+#include "ojph_params.h"
+#include "../codestream/ojph_params_local.h"
 
 namespace ojph {
   struct line_buf;
@@ -81,6 +83,24 @@ namespace ojph {
       (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even)
       = NULL;
 
+
+
+
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_vert_syn_step)
+      (const lifting_step* s, line_buf* aug, const line_buf* sig, 
+        line_buf* other, ui32 repeat) = NULL;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*rev_horz_syn)
+      (const param_atk* atk, line_buf* dst, line_buf* lsrc,
+        line_buf* hsrc, ui32 width, bool even) = NULL;
+
+
+
+
+    
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     /////////////////////////////////////////////////////////////////////////
@@ -105,6 +125,27 @@ namespace ojph {
       (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
       = NULL;
 
+
+
+
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irv_vert_syn_step)
+      (const lifting_step* s, line_buf* aug, const line_buf* sig,
+        line_buf* other, ui32 repeat) = NULL;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irv_vert_syn_K)(const float K, line_buf* aug, ui32 repeat) = NULL;
+
+    /////////////////////////////////////////////////////////////////////////
+    void (*irv_horz_syn)
+      (const param_atk* atk, line_buf* dst, line_buf* lsrc,
+        line_buf* hsrc, ui32 width, bool even) = NULL;
+
+
+
+
+
     ////////////////////////////////////////////////////////////////////////////
     static bool wavelet_transform_functions_initialized = false;
 
@@ -122,10 +163,18 @@ namespace ojph {
       rev_vert_wvlt_bwd_predict = gen_rev_vert_wvlt_bwd_predict;
       rev_vert_wvlt_bwd_update  = gen_rev_vert_wvlt_bwd_update;
       rev_horz_wvlt_bwd_tx      = gen_rev_horz_wvlt_bwd_tx;
+
+      rev_vert_syn_step         = gen_rev_vert_syn_step;
+      rev_horz_syn              = gen_rev_horz_syn;
+
       irrev_vert_wvlt_step      = gen_irrev_vert_wvlt_step;
       irrev_vert_wvlt_K         = gen_irrev_vert_wvlt_K;
       irrev_horz_wvlt_fwd_tx    = gen_irrev_horz_wvlt_fwd_tx;
       irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
+
+      irv_vert_syn_step         = gen_irv_vert_syn_step;
+      irv_vert_syn_K            = gen_irv_vert_syn_K;
+      irv_horz_syn              = gen_irv_horz_syn;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
       int level = get_cpu_ext_level();
@@ -326,6 +375,96 @@ namespace ojph {
     }
 
 
+
+
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_vert_syn_step(const lifting_step* s, line_buf* aug, 
+                               const line_buf* sig, line_buf* other, 
+                               ui32 repeat)
+    {
+      si32 a = s->rev.Aatk;
+      si32 b = s->rev.Batk;
+      ui32 e = s->rev.Eatk;
+
+      si32* dst = aug->i32;
+      const si32* src1 = sig->i32, * src2 = other->i32;
+      if (a >= 0)
+        for (ui32 i = repeat; i > 0; --i)
+          *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
+      else
+        for (ui32 i = repeat; i > 0; --i)
+          *dst++ += (b - a * (*src1++ + *src2++)) >> e;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_horz_syn(const param_atk *atk, line_buf* dst, line_buf *lsrc,
+                          line_buf *hsrc, ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        si32* oth = hsrc->i32, * aug = lsrc->i32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          si32 a = s->rev.Aatk;
+          si32 b = s->rev.Batk;
+          ui32 e = s->rev.Eatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const si32* sp = oth + (ev ? 0 : 1);
+          si32* dp = aug;
+          if (a >= 0)
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+          else
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp += (b - a * (sp[-1] + sp[0])) >> e;
+
+          // swap buffers
+          si32* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        si32* sph = hsrc->i32;
+        si32* spl = lsrc->i32;
+        si32* dp = dst->i32;
+        ui32 w = width;
+        if (!even)
+        {
+          *dp++ = *sph++; --w;
+        }
+        for (; w > 1; w -= 2)
+        {
+          *dp++ = *spl++; *dp++ = *sph++;
+        }
+        if (w)
+        {
+          *dp++ = *spl++; --w;
+        }
+      }
+      else {
+        if (even)
+          dst->i32[0] = lsrc->i32[0];
+        else
+          dst->i32[0] = hsrc->i32[0] >> 1;
+      }
+    }
+
+
+
+
+
     //////////////////////////////////////////////////////////////////////////
     void gen_irrev_vert_wvlt_step(const line_buf* line_src1,
                                   const line_buf* line_src2,
@@ -498,6 +637,102 @@ namespace ojph {
           line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
       }
     }
+
+
+
+
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_vert_syn_step(const lifting_step* s, line_buf* aug,
+                               const line_buf* sig, line_buf* other,
+                               ui32 repeat)
+    {
+      float a = s->irv.Aatk;
+
+      float* dst = aug->f32;
+      const float* src1 = sig->f32, * src2 = other->f32;
+      for (ui32 i = repeat; i > 0; --i)
+        *dst++ -= a * (*src1++ + *src2++);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_vert_syn_K(const float K, line_buf* aug, ui32 repeat)
+    {
+      float* dst = aug->f32;
+      for (ui32 i = repeat; i > 0; --i)
+        *dst++ *= K;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_horz_syn(const param_atk* atk, line_buf* dst, line_buf* lsrc,
+                          line_buf* hsrc, ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        float* oth = hsrc->f32, * aug = lsrc->f32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+
+        {
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          float* dp;
+
+          dp = aug;
+          for (ui32 i = aug_width; i > 0; --i)
+            *dp++ *= K;
+
+          dp = oth;
+          for (ui32 i = oth_width; i > 0; --i)
+            *dp++ *= K_inv;
+        }
+
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          float a = s->irv.Aatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const float* sp = oth + (ev ? 0 : 1);
+          float* dp = aug;
+          for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+            *dp -= a * (sp[-1] + sp[0]);
+
+          // swap buffers
+          float* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        float* sph = hsrc->f32;
+        float* spl = lsrc->f32;
+        float* dp = dst->f32;
+        ui32 w = width;
+        if (!even)
+        { *dp++ = *sph++; --w; }
+        for (; w > 1; w -= 2)
+        { *dp++ = *spl++; *dp++ = *sph++; }
+        if (w)
+        { *dp++ = *spl++; --w; }
+      }
+      else {
+        if (even)
+          dst->f32[0] = lsrc->f32[0];
+        else
+          dst->f32[0] = hsrc->f32[0] * 0.5f;
+      }
+    }
+
+
+
+
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 

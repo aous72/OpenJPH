@@ -64,7 +64,7 @@ namespace ojph {
       friend struct precinct;
     public:
       static void pre_alloc(codestream *codestream, const rect& band_rect,
-                            ui32 res_num);
+                            ui32 comp_num, ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& band_rect,
                           resolution* res, ui32 res_num, ui32 subband_num);
 

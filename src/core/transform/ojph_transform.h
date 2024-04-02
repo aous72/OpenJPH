@@ -44,6 +44,8 @@
 namespace ojph {
   struct line_buf;
   namespace local {
+    union lifting_step;
+    struct param_atk;
 
     //////////////////////////////////////////////////////////////////////////
     void init_wavelet_transform_functions();
@@ -80,6 +82,24 @@ namespace ojph {
     extern void (*rev_horz_wvlt_bwd_tx)
       (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even);
 
+
+
+
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*rev_vert_syn_step)
+      (const lifting_step* s, line_buf* aug, const line_buf* sig, 
+        line_buf* other, ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*rev_horz_syn)
+      (const param_atk* atk, line_buf* dst, line_buf* lsrc,
+        line_buf* hsrc, ui32 width, bool even);
+
+
+
+
+
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     /////////////////////////////////////////////////////////////////////////
@@ -101,6 +121,28 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     extern void (*irrev_horz_wvlt_bwd_tx)
       (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even);
+
+
+
+
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*irv_vert_syn_step)
+      (const lifting_step* s, line_buf* aug, const line_buf* sig, 
+        line_buf* other, ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*irv_vert_syn_K)
+      (const float K, line_buf* aug, ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*irv_horz_syn)
+      (const param_atk* atk, line_buf* dst, line_buf* lsrc,
+        line_buf* hsrc, ui32 width, bool even);
+
+
+
+
 
   }
 }

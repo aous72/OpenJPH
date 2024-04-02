@@ -824,12 +824,12 @@ namespace ojph {
         ui8 t;
         if (file->read(&t, 1) != 1)
           OJPH_ERROR(0x00050122, "error reading COC segment");
-        comp_idx = t;
+        comp_num = t;
       }
       else {
-        if (file->read(&comp_idx, 2) != 2)
+        if (file->read(&comp_num, 2) != 2)
           OJPH_ERROR(0x00050123, "error reading COC segment");
-        comp_idx = swap_byte(comp_idx);
+        comp_num = swap_byte(comp_num);
       }
       if (file->read(&Scod, 1) != 1)
         OJPH_ERROR(0x00050124, "error reading COC segment");
@@ -1393,8 +1393,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     param_dfs::dfs_dwt_type param_dfs::get_dwt_type(ui32 decomp_level) const
     { 
-      assert(decomp_level > 0 && decomp_level <= Ids);
-
       decomp_level = ojph_min(decomp_level, Ids);
       ui32 d = decomp_level - 1;          // decomp_level starts from 1
       ui32 idx = d >> 2;                  // complete bytes
@@ -1605,7 +1603,7 @@ namespace ojph {
       if (Natk > max_steps) {
         if (d != d_store) // was this allocated -- very unlikely
           delete[] d;
-        d = new data[Natk];
+        d = new lifting_step[Natk];
         max_steps = Natk;
       }
 

@@ -116,7 +116,7 @@ namespace ojph {
         recon_comp_rect.siz.w = recon_tcx1 - recon_tcx0;
         recon_comp_rect.siz.h = recon_tcy1 - recon_tcy0;
 
-        tile_comp::pre_alloc(codestream, comp_rect, recon_comp_rect);
+        tile_comp::pre_alloc(codestream, i, comp_rect, recon_comp_rect);
         width = ojph_max(width, recon_comp_rect.siz.w);
       }
 

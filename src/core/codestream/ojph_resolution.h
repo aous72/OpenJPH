@@ -64,14 +64,15 @@ namespace ojph {
 
     public:
       static void pre_alloc(codestream *codestream, const rect& res_rect,
-                            const rect& recon_res_rect, ui32 res_num);
+                            const rect& recon_res_rect, 
+                            ui32 comp_num, ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& res_rect,
                           const rect& recon_res_rect, ui32 comp_num,
                           ui32 res_num, point comp_downsamp,
                           tile_comp *parent_tile_comp,
                           resolution *parent_res);
 
-      line_buf* get_line() { return lines + 0; }
+      line_buf* get_line() { return ssp[0].line; }
       void push_line();
       line_buf* pull_line();
       rect get_rect() { return res_rect; }
@@ -90,14 +91,16 @@ namespace ojph {
 
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
-      ui32 num_lines;
+      ui32 num_steps;
       ui32 num_bands, res_num;
       ui32 comp_num;
       ui32 num_bytes; // number of bytes in this resolution 
                       // used for tilepart length
       point comp_downsamp;
-      rect res_rect;
-      line_buf *lines;
+      rect res_rect;                             // resolution rectangle
+      line_buf* lines;                           // used to store lines
+      lifting_buf *ssp;                          // step state pointer
+      lifting_buf *aug, *sig;
       subband *bands;
       tile_comp *parent_comp;
       resolution *parent_res, *child_res;
@@ -109,6 +112,8 @@ namespace ojph {
       int tag_tree_size;
       ui32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
+      const param_atk* atk;
+      param_dfs::dfs_dwt_type downsampling_style;
       //wavelet machinery
       ui32 cur_line;
       bool vert_even, horz_even;

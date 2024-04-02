@@ -515,6 +515,10 @@ namespace ojph {
       ui16 get_dfs_index() const  // cannot be more than 15
       { return SPcod.num_decomp & 0xF; }
 
+      ////////////////////////////////////////
+      ui32 get_comp_num()
+      { assert(type == COC_MAIN); return comp_num; }
+
     private: // Common variables
       cod_type type;        // The type of this cod structure
       ui16 Lcod;            // serves as Lcod and Scod
@@ -524,7 +528,7 @@ namespace ojph {
 
     private: // COC only variables
       param_cod* parent;    // parent COD structure
-      ui16 comp_idx;        // component index of this COC structure
+      ui16 comp_num;        // component index of this COC structure
       const param_atk* atk; // useful when SPcod.wavelet_trans > 1
     };
 
@@ -788,16 +792,9 @@ namespace ojph {
     //
     //
     ///////////////////////////////////////////////////////////////////////////
-    struct param_atk
-    {
-      // Limitations:
-      // Arbitrary filters (ARB) are not supported
-      // Up to 6 steps are supported -- more than 6 are not supported
-      // Only one coefficient per step -- first order filter
-      // Only even-indexed subsequence in first reconstruction step,
-      //   m_init = 0 is supported
+    // data structures used by param_atk
 
-    public: // data structures used by this object
+    union lifting_step {
       struct irv_data {
         // si8 Oatk;     // only for arbitrary filter
         // ui8 LCatk;    // number of lifting coefficients in a step
@@ -812,10 +809,18 @@ namespace ojph {
         si16 Aatk;       // lifting coefficient
       };
 
-      union data {
-        irv_data irv;
-        rev_data rev;
-      };
+      irv_data irv;
+      rev_data rev;
+    };
+
+    struct param_atk
+    {
+      // Limitations:
+      // Arbitrary filters (ARB) are not supported
+      // Up to 6 steps are supported -- more than 6 are not supported
+      // Only one coefficient per step -- first order filter
+      // Only even-indexed subsequence in first reconstruction step,
+      //   m_init = 0 is supported
 
     public: // member functions
       param_atk() { init(); }
@@ -835,7 +840,7 @@ namespace ojph {
       void init(bool clear_all = true) { 
         if (clear_all)
           memset(this, 0, sizeof(param_atk));
-        d = d_store; max_steps = sizeof(d_store) / sizeof(data); 
+        d = d_store; max_steps = sizeof(d_store) / sizeof(lifting_step);
       }
       void init_irv97();
       void init_rev53();
@@ -849,16 +854,19 @@ namespace ojph {
       bool is_m_init0() const { return (Satk & 0x2000) == 0; }
       bool is_using_ws_extension() const { return (Satk & 0x4000) != 0; }
       const param_atk* get_atk(int index) const;
-      const data* get_step(ui32 s) const { assert(s < Natk); return d + s; }
+      const lifting_step* get_step(ui32 s) const 
+      { assert(s < Natk); return d + s; }
+      const ui32 get_num_steps() const { return Natk; }
+      const float get_K() const { return Katk; }
 
     private: // member variables
       ui16 Latk;         // structure length
       ui16 Satk;         // carries a variety of information
       float Katk;        // only for irreversible scaling factor K
       ui8 Natk;          // number of lifting steps
-      data* d;           // pointer to data, initialized to d_store
+      lifting_step* d;   // pointer to data, initialized to d_store
       int max_steps;     // maximum number of steps without memory allocation
-      data d_store[6];   // step coefficient
+      lifting_step d_store[6];   // lifting step coefficient
       param_atk* next;   // used for chaining if more than one atk segment
                          // exist in the codestream
       bool alloced_next; // true if next was allocated, not just set to an

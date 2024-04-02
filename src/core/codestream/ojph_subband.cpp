@@ -55,7 +55,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
-                            ui32 res_num)
+                            ui32 comp_num, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -63,7 +63,7 @@ namespace ojph {
       if (empty)
         return;
 
-      const param_cod* cdp = codestream->get_cod();
+      const param_cod* cdp = codestream->get_cod(comp_num);
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
 
@@ -111,7 +111,7 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      const param_cod* cdp = codestream->get_cod();
+      const param_cod* cdp = codestream->get_cod(parent->get_comp_num());
       this->reversible = cdp->access_atk()->is_reversible();
       size log_cb = cdp->get_log_block_dims();
       log_PP = cdp->get_log_precinct_size(res_num);
@@ -125,8 +125,7 @@ namespace ojph {
       cur_line = 0;
       cur_cb_height = 0;
       param_qcd* qcd = codestream->access_qcd(parent->get_comp_num());
-      const param_cod* cod = codestream->get_cod();
-      ui32 num_decomps = cod->get_num_decompositions();
+      ui32 num_decomps = cdp->get_num_decompositions();
       this->K_max = qcd->get_Kmax(NULL, num_decomps, this->res_num, band_num);
       if (!reversible)
       {

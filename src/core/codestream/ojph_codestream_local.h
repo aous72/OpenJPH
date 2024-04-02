@@ -82,8 +82,19 @@ namespace ojph {
       { return &siz; }
       ojph::param_cod access_cod()            //return externally wrapped cod
       { return ojph::param_cod(&cod); }
-      const param_cod* get_cod() //return internal code
+      const param_cod* get_cod()              //return internal code
       { return &cod; }
+      const param_cod* get_cod(ui32 comp_num) //return internal code
+      { 
+        if (used_coc_fields == 0)
+          return &cod;
+        else {
+          for (int i = 0; i < used_coc_fields; ++i)
+            if (coc[i].get_comp_num() == comp_num)
+              return coc + i;
+          return &cod;
+        }
+      }
       param_qcd* access_qcd(ui32 comp_num)
       { 
         if (used_qcc_fields > 0)
@@ -92,6 +103,8 @@ namespace ojph {
               return qcc + v;
         return &qcd; 
       }
+      const param_dfs* access_dfs()
+      { if (dfs.exists()) return &dfs; else return NULL; }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
       outfile_base* get_file() { return outfile; }

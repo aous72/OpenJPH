@@ -72,7 +72,7 @@ namespace ojph {
                           tile_comp *parent_tile_comp,
                           resolution *parent_res);
 
-      line_buf* get_line() { return ssp[0].line; }
+      line_buf* get_line();
       void push_line();
       line_buf* pull_line();
       rect get_rect() { return res_rect; }

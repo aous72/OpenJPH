@@ -856,8 +856,8 @@ namespace ojph {
       const param_atk* get_atk(int index) const;
       const lifting_step* get_step(ui32 s) const 
       { assert(s < Natk); return d + s; }
-      const ui32 get_num_steps() const { return Natk; }
-      const float get_K() const { return Katk; }
+      ui32 get_num_steps() const { return Natk; }
+      float get_K() const { return Katk; }
 
     private: // member variables
       ui16 Latk;         // structure length

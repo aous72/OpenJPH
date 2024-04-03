@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cmath>
+#include <new>
 
 #include "ojph_mem.h"
 #include "ojph_params.h"
@@ -54,48 +55,6 @@ namespace ojph {
 
   namespace local
   {
-
-    //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf* line1, line_buf* line2,
-                               line_buf* line3, line_buf* line4)
-    {
-      assert(line1->size == line2->size &&
-             line1->pre_size == line2->pre_size &&
-             line1->size == line3->size &&
-             line1->pre_size == line3->pre_size &&
-             line1->size == line4->size &&
-             line1->pre_size == line4->pre_size);
-      si32* p = line4->i32;
-      line4->i32 = line3->i32;
-      line3->i32 = line2->i32;
-      line2->i32 = line1->i32;
-      line1->i32 = p;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf* line1, line_buf* line2,
-                               line_buf* line3, line_buf* line4,
-                               line_buf* line5, line_buf* line6)
-    {
-      assert(line1->size == line2->size &&
-             line1->pre_size == line2->pre_size &&
-             line1->size == line3->size &&
-             line1->pre_size == line3->pre_size &&
-             line1->size == line4->size &&
-             line1->pre_size == line4->pre_size &&
-             line1->size == line5->size &&
-             line1->pre_size == line5->pre_size &&
-             line1->size == line6->size &&
-             line1->pre_size == line6->pre_size);
-      si32* p = line6->i32;
-      line6->i32 = line5->i32;
-      line5->i32 = line4->i32;
-      line4->i32 = line3->i32;
-      line3->i32 = line2->i32;
-      line2->i32 = line1->i32;
-      line1->i32 = p;
-    }
-
     //////////////////////////////////////////////////////////////////////////
     void resolution::pre_alloc(codestream* codestream, const rect& res_rect,
                                const rect& recon_res_rect, 

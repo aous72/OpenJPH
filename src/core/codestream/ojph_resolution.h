@@ -116,6 +116,7 @@ namespace ojph {
       param_dfs::dfs_dwt_type downsampling_style;
       //wavelet machinery
       ui32 cur_line;
+      ui32 rows_to_produce;
       bool vert_even, horz_even;
       mem_elastic_allocator *elastic;
     };

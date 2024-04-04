@@ -361,6 +361,7 @@ namespace ojph {
         aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
 
         cur_line = 0;
+        rows_to_produce = res_rect.siz.h;
         vert_even = (res_rect.org.y & 1) == 0;
         horz_even = (res_rect.org.x & 1) == 0;
       }
@@ -406,7 +407,6 @@ namespace ojph {
             return;
           }
 
-          bool finished;
           do
           {
             //vertical transform
@@ -423,14 +423,13 @@ namespace ojph {
               lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
             }
 
-            finished = true;
             if (aug->active) {
               rev_horz_ana(atk, bands[2].get_line(),
                 bands[3].get_line(), aug->line, width, horz_even);
               bands[2].push_line();
               bands[3].push_line();
               aug->active = false;
-              finished = false;
+              --rows_to_produce;
             }
             if (sig->active) {
               rev_horz_ana(atk, child_res->get_line(),
@@ -438,14 +437,15 @@ namespace ojph {
               bands[1].push_line();
               child_res->push_line();
               sig->active = false;
-              finished = false;
+              --rows_to_produce;
             };
             vert_even = !vert_even;
-          } while (cur_line >= res_rect.siz.h && !finished);
+          } while (cur_line >= res_rect.siz.h && rows_to_produce > 0);
         }
         else
         {
           if (vert_even) {
+            // horizontal transform
             rev_horz_ana(atk, child_res->get_line(),
               bands[1].get_line(), sig->line, width, horz_even);
             bands[1].push_line();
@@ -453,9 +453,11 @@ namespace ojph {
           }
           else
           {
+            // vertical transform
             si32* sp = aug->line->i32;
             for (ui32 i = width; i > 0; --i)
               *sp++ <<= 1;
+            // horizontal transform
             rev_horz_ana(atk, bands[2].get_line(),
               bands[3].get_line(), aug->line, width, horz_even);
             bands[2].push_line();
@@ -472,7 +474,6 @@ namespace ojph {
             return;
           }
 
-          bool finished;
           do
           {
             //vertical transform
@@ -489,7 +490,6 @@ namespace ojph {
               lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
             }
 
-            finished = true;
             if (aug->active) {
               const float K = atk->get_K();
               irv_vert_times_K(K, aug->line, width);
@@ -499,7 +499,7 @@ namespace ojph {
               bands[2].push_line();
               bands[3].push_line();
               aug->active = false;
-              finished = false;
+              --rows_to_produce;
             }
             if (sig->active) {
               const float K_inv = 1.0f / atk->get_K();
@@ -510,14 +510,15 @@ namespace ojph {
               bands[1].push_line();
               child_res->push_line();
               sig->active = false;
-              finished = false;
+              --rows_to_produce;
             };
             vert_even = !vert_even;
-          } while (cur_line >= res_rect.siz.h && !finished);
+          } while (cur_line >= res_rect.siz.h && rows_to_produce > 0);
         }
         else
         {
           if (vert_even) {
+            // horizontal transform
             irv_horz_ana(atk, child_res->get_line(),
               bands[1].get_line(), sig->line, width, horz_even);
             bands[1].push_line();
@@ -525,9 +526,11 @@ namespace ojph {
           }
           else
           {
+            // vertical transform
             float* sp = aug->line->f32;
             for (ui32 i = width; i > 0; --i)
               *sp++ *= 2.0f;
+            // horizontal transform
             irv_horz_ana(atk, bands[2].get_line(),
               bands[3].get_line(), aug->line, width, horz_even);
             bands[2].push_line();

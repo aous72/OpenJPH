@@ -150,12 +150,14 @@ namespace ojph {
             cb_size.w, cb_size.h, stride, stripe_causal);
 
         if (result == false)
-          {
-            if (resilient == true)
-              zero_block = true;
-            else
-              OJPH_ERROR(0x000300A1, "Error decoding a codeblock\n");
+        {
+          if (resilient == true) {
+            OJPH_INFO(0x000300A1, "Error decoding a codeblock\n");
+            zero_block = true;
           }
+          else
+            OJPH_ERROR(0x000300A1, "Error decoding a codeblock\n");
+        }
       }
       else
         zero_block = true;

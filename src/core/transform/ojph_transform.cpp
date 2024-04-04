@@ -752,8 +752,8 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irv_vert_ana_step(const lifting_step* s, const line_buf* aug, 
-                               const line_buf* sig, const line_buf* other, 
+    void gen_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                               const line_buf* other, const line_buf* aug, 
                                ui32 repeat)
     {
       float a = s->irv.Aatk;

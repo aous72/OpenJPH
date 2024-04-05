@@ -332,6 +332,30 @@ namespace ojph {
       if (may_use_sop)
         bb_skip_sop(&bb);
 
+      if (num_bands == 3)
+      {
+        if (bands[1].empty && bands[2].empty && bands[3].empty)
+        {
+          ui32 bit = 0;
+          bb_read_bit(&bb, bit);
+          bb_terminate(&bb, uses_eph);
+          assert(bit == 0);
+          return;
+        }
+      }
+      else
+      {
+        if (bands[0].empty)
+        {
+          ui32 bit = 0;
+          bb_read_bit(&bb, bit);
+          bb_terminate(&bb, uses_eph);
+          assert(bit == 0);
+          return;
+        }
+      }
+
+
       int sst = num_bands == 3 ? 1 : 0;
       int send = num_bands == 3 ? 4 : 1;
       bool empty_packet = true;

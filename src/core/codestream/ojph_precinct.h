@@ -69,7 +69,7 @@ namespace ojph {
                  ui32& data_left, infile_base *file, bool skipped);
 
       ui8 *scratch;
-      point img_point;   //the precinct projected to full resolution
+      point img_point; //the precinct projected to full resolution
       rect cb_idxs[4]; //indices of codeblocks
       subband *bands;  //the subbands
       coded_lists* coded;

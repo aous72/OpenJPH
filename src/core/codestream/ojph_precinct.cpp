@@ -341,11 +341,12 @@ namespace ojph {
         return;
       }
 
-      int sst = num_bands == 3 ? 1 : 0;
-      int send = num_bands == 3 ? 4 : 1;
       bool empty_packet = true;
-      for (int s = sst; s < send; ++s)
+      for (int s = 0; s < 4; ++s)
       {
+        if (bands[s].empty)
+          continue;
+
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
@@ -505,8 +506,10 @@ namespace ojph {
       }
       bb_terminate(&bb, uses_eph);
       //read codeblock data
-      for (int s = sst; s < send; ++s)
+      for (int s = 0; s < 4; ++s)
       {
+        if (bands[s].empty)
+          continue;
         ui32 band_width = bands[s].num_blocks.w;
         ui32 width = cb_idxs[s].siz.w;
         ui32 height = cb_idxs[s].siz.h;

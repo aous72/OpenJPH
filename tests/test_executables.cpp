@@ -44,7 +44,7 @@
 // STATIC                         ojph_popen
 ////////////////////////////////////////////////////////////////////////////////
 static inline
-FILE *ojph_popen(const char *command, const char *modes) 
+FILE* ojph_popen(const char* command, const char* modes)
 {
 #ifdef OJPH_COMPILER_MSVC
   return _popen(command, modes);
@@ -57,7 +57,7 @@ FILE *ojph_popen(const char *command, const char *modes)
 // STATIC                         ojph_pclose
 ////////////////////////////////////////////////////////////////////////////////
 static inline
-int ojph_pclose(FILE *stream) 
+int ojph_pclose(FILE* stream)
 {
 #ifdef OJPH_COMPILER_MSVC
   return _pclose(stream);
@@ -69,16 +69,16 @@ int ojph_pclose(FILE *stream)
 ////////////////////////////////////////////////////////////////////////////////
 // STATIC                           execute
 ////////////////////////////////////////////////////////////////////////////////
-static 
-int execute(const std::string& cmd, std::string& result) 
+static
+int execute(const std::string& cmd, std::string& result)
 {
   std::array<char, 128> buffer;
   result.clear();
 
   FILE* pipe = ojph_popen(cmd.c_str(), "r");
-  if (!pipe) 
+  if (!pipe)
     throw std::runtime_error("ojph_popen() failed!");
-  
+
   while (!feof(pipe))
     if (fgets(buffer.data(), 128, pipe) != nullptr)
       result += buffer.data();
@@ -94,21 +94,21 @@ int execute(const std::string& cmd, std::string& result)
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef OJPH_OS_WINDOWS
-	#define SRC_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\"
-	#define OUT_FILE_DIR ".\\"
-	#define REF_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\references\\"
-	#define MSE_PAE_PATH  ".\\mse_pae"
-	#define COMPARE_FILES_PATH  ".\\compare_files"
-	#define EXPAND_EXECUTABLE ".\\ojph_expand.exe"
-	#define COMPRESS_EXECUTABLE ".\\ojph_compress.exe"
+#define SRC_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\"
+#define OUT_FILE_DIR ".\\"
+#define REF_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\references\\"
+#define MSE_PAE_PATH  ".\\mse_pae"
+#define COMPARE_FILES_PATH  ".\\compare_files"
+#define EXPAND_EXECUTABLE ".\\ojph_expand.exe"
+#define COMPRESS_EXECUTABLE ".\\ojph_compress.exe"
 #else
-	#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
-	#define OUT_FILE_DIR "./"
-	#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
-	#define MSE_PAE_PATH  "./mse_pae"
-	#define COMPARE_FILES_PATH  "./compare_files"
-	#define EXPAND_EXECUTABLE "./ojph_expand"
-	#define COMPRESS_EXECUTABLE "./ojph_compress"
+#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
+#define OUT_FILE_DIR "./"
+#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
+#define MSE_PAE_PATH  "./mse_pae"
+#define COMPARE_FILES_PATH  "./compare_files"
+#define EXPAND_EXECUTABLE "./ojph_expand"
+#define COMPRESS_EXECUTABLE "./ojph_compress"
 #endif
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1
@@ -116,22 +116,22 @@ int execute(const std::string& cmd, std::string& result)
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_compress
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_compress(const std::string& ref_filename, 
-                       const std::string& base_filename, 
-                       const std::string& extended_base_fname, 
-                       const std::string& out_ext,
-                       const std::string& extra_options)
+void run_ojph_compress(const std::string& ref_filename,
+  const std::string& base_filename,
+  const std::string& extended_base_fname,
+  const std::string& out_ext,
+  const std::string& extra_options)
 {
   try {
     std::string result, command;
-    command = std::string(COMPRESS_EXECUTABLE) 
+    command = std::string(COMPRESS_EXECUTABLE)
       + " -i " + REF_FILE_DIR + ref_filename
-      + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname + 
+      + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname +
       "." + out_ext + " " + extra_options;
     std::cerr << command << std::endl;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -139,18 +139,18 @@ void run_ojph_compress(const std::string& ref_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_expand
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_expand(const std::string& base_filename, 
-                     const std::string& src_ext,
-                     const std::string& out_ext)
+void run_ojph_expand(const std::string& base_filename,
+  const std::string& src_ext,
+  const std::string& out_ext)
 {
   try {
     std::string result, command;
-    command = std::string(EXPAND_EXECUTABLE) 
+    command = std::string(EXPAND_EXECUTABLE)
       + " -i " + SRC_FILE_DIR + base_filename + "." + src_ext
       + " -o " + OUT_FILE_DIR + base_filename + "." + out_ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -158,34 +158,34 @@ void run_ojph_expand(const std::string& base_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_compress
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_compress_expand(const std::string& base_filename, 
-                              const std::string& out_ext,
-                              const std::string& decode_ext)
+void run_ojph_compress_expand(const std::string& base_filename,
+  const std::string& out_ext,
+  const std::string& decode_ext)
 {
   try {
     std::string result, command;
-    command = std::string(EXPAND_EXECUTABLE) 
+    command = std::string(EXPAND_EXECUTABLE)
       + " -i " + OUT_FILE_DIR + base_filename + "." + out_ext
       + " -o " + OUT_FILE_DIR + base_filename + "." + decode_ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
-  }  
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                             run_mse_pae
 ////////////////////////////////////////////////////////////////////////////////
-void run_mse_pae(const std::string& base_filename, 
-                 const std::string& out_ext, 
-                 const std::string& ref_filename, 
-                 const std::string& yuv_specs,
-                 int num_components, double* mse, int* pae) 
+void run_mse_pae(const std::string& base_filename,
+  const std::string& out_ext,
+  const std::string& ref_filename,
+  const std::string& yuv_specs,
+  int num_components, double* mse, int* pae)
 {
   try {
     std::string result, command;
-    command = std::string(MSE_PAE_PATH) 
+    command = std::string(MSE_PAE_PATH)
       + " " + OUT_FILE_DIR + base_filename + "." + out_ext + yuv_specs
       + " " + REF_FILE_DIR + ref_filename + yuv_specs;
     EXPECT_EQ(execute(command, result), 0);
@@ -214,7 +214,7 @@ void run_mse_pae(const std::string& base_filename,
         ++pos;
     }
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -222,20 +222,20 @@ void run_mse_pae(const std::string& base_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                             compare_files
 ////////////////////////////////////////////////////////////////////////////////
-void compare_files(const std::string& base_filename, 
-                   const std::string& extended_base_fname, 
-                   const std::string& ext) 
+void compare_files(const std::string& base_filename,
+  const std::string& extended_base_fname,
+  const std::string& ext)
 {
   try {
     std::string result, command;
-    command = std::string(COMPARE_FILES_PATH) 
+    command = std::string(COMPARE_FILES_PATH)
       + " " + OUT_FILE_DIR + base_filename + extended_base_fname + "." + ext
       + " " + SRC_FILE_DIR + base_filename + "." + ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
-  }  
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -249,7 +249,7 @@ TEST(TestExecutables, OpenJPHCompressNoArguments) {
     std::string result;
     EXPECT_EQ(execute(COMPRESS_EXECUTABLE, result), 1);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -261,7 +261,7 @@ TEST(TestExecutables, OpenJPHExpandNoArguments) {
     std::string result;
     EXPECT_EQ(execute(EXPAND_EXECUTABLE, result), 1);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -275,11 +275,11 @@ TEST(TestExecutables, OpenJPHExpandNoArguments) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64.jph -precise -quiet -rate 0.5 -full
 TEST(TestExecutables, SimpleDecIrv9764x64) {
-  double mse[3] = { 39.2812, 36.3819, 47.642};
-  int pae[3] = { 74, 77, 73};
+  double mse[3] = { 39.2812, 36.3819, 47.642 };
+  int pae[3] = { 74, 77, 73 };
   run_ojph_expand("simple_dec_irv97_64x64", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -287,11 +287,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_32x32.jph -precise -quiet -rate 1 Cblk={32,32} -full
 TEST(TestExecutables, SimpleDecIrv9732x32) {
-  double mse[3] = { 18.6979, 17.1208, 22.7539};
-  int pae[3] = { 51, 48, 46};
+  double mse[3] = { 18.6979, 17.1208, 22.7539 };
+  int pae[3] = { 51, 48, 46 };
   run_ojph_expand("simple_dec_irv97_32x32", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_32x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -299,11 +299,11 @@ TEST(TestExecutables, SimpleDecIrv9732x32) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_16x16.jph -precise -quiet -rate 1 Cblk={16,16} -full
 TEST(TestExecutables, SimpleDecIrv9716x16) {
-  double mse[3] = { 20.1706, 18.5427, 24.6146};
-  int pae[3] = { 53, 51, 47};
+  double mse[3] = { 20.1706, 18.5427, 24.6146 };
+  int pae[3] = { 53, 51, 47 };
   run_ojph_expand("simple_dec_irv97_16x16", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_16x16", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -311,11 +311,11 @@ TEST(TestExecutables, SimpleDecIrv9716x16) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_4x4.jph -precise -quiet -rate 1 Cblk={4,4} -full
 TEST(TestExecutables, SimpleDecIrv974x4) {
-  double mse[3] = { 40.8623, 37.9308, 49.7276};
-  int pae[3] = { 75, 77, 80};
+  double mse[3] = { 40.8623, 37.9308, 49.7276 };
+  int pae[3] = { 75, 77, 80 };
   run_ojph_expand("simple_dec_irv97_4x4", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_4x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -323,11 +323,11 @@ TEST(TestExecutables, SimpleDecIrv974x4) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_1024x4.jph -precise -quiet -rate 1 Cblk={1024,4} -full
 TEST(TestExecutables, SimpleDecIrv971024x4) {
-  double mse[3] = { 19.8275, 18.2511, 24.2832};
-  int pae[3] = { 53, 52, 50};
+  double mse[3] = { 19.8275, 18.2511, 24.2832 };
+  int pae[3] = { 53, 52, 50 };
   run_ojph_expand("simple_dec_irv97_1024x4", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_1024x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -335,11 +335,11 @@ TEST(TestExecutables, SimpleDecIrv971024x4) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_4x1024.jph -precise -quiet -rate 1 Cblk={4,1024} -full
 TEST(TestExecutables, SimpleDecIrv974x1024) {
-  double mse[3] = { 19.9635, 18.4063, 24.1719};
-  int pae[3] = { 51, 48, 51};
+  double mse[3] = { 19.9635, 18.4063, 24.1719 };
+  int pae[3] = { 51, 48, 51 };
   run_ojph_expand("simple_dec_irv97_4x1024", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_4x1024", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -347,11 +347,11 @@ TEST(TestExecutables, SimpleDecIrv974x1024) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_512x8.jph -precise -quiet -rate 1 Cblk={512,8} -full
 TEST(TestExecutables, SimpleDecIrv97512x8) {
-  double mse[3] = { 18.7929, 17.2026, 22.9922};
-  int pae[3] = { 53, 52, 50};
+  double mse[3] = { 18.7929, 17.2026, 22.9922 };
+  int pae[3] = { 53, 52, 50 };
   run_ojph_expand("simple_dec_irv97_512x8", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_512x8", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -359,11 +359,11 @@ TEST(TestExecutables, SimpleDecIrv97512x8) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_8x512.jph -precise -quiet -rate 1 Cblk={8,512} -full
 TEST(TestExecutables, SimpleDecIrv978x512) {
-  double mse[3] = { 19.3661, 17.8067, 23.4574};
-  int pae[3] = { 51, 48, 52};
+  double mse[3] = { 19.3661, 17.8067, 23.4574 };
+  int pae[3] = { 51, 48, 52 };
   run_ojph_expand("simple_dec_irv97_8x512", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_8x512", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -371,11 +371,11 @@ TEST(TestExecutables, SimpleDecIrv978x512) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_256x16.jph -precise -quiet -rate 1 Cblk={256,16} -full
 TEST(TestExecutables, SimpleDecIrv97256x16) {
-  double mse[3] = { 18.6355, 17.0963, 22.6076};
-  int pae[3] = { 54, 51, 48};
+  double mse[3] = { 18.6355, 17.0963, 22.6076 };
+  int pae[3] = { 54, 51, 48 };
   run_ojph_expand("simple_dec_irv97_256x16", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_256x16", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -383,11 +383,11 @@ TEST(TestExecutables, SimpleDecIrv97256x16) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_16x256.jph -precise -quiet -rate 1 Cblk={16,256} -full
 TEST(TestExecutables, SimpleDecIrv9716x256) {
-  double mse[3] = { 18.5933, 17.0208, 22.5709};
-  int pae[3] = { 51, 48, 47};
+  double mse[3] = { 18.5933, 17.0208, 22.5709 };
+  int pae[3] = { 51, 48, 47 };
   run_ojph_expand("simple_dec_irv97_16x256", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_16x256", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -395,11 +395,11 @@ TEST(TestExecutables, SimpleDecIrv9716x256) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_128x32.jph -precise -quiet -rate 1 Cblk={128,32} -full
 TEST(TestExecutables, SimpleDecIrv97128x32) {
-  double mse[3] = { 18.4443, 16.9133, 22.4193};
-  int pae[3] = { 52, 50, 46};
+  double mse[3] = { 18.4443, 16.9133, 22.4193 };
+  int pae[3] = { 52, 50, 46 };
   run_ojph_expand("simple_dec_irv97_128x32", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_128x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -407,11 +407,11 @@ TEST(TestExecutables, SimpleDecIrv97128x32) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_32x128.jph -precise -quiet -rate 1 Cblk={32,128} -full
 TEST(TestExecutables, SimpleDecIrv9732x128) {
-  double mse[3] = { 18.4874, 16.9379, 22.4855};
-  int pae[3] = { 51, 48, 45};
+  double mse[3] = { 18.4874, 16.9379, 22.4855 };
+  int pae[3] = { 51, 48, 45 };
   run_ojph_expand("simple_dec_irv97_32x128", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_32x128", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -419,11 +419,11 @@ TEST(TestExecutables, SimpleDecIrv9732x128) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64.jph -precise -quiet Creversible=yes -full
 TEST(TestExecutables, SimpleDecRev5364x64) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_64x64", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_64x64", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -432,11 +432,11 @@ TEST(TestExecutables, SimpleDecRev5364x64) {
 // -o simple_dec_rev53_32x32.jph -precise -quiet Creversible=yes Cblk={32,32}
 // -full
 TEST(TestExecutables, SimpleDecRev5332x32) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_32x32", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_32x32", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -445,11 +445,11 @@ TEST(TestExecutables, SimpleDecRev5332x32) {
 // -o simple_dec_rev53_4x4.jph -precise -quiet Creversible=yes Cblk={4,4}
 // -full
 TEST(TestExecutables, SimpleDecRev534x4) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_4x4", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_4x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -458,11 +458,11 @@ TEST(TestExecutables, SimpleDecRev534x4) {
 // -o simple_dec_rev53_1024x4.jph -precise -quiet Creversible=yes
 // Cblk={1024,4} -full
 TEST(TestExecutables, SimpleDecRev531024x4) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_1024x4", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_1024x4", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -471,11 +471,11 @@ TEST(TestExecutables, SimpleDecRev531024x4) {
 // -o simple_dec_rev53_4x1024.jph -precise -quiet Creversible=yes
 // Cblk={4,1024} -full
 TEST(TestExecutables, SimpleDecRev534x1024) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_4x1024", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_4x1024", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -486,11 +486,11 @@ TEST(TestExecutables, SimpleDecRev534x1024) {
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
 // Nprecision={8} Nsigned={no} -full
 TEST(TestExecutables, SimpleDecIrv9764x64Yuv) {
-  double mse[3] = { 20.2778, 6.27912, 4.15937};
-  int pae[3] = { 52, 22, 31};
+  double mse[3] = { 20.2778, 6.27912, 4.15937 };
+  int pae[3] = { 52, 22, 31 };
   run_ojph_expand("simple_dec_irv97_64x64_yuv", "jph", "yuv");
   run_mse_pae("simple_dec_irv97_64x64_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+    ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -501,11 +501,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64Yuv) {
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
 // Nprecision={8} Nsigned={no} -full
 TEST(TestExecutables, SimpleDecRev5364x64Yuv) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_64x64_yuv", "jph", "yuv");
   run_mse_pae("simple_dec_rev53_64x64_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+    ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -516,11 +516,11 @@ TEST(TestExecutables, SimpleDecRev5364x64Yuv) {
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
 // Nprecision={8} Nsigned={no} Stiles={33,257} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesYuv) {
-  double mse[3] = { 34.4972, 10.1112, 7.96331};
-  int pae[3] = { 67, 30, 39};
+  double mse[3] = { 34.4972, 10.1112, 7.96331 };
+  int pae[3] = { 67, 30, 39 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_yuv", "jph", "yuv");
   run_mse_pae("simple_dec_irv97_64x64_tiles_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+    ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -531,11 +531,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesYuv) {
 // Sdims={288,352},{144,176},{144,176} Ssampling={1,1},{2,2},{2,2}
 // Nprecision={8} Nsigned={no} Stiles={33,257} -full
 TEST(TestExecutables, SimpleDecRev5364x64TilesYuv) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_64x64_tiles_yuv", "jph", "yuv");
   run_mse_pae("simple_dec_rev53_64x64_tiles_yuv", "yuv", "foreman_420.yuv",
-              ":352x288x8x420", 3, mse, pae);
+    ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -545,11 +545,11 @@ TEST(TestExecutables, SimpleDecRev5364x64TilesYuv) {
 // Clevels=5 Corder=LRCP Cprecincts={2,256} Sorigin={374,1717}
 // Stile_origin={374,1717} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP) {
-  double mse[3] = { 71.8149, 68.7115, 89.4001};
-  int pae[3] = { 78, 78, 83};
+  double mse[3] = { 71.8149, 68.7115, 89.4001 };
+  int pae[3] = { 78, 78, 83 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -559,11 +559,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP) {
 // Clevels=5 Corder=RLCP Cprecincts={2,256} Sorigin={374,1717}
 // Stile_origin={374,1717} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP) {
-  double mse[3] = { 71.8149, 68.7115, 89.4001};
-  int pae[3] = { 78, 78, 83};
+  double mse[3] = { 71.8149, 68.7115, 89.4001 };
+  int pae[3] = { 78, 78, 83 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -573,11 +573,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP) {
 // Clevels=5 Corder=RPCL Cprecincts={2,256} Sorigin={374,1717}
 // Stile_origin={374,1717} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL) {
-  double mse[3] = { 71.8149, 68.7115, 89.4001};
-  int pae[3] = { 78, 78, 83};
+  double mse[3] = { 71.8149, 68.7115, 89.4001 };
+  int pae[3] = { 78, 78, 83 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -587,11 +587,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL) {
 // Clevels=5 Corder=PCRL Cprecincts={2,256} Sorigin={374,1717}
 // Stile_origin={374,1717} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL) {
-  double mse[3] = { 71.8149, 68.7115, 89.4001};
-  int pae[3] = { 78, 78, 83};
+  double mse[3] = { 71.8149, 68.7115, 89.4001 };
+  int pae[3] = { 78, 78, 83 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -601,11 +601,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL) {
 // Clevels=5 Corder=CPRL Cprecincts={2,256} Sorigin={374,1717}
 // Stile_origin={374,1717} -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL) {
-  double mse[3] = { 71.8149, 68.7115, 89.4001};
-  int pae[3] = { 78, 78, 83};
+  double mse[3] = { 71.8149, 68.7115, 89.4001 };
+  int pae[3] = { 78, 78, 83 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -615,11 +615,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL) {
 // Clevels=5 Corder=LRCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33) {
-  double mse[3] = { 56.2139, 51.4121, 69.0107};
-  int pae[3] = { 80, 81, 98};
+  double mse[3] = { 56.2139, 51.4121, 69.0107 };
+  int pae[3] = { 80, 81, 98 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -629,11 +629,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33) {
 // Clevels=5 Corder=RLCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33) {
-  double mse[3] = { 56.2139, 51.4121, 69.0107};
-  int pae[3] = { 80, 81, 98};
+  double mse[3] = { 56.2139, 51.4121, 69.0107 };
+  int pae[3] = { 80, 81, 98 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -643,11 +643,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33) {
 // Clevels=5 Corder=RPCL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33) {
-  double mse[3] = { 56.2139, 51.4121, 69.0107};
-  int pae[3] = { 80, 81, 98};
+  double mse[3] = { 56.2139, 51.4121, 69.0107 };
+  int pae[3] = { 80, 81, 98 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -657,11 +657,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33) {
 // Clevels=5 Corder=PCRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33) {
-  double mse[3] = { 56.2139, 51.4121, 69.0107};
-  int pae[3] = { 80, 81, 98};
+  double mse[3] = { 56.2139, 51.4121, 69.0107 };
+  int pae[3] = { 80, 81, 98 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -671,11 +671,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33) {
 // Clevels=5 Corder=CPRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,257}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33) {
-  double mse[3] = { 56.2139, 51.4121, 69.0107};
-  int pae[3] = { 80, 81, 98};
+  double mse[3] = { 56.2139, 51.4121, 69.0107 };
+  int pae[3] = { 80, 81, 98 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -685,11 +685,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33) {
 // Clevels=5 Corder=LRCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33x33) {
-  double mse[3] = { 210.283, 210.214, 257.276};
-  int pae[3] = { 165, 161, 166};
+  double mse[3] = { 210.283, 210.214, 257.276 };
+  int pae[3] = { 165, 161, 166 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_LRCP33x33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_LRCP33x33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -699,11 +699,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesLRCP33x33) {
 // Clevels=5 Corder=RLCP Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33x33) {
-  double mse[3] = { 210.283, 210.214, 257.276};
-  int pae[3] = { 165, 161, 166};
+  double mse[3] = { 210.283, 210.214, 257.276 };
+  int pae[3] = { 165, 161, 166 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RLCP33x33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RLCP33x33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -713,11 +713,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRLCP33x33) {
 // Clevels=5 Corder=RPCL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33x33) {
-  double mse[3] = { 210.283, 210.214, 257.276};
-  int pae[3] = { 165, 161, 166};
+  double mse[3] = { 210.283, 210.214, 257.276 };
+  int pae[3] = { 165, 161, 166 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_RPCL33x33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_RPCL33x33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -727,11 +727,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesRPCL33x33) {
 // Clevels=5 Corder=PCRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33x33) {
-  double mse[3] = { 210.283, 210.214, 257.276};
-  int pae[3] = { 165, 161, 166};
+  double mse[3] = { 210.283, 210.214, 257.276 };
+  int pae[3] = { 165, 161, 166 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_PCRL33x33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_PCRL33x33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -741,11 +741,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesPCRL33x33) {
 // Clevels=5 Corder=CPRL Sorigin={5,33} Stile_origin={5,10} Stiles={33,33}
 // -full
 TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33x33) {
-  double mse[3] = { 210.283, 210.214, 257.276};
-  int pae[3] = { 165, 161, 166};
+  double mse[3] = { 210.283, 210.214, 257.276 };
+  int pae[3] = { 165, 161, 166 };
   run_ojph_expand("simple_dec_irv97_64x64_tiles_CPRL33x33", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_tiles_CPRL33x33", "ppm", "Malamute.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -754,11 +754,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64TilesCPRL33x33) {
 // -o simple_dec_rev53_64x64_gray_tiles.jph -precise -quiet Creversible=yes
 // Clevels=5 Stiles={33,257} -full
 TEST(TestExecutables, SimpleDecRev5364x64GrayTiles) {
-  double mse[1] = { 0};
-  int pae[1] = { 0};
+  double mse[1] = { 0 };
+  int pae[1] = { 0 };
   run_ojph_expand("simple_dec_rev53_64x64_gray_tiles", "jph", "pgm");
   run_mse_pae("simple_dec_rev53_64x64_gray_tiles", "pgm", "monarch.pgm",
-              "", 1, mse, pae);
+    "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -767,11 +767,11 @@ TEST(TestExecutables, SimpleDecRev5364x64GrayTiles) {
 // -o simple_dec_irv97_64x64_gray_tiles.jph -precise -quiet -rate 0.5
 // Clevels=5 Stiles={33,257} -full
 TEST(TestExecutables, SimpleDecIrv9764x64GrayTiles) {
-  double mse[1] = { 18.9601};
-  int pae[1] = { 56};
+  double mse[1] = { 18.9601 };
+  int pae[1] = { 56 };
   run_ojph_expand("simple_dec_irv97_64x64_gray_tiles", "jph", "pgm");
   run_mse_pae("simple_dec_irv97_64x64_gray_tiles", "pgm", "monarch.pgm",
-              "", 1, mse, pae);
+    "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -779,11 +779,11 @@ TEST(TestExecutables, SimpleDecIrv9764x64GrayTiles) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_16bit.jph -precise -quiet -rate 0.5 -full
 TEST(TestExecutables, SimpleDecIrv9764x6416bit) {
-  double mse[3] = { 60507.2, 36672.5, 64809.8};
-  int pae[3] = { 2547, 1974, 1922};
+  double mse[3] = { 60507.2, 36672.5, 64809.8 };
+  int pae[3] = { 2547, 1974, 1922 };
   run_ojph_expand("simple_dec_irv97_64x64_16bit", "jph", "ppm");
   run_mse_pae("simple_dec_irv97_64x64_16bit", "ppm", "mm.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -791,11 +791,11 @@ TEST(TestExecutables, SimpleDecIrv9764x6416bit) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_irv97_64x64_16bit_gray.jph -precise -quiet -rate 0.5 -full
 TEST(TestExecutables, SimpleDecIrv9764x6416bitGray) {
-  double mse[1] = { 19382.9};
-  int pae[1] = { 1618};
+  double mse[1] = { 19382.9 };
+  int pae[1] = { 1618 };
   run_ojph_expand("simple_dec_irv97_64x64_16bit_gray", "jph", "pgm");
   run_mse_pae("simple_dec_irv97_64x64_16bit_gray", "pgm", "mm.pgm",
-              "", 1, mse, pae);
+    "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -803,11 +803,11 @@ TEST(TestExecutables, SimpleDecIrv9764x6416bitGray) {
 // Command-line options used to obtain this file is:
 // -o simple_dec_rev53_64x64_16bit.jph -precise -quiet Creversible=yes -full
 TEST(TestExecutables, SimpleDecRev5364x6416bit) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_expand("simple_dec_rev53_64x64_16bit", "jph", "ppm");
   run_mse_pae("simple_dec_rev53_64x64_16bit", "ppm", "mm.ppm",
-              "", 3, mse, pae);
+    "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -816,11 +816,11 @@ TEST(TestExecutables, SimpleDecRev5364x6416bit) {
 // -o simple_dec_rev53_64x64_16bit_gray.jph -precise -quiet Creversible=yes
 // -full
 TEST(TestExecutables, SimpleDecRev5364x6416bitGray) {
-  double mse[1] = { 0};
-  int pae[1] = { 0};
+  double mse[1] = { 0 };
+  int pae[1] = { 0 };
   run_ojph_expand("simple_dec_rev53_64x64_16bit_gray", "jph", "pgm");
   run_mse_pae("simple_dec_rev53_64x64_16bit_gray", "pgm", "mm.pgm",
-              "", 1, mse, pae);
+    "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -829,14 +829,14 @@ TEST(TestExecutables, SimpleDecRev5364x6416bitGray) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64.j2c -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv9764x64) {
-  double mse[3] = { 46.2004, 43.622, 56.7452};
-  int pae[3] = { 48, 46, 52};
+  double mse[3] = { 46.2004, 43.622, 56.7452 };
+  int pae[3] = { 48, 46, 52 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_64x64", "", "j2c",
-                    "-qstep 0.1");
+    "simple_enc_irv97_64x64", "", "j2c",
+    "-qstep 0.1");
   run_ojph_compress_expand("simple_enc_irv97_64x64", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_64x64", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -845,14 +845,14 @@ TEST(TestExecutables, SimpleEncIrv9764x64) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
 TEST(TestExecutables, SimpleEncIrv9732x32) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_32x32", "", "j2c",
-                    "-qstep 0.01 -block_size \"{32,32}\"");
+    "simple_enc_irv97_32x32", "", "j2c",
+    "-qstep 0.01 -block_size \"{32,32}\"");
   run_ojph_compress_expand("simple_enc_irv97_32x32", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_32x32", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -861,14 +861,14 @@ TEST(TestExecutables, SimpleEncIrv9732x32) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_16x16.j2c -qstep 0.01 -block_size {16,16}
 TEST(TestExecutables, SimpleEncIrv9716x16) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_16x16", "", "j2c",
-                    "-qstep 0.01 -block_size \"{16,16}\"");
+    "simple_enc_irv97_16x16", "", "j2c",
+    "-qstep 0.01 -block_size \"{16,16}\"");
   run_ojph_compress_expand("simple_enc_irv97_16x16", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_16x16", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -877,14 +877,14 @@ TEST(TestExecutables, SimpleEncIrv9716x16) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
 TEST(TestExecutables, SimpleEncIrv974x4) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_4x4", "", "j2c",
-                    "-qstep 0.01 -block_size \"{4,4}\"");
+    "simple_enc_irv97_4x4", "", "j2c",
+    "-qstep 0.01 -block_size \"{4,4}\"");
   run_ojph_compress_expand("simple_enc_irv97_4x4", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_4x4", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -893,14 +893,14 @@ TEST(TestExecutables, SimpleEncIrv974x4) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_1024x4.j2c -qstep 0.01 -block_size {4,1024}
 TEST(TestExecutables, SimpleEncIrv971024x4) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_1024x4", "", "j2c",
-                    "-qstep 0.01 -block_size \"{4,1024}\"");
+    "simple_enc_irv97_1024x4", "", "j2c",
+    "-qstep 0.01 -block_size \"{4,1024}\"");
   run_ojph_compress_expand("simple_enc_irv97_1024x4", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_1024x4", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -909,14 +909,14 @@ TEST(TestExecutables, SimpleEncIrv971024x4) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
 TEST(TestExecutables, SimpleEncIrv974x1024) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_4x1024", "", "j2c",
-                    "-qstep 0.01 -block_size \"{1024,4}\"");
+    "simple_enc_irv97_4x1024", "", "j2c",
+    "-qstep 0.01 -block_size \"{1024,4}\"");
   run_ojph_compress_expand("simple_enc_irv97_4x1024", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_4x1024", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -925,14 +925,14 @@ TEST(TestExecutables, SimpleEncIrv974x1024) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_512x8.j2c -qstep 0.01 -block_size {8,512}
 TEST(TestExecutables, SimpleEncIrv97512x8) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_512x8", "", "j2c",
-                    "-qstep 0.01 -block_size \"{8,512}\"");
+    "simple_enc_irv97_512x8", "", "j2c",
+    "-qstep 0.01 -block_size \"{8,512}\"");
   run_ojph_compress_expand("simple_enc_irv97_512x8", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_512x8", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -941,14 +941,14 @@ TEST(TestExecutables, SimpleEncIrv97512x8) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
 TEST(TestExecutables, SimpleEncIrv978x512) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_8x512", "", "j2c",
-                    "-qstep 0.01 -block_size \"{512,8}\"");
+    "simple_enc_irv97_8x512", "", "j2c",
+    "-qstep 0.01 -block_size \"{512,8}\"");
   run_ojph_compress_expand("simple_enc_irv97_8x512", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_8x512", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -957,14 +957,14 @@ TEST(TestExecutables, SimpleEncIrv978x512) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_256x16.j2c -qstep 0.01 -block_size {16,256}
 TEST(TestExecutables, SimpleEncIrv97256x16) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_256x16", "", "j2c",
-                    "-qstep 0.01 -block_size \"{16,256}\"");
+    "simple_enc_irv97_256x16", "", "j2c",
+    "-qstep 0.01 -block_size \"{16,256}\"");
   run_ojph_compress_expand("simple_enc_irv97_256x16", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_256x16", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -973,14 +973,14 @@ TEST(TestExecutables, SimpleEncIrv97256x16) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
 TEST(TestExecutables, SimpleEncIrv9716x256) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_16x256", "", "j2c",
-                    "-qstep 0.01 -block_size \"{256,16}\"");
+    "simple_enc_irv97_16x256", "", "j2c",
+    "-qstep 0.01 -block_size \"{256,16}\"");
   run_ojph_compress_expand("simple_enc_irv97_16x256", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_16x256", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -989,14 +989,14 @@ TEST(TestExecutables, SimpleEncIrv9716x256) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_128x32.j2c -qstep 0.01 -block_size {32,128}
 TEST(TestExecutables, SimpleEncIrv97128x32) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_128x32", "", "j2c",
-                    "-qstep 0.01 -block_size \"{32,128}\"");
+    "simple_enc_irv97_128x32", "", "j2c",
+    "-qstep 0.01 -block_size \"{32,128}\"");
   run_ojph_compress_expand("simple_enc_irv97_128x32", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_128x32", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1005,14 +1005,14 @@ TEST(TestExecutables, SimpleEncIrv97128x32) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
 TEST(TestExecutables, SimpleEncIrv9732x128) {
-  double mse[3] = { 1.78779, 1.26001, 2.38395};
-  int pae[3] = { 7, 6, 9};
+  double mse[3] = { 1.78779, 1.26001, 2.38395 };
+  int pae[3] = { 7, 6, 9 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_32x128", "", "j2c",
-                    "-qstep 0.01 -block_size \"{128,32}\"");
+    "simple_enc_irv97_32x128", "", "j2c",
+    "-qstep 0.01 -block_size \"{128,32}\"");
   run_ojph_compress_expand("simple_enc_irv97_32x128", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_32x128", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1022,14 +1022,14 @@ TEST(TestExecutables, SimpleEncIrv9732x128) {
 // -o simple_enc_irv97_64x64_tiles_33x33_d5.j2c -qstep 0.01 -tile_size {33,33}
 // -num_decomps 5
 TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D5) {
-  double mse[3] = { 46.2004, 43.622, 56.7452};
-  int pae[3] = { 48, 46, 52};
+  double mse[3] = { 1.88906, 1.30757, 2.5347 };
+  int pae[3] = { 9, 6, 10 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_64x64_tiles_33x33_d5", "", "j2c",
-                    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 5");
+    "simple_enc_irv97_64x64_tiles_33x33_d5", "", "j2c",
+    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 5");
   run_ojph_compress_expand("simple_enc_irv97_64x64_tiles_33x33_d5", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_64x64_tiles_33x33_d5", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1039,14 +1039,14 @@ TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D5) {
 // -o simple_enc_irv97_64x64_tiles_33x33_d6.j2c -qstep 0.01 -tile_size {33,33}
 // -num_decomps 6
 TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D6) {
-  double mse[3] = { 46.2004, 43.622, 56.7452};
-  int pae[3] = { 48, 46, 52};
+  double mse[3] = { 1.88751, 1.30673, 2.53378 };
+  int pae[3] = { 8, 6, 10 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_irv97_64x64_tiles_33x33_d6", "", "j2c",
-                    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 6");
+    "simple_enc_irv97_64x64_tiles_33x33_d6", "", "j2c",
+    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 6");
   run_ojph_compress_expand("simple_enc_irv97_64x64_tiles_33x33_d6", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_64x64_tiles_33x33_d6", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1055,14 +1055,14 @@ TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D6) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
 TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
-  double mse[3] = { 51727.3, 32596.4, 45897.8};
-  int pae[3] = { 1512, 1481, 1778};
+  double mse[3] = { 51727.3, 32596.4, 45897.8 };
+  int pae[3] = { 1512, 1481, 1778 };
   run_ojph_compress("mm.ppm",
-                    "simple_enc_irv97_64x64_16bit", "", "j2c",
-                    "-qstep 0.01");
+    "simple_enc_irv97_64x64_16bit", "", "j2c",
+    "-qstep 0.01");
   run_ojph_compress_expand("simple_enc_irv97_64x64_16bit", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_64x64_16bit", "ppm",
-              "mm.ppm", "", 3, mse, pae);
+    "mm.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1071,14 +1071,14 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
 TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
-  double mse[1] = { 25150.6};
-  int pae[1] = { 1081};
+  double mse[1] = { 25150.6 };
+  int pae[1] = { 1081 };
   run_ojph_compress("mm.pgm",
-                    "simple_enc_irv97_64x64_16bit_gray", "", "j2c",
-                    "-qstep 0.01");
+    "simple_enc_irv97_64x64_16bit_gray", "", "j2c",
+    "-qstep 0.01");
   run_ojph_compress_expand("simple_enc_irv97_64x64_16bit_gray", "j2c", "pgm");
   run_mse_pae("simple_enc_irv97_64x64_16bit_gray", "pgm",
-              "mm.pgm", "", 1, mse, pae);
+    "mm.pgm", "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1087,14 +1087,14 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x6416bit) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("mm.ppm",
-                    "simple_enc_rev53_64x64_16bit", "", "j2c",
-                    "-reversible true");
+    "simple_enc_rev53_64x64_16bit", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("simple_enc_rev53_64x64_16bit", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_64x64_16bit", "ppm",
-              "mm.ppm", "", 3, mse, pae);
+    "mm.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1103,14 +1103,14 @@ TEST(TestExecutables, SimpleEncRev5364x6416bit) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
-  double mse[1] = { 0};
-  int pae[1] = { 0};
+  double mse[1] = { 0 };
+  int pae[1] = { 0 };
   run_ojph_compress("mm.pgm",
-                    "simple_enc_rev53_64x64_16bit_gray", "", "j2c",
-                    "-reversible true");
+    "simple_enc_rev53_64x64_16bit_gray", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("simple_enc_rev53_64x64_16bit_gray", "j2c", "pgm");
   run_mse_pae("simple_enc_rev53_64x64_16bit_gray", "pgm",
-              "mm.pgm", "", 1, mse, pae);
+    "mm.pgm", "", 1, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1119,14 +1119,14 @@ TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x64) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_64x64", "", "j2c",
-                    "-reversible true");
+    "simple_enc_rev53_64x64", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("simple_enc_rev53_64x64", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_64x64", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1135,14 +1135,14 @@ TEST(TestExecutables, SimpleEncRev5364x64) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
 TEST(TestExecutables, SimpleEncRev5332x32) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_32x32", "", "j2c",
-                    "-reversible true -block_size \"{32,32}\"");
+    "simple_enc_rev53_32x32", "", "j2c",
+    "-reversible true -block_size \"{32,32}\"");
   run_ojph_compress_expand("simple_enc_rev53_32x32", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_32x32", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1151,14 +1151,14 @@ TEST(TestExecutables, SimpleEncRev5332x32) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_4x4.j2c -reversible true -block_size {4,4}
 TEST(TestExecutables, SimpleEncRev534x4) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_4x4", "", "j2c",
-                    "-reversible true -block_size \"{4,4}\"");
+    "simple_enc_rev53_4x4", "", "j2c",
+    "-reversible true -block_size \"{4,4}\"");
   run_ojph_compress_expand("simple_enc_rev53_4x4", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_4x4", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1167,14 +1167,14 @@ TEST(TestExecutables, SimpleEncRev534x4) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
 TEST(TestExecutables, SimpleEncRev531024x4) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_1024x4", "", "j2c",
-                    "-reversible true -block_size \"{4,1024}\"");
+    "simple_enc_rev53_1024x4", "", "j2c",
+    "-reversible true -block_size \"{4,1024}\"");
   run_ojph_compress_expand("simple_enc_rev53_1024x4", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_1024x4", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1183,48 +1183,48 @@ TEST(TestExecutables, SimpleEncRev531024x4) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
 TEST(TestExecutables, SimpleEncRev534x1024) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_4x1024", "", "j2c",
-                    "-reversible true -block_size \"{1024,4}\"");
+    "simple_enc_rev53_4x1024", "", "j2c",
+    "-reversible true -block_size \"{1024,4}\"");
   run_ojph_compress_expand("simple_enc_rev53_4x1024", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_4x1024", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_tiles_33x33.j2c -reversible true -tile_size
+// -o simple_enc_rev53_64x64_tiles_33x33_d5.j2c -reversible true -tile_size
 // {32,32} -num_decomps 5
 TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D5) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_64x64_tiles_33x33_d5", "", "j2c",
-                    "-reversible true -tile_size \"{32,32}\" -num_decomps 5");
+    "simple_enc_rev53_64x64_tiles_33x33_d5", "", "j2c",
+    "-reversible true -tile_size \"{32,32}\" -num_decomps 5");
   run_ojph_compress_expand("simple_enc_rev53_64x64_tiles_33x33_d5", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_64x64_tiles_33x33_d5", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
-// -o simple_enc_rev53_64x64_tiles_33x33.j2c -reversible true -tile_size
+// -o simple_enc_rev53_64x64_tiles_33x33_d6.j2c -reversible true -tile_size
 // {32,32} -num_decomps 6
 TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D6) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("Malamute.ppm",
-                    "simple_enc_rev53_64x64_tiles_33x33_d6", "", "j2c",
-                    "-reversible true -tile_size \"{32,32}\" -num_decomps 6");
+    "simple_enc_rev53_64x64_tiles_33x33_d6", "", "j2c",
+    "-reversible true -tile_size \"{32,32}\" -num_decomps 6");
   run_ojph_compress_expand("simple_enc_rev53_64x64_tiles_33x33_d6", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_64x64_tiles_33x33_d6", "ppm",
-              "Malamute.ppm", "", 3, mse, pae);
+    "Malamute.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1234,16 +1234,16 @@ TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D6) {
 // -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
 // -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed false,false,false
 TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
-  double mse[3] = { 30.3548, 7.69602, 5.22246};
-  int pae[3] = { 49, 27, 26};
+  double mse[3] = { 30.3548, 7.69602, 5.22246 };
+  int pae[3] = { 49, 27, 26 };
   run_ojph_compress("foreman_420.yuv",
-                    "simple_enc_irv97_64x64_yuv", "", "j2c",
-                    "-qstep 0.1 -dims \"{352,288}\" -num_comps 3 -downsamp"
-                    " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
-                    " -signed false,false,false");
+    "simple_enc_irv97_64x64_yuv", "", "j2c",
+    "-qstep 0.1 -dims \"{352,288}\" -num_comps 3 -downsamp"
+    " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
+    " -signed false,false,false");
   run_ojph_compress_expand("simple_enc_irv97_64x64_yuv", "j2c", "yuv");
   run_mse_pae("simple_enc_irv97_64x64_yuv", "yuv",
-              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1254,16 +1254,16 @@ TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
 // {352,288} -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed
 // false,false,false
 TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("foreman_420.yuv",
-                    "simple_enc_rev53_64x64_yuv", "", "j2c",
-                    "-reversible true -qstep 0.1 -dims \"{352,288}\""
-                    " -num_comps 3 -downsamp \"{1,1}\",\"{2,2}\",\"{2,2}\""
-                    " -bit_depth 8,8,8 -signed false,false,false");
+    "simple_enc_rev53_64x64_yuv", "", "j2c",
+    "-reversible true -qstep 0.1 -dims \"{352,288}\""
+    " -num_comps 3 -downsamp \"{1,1}\",\"{2,2}\",\"{2,2}\""
+    " -bit_depth 8,8,8 -signed false,false,false");
   run_ojph_compress_expand("simple_enc_rev53_64x64_yuv", "j2c", "yuv");
   run_mse_pae("simple_enc_rev53_64x64_yuv", "yuv",
-              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+    "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1272,14 +1272,14 @@ TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow.j2c -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
-  double mse[3] = { 112.097, 79.2214, 71.1367};
-  int pae[3] = { 56, 41, 32};
+  double mse[3] = { 112.097, 79.2214, 71.1367 };
+  int pae[3] = { 56, 41, 32 };
   run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_irv97_tall_narrow", "", "j2c",
-                    "-qstep 0.1");
+    "simple_enc_irv97_tall_narrow", "", "j2c",
+    "-qstep 0.1");
   run_ojph_compress_expand("simple_enc_irv97_tall_narrow", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_tall_narrow", "ppm",
-              "tall_narrow.ppm", "", 3, mse, pae);
+    "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1288,14 +1288,14 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
-  double mse[3] = { 100.906, 76.113, 72.8347};
-  int pae[3] = { 39, 35, 34};
+  double mse[3] = { 100.906, 76.113, 72.8347 };
+  int pae[3] = { 39, 35, 34 };
   run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_irv97_tall_narrow1", "", "j2c",
-                    "-image_offset \"{1,0}\" -qstep 0.1");
+    "simple_enc_irv97_tall_narrow1", "", "j2c",
+    "-image_offset \"{1,0}\" -qstep 0.1");
   run_ojph_compress_expand("simple_enc_irv97_tall_narrow1", "j2c", "ppm");
   run_mse_pae("simple_enc_irv97_tall_narrow1", "ppm",
-              "tall_narrow.ppm", "", 3, mse, pae);
+    "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1304,14 +1304,14 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_tall_narrow.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev53TallNarrow) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_rev53_tall_narrow", "", "j2c",
-                    "-reversible true");
+    "simple_enc_rev53_tall_narrow", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("simple_enc_rev53_tall_narrow", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_tall_narrow", "ppm",
-              "tall_narrow.ppm", "", 3, mse, pae);
+    "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1320,14 +1320,14 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
 TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("tall_narrow.ppm",
-                    "simple_enc_rev53_tall_narrow1", "", "j2c",
-                    "-image_offset \"{1,0}\" -reversible true");
+    "simple_enc_rev53_tall_narrow1", "", "j2c",
+    "-image_offset \"{1,0}\" -reversible true");
   run_ojph_compress_expand("simple_enc_rev53_tall_narrow1", "j2c", "ppm");
   run_mse_pae("simple_enc_rev53_tall_narrow1", "ppm",
-              "tall_narrow.ppm", "", 3, mse, pae);
+    "tall_narrow.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1336,14 +1336,14 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_le_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitLeNuke11) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_10bit.ppm",
-                    "dpx_enc_1280x720_10bit_le_nuke11", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_10bit_le_nuke11", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_10bit_le_nuke11", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_10bit_le_nuke11", "ppm",
-              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1352,14 +1352,14 @@ TEST(TestExecutables, DpxEnc1280x72010bitLeNuke11) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_be_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitBeNuke11) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_10bit.ppm",
-                    "dpx_enc_1280x720_10bit_be_nuke11", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_10bit_be_nuke11", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_10bit_be_nuke11", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_10bit_be_nuke11", "ppm",
-              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1368,14 +1368,14 @@ TEST(TestExecutables, DpxEnc1280x72010bitBeNuke11) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_le_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitLeNuke11) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_16bit.ppm",
-                    "dpx_enc_1280x720_16bit_le_nuke11", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_16bit_le_nuke11", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_16bit_le_nuke11", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_16bit_le_nuke11", "ppm",
-              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1384,14 +1384,14 @@ TEST(TestExecutables, DpxEnc1280x72016bitLeNuke11) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_be_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitBeNuke11) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_16bit.ppm",
-                    "dpx_enc_1280x720_16bit_be_nuke11", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_16bit_be_nuke11", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_16bit_be_nuke11", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_16bit_be_nuke11", "ppm",
-              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1400,14 +1400,14 @@ TEST(TestExecutables, DpxEnc1280x72016bitBeNuke11) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_resolve18.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitResolve18) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_10bit.ppm",
-                    "dpx_enc_1280x720_10bit_resolve18", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_10bit_resolve18", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_10bit_resolve18", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_10bit_resolve18", "ppm",
-              "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_10bit.ppm", "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1416,20 +1416,20 @@ TEST(TestExecutables, DpxEnc1280x72010bitResolve18) {
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_resolve18.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
-  double mse[3] = { 0, 0, 0};
-  int pae[3] = { 0, 0, 0};
+  double mse[3] = { 0, 0, 0 };
+  int pae[3] = { 0, 0, 0 };
   run_ojph_compress("dpx_1280x720_16bit.ppm",
-                    "dpx_enc_1280x720_16bit_resolve18", "", "j2c",
-                    "-reversible true");
+    "dpx_enc_1280x720_16bit_resolve18", "", "j2c",
+    "-reversible true");
   run_ojph_compress_expand("dpx_enc_1280x720_16bit_resolve18", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_16bit_resolve18", "ppm",
-              "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+    "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                   main
 ////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -63,6 +63,8 @@ namespace ojph {
     {
       friend struct precinct;
     public:
+      subband() { memset(this, 0, sizeof(subband)); empty = true; }
+
       static void pre_alloc(codestream *codestream, const rect& band_rect,
                             ui32 comp_num, ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& band_rect,

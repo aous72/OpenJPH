@@ -241,6 +241,8 @@ namespace ojph {
       ui32 trx1 = res_rect.org.x + res_rect.siz.w;
       ui32 try1 = res_rect.org.y + res_rect.siz.h;
       bands = allocator->post_alloc_obj<subband>(4);
+      for (int i = 0; i < 4; ++i)
+        new (bands + i) subband;
       if (res_num > 0)
       {
         this->num_bands = 3;

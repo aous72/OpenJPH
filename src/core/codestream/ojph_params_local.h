@@ -172,7 +172,6 @@ namespace ojph {
         cptr = store;
         old_Csiz = 4;
         Rsiz = 0x4000; //for jph, bit 14 of Rsiz is 1
-        ws_kern_support_needed = dfs_support_needed = false;
       }
 
       ~param_siz()
@@ -238,10 +237,15 @@ namespace ojph {
       bool write(outfile_base *file);
       void read(infile_base *file);
 
+      void link(const param_cod* cod)
+      { this->cod = cod; }
+
+      void link(const param_dfs* dfs)
+      { this->dfs = dfs; }
+
       void set_skipped_resolutions(ui32 skipped_resolutions)
-      {
-        this->skipped_resolutions = skipped_resolutions;
-      }
+      { this->skipped_resolutions = skipped_resolutions; }
+      
       ui32 get_width(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
@@ -256,20 +260,14 @@ namespace ojph {
         ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
         return t;
       }
+
+      point get_recon_downsampling(ui32 comp_num) const;
+      point get_recon_size(ui32 comp_num) const;
       ui32 get_recon_width(ui32 comp_num) const
-      {
-        assert(comp_num < get_num_components());
-        ui32 ds = (ui32)cptr[comp_num].XRsiz * (1u << skipped_resolutions);
-        ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
-        return t;
-      }
+      { return get_recon_size(comp_num).x; }
       ui32 get_recon_height(ui32 comp_num) const
-      {
-        assert(comp_num < get_num_components());
-        ui32 ds = (ui32)cptr[comp_num].YRsiz * (1u << skipped_resolutions);
-        ui32 t = ojph_div_ceil(Ysiz, ds) - ojph_div_ceil(YOsiz, ds);
-        return t;
-      }
+      { return get_recon_size(comp_num).y; }
+
       bool is_ws_kern_support_needed() { return ws_kern_support_needed; }
       bool is_dfs_support_needed() { return dfs_support_needed; }
 
@@ -293,6 +291,8 @@ namespace ojph {
       siz_comp_info store[4];
       bool ws_kern_support_needed;
       bool dfs_support_needed;
+      const param_cod* cod;
+      const param_dfs* dfs;
       param_siz(const param_siz&) = delete; //prevent copy constructor
       param_siz& operator=(const param_siz&) = delete; //prevent copy
     };
@@ -370,6 +370,7 @@ namespace ojph {
         SPcod.num_decomp = 5;
         SPcod.block_width = 4; //64
         SPcod.block_height = 4; //64
+        next = NULL;
       }
 
       ////////////////////////////////////////
@@ -504,6 +505,22 @@ namespace ojph {
       void update_atk(const param_atk* atk);
 
       ////////////////////////////////////////
+      void link_cod(const param_cod* cod)
+      { this->next = cod; }
+
+      ////////////////////////////////////////
+      const param_cod* get_cod(ui32 comp_num) const
+      {
+        const param_cod* result = this->next;
+        while (result != NULL && result->get_comp_num() != comp_num)
+          result = result->next;
+        if (result)
+          return result;
+        else
+          return this;
+      }
+
+      ////////////////////////////////////////
       const param_atk* access_atk() const { return atk; }
 
     public: // COC_MAIN only functions
@@ -516,7 +533,7 @@ namespace ojph {
       { return SPcod.num_decomp & 0xF; }
 
       ////////////////////////////////////////
-      ui32 get_comp_num()
+      ui32 get_comp_num() const
       { assert(type == COC_MAIN); return comp_num; }
 
     private: // Common variables
@@ -525,6 +542,7 @@ namespace ojph {
       ui8 Scod;             // serves as Scod and Scoc
       cod_SGcod SGCod;      // Used in COD and copied to COC
       cod_SPcod SPcod;      // serves as SPcod and SPcoc
+      const param_cod* next;// to link cod parameters
 
     private: // COC only variables
       param_cod* parent;    // parent COD structure
@@ -775,6 +793,7 @@ namespace ojph {
       dfs_dwt_type get_dwt_type(ui32 decomp_level) const;
       ui32 get_subband_idx(ui32 num_decompositions, ui32 resolution,
                            ui32 subband) const;
+      point get_res_downsamp(ui32 skipped_resolutions) const;
 
     private: // member variables
       ui16 Ldfs;       // length of the segment marker

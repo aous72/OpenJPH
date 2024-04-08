@@ -98,11 +98,12 @@ namespace ojph {
       coded_lists *cur_coded_list = NULL;
       ui32 cb_bytes = 0; //cb_bytes;
       ui32 ph_bytes = 0; //precinct header size
-      int sst = num_bands == 3 ? 1 : 0;
-      int send = num_bands == 3 ? 4 : 1;
       int num_skipped_subbands = 0;
-      for (int s = sst; s < send; ++s)
+      for (int s = 0; s < 4; ++s)
       {
+        if (bands[s].empty)
+          continue;
+
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
@@ -288,10 +289,11 @@ namespace ojph {
         }
 
         //write codeblocks
-        int sst = num_bands == 3 ? 1 : 0;
-        int send = num_bands == 3 ? 4 : 1;
-        for (int s = sst; s < send; ++s)
+        for (int s = 0; s < 4; ++s)
         {
+          if (bands[s].empty)
+            continue;
+
           ui32 band_width = bands[s].num_blocks.w;
           ui32 width = cb_idxs[s].siz.w;
           ui32 height = cb_idxs[s].siz.h;

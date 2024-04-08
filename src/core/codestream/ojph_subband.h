@@ -81,7 +81,7 @@ namespace ojph {
       }
 
       static void pre_alloc(codestream *codestream, const rect& band_rect,
-                            ui32 comp_num, ui32 res_num);
+                            ui32 comp_num, ui32 res_num, ui32 transform_flags);
       void finalize_alloc(codestream *codestream, const rect& band_rect,
                           resolution* res, ui32 res_num, ui32 subband_num);
 
@@ -91,6 +91,7 @@ namespace ojph {
 
       void get_cb_indices(const size& num_precincts, precinct *precincts);
       float get_delta() { return delta; }
+      bool exists() { return !empty; }
 
       line_buf* pull_line();
 

@@ -186,8 +186,6 @@ namespace ojph {
       for (ui32 r = 0; r <= num_decomps; ++r)
       {
         size log_PP = cod.get_log_precinct_size(r);
-        log_PP.w -= (r ? 1 : 0);
-        log_PP.h -= (r ? 1 : 0);
         ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
         ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
       }
@@ -200,7 +198,7 @@ namespace ojph {
       // We need 4 such tables. These tables store
       // 1. missing msbs and 2. their flags, 
       // 3. number of layers and 4. their flags
-      precinct_scratch_needed_bytes = 
+      precinct_scratch_needed_bytes =
         4 * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
@@ -220,7 +218,7 @@ namespace ojph {
 
       ui32 num_tileparts = 0;
       point index;
-      rect tile_rect, recon_tile_rect;
+      rect tile_rect;
       ojph::param_siz sz = access_siz();
       ui32 ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
@@ -233,12 +231,6 @@ namespace ojph {
         tile_rect.siz.h = 
           ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
 
-        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds), 
-          ojph_div_ceil(sz.get_image_offset().y, ds));
-        recon_tile_rect.siz.h = ojph_min(ojph_div_ceil(y1, ds),
-          ojph_div_ceil(sz.get_image_extent().y, ds))
-          - recon_tile_rect.org.y;
-
         ui32 offset = 0;
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
         {
@@ -250,17 +242,9 @@ namespace ojph {
           tile_rect.siz.w = 
             ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
 
-          recon_tile_rect.org.x = ojph_max(ojph_div_ceil(x0, ds),
-            ojph_div_ceil(sz.get_image_offset().x, ds));
-          recon_tile_rect.siz.w = ojph_min(ojph_div_ceil(x1, ds),
-            ojph_div_ceil(sz.get_image_extent().x, ds))
-            - recon_tile_rect.org.x;
-
           ui32 tps = 0; // number of tileparts for this tile
           ui32 idx = index.y * num_tiles.w + index.x;
-          tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect,
-            idx, offset, tps);
-          offset += recon_tile_rect.siz.w;
+          tiles[idx].finalize_alloc(this, tile_rect, idx, offset, tps);
           num_tileparts += tps;
         }
       }
@@ -836,8 +820,15 @@ namespace ojph {
       }
 
       cod.update_atk(atk);
-      for (int i = 0; i < used_coc_fields; ++i)
+      for (int i = 0; i < used_coc_fields; ++i) 
+      {
+        if (i == 0) cod.link_cod(coc);
+        else coc[i - 1].link_cod(coc + i);
         coc[i].update_atk(atk);
+      }
+      siz.link(&cod);
+      if (dfs.exists())
+        siz.link(&dfs);
 
       if (received_markers != 3)
         OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");

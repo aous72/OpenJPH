@@ -61,6 +61,10 @@ namespace ojph {
     class resolution
     {
     public:
+      enum : ui32 {
+        HORZ_TRX = 0x01,   // horizontal transform
+        VERT_TRX = 0x02,   // vertical transform
+      };
 
     public:
       static void pre_alloc(codestream *codestream, const rect& res_rect,
@@ -68,8 +72,8 @@ namespace ojph {
                             ui32 comp_num, ui32 res_num);
       void finalize_alloc(codestream *codestream, const rect& res_rect,
                           const rect& recon_res_rect, ui32 comp_num,
-                          ui32 res_num, point comp_downsamp,
-                          tile_comp *parent_tile_comp,
+                          ui32 res_num, point comp_downsamp, 
+                          point res_downsamp, tile_comp *parent_tile_comp,
                           resolution *parent_res);
 
       line_buf* get_line();
@@ -77,6 +81,8 @@ namespace ojph {
       line_buf* pull_line();
       rect get_rect() { return res_rect; }
       ui32 get_comp_num() { return comp_num; }
+      bool has_horz_transform() { return (transform_flags & HORZ_TRX) != 0; }
+      bool has_vert_transform() { return (transform_flags & VERT_TRX) != 0; }
 
       ui32 prepare_precinct();
       void write_precincts(outfile_base *file);
@@ -92,7 +98,7 @@ namespace ojph {
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;
       ui32 num_steps;
-      ui32 num_bands, res_num;
+      ui32 res_num;
       ui32 comp_num;
       ui32 num_bytes; // number of bytes in this resolution 
                       // used for tilepart length
@@ -113,7 +119,7 @@ namespace ojph {
       ui32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
       const param_atk* atk;
-      param_dfs::dfs_dwt_type downsampling_style;
+      ui32 transform_flags;
       //wavelet machinery
       ui32 cur_line;
       ui32 rows_to_produce;

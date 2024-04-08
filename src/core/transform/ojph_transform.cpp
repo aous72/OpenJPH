@@ -408,9 +408,9 @@ namespace ojph {
                                const line_buf* other, const line_buf* aug, 
                                ui32 repeat)
     {
-      si32 a = s->rev.Aatk;
-      si32 b = s->rev.Batk;
-      ui32 e = s->rev.Eatk;
+      const si32 a = s->rev.Aatk;
+      const si32 b = s->rev.Batk;
+      const ui32 e = s->rev.Eatk;
 
       si32* dst = aug->i32;
       const si32* src1 = sig->i32, * src2 = other->i32;
@@ -419,7 +419,7 @@ namespace ojph {
           *dst++ += (b + a * (*src1++ + *src2++)) >> e;
       else
         for (ui32 i = repeat; i > 0; --i)
-          *dst++ -= (b - a * (*src1++ + *src2++)) >> e;
+          *dst++ -= (- b - a * (*src1++ + *src2++)) >> e;
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -451,13 +451,13 @@ namespace ojph {
         ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
         ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
         ui32 num_steps = atk->get_num_steps();
-        for (ui32 j = 0; j < num_steps; ++j)
+        for (ui32 j = num_steps; j > 0; --j)
         {
           // first lifting step
-          const lifting_step* s = atk->get_step(j);
-          si32 a = s->rev.Aatk;
-          si32 b = s->rev.Batk;
-          ui32 e = s->rev.Eatk;
+          const lifting_step* s = atk->get_step(j - 1);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
 
           // extension
           lp[-1] = lp[0];
@@ -470,7 +470,7 @@ namespace ojph {
               *dp += (b + a * (sp[-1] + sp[0])) >> e;
           else
             for (ui32 i = h_width; i > 0; --i, sp++, dp++)
-              *dp -= (b - a * (sp[-1] + sp[0])) >> e;
+              *dp -= (- b - a * (sp[-1] + sp[0])) >> e;
 
           // swap buffers
           si32* t = lp; lp = hp; hp = t;
@@ -491,9 +491,9 @@ namespace ojph {
                                const line_buf* sig, const line_buf* other, 
                                ui32 repeat)
     {
-      si32 a = s->rev.Aatk;
-      si32 b = s->rev.Batk;
-      ui32 e = s->rev.Eatk;
+      const si32 a = s->rev.Aatk;
+      const si32 b = s->rev.Batk;
+      const ui32 e = s->rev.Eatk;
 
       si32* dst = aug->i32;
       const si32* src1 = sig->i32, * src2 = other->i32;
@@ -502,7 +502,7 @@ namespace ojph {
           *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
       else
         for (ui32 i = repeat; i > 0; --i)
-          *dst++ += (b - a * (*src1++ + *src2++)) >> e;
+          *dst++ += (- b - a * (*src1++ + *src2++)) >> e;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -517,13 +517,12 @@ namespace ojph {
         ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
         ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
         ui32 num_steps = atk->get_num_steps();
-        for (ui32 j = num_steps; j > 0; --j)
+        for (ui32 j = 0; j < num_steps; ++j)
         {
-          // first lifting step
-          const lifting_step* s = atk->get_step(j - 1);
-          si32 a = s->rev.Aatk;
-          si32 b = s->rev.Batk;
-          ui32 e = s->rev.Eatk;
+          const lifting_step* s = atk->get_step(j);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
 
           // extension
           oth[-1] = oth[0];
@@ -536,7 +535,7 @@ namespace ojph {
               *dp -= (b + a * (sp[-1] + sp[0])) >> e;
           else
             for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
-              *dp += (b - a * (sp[-1] + sp[0])) >> e;
+              *dp += (- b - a * (sp[-1] + sp[0])) >> e;
 
           // swap buffers
           si32* t = aug; aug = oth; oth = t;
@@ -793,11 +792,11 @@ namespace ojph {
         ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
         ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
         ui32 num_steps = atk->get_num_steps();
-        for (ui32 j = 0; j < num_steps; ++j)
+        for (ui32 j = num_steps; j > 0; --j)
         {
           // first lifting step
-          const lifting_step* s = atk->get_step(j);
-          float a = s->irv.Aatk;
+          const lifting_step* s = atk->get_step(j - 1);
+          const float a = s->irv.Aatk;
 
           // extension
           lp[-1] = lp[0];
@@ -878,10 +877,10 @@ namespace ojph {
         }
 
         ui32 num_steps = atk->get_num_steps();
-        for (ui32 j = num_steps; j > 0; --j)
+        for (ui32 j = 0; j < num_steps; ++j)
         {
-          const lifting_step* s = atk->get_step(j - 1);
-          float a = s->irv.Aatk;
+          const lifting_step* s = atk->get_step(j);
+          const float a = s->irv.Aatk;
 
           // extension
           oth[-1] = oth[0];

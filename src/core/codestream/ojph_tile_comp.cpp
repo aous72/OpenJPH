@@ -83,7 +83,8 @@ namespace ojph {
       this->num_bytes = 0;
       res = allocator->post_alloc_obj<resolution>(1);
       res->finalize_alloc(codestream, comp_rect, recon_comp_rect, comp_num,
-                          num_decomps, comp_downsamp, this, NULL);
+                          num_decomps, comp_downsamp, comp_downsamp, this, 
+                          NULL);
     }
 
     //////////////////////////////////////////////////////////////////////////

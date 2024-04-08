@@ -664,6 +664,35 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    point param_siz::get_recon_downsampling(ui32 comp_num) const
+    {
+      assert(comp_num < get_num_components());
+
+      point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
+      const param_cod* cdp = cod->get_cod(comp_num);
+      if (dfs && cdp && cdp->is_dfs_defined()) {
+        const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
+        factor = d->get_res_downsamp(skipped_resolutions);
+      }
+      factor.x *= (ui32)cptr[comp_num].XRsiz;
+      factor.y *= (ui32)cptr[comp_num].YRsiz;
+      return factor;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    point param_siz::get_recon_size(ui32 comp_num) const
+    {
+      assert(comp_num < get_num_components());
+
+      point factor = get_recon_downsampling(comp_num);
+      point r;
+      r.x = ojph_div_ceil(Xsiz, factor.x) - ojph_div_ceil(XOsiz, factor.x);
+      r.y = ojph_div_ceil(Ysiz, factor.y) - ojph_div_ceil(YOsiz, factor.y);
+      return r;
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
     //
     //
     //
@@ -1406,10 +1435,9 @@ namespace ojph {
                                     ui32 subband) const
     {
       assert((resolution == 0 && subband == 0) || 
-              (resolution > 0 && resolution <= Ids && 
-              subband > 0 && subband < 4));
+              (resolution > 0 && subband > 0 && subband < 4));
 
-      ui32 ns[4] = { 0, 3, 2, 2 };
+      ui32 ns[4] = { 0, 3, 1, 1 };
 
       ui32 idx = 0;
       if (resolution > 0)
@@ -1425,6 +1453,27 @@ namespace ojph {
       }
 
       return idx;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    point param_dfs::get_res_downsamp(ui32 skipped_resolutions) const
+    {
+      point factor(1, 1);
+      ui32 decomp_level = 1;
+      while (skipped_resolutions > 0)
+      {
+        param_dfs::dfs_dwt_type type = get_dwt_type(decomp_level);
+        if (type == BIDIR_DWT)
+        { factor.x *= 2; factor.y *= 2; }
+        else if (type == HORZ_DWT)
+          factor.x *= 2;
+        else if (type == VERT_DWT)
+          factor.y *= 2;
+
+        ++decomp_level;
+        --skipped_resolutions;
+      }
+      return factor;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1658,10 +1707,10 @@ namespace ojph {
       Natk = 4;
       // next is (A-4) in T.801 second line
       Latk = (ui16)(5 + Natk + sizeof(float) * (1 + Natk));
-      d[0].irv.Aatk = (float)-1.586134342059924;
-      d[1].irv.Aatk = (float)-0.052980118572961;
-      d[2].irv.Aatk = (float)0.882911075530934;
-      d[3].irv.Aatk = (float)0.443506852043971;
+      d[0].irv.Aatk = (float)0.443506852043971;
+      d[1].irv.Aatk = (float)0.882911075530934;
+      d[2].irv.Aatk = (float)-0.052980118572961;
+      d[3].irv.Aatk = (float)-1.586134342059924;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1671,12 +1720,12 @@ namespace ojph {
       Natk = 2;
       // next is (A-4) in T.801 fourth line
       Latk = (ui16)(5 + 2 * Natk + sizeof(ui8) * (Natk + Natk));
-      d[0].rev.Aatk = -1;
-      d[0].rev.Batk = 0;
-      d[0].rev.Eatk = 1;
-      d[1].rev.Aatk = 1;
-      d[1].rev.Batk = 2;
-      d[1].rev.Eatk = 2;
+      d[0].rev.Aatk = 1;
+      d[0].rev.Batk = 2;
+      d[0].rev.Eatk = 2;
+      d[1].rev.Aatk = -1;
+      d[1].rev.Batk = 0;
+      d[1].rev.Eatk = 1;
     }
 
   } // !local namespace

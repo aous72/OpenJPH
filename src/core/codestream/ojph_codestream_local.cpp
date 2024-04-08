@@ -220,7 +220,6 @@ namespace ojph {
       point index;
       rect tile_rect;
       ojph::param_siz sz = access_siz();
-      ui32 ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
         ui32 y0 = sz.get_tile_offset().y
@@ -546,7 +545,7 @@ namespace ojph {
                                    ui32 num_comments)
     {
       //finalize
-      siz.check_validity();
+      siz.check_validity(cod);
       cod.check_validity(siz);  
       cod.update_atk(atk);
       qcd.check_validity(siz, cod);

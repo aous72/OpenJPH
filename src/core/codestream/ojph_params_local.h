@@ -202,8 +202,10 @@ namespace ojph {
         cptr[comp_num].YRsiz = (ui8)downsampling.y;
       }
 
-      void check_validity()
+      void check_validity(const param_cod& cod)
       {
+        this->cod = &cod;
+
         if (XTsiz == 0 && YTsiz == 0)
         { XTsiz = Xsiz + XOsiz; YTsiz = Ysiz + YOsiz; }
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)

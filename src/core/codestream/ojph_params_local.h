@@ -487,11 +487,21 @@ namespace ojph {
 
       ////////////////////////////////////////
       bool packets_may_use_sop() const
-      { return (Scod & 2) == 2; }
+      { 
+        if (parent)
+          return (parent->Scod & 2) == 2; 
+        else
+          return (Scod & 2) == 2;
+      }
 
       ////////////////////////////////////////
       bool packets_use_eph() const
-      { return (Scod & 4) == 4; }
+      { 
+        if (parent)
+          return (parent->Scod & 4) == 4;
+        else
+          return (Scod & 4) == 4;
+      }
 
       ////////////////////////////////////////
       bool write(outfile_base *file);
@@ -507,8 +517,8 @@ namespace ojph {
       void update_atk(const param_atk* atk);
 
       ////////////////////////////////////////
-      void link_cod(const param_cod* cod)
-      { this->next = cod; }
+      void link_cod(const param_cod* coc)
+      { this->next = coc; }
 
       ////////////////////////////////////////
       const param_cod* get_cod(ui32 comp_num) const
@@ -544,7 +554,7 @@ namespace ojph {
       ui8 Scod;             // serves as Scod and Scoc
       cod_SGcod SGCod;      // Used in COD and copied to COC
       cod_SPcod SPcod;      // serves as SPcod and SPcoc
-      const param_cod* next;// to link cod parameters
+      const param_cod* next;// to chain coc parameters to cod
 
     private: // COC only variables
       param_cod* parent;    // parent COD structure

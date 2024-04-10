@@ -55,37 +55,6 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_wvlt_fwd_predict)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_wvlt_fwd_update)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_horz_wvlt_fwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_wvlt_bwd_predict)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_wvlt_bwd_update)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_horz_wvlt_bwd_tx)
-      (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even);
-
-
-
-
-    /////////////////////////////////////////////////////////////////////////
     extern void (*rev_vert_ana_step)
       (const lifting_step* s, const line_buf* sig, const line_buf* other,
         const line_buf* aug, ui32 repeat);
@@ -107,34 +76,9 @@ namespace ojph {
 
 
 
-
-
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     /////////////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*irrev_vert_wvlt_step)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       int step_num, ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*irrev_vert_wvlt_K)
-      (const line_buf *src, line_buf *dst, bool L_analysis_or_H_synthesis,
-       ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*irrev_horz_wvlt_fwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*irrev_horz_wvlt_bwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even);
-
-
-
-
-
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*irv_vert_ana_step)
@@ -159,8 +103,6 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     extern void (*irv_vert_times_K)
       (float K, const line_buf* aug, ui32 repeat);
-
-
 
 
   }

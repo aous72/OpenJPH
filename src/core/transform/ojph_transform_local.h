@@ -47,14 +47,6 @@ namespace ojph {
     struct param_atk;
 
     //////////////////////////////////////////////////////////////////////////
-    struct LIFTING_FACTORS
-    {
-      static const float steps[8];
-      static const float K;
-      static const float K_inv;
-    };
-
-    //////////////////////////////////////////////////////////////////////////
     //
     //
     //                           Generic Functions
@@ -65,38 +57,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     // Reversible functions
     //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_predict(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_update(const line_buf* src1,
-                                      const line_buf* src2,
-                                      line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                  line_buf *hdst, ui32 width, bool even);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_predict(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_update(const line_buf* src1,
-                                      const line_buf* src2,
-                                      line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_bwd_tx(line_buf* dst, line_buf *lsrc,
-                                  line_buf *hsrc, ui32 width, bool even);
-
-
-
-
 
     /////////////////////////////////////////////////////////////////////////
     void gen_rev_vert_ana_step(const lifting_step* s, const line_buf* sig, 
@@ -118,32 +78,9 @@ namespace ojph {
                           const line_buf* lsrc, const line_buf* hsrc, 
                           ui32 width, bool even);
 
-
-
-
-
     //////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_step(const line_buf* src1, const line_buf* src2,
-                                  line_buf *dst, int step_num, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_K(const line_buf *src, line_buf *dst,
-                               bool L_analysis_or_H_synthesis, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_bwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
-
-
-
 
     /////////////////////////////////////////////////////////////////////////
     void gen_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
@@ -168,10 +105,6 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     void gen_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat);
 
-
-
-
-
     //////////////////////////////////////////////////////////////////////////
     //
     //
@@ -184,21 +117,28 @@ namespace ojph {
     // Irreversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse_irrev_vert_wvlt_step(const line_buf* src1, const line_buf* src2,
-                                  line_buf *dst, int step_num, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                               const line_buf* other, const line_buf* aug, 
+                               ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse_irrev_vert_wvlt_K(const line_buf *src, line_buf *dst,
-                               bool L_analysis_or_H_synthesis, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void sse_irv_horz_ana(const param_atk* atk, const line_buf* ldst,
+                          const line_buf* hdst, const line_buf* src, 
+                          ui32 width, bool even);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse_irrev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                               const line_buf* sig, const line_buf* other,
+                               ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse_irrev_horz_wvlt_bwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void sse_irv_horz_syn(const param_atk *atk, const line_buf* dst,
+                          const line_buf *lsrc, const line_buf *hsrc, 
+                          ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -212,33 +152,25 @@ namespace ojph {
     // Reversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_fwd_predict(const line_buf* src1,
-                                        const line_buf* src2,
-                                        line_buf *dst, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                                const line_buf* other, const line_buf* aug, 
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_fwd_update(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_ana(const param_atk* atk, const line_buf* ldst,
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                   line_buf *hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                const line_buf* sig, const line_buf* other, 
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_bwd_predict(const line_buf* src1,
-                                        const line_buf* src2,
-                                        line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_bwd_update(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_wvlt_bwd_tx(line_buf* dst, line_buf *lsrc,
-                                   line_buf *hsrc, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_syn(const param_atk* atk, const line_buf* dst,
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even);
 
 
     //////////////////////////////////////////////////////////////////////////
@@ -253,21 +185,28 @@ namespace ojph {
     // Irreversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx_irrev_vert_wvlt_step(const line_buf* src1, const line_buf* src2,
-                                  line_buf *dst, int step_num, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void avx_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                               const line_buf* other, const line_buf* aug, 
+                               ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx_irrev_vert_wvlt_K(const line_buf *src, line_buf *dst,
-                               bool L_analysis_or_H_synthesis, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void avx_irv_horz_ana(const param_atk* atk, const line_buf* ldst,
+                          const line_buf* hdst, const line_buf* src, 
+                          ui32 width, bool even);
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx_irrev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void avx_irv_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                               const line_buf* sig, const line_buf* other,
+                               ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx_irrev_horz_wvlt_bwd_tx(line_buf* src, line_buf *ldst,
-                                    line_buf *hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void avx_irv_horz_syn(const param_atk *atk, const line_buf* dst,
+                          const line_buf *lsrc, const line_buf *hsrc, 
+                          ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -281,33 +220,85 @@ namespace ojph {
     // Reversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_fwd_predict(const line_buf* src1,
-                                        const line_buf* src2,
-                                        line_buf *dst, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void avx2_rev_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                                const line_buf* other, const line_buf* aug, 
+                                ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx2_rev_horz_ana(const param_atk* atk, const line_buf* ldst,
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx2_rev_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                const line_buf* sig, const line_buf* other, 
+                                ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx2_rev_horz_syn(const param_atk* atk, const line_buf* dst,
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_fwd_update(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
+    //
+    //
+    //                        AVX512 Functions
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_horz_wvlt_fwd_tx(line_buf* src, line_buf *ldst,
-                                   line_buf *hdst, ui32 width, bool even);
+    // Irreversible functions
+    //////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                                  const line_buf* other, const line_buf* aug, 
+                                  ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_irv_horz_ana(const param_atk* atk, const line_buf* ldst,
+                             const line_buf* hdst, const line_buf* src, 
+                             ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_irv_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                  const line_buf* sig, const line_buf* other,
+                                  ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_irv_horz_syn(const param_atk *atk, const line_buf* dst,
+                             const line_buf *lsrc, const line_buf *hsrc, 
+                             ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat);
+
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_bwd_predict(const line_buf* src1,
-                                        const line_buf* src2,
-                                        line_buf *dst, ui32 repeat);
-
+    // Reversible functions
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_vert_wvlt_bwd_update(const line_buf* src1,
-                                       const line_buf* src2,
-                                       line_buf *dst, ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_horz_wvlt_bwd_tx(line_buf* dst, line_buf *lsrc,
-                                   line_buf *hsrc, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_rev_vert_ana_step(const lifting_step* s, const line_buf* sig,
+                                  const line_buf* other, const line_buf* aug, 
+                                  ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_rev_horz_ana(const param_atk* atk, const line_buf* ldst,
+                             const line_buf* hdst, const line_buf* src, 
+                             ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_rev_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                  const line_buf* sig, const line_buf* other, 
+                                  ui32 repeat);
+
+    /////////////////////////////////////////////////////////////////////////
+    void avx512_rev_horz_syn(const param_atk* atk, const line_buf* dst,
+                             const line_buf* lsrc, const line_buf* hsrc, 
+                             ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -321,57 +312,52 @@ namespace ojph {
     // Reversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_fwd_predict(const line_buf *line_src1, 
-                                        const line_buf *line_src2,
-                                        line_buf *line_dst, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_ana_step(const lifting_step* s, const line_buf* sig,
+                                const line_buf* other, const line_buf* aug, 
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_fwd_update(const line_buf *line_src1, 
-                                       const line_buf *line_src2,
-                                       line_buf *line_dst, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_ana(const param_atk* atk, const line_buf* ldst,
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
-                                   line_buf *line_hdst, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_rev_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                const line_buf* sig, const line_buf* other, 
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_predict(const line_buf *line_src1, 
-                                        const line_buf *line_src2,
-                                        line_buf *line_dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_update(const line_buf *line_src1, 
-                                       const line_buf *line_src2,
-                                       line_buf *line_dst, ui32 repeat);
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_horz_wvlt_bwd_tx(line_buf *line_dst, line_buf *line_lsrc, 
-                                   line_buf *line_hsrc, ui32 width, bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_syn(const param_atk* atk, const line_buf* dst,
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even);
 
     //////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     //////////////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_vert_wvlt_step(const line_buf* line_src1, 
-                                   const line_buf* line_src2,
-                                   line_buf *line_dst, int step_num, 
-                                   ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
+                                const line_buf* other, const line_buf* aug, 
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_vert_wvlt_K(const line_buf *line_src, line_buf *line_dst,
-                                bool L_analysis_or_H_synthesis, ui32 repeat);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_irv_horz_ana(const param_atk* atk, const line_buf* ldst,
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
-                                     line_buf *line_hdst, ui32 width, 
-                                     bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_irv_vert_syn_step(const lifting_step* s, const line_buf* aug,
+                                const line_buf* sig, const line_buf* other,
+                                ui32 repeat);
 
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_horz_wvlt_bwd_tx(line_buf *line_src, line_buf *line_ldst, 
-                                     line_buf *line_hdst, ui32 width, 
-                                     bool even);
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_irv_horz_syn(const param_atk *atk, const line_buf* dst,
+                           const line_buf *lsrc, const line_buf *hsrc, 
+                           ui32 width, bool even);
+
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat);
   }
 }
 

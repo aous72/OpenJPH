@@ -43,7 +43,7 @@
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
-#include <immintrin.h>
+#include <emmintrin.h>
 
 namespace ojph {
   namespace local {

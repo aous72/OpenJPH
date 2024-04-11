@@ -128,10 +128,32 @@ namespace ojph {
           lp[-1] = lp[0];
           lp[l_width] = lp[l_width - 1];
           // lifting step
-          const float* sp = lp + (even ? 1 : 0);
+          const float* sp = lp;
           float* dp = hp;
-          for (ui32 i = h_width; i > 0; --i, sp++, dp++)
-            *dp += a * (sp[-1] + sp[0]);
+          int i = (int)h_width;
+          __m128 f = _mm_set1_ps(a);
+          if (even)
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp + 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_add_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp - 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_add_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
 
           // swap buffers
           float* t = lp; lp = hp; hp = t;
@@ -242,10 +264,32 @@ namespace ojph {
           oth[-1] = oth[0];
           oth[oth_width] = oth[oth_width - 1];
           // lifting step
-          const float* sp = oth + (ev ? 0 : 1);
+          const float* sp = oth;
           float* dp = aug;
-          for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
-            *dp -= a * (sp[-1] + sp[0]);
+          int i = (int)aug_width;
+          __m128 f = _mm_set1_ps(a);
+          if (ev)
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp - 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_sub_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp + 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_sub_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
 
           // swap buffers
           float* t = aug; aug = oth; oth = t;

@@ -148,10 +148,32 @@ namespace ojph {
           lp[-1] = lp[0];
           lp[l_width] = lp[l_width - 1];
           // lifting step
-          const float* sp = lp + (even ? 1 : 0);
+          const float* sp = lp;
           float* dp = hp;
-          for (ui32 i = h_width; i > 0; --i, sp++, dp++)
-            *dp += a * (sp[-1] + sp[0]);
+          int i = (int)h_width;
+          __m256 f = _mm256_set1_ps(a);
+          if (even)
+          {
+            for (; i > 0; i -= 8, sp += 8, dp += 8)
+            {
+              __m256 m = _mm256_load_ps(sp);
+              __m256 n = _mm256_loadu_ps(sp + 1);
+              __m256 p = _mm256_load_ps(dp);
+              p = _mm256_add_ps(p, _mm256_mul_ps(f, _mm256_add_ps(m, n)));
+              _mm256_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for (; i > 0; i -= 8, sp += 8, dp += 8)
+            {
+              __m256 m = _mm256_load_ps(sp);
+              __m256 n = _mm256_loadu_ps(sp - 1);
+              __m256 p = _mm256_load_ps(dp);
+              p = _mm256_add_ps(p, _mm256_mul_ps(f, _mm256_add_ps(m, n)));
+              _mm256_store_ps(dp, p);
+            }
+          }
 
           // swap buffers
           float* t = lp; lp = hp; hp = t;
@@ -262,10 +284,32 @@ namespace ojph {
           oth[-1] = oth[0];
           oth[oth_width] = oth[oth_width - 1];
           // lifting step
-          const float* sp = oth + (ev ? 0 : 1);
+          const float* sp = oth;
           float* dp = aug;
-          for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
-            *dp -= a * (sp[-1] + sp[0]);
+          int i = (int)aug_width;
+          __m256 f = _mm256_set1_ps(a);
+          if (ev)
+          {
+            for (; i > 0; i -= 8, sp += 8, dp += 8)
+            {
+              __m256 m = _mm256_load_ps(sp);
+              __m256 n = _mm256_loadu_ps(sp - 1);
+              __m256 p = _mm256_load_ps(dp);
+              p = _mm256_sub_ps(p, _mm256_mul_ps(f, _mm256_add_ps(m, n)));
+              _mm256_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for (; i > 0; i -= 8, sp += 8, dp += 8)
+            {
+              __m256 m = _mm256_load_ps(sp);
+              __m256 n = _mm256_loadu_ps(sp + 1);
+              __m256 p = _mm256_load_ps(dp);
+              p = _mm256_sub_ps(p, _mm256_mul_ps(f, _mm256_add_ps(m, n)));
+              _mm256_store_ps(dp, p);
+            }
+          }
 
           // swap buffers
           float* t = aug; aug = oth; oth = t;

@@ -163,11 +163,12 @@ namespace ojph {
           float K = atk->get_K();
           float K_inv = 1.0f / K;
           float* dp;
+          int i;
           __m256 factor;
 
           factor = _mm256_set1_ps(K_inv);
           dp = lp;
-          int i = (int)l_width;
+          i = (int)l_width;
           for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
@@ -176,7 +177,7 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K);
           dp = hp;
-          int i = (int)h_width;
+          i = (int)h_width;
           for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
@@ -228,11 +229,12 @@ namespace ojph {
           float K = atk->get_K();
           float K_inv = 1.0f / K;
           float* dp;
+          int i;
           __m256 factor;
 
           factor = _mm256_set1_ps(K);
           dp = aug;
-          int i = (int)aug_width;
+          i = (int)aug_width;
           for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
@@ -241,7 +243,7 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K_inv);
           dp = oth;
-          int i = (int)oth_width;
+          i = (int)oth_width;
           for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);

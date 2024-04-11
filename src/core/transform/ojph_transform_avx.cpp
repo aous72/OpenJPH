@@ -59,8 +59,8 @@ namespace ojph {
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
-      repeat = (repeat + 7) >> 3;
-      for (ui32 i = repeat; i > 0; --i, dst += 8, src1 += 8, src2 += 8)
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 8, dst += 8, src1 += 8, src2 += 8)
       {
         __m256 s1 = _mm256_load_ps(src1);
         __m256 s2 = _mm256_load_ps(src2);
@@ -83,8 +83,8 @@ namespace ojph {
           float* dph = hdst->f32;
           float* dpl = ldst->f32;
           float* sp = src->f32;
-
-          for (int i = width; i > 0; i -= 16, sp += 16, dpl += 8, dph += 8)
+          int i = (int)width;
+          for ( ; i > 8; i -= 16, sp += 16, dpl += 8, dph += 8)
           {
              __m256 a = _mm256_load_ps(sp);
              __m256 b = _mm256_load_ps(sp + 8);
@@ -95,14 +95,23 @@ namespace ojph {
              _mm256_store_ps(dpl, e);
              _mm256_store_ps(dph, f);
           }
+          for (; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
+          {
+            __m128 a = _mm_load_ps(sp);
+            __m128 b = _mm_load_ps(sp + 4);
+            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
+            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
+            _mm_store_ps(dpl, c);
+            _mm_store_ps(dph, d);
+          }
         }
         else
         {
           float* dph = hdst->f32;
           float* dpl = ldst->f32;
           float* sp = src->f32;
-
-          for (int i = width; i > 0; i -= 16, sp += 16, dpl += 8, dph += 8)
+          int i = (int)width;
+          for ( ; i > 8; i -= 16, sp += 16, dpl += 8, dph += 8)
           {
             __m256 a = _mm256_load_ps(sp);
             __m256 b = _mm256_load_ps(sp + 8);
@@ -112,6 +121,15 @@ namespace ojph {
             __m256 f = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(3, 1, 3, 1));
             _mm256_store_ps(dpl, f);
             _mm256_store_ps(dph, e);
+          }
+          for (; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
+          {
+            __m128 a = _mm_load_ps(sp);
+            __m128 b = _mm_load_ps(sp + 4);
+            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
+            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
+            _mm_store_ps(dpl, d);
+            _mm_store_ps(dph, c);
           }
         }
 
@@ -149,7 +167,8 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K_inv);
           dp = lp;
-          for (ui32 i = (l_width + 7) >> 3; i > 0; --i, dp += 8)
+          int i = (int)l_width;
+          for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
             _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
@@ -157,7 +176,8 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K);
           dp = hp;
-          for (ui32 i = (h_width + 7) >> 3; i > 0; --i, dp += 8)
+          int i = (int)h_width;
+          for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
             _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
@@ -181,8 +201,8 @@ namespace ojph {
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
-      repeat = (repeat + 7) >> 3;
-      for (ui32 i = repeat; i > 0; --i, dst += 8, src1 += 8, src2 += 8)
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 8, dst += 8, src1 += 8, src2 += 8)
       {
         __m256 s1 = _mm256_load_ps(src1);
         __m256 s2 = _mm256_load_ps(src2);
@@ -212,7 +232,8 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K);
           dp = aug;
-          for (ui32 i = (aug_width + 7) >> 3; i > 0; --i, dp += 8)
+          int i = (int)aug_width;
+          for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
             _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
@@ -220,7 +241,8 @@ namespace ojph {
 
           factor = _mm256_set1_ps(K_inv);
           dp = oth;
-          for (ui32 i = (oth_width + 7) >> 3; i > 0; --i, dp += 8)
+          int i = (int)oth_width;
+          for ( ; i > 0; i -= 8, dp += 8)
           {
             __m256 s = _mm256_load_ps(dp);
             _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
@@ -255,8 +277,8 @@ namespace ojph {
           float* sph = hsrc->f32;
           float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = width;
-          for ( ; i >= 8; i -= 16, dp += 16, spl += 8, sph += 8)
+          int i = (int)width;
+          for ( ; i > 8; i -= 16, dp += 16, spl += 8, sph += 8)
           {
             __m256 a = _mm256_load_ps(spl);
             __m256 b = _mm256_load_ps(sph);
@@ -282,8 +304,8 @@ namespace ojph {
           float* sph = hsrc->f32;
           float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = width;
-          for (; i >= 8; i -= 16, dp += 16, spl += 8, sph += 8)
+          int i = (int)width;
+          for (; i > 8; i -= 16, dp += 16, spl += 8, sph += 8)
           { // i>=8 because we can exceed the aligned buffer by up to 7
             __m256 a = _mm256_load_ps(spl);
             __m256 b = _mm256_load_ps(sph);
@@ -318,8 +340,8 @@ namespace ojph {
     {
       __m256 factor = _mm256_set1_ps(K);
       float* dst = aug->f32;
-      repeat = (repeat + 7) >> 3;
-      for (ui32 i = repeat; i > 0; --i, dst += 8 )
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 8, dst += 8 )
       {
         __m256 s = _mm256_load_ps(dst);
         _mm256_store_ps(dst, _mm256_mul_ps(factor, s));

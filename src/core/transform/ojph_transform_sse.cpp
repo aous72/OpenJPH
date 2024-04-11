@@ -59,8 +59,8 @@ namespace ojph {
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
-      repeat = (repeat + 3) >> 2;
-      for (ui32 i = repeat; i > 0; --i, dst += 4, src1 += 4, src2 += 4)
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
       {
         __m128 s1 = _mm_load_ps(src1);
         __m128 s2 = _mm_load_ps(src2);
@@ -84,14 +84,13 @@ namespace ojph {
           float* dpl = ldst->f32;
           float* sp = src->f32;
 
-          for (int i = width; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
+          int i = (int)width;
+          for ( ; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
           {
             __m128 a = _mm_load_ps(sp);
             __m128 b = _mm_load_ps(sp + 4);
-
             __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
             __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-
             _mm_store_ps(dpl, c);
             _mm_store_ps(dph, d);
           }
@@ -102,14 +101,13 @@ namespace ojph {
           float* dpl = ldst->f32;
           float* sp = src->f32;
 
-          for (int i = width; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
+          int i = (int)width;
+          for ( ; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
           {
             __m128 a = _mm_load_ps(sp);
             __m128 b = _mm_load_ps(sp + 4);
-
             __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
             __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-
             _mm_store_ps(dpl, d);
             _mm_store_ps(dph, c);
           }
@@ -149,7 +147,8 @@ namespace ojph {
 
           factor = _mm_set1_ps(K_inv);
           dp = lp;
-          for (ui32 i = (l_width + 3) >> 2; i > 0; --i, dp += 4)
+          int i = (int)l_width;
+          for ( ; i > 0; i -= 4, dp += 4)
           {
             __m128 s = _mm_load_ps(dp);
             _mm_store_ps(dp, _mm_mul_ps(factor, s));
@@ -157,7 +156,8 @@ namespace ojph {
 
           factor = _mm_set1_ps(K);
           dp = hp;
-          for (ui32 i = (h_width + 3) >> 2; i > 0; --i, dp += 4)
+          int i = (int)h_width;
+          for ( ; i > 0; i -= 4, dp += 4)
           {
             __m128 s = _mm_load_ps(dp);
             _mm_store_ps(dp, _mm_mul_ps(factor, s));
@@ -181,8 +181,8 @@ namespace ojph {
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
-      repeat = (repeat + 3) >> 2;
-      for (ui32 i = repeat; i > 0; --i, dst += 4, src1 += 4, src2 += 4)
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
       {
         __m128 s1 = _mm_load_ps(src1);
         __m128 s2 = _mm_load_ps(src2);
@@ -212,7 +212,8 @@ namespace ojph {
 
           factor = _mm_set1_ps(K);
           dp = aug;
-          for (ui32 i = (aug_width + 3) >> 2; i > 0; --i, dp += 4)
+          int i = (int)aug_width;
+          for ( ; i > 0; i -= 4, dp += 4)
           {
             __m128 s = _mm_load_ps(dp);
             _mm_store_ps(dp, _mm_mul_ps(factor, s));
@@ -220,7 +221,8 @@ namespace ojph {
 
           factor = _mm_set1_ps(K_inv);
           dp = oth;
-          for (ui32 i = (oth_width + 3) >> 2; i > 0; --i, dp += 4)
+          int i = (int)oth_width;
+          for ( ; i > 0; i -= 4, dp += 4)
           {
             __m128 s = _mm_load_ps(dp);
             _mm_store_ps(dp, _mm_mul_ps(factor, s));
@@ -255,8 +257,8 @@ namespace ojph {
           float* sph = hsrc->f32;
           float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = width;
-          for (; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
+          int i = (int)width;
+          for ( ; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
           {
             __m128 a = _mm_load_ps(spl);
             __m128 b = _mm_load_ps(sph);
@@ -271,8 +273,8 @@ namespace ojph {
           float* sph = hsrc->f32;
           float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = width;
-          for (; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
+          int i = (int)width;
+          for ( ; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
           {
             __m128 a = _mm_load_ps(spl);
             __m128 b = _mm_load_ps(sph);
@@ -296,8 +298,8 @@ namespace ojph {
     {
       __m128 factor = _mm_set1_ps(K);
       float* dst = aug->f32;
-      repeat = (repeat + 3) >> 2;
-      for (ui32 i = repeat; i > 0; --i, dst += 4)
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 4, dst += 4)
       {
         __m128 s = _mm_load_ps(dst);
         _mm_store_ps(dst, _mm_mul_ps(factor, s));

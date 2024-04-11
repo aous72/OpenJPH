@@ -652,8 +652,6 @@ namespace ojph {
       if (res_num == 0)
       {
         assert(child_res == NULL);
-        assert(bands[0].exists() && !bands[1].exists() 
-          && !bands[2].exists() && !bands[3].exists());
         return bands[0].pull_line();
       }
 

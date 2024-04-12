@@ -41,14 +41,25 @@
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_mem.h"
-#include "ojph_transform.h"
-#include "ojph_transform_local.h"
-
 #include "ojph_params.h"
 #include "../codestream/ojph_params_local.h"
 
+#include "ojph_transform.h"
+#include "ojph_transform_local.h"
+
 namespace ojph {
   namespace local {
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline void avx_multiply_const(float* p, float f, int width)
+    {
+      __m256 factor = _mm256_set1_ps(f);
+      for (; width > 0; width -= 8, p += 8)
+      {
+        __m256 s = _mm256_load_ps(p);
+        _mm256_store_ps(p, _mm256_mul_ps(factor, s));
+      }
+    }
 
     //////////////////////////////////////////////////////////////////////////
     void avx_irv_vert_step(const lifting_step* s, const line_buf* sig, 
@@ -95,59 +106,12 @@ namespace ojph {
       if (width > 1)
       {
         // split src into ldst and hdst
-        if (even)
         {
-          float* dph = hdst->f32;
           float* dpl = ldst->f32;
-          float* sp = src->f32;
-          int i = (int)width;
-          for ( ; i > 8; i -= 16, sp += 16, dpl += 8, dph += 8)
-          {
-             __m256 a = _mm256_load_ps(sp);
-             __m256 b = _mm256_load_ps(sp + 8);
-             __m256 c = _mm256_permute2f128_ps(a, b, (2 << 4) | (0));
-             __m256 d = _mm256_permute2f128_ps(a, b, (3 << 4) | (1));
-             __m256 e = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(2, 0, 2, 0));
-             __m256 f = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(3, 1, 3, 1));
-             _mm256_store_ps(dpl, e);
-             _mm256_store_ps(dph, f);
-          }
-          for (; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
-          {
-            __m128 a = _mm_load_ps(sp);
-            __m128 b = _mm_load_ps(sp + 4);
-            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
-            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-            _mm_store_ps(dpl, c);
-            _mm_store_ps(dph, d);
-          }
-        }
-        else
-        {
           float* dph = hdst->f32;
-          float* dpl = ldst->f32;
           float* sp = src->f32;
-          int i = (int)width;
-          for ( ; i > 8; i -= 16, sp += 16, dpl += 8, dph += 8)
-          {
-            __m256 a = _mm256_load_ps(sp);
-            __m256 b = _mm256_load_ps(sp + 8);
-            __m256 c = _mm256_permute2f128_ps(a, b, (2 << 4) | (0));
-            __m256 d = _mm256_permute2f128_ps(a, b, (3 << 4) | (1));
-            __m256 e = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(2, 0, 2, 0));
-            __m256 f = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(3, 1, 3, 1));
-            _mm256_store_ps(dpl, f);
-            _mm256_store_ps(dph, e);
-          }
-          for (; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
-          {
-            __m128 a = _mm_load_ps(sp);
-            __m128 b = _mm_load_ps(sp + 4);
-            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
-            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-            _mm_store_ps(dpl, d);
-            _mm_store_ps(dph, c);
-          }
+          int w = (int)width;
+          AVX_DEINTERLEAVE(dpl, dph, sp, w, even);
         }
 
         // the actual horizontal transform
@@ -157,7 +121,6 @@ namespace ojph {
         ui32 num_steps = atk->get_num_steps();
         for (ui32 j = num_steps; j > 0; --j)
         {
-          // first lifting step
           const lifting_step* s = atk->get_step(j - 1);
           const float a = s->irv.Aatk;
 
@@ -201,27 +164,8 @@ namespace ojph {
         { // multiply by K or 1/K
           float K = atk->get_K();
           float K_inv = 1.0f / K;
-          float* dp;
-          int i;
-          __m256 factor;
-
-          factor = _mm256_set1_ps(K_inv);
-          dp = lp;
-          i = (int)l_width;
-          for ( ; i > 0; i -= 8, dp += 8)
-          {
-            __m256 s = _mm256_load_ps(dp);
-            _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
-          }
-
-          factor = _mm256_set1_ps(K);
-          dp = hp;
-          i = (int)h_width;
-          for ( ; i > 0; i -= 8, dp += 8)
-          {
-            __m256 s = _mm256_load_ps(dp);
-            _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
-          }
+          avx_multiply_const(lp, K_inv, (int)l_width);
+          avx_multiply_const(hp, K, (int)h_width);
         }
       }
       else {
@@ -247,27 +191,8 @@ namespace ojph {
         { // multiply by K or 1/K
           float K = atk->get_K();
           float K_inv = 1.0f / K;
-          float* dp;
-          int i;
-          __m256 factor;
-
-          factor = _mm256_set1_ps(K);
-          dp = aug;
-          i = (int)aug_width;
-          for ( ; i > 0; i -= 8, dp += 8)
-          {
-            __m256 s = _mm256_load_ps(dp);
-            _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
-          }
-
-          factor = _mm256_set1_ps(K_inv);
-          dp = oth;
-          i = (int)oth_width;
-          for ( ; i > 0; i -= 8, dp += 8)
-          {
-            __m256 s = _mm256_load_ps(dp);
-            _mm256_store_ps(dp, _mm256_mul_ps(factor, s));
-          }
+          avx_multiply_const(aug, K, (int)aug_width);
+          avx_multiply_const(oth, K_inv, (int)oth_width);
         }
 
         // the actual horizontal transform
@@ -315,59 +240,12 @@ namespace ojph {
         }
 
         // combine both lsrc and hsrc into dst
-        if (even)
         {
-          float* sph = hsrc->f32;
-          float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = (int)width;
-          for ( ; i > 8; i -= 16, dp += 16, spl += 8, sph += 8)
-          {
-            __m256 a = _mm256_load_ps(spl);
-            __m256 b = _mm256_load_ps(sph);
-            __m256 c = _mm256_unpacklo_ps(a, b);
-            __m256 d = _mm256_unpackhi_ps(a, b);
-            __m256 e = _mm256_permute2f128_ps(c, d, (2 << 4) | (0));
-            __m256 f = _mm256_permute2f128_ps(c, d, (3 << 4) | (1));
-            _mm256_store_ps(dp, e);
-            _mm256_store_ps(dp + 8, f);
-          }
-          for (; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
-          {
-            __m128 a = _mm_load_ps(spl);
-            __m128 b = _mm_load_ps(sph);
-            __m128 c = _mm_unpacklo_ps(a, b);
-            __m128 d = _mm_unpackhi_ps(a, b);
-            _mm_store_ps(dp, c);
-            _mm_store_ps(dp + 4, d);
-          }
-        }
-        else
-        {
-          float* sph = hsrc->f32;
           float* spl = lsrc->f32;
-          float* dp = dst->f32;
-          int i = (int)width;
-          for (; i > 8; i -= 16, dp += 16, spl += 8, sph += 8)
-          { // i>=8 because we can exceed the aligned buffer by up to 7
-            __m256 a = _mm256_load_ps(spl);
-            __m256 b = _mm256_load_ps(sph);
-            __m256 c = _mm256_unpacklo_ps(b, a);
-            __m256 d = _mm256_unpackhi_ps(b, a);
-            __m256 e = _mm256_permute2f128_ps(c, d, (2 << 4) | (0));
-            __m256 f = _mm256_permute2f128_ps(c, d, (3 << 4) | (1));
-            _mm256_store_ps(dp, e);
-            _mm256_store_ps(dp + 8, f);
-          }
-          for (; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
-          {
-            __m128 a = _mm_load_ps(spl);
-            __m128 b = _mm_load_ps(sph);
-            __m128 c = _mm_unpacklo_ps(b, a);
-            __m128 d = _mm_unpackhi_ps(b, a);
-            _mm_store_ps(dp, c);
-            _mm_store_ps(dp + 4, d);
-          }
+          float* sph = hsrc->f32;
+          int w = (int)width;
+          AVX_INTERLEAVE(dp, spl, sph, w, even);
         }
       }
       else {

@@ -41,14 +41,25 @@
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_mem.h"
-#include "ojph_transform.h"
-#include "ojph_transform_local.h"
-
 #include "ojph_params.h"
 #include "../codestream/ojph_params_local.h"
 
+#include "ojph_transform.h"
+#include "ojph_transform_local.h"
+
 namespace ojph {
   namespace local {
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline void sse_multiply_const(float* p, float f, int width)
+    {
+      __m128 factor = _mm_set1_ps(f);
+      for (; width > 0; width -= 4, p += 4)
+      {
+        __m128 s = _mm_load_ps(p);
+        _mm_store_ps(p, _mm_mul_ps(factor, s));
+      }
+    }
 
     //////////////////////////////////////////////////////////////////////////
     void sse_irv_vert_step(const lifting_step* s, const line_buf* sig, 
@@ -77,14 +88,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void sse_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
     {
-      __m128 factor = _mm_set1_ps(K);
-      float* dst = aug->f32;
-      int i = (int)repeat;
-      for (; i > 0; i -= 4, dst += 4)
-      {
-        __m128 s = _mm_load_ps(dst);
-        _mm_store_ps(dst, _mm_mul_ps(factor, s));
-      }
+      sse_multiply_const(aug->f32, K, (int)repeat);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -95,39 +99,12 @@ namespace ojph {
       if (width > 1)
       {
         // split src into ldst and hdst
-        if (even)
         {
-          float* dph = hdst->f32;
           float* dpl = ldst->f32;
-          float* sp = src->f32;
-
-          int i = (int)width;
-          for ( ; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
-          {
-            __m128 a = _mm_load_ps(sp);
-            __m128 b = _mm_load_ps(sp + 4);
-            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
-            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-            _mm_store_ps(dpl, c);
-            _mm_store_ps(dph, d);
-          }
-        }
-        else
-        {
           float* dph = hdst->f32;
-          float* dpl = ldst->f32;
           float* sp = src->f32;
-
-          int i = (int)width;
-          for ( ; i > 0; i -= 8, sp += 8, dpl += 4, dph += 4)
-          {
-            __m128 a = _mm_load_ps(sp);
-            __m128 b = _mm_load_ps(sp + 4);
-            __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
-            __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
-            _mm_store_ps(dpl, d);
-            _mm_store_ps(dph, c);
-          }
+          int w = (int)width;
+          SSE_DEINTERLEAVE(dpl, dph, sp, w, even);
         }
 
         // the actual horizontal transform
@@ -137,7 +114,6 @@ namespace ojph {
         ui32 num_steps = atk->get_num_steps();
         for (ui32 j = num_steps; j > 0; --j)
         {
-          // first lifting step
           const lifting_step* s = atk->get_step(j - 1);
           const float a = s->irv.Aatk;
 
@@ -181,27 +157,8 @@ namespace ojph {
         { // multiply by K or 1/K
           float K = atk->get_K();
           float K_inv = 1.0f / K;
-          float* dp;
-          int i;
-          __m128 factor;
-
-          factor = _mm_set1_ps(K_inv);
-          dp = lp;
-          i = (int)l_width;
-          for ( ; i > 0; i -= 4, dp += 4)
-          {
-            __m128 s = _mm_load_ps(dp);
-            _mm_store_ps(dp, _mm_mul_ps(factor, s));
-          }
-
-          factor = _mm_set1_ps(K);
-          dp = hp;
-          i = (int)h_width;
-          for ( ; i > 0; i -= 4, dp += 4)
-          {
-            __m128 s = _mm_load_ps(dp);
-            _mm_store_ps(dp, _mm_mul_ps(factor, s));
-          }
+          sse_multiply_const(lp, K_inv, (int)l_width);
+          sse_multiply_const(hp, K, (int)h_width);
         }
       }
       else {
@@ -227,27 +184,8 @@ namespace ojph {
         { // multiply by K or 1/K
           float K = atk->get_K();
           float K_inv = 1.0f / K;
-          float* dp;
-          int i;
-          __m128 factor;
-
-          factor = _mm_set1_ps(K);
-          dp = aug;
-          i = (int)aug_width;
-          for ( ; i > 0; i -= 4, dp += 4)
-          {
-            __m128 s = _mm_load_ps(dp);
-            _mm_store_ps(dp, _mm_mul_ps(factor, s));
-          }
-
-          factor = _mm_set1_ps(K_inv);
-          dp = oth;
-          i = (int)oth_width;
-          for ( ; i > 0; i -= 4, dp += 4)
-          {
-            __m128 s = _mm_load_ps(dp);
-            _mm_store_ps(dp, _mm_mul_ps(factor, s));
-          }
+          sse_multiply_const(aug, K, (int)aug_width);
+          sse_multiply_const(oth, K_inv, (int)oth_width);
         }
 
         // the actual horizontal transform
@@ -295,37 +233,12 @@ namespace ojph {
         }
 
         // combine both lsrc and hsrc into dst
-        if (even)
         {
-          float* sph = hsrc->f32;
-          float* spl = lsrc->f32;
           float* dp = dst->f32;
-          int i = (int)width;
-          for ( ; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
-          {
-            __m128 a = _mm_load_ps(spl);
-            __m128 b = _mm_load_ps(sph);
-            __m128 c = _mm_unpacklo_ps(a, b);
-            __m128 d = _mm_unpackhi_ps(a, b);
-            _mm_store_ps(dp, c);
-            _mm_store_ps(dp + 4, d);
-          }
-        }
-        else
-        {
-          float* sph = hsrc->f32;
           float* spl = lsrc->f32;
-          float* dp = dst->f32;
-          int i = (int)width;
-          for ( ; i > 0; i -= 8, dp += 8, spl += 4, sph += 4)
-          {
-            __m128 a = _mm_load_ps(spl);
-            __m128 b = _mm_load_ps(sph);
-            __m128 c = _mm_unpacklo_ps(b, a);
-            __m128 d = _mm_unpackhi_ps(b, a);
-            _mm_store_ps(dp, c);
-            _mm_store_ps(dp + 4, d);
-          }
+          float* sph = hsrc->f32;
+          int w = (int)width;
+          SSE_INTERLEAVE(dp, spl, sph, w, even);
         }
       }
       else {

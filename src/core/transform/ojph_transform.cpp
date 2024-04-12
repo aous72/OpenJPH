@@ -112,6 +112,7 @@ namespace ojph {
       irv_horz_syn              = gen_irv_horz_syn;
 
 #ifndef OJPH_DISABLE_INTEL_SIMD
+
       int level = get_cpu_ext_level();
 
       if (level >= X86_CPU_EXT_LEVEL_SSE)
@@ -122,13 +123,12 @@ namespace ojph {
         irv_horz_syn              = sse_irv_horz_syn;
       }
 
-      //if (level >= X86_CPU_EXT_LEVEL_SSE2)
-      //{
-      //  rev_vert_ana_step         = sse2_rev_vert_ana_step;
-      //  rev_horz_ana              = sse2_rev_horz_ana;
-      //  rev_vert_syn_step         = sse2_rev_vert_syn_step;
-      //  rev_horz_syn              = sse2_rev_horz_syn;
-      //}
+      if (level >= X86_CPU_EXT_LEVEL_SSE2)
+      {
+        rev_vert_step             = sse2_rev_vert_step;
+        rev_horz_ana              = sse2_rev_horz_ana;
+        rev_horz_syn              = sse2_rev_horz_syn;
+      }
 
       if (level >= X86_CPU_EXT_LEVEL_AVX)
       {
@@ -138,26 +138,23 @@ namespace ojph {
         irv_horz_syn              = avx_irv_horz_syn;
       }
 
-      //if (level >= X86_CPU_EXT_LEVEL_AVX2)
-      //{
-      //  rev_vert_ana_step         = avx2_rev_vert_ana_step;
-      //  rev_horz_ana              = avx2_rev_horz_ana;
-      //  rev_vert_syn_step         = avx2_rev_vert_syn_step;
-      //  rev_horz_syn              = avx2_rev_horz_syn;
-      //}
+      if (level >= X86_CPU_EXT_LEVEL_AVX2)
+      {
+        rev_vert_step             = avx2_rev_vert_step;
+        rev_horz_ana              = avx2_rev_horz_ana;
+        rev_horz_syn              = avx2_rev_horz_syn;
+      }
 
       //if (level >= X86_CPU_EXT_LEVEL_AVX512)
       //{
-      //  rev_vert_ana_step         = avx512_rev_vert_ana_step;
+      //  rev_vert_step             = avx512_rev_vert_ana_step;
       //  rev_horz_ana              = avx512_rev_horz_ana;
-      //  rev_vert_syn_step         = avx512_rev_vert_syn_step;
       //  rev_horz_syn              = avx512_rev_horz_syn;
 
-      //  irv_vert_ana_step         = avx512_irv_vert_ana_step;
-      //  irv_horz_ana              = avx512_irv_horz_ana;      
+      //  irv_vert_step             = avx512_irv_vert_step;
+      //  irv_vert_times_K          = avx512_irv_vert_times_K;
       //  irv_vert_syn_step         = avx512_irv_vert_syn_step;
       //  irv_horz_syn              = avx512_irv_horz_syn;
-      //  irv_vert_times_K          = avx512_irv_vert_times_K;
       //}
 
 #endif // !OJPH_DISABLE_INTEL_SIMD
@@ -196,23 +193,32 @@ namespace ojph {
       // The general definition of the wavelet in Part 2 is slightly 
       // different to part 2, although they are mathematically equivalent
       // here, we identify the simpler form from Part 1 and employ them
-      if (a == 1 && b == 2 && e == 2)
-      { // normal update
+      if (a == 1)
+      { // 5/3 update and any case with a == 1
         if (synthesis)
           for (ui32 i = repeat; i > 0; --i)
-            *dst++ -= (b + (*src1++ + *src2++)) >> e;
+            *dst++ -= (b + *src1++ + *src2++) >> e;
         else
           for (ui32 i = repeat; i > 0; --i)
-            *dst++ += (b + (*src1++ + *src2++)) >> e;
+            *dst++ += (b + *src1++ + *src2++) >> e;
       }
       else if (a == -1 && b == 1 && e == 1)
-      { // normal predict
+      { // 5/3 predict
         if (synthesis)
           for (ui32 i = repeat; i > 0; --i)
             *dst++ += (*src1++ + *src2++) >> e;
         else
           for (ui32 i = repeat; i > 0; --i)
             *dst++ -= (*src1++ + *src2++) >> e;
+      }
+      else if (a == -1)
+      { // any case with a == -1, which is not 5/3 predict
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b - (*src1++ + *src2++)) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b - (*src1++ + *src2++)) >> e;
       }
       else { // general case
         if (synthesis)
@@ -267,15 +273,26 @@ namespace ojph {
           // lifting step
           const si32* sp = lp + (even ? 1 : 0);
           si32* dp = hp;
-          if (a == 1 && b == 2 && e == 2)        // normal update
+          if (a == 1) 
+          { // 5/3 update and any case with a == 1
             for (ui32 i = h_width; i > 0; --i, sp++, dp++)
               *dp += (b + (sp[-1] + sp[0])) >> e;
-          else if (a == -1 && b == 1 && e == 1)  // normal predict
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
             for (ui32 i = h_width; i > 0; --i, sp++, dp++)
               *dp -= (sp[-1] + sp[0]) >> e;
-          else                                   // general case
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+              *dp += (b - (sp[-1] + sp[0])) >> e;
+          }
+          else {
+            // general case
             for (ui32 i = h_width; i > 0; --i, sp++, dp++)
               *dp += (b + a * (sp[-1] + sp[0])) >> e;
+          }
 
           // swap buffers
           si32* t = lp; lp = hp; hp = t;
@@ -316,15 +333,26 @@ namespace ojph {
           // lifting step
           const si32* sp = oth + (ev ? 0 : 1);
           si32* dp = aug;
-          if (a == 1 && b == 2 && e == 2)        // normal update
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
             for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
               *dp -= (b + (sp[-1] + sp[0])) >> e;
-          else if (a == -1 && b == 1 && e == 1)  // normal predict
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
             for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
               *dp += (sp[-1] + sp[0]) >> e;
-          else                                   // general case
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp -= (b - (sp[-1] + sp[0])) >> e;
+          }
+          else {
+            // general case
             for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
               *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+          }
 
           // swap buffers
           si32* t = aug; aug = oth; oth = t;
@@ -413,7 +441,6 @@ namespace ojph {
         ui32 num_steps = atk->get_num_steps();
         for (ui32 j = num_steps; j > 0; --j)
         {
-          // first lifting step
           const lifting_step* s = atk->get_step(j - 1);
           const float a = s->irv.Aatk;
 

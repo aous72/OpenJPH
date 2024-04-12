@@ -514,7 +514,5 @@ namespace ojph {
       }
     }
 
-
-
   } // !local
 } // !ojph

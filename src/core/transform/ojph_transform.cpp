@@ -145,17 +145,19 @@ namespace ojph {
         rev_horz_syn              = avx2_rev_horz_syn;
       }
 
-      //if (level >= X86_CPU_EXT_LEVEL_AVX512)
-      //{
-      //  rev_vert_step             = avx512_rev_vert_ana_step;
-      //  rev_horz_ana              = avx512_rev_horz_ana;
-      //  rev_horz_syn              = avx512_rev_horz_syn;
+#ifdef OJPH_ENABLE_INTEL_AVX512
+      if (level >= X86_CPU_EXT_LEVEL_AVX512)
+      {
+        rev_vert_step             = avx512_rev_vert_step;
+        rev_horz_ana              = avx512_rev_horz_ana;
+        rev_horz_syn              = avx512_rev_horz_syn;
 
-      //  irv_vert_step             = avx512_irv_vert_step;
-      //  irv_vert_times_K          = avx512_irv_vert_times_K;
-      //  irv_vert_syn_step         = avx512_irv_vert_syn_step;
-      //  irv_horz_syn              = avx512_irv_horz_syn;
-      //}
+        irv_vert_step             = avx512_irv_vert_step;
+        irv_vert_times_K          = avx512_irv_vert_times_K;
+        irv_horz_ana              = avx512_irv_horz_ana;
+        irv_horz_syn              = avx512_irv_horz_syn;
+      }
+#endif // !OJPH_ENABLE_INTEL_AVX512
 
 #endif // !OJPH_DISABLE_INTEL_SIMD
 

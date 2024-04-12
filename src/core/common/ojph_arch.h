@@ -194,11 +194,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // constants
   ////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_ENABLE_INTEL_AVX512
-  const ui32 byte_alignment = 64; //64 bytes == 512 bits
-#else
-  const ui32 byte_alignment = 32; //32 bytes == 256 bits
-#endif
+  const ui32 byte_alignment = 64; // 64 bytes == 512 bits
   const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
   const ui32 object_alignment = 8;
 

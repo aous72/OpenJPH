@@ -88,14 +88,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void avx_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
     {
-      __m256 factor = _mm256_set1_ps(K);
-      float* dst = aug->f32;
-      int i = (int)repeat;
-      for (; i > 0; i -= 8, dst += 8)
-      {
-        __m256 s = _mm256_load_ps(dst);
-        _mm256_store_ps(dst, _mm256_mul_ps(factor, s));
-      }
+      avx_multiply_const(aug->f32, K, (int)repeat);
     }
 
     /////////////////////////////////////////////////////////////////////////

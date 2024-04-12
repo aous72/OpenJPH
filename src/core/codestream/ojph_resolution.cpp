@@ -524,7 +524,7 @@ namespace ojph {
                 line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
                 line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
                 const lifting_step* s = atk->get_step(num_steps - i - 1);
-                rev_vert_ana_step(s, sp1, sp2, dp, width);
+                rev_vert_step(s, sp1, sp2, dp, width, false);
               }
               lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
             }
@@ -591,7 +591,7 @@ namespace ojph {
                 line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
                 line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
                 const lifting_step* s = atk->get_step(num_steps - i - 1);
-                irv_vert_ana_step(s, sp1, sp2, dp, width);
+                irv_vert_step(s, sp1, sp2, dp, width, false);
               }
               lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
             }
@@ -711,7 +711,7 @@ namespace ojph {
                   line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
                   line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
                   const lifting_step* s = atk->get_step(i);
-                  rev_vert_syn_step(s, dp, sp1, sp2, width);
+                  rev_vert_step(s, sp1, sp2, dp, width, true);
                 }
                 lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
               }
@@ -805,7 +805,7 @@ namespace ojph {
                   line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
                   line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
                   const lifting_step* s = atk->get_step(i);
-                  irv_vert_syn_step(s, dp, sp1, sp2, width);
+                  irv_vert_step(s, sp1, sp2, dp, width, true);
                 }
                 lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
               }

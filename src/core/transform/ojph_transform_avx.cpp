@@ -51,11 +51,15 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void avx_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
-                               const line_buf* other, const line_buf* aug, 
-                               ui32 repeat)
+    void avx_irv_vert_step(const lifting_step* s, const line_buf* sig, 
+                           const line_buf* other, const line_buf* aug, 
+                           ui32 repeat, bool synthesis)
     {
-      __m256 factor = _mm256_set1_ps(s->irv.Aatk);
+      float a = s->irv.Aatk;
+      if (synthesis)
+        a = -a;
+
+      __m256 factor = _mm256_set1_ps(a);
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
@@ -67,6 +71,19 @@ namespace ojph {
         __m256 d = _mm256_load_ps(dst);
         d = _mm256_add_ps(d, _mm256_mul_ps(factor, _mm256_add_ps(s1, s2)));
         _mm256_store_ps(dst, d);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
+    {
+      __m256 factor = _mm256_set1_ps(K);
+      float* dst = aug->f32;
+      int i = (int)repeat;
+      for (; i > 0; i -= 8, dst += 8)
+      {
+        __m256 s = _mm256_load_ps(dst);
+        _mm256_store_ps(dst, _mm256_mul_ps(factor, s));
       }
     }
 
@@ -216,26 +233,6 @@ namespace ojph {
     }
     
     //////////////////////////////////////////////////////////////////////////
-    void avx_irv_vert_syn_step(const lifting_step* s, const line_buf* aug, 
-                               const line_buf* sig, const line_buf* other, 
-                               ui32 repeat)
-    {
-      __m256 factor = _mm256_set1_ps(s->irv.Aatk);
-
-      float* dst = aug->f32;
-      const float* src1 = sig->f32, * src2 = other->f32;
-      int i = (int)repeat;
-      for ( ; i > 0; i -= 8, dst += 8, src1 += 8, src2 += 8)
-      {
-        __m256 s1 = _mm256_load_ps(src1);
-        __m256 s2 = _mm256_load_ps(src2);
-        __m256 d  = _mm256_load_ps(dst);
-        d = _mm256_sub_ps(d, _mm256_mul_ps(factor, _mm256_add_ps(s1, s2)));
-        _mm256_store_ps(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     void avx_irv_horz_syn(const param_atk* atk, const line_buf* dst, 
                           const line_buf* lsrc, const line_buf* hsrc, 
                           ui32 width, bool even)
@@ -380,20 +377,6 @@ namespace ojph {
           dst->f32[0] = hsrc->f32[0] * 0.5f;
       }
     }
-
-    //////////////////////////////////////////////////////////////////////////
-    void avx_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
-    {
-      __m256 factor = _mm256_set1_ps(K);
-      float* dst = aug->f32;
-      int i = (int)repeat;
-      for ( ; i > 0; i -= 8, dst += 8 )
-      {
-        __m256 s = _mm256_load_ps(dst);
-        _mm256_store_ps(dst, _mm256_mul_ps(factor, s));
-      }
-    }
-
 
   } // !local
 } // !ojph

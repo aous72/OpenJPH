@@ -55,9 +55,9 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_ana_step)
+    extern void (*rev_vert_step)
       (const lifting_step* s, const line_buf* sig, const line_buf* other,
-        const line_buf* aug, ui32 repeat);
+        const line_buf* aug, ui32 repeat, bool synthesis);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*rev_horz_ana)
@@ -65,25 +65,22 @@ namespace ojph {
         const line_buf* src, ui32 width, bool even);
 
     /////////////////////////////////////////////////////////////////////////
-    extern void (*rev_vert_syn_step)
-      (const lifting_step* s, const line_buf* aug, const line_buf* sig,
-        const line_buf* other, ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
     extern void (*rev_horz_syn)
       (const param_atk* atk, const line_buf* dst, const line_buf* lsrc,
         const line_buf* hsrc, ui32 width, bool even);
-
-
 
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    extern void (*irv_vert_ana_step)
+    extern void (*irv_vert_step)
       (const lifting_step* s, const line_buf* sig, const line_buf* other, 
-        const line_buf* aug, ui32 repeat);
+        const line_buf* aug, ui32 repeat, bool synthesis);
+
+    /////////////////////////////////////////////////////////////////////////
+    extern void (*irv_vert_times_K)
+      (float K, const line_buf* aug, ui32 repeat);
 
     /////////////////////////////////////////////////////////////////////////
     extern void (*irv_horz_ana)
@@ -91,19 +88,9 @@ namespace ojph {
         const line_buf* src, ui32 width, bool even);
 
     /////////////////////////////////////////////////////////////////////////
-    extern void (*irv_vert_syn_step)
-      (const lifting_step* s, const line_buf* aug, const line_buf* sig, 
-        const line_buf* other, ui32 repeat);
-
-    /////////////////////////////////////////////////////////////////////////
     extern void (*irv_horz_syn)
       (const param_atk* atk, const line_buf* dst, const line_buf* lsrc, 
         const line_buf* hsrc, ui32 width, bool even);
-
-    /////////////////////////////////////////////////////////////////////////
-    extern void (*irv_vert_times_K)
-      (float K, const line_buf* aug, ui32 repeat);
-
 
   }
 }

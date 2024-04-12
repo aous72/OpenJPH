@@ -1724,7 +1724,7 @@ namespace ojph {
       d[0].rev.Batk = 2;
       d[0].rev.Eatk = 2;
       d[1].rev.Aatk = -1;
-      d[1].rev.Batk = 0;
+      d[1].rev.Batk = 1;
       d[1].rev.Eatk = 1;
     }
 

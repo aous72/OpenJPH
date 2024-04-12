@@ -51,11 +51,15 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void sse_irv_vert_ana_step(const lifting_step* s, const line_buf* sig, 
-                               const line_buf* other, const line_buf* aug, 
-                               ui32 repeat)
+    void sse_irv_vert_step(const lifting_step* s, const line_buf* sig, 
+                           const line_buf* other, const line_buf* aug, 
+                           ui32 repeat, bool synthesis)
     {
-      __m128 factor = _mm_set1_ps(s->irv.Aatk);
+      float a = s->irv.Aatk;
+      if (synthesis)
+        a = -a;
+
+      __m128 factor = _mm_set1_ps(a);
 
       float* dst = aug->f32;
       const float* src1 = sig->f32, * src2 = other->f32;
@@ -67,6 +71,19 @@ namespace ojph {
         __m128 d  = _mm_load_ps(dst);
         d = _mm_add_ps(d, _mm_mul_ps(factor, _mm_add_ps(s1, s2)));
         _mm_store_ps(dst, d);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
+    {
+      __m128 factor = _mm_set1_ps(K);
+      float* dst = aug->f32;
+      int i = (int)repeat;
+      for (; i > 0; i -= 4, dst += 4)
+      {
+        __m128 s = _mm_load_ps(dst);
+        _mm_store_ps(dst, _mm_mul_ps(factor, s));
       }
     }
 
@@ -196,26 +213,6 @@ namespace ojph {
     }
     
     //////////////////////////////////////////////////////////////////////////
-    void sse_irv_vert_syn_step(const lifting_step* s, const line_buf* aug, 
-                               const line_buf* sig, const line_buf* other, 
-                               ui32 repeat)
-    {
-      __m128 factor = _mm_set1_ps(s->irv.Aatk);
-
-      float* dst = aug->f32;
-      const float* src1 = sig->f32, * src2 = other->f32;
-      int i = (int)repeat;
-      for ( ; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
-      {
-        __m128 s1 = _mm_load_ps(src1);
-        __m128 s2 = _mm_load_ps(src2);
-        __m128 d  = _mm_load_ps(dst);
-        d = _mm_sub_ps(d, _mm_mul_ps(factor, _mm_add_ps(s1, s2)));
-        _mm_store_ps(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     void sse_irv_horz_syn(const param_atk* atk, const line_buf* dst, 
                           const line_buf* lsrc, const line_buf* hsrc, 
                           ui32 width, bool even)
@@ -336,19 +333,6 @@ namespace ojph {
           dst->f32[0] = lsrc->f32[0];
         else
           dst->f32[0] = hsrc->f32[0] * 0.5f;
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
-    {
-      __m128 factor = _mm_set1_ps(K);
-      float* dst = aug->f32;
-      int i = (int)repeat;
-      for ( ; i > 0; i -= 4, dst += 4)
-      {
-        __m128 s = _mm_load_ps(dst);
-        _mm_store_ps(dst, _mm_mul_ps(factor, s));
       }
     }
 

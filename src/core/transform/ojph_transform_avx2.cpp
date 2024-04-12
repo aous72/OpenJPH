@@ -58,7 +58,7 @@ namespace ojph {
     {
       const si32 a = s->rev.Aatk;
       const si32 b = s->rev.Batk;
-      const ui32 e = s->rev.Eatk;
+      const si32 e = s->rev.Eatk;
       __m256i va = _mm256_set1_epi32(a);
       __m256i vb = _mm256_set1_epi32(b);
 
@@ -206,7 +206,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j - 1);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const ui32 e = s->rev.Eatk;
+          const si32 e = s->rev.Eatk;
           __m256i va = _mm256_set1_epi32(a);
           __m256i vb = _mm256_set1_epi32(b);
 
@@ -364,7 +364,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const ui32 e = s->rev.Eatk;
+          const si32 e = s->rev.Eatk;
           __m256i va = _mm256_set1_epi32(a);
           __m256i vb = _mm256_set1_epi32(b);
 

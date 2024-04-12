@@ -58,8 +58,7 @@ namespace ojph {
     {
       const si32 a = s->rev.Aatk;
       const si32 b = s->rev.Batk;
-      const ui32 e = s->rev.Eatk;
-      __m128i va = _mm_set1_epi32(a);
+      const si32 e = s->rev.Eatk;
       __m128i vb = _mm_set1_epi32(b);
 
       si32* dst = aug->i32;
@@ -188,8 +187,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j - 1);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const ui32 e = s->rev.Eatk;
-          __m128i va = _mm_set1_epi32(a);
+          const si32 e = s->rev.Eatk;
           __m128i vb = _mm_set1_epi32(b);
 
           // extension
@@ -328,8 +326,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const ui32 e = s->rev.Eatk;
-          __m128i va = _mm_set1_epi32(a);
+          const si32 e = s->rev.Eatk;
           __m128i vb = _mm_set1_epi32(b);
 
           // extension

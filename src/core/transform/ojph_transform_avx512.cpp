@@ -224,13 +224,7 @@ namespace ojph {
       if (width > 1)
       {
         // split src into ldst and hdst
-        {
-          float* dpl = ldst->f32;
-          float* dph = hdst->f32;
-          float* sp = src->f32;
-          int w = (int)width;
-          AVX_DEINTERLEAVE(dpl, dph, sp, w, even);
-        }
+        avx512_deinterleave(ldst->f32, hdst->f32, src->f32, (int)width, even);
 
         // the actual horizontal transform
         float* hp = hdst->f32, * lp = ldst->f32;
@@ -376,7 +370,7 @@ namespace ojph {
     {
       const si32 a = s->rev.Aatk;
       const si32 b = s->rev.Batk;
-      const si32 e = s->rev.Eatk;
+      const ui32 e = s->rev.Eatk;
       __m512i va = _mm512_set1_epi32(a);
       __m512i vb = _mm512_set1_epi32(b);
 
@@ -506,13 +500,7 @@ namespace ojph {
       if (width > 1)
       {
         // combine both lsrc and hsrc into dst
-        {
-          float* dpl = ldst->f32;
-          float* dph = hdst->f32;
-          float* sp = src->f32;
-          int w = (int)width;
-          AVX_DEINTERLEAVE(dpl, dph, sp, w, even);
-        }
+        avx512_deinterleave(ldst->f32, hdst->f32, src->f32, (int)width, even);
 
         si32* hp = hdst->i32, * lp = ldst->i32;
         ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
@@ -524,7 +512,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j - 1);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const si32 e = s->rev.Eatk;
+          const ui32 e = s->rev.Eatk;
           __m512i va = _mm512_set1_epi32(a);
           __m512i vb = _mm512_set1_epi32(b);
 
@@ -682,7 +670,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const si32 e = s->rev.Eatk;
+          const ui32 e = s->rev.Eatk;
           __m512i va = _mm512_set1_epi32(a);
           __m512i vb = _mm512_set1_epi32(b);
 

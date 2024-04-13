@@ -200,8 +200,11 @@ void process_cmdlines(std::ifstream& file,
 
       start_pos = line.find(":");
       if (start_pos != std::string::npos) {
-        size_t end_pos = line.find("\"", start_pos);
-        yuv_specs = line.substr(start_pos, end_pos - start_pos);
+        if (std::isdigit(line.at(start_pos + 1)))
+        {
+          size_t end_pos = line.find("\"", start_pos);
+          yuv_specs = line.substr(start_pos, end_pos - start_pos);
+        }
       }
       break;
     }

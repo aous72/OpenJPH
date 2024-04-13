@@ -825,17 +825,17 @@ TEST(TestExecutables, SimpleDecRev5364x6416bitGray) {
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_expand with codeblocks when the rev53 wavelet is used.
 // Command-line options used to obtain this file is:
-// -o simple_dec_irv53_bhvhb_low_latency.jph -quiet Corder=PCRL Clevels=5 
-// "Cmodes=HT|CAUSAL" -rate 2 -o simple_dec_irv53_bhvhb_low_latency.jph Catk=2 
-// Kkernels:I2=I5X3 Cprecincts="{16,8192},{8,8192},{4,8192}" Cblk="{8,256}" 
-// Cdecomp="B(-:-:-),H(-),V(-),H(-),B(-:-:-)" Qstep=0.0001 -precise -no_weights 
+// -o simple_dec_irv53_bhvhb_low_latency.jph -quiet Corder=PCRL Clevels=5
+// Cmodes=HT|CAUSAL -rate 2 Catk=2 Kkernels:I2=I5X3
+// Cprecincts={16,8192},{8,8192},{4,8192} Cblk={8,256}
+// Cdecomp=B(-:-:-),H(-),V(-),H(-),B(-:-:-) Qstep=0.0001 -precise -no_weights
 // -tolerance 0
 TEST(TestExecutables, SimpleDecIrv53BhvhbLowLatency) {
   double mse[3] = { 5.52392, 4.01405, 6.8166};
   int pae[3] = { 16, 17, 23};
   run_ojph_expand("simple_dec_irv53_bhvhb_low_latency", "jph", "ppm");
   run_mse_pae("simple_dec_irv53_bhvhb_low_latency", "ppm", "Malamute.ppm",
-              ":I2=I5X3 Cprecincts=", 3, mse, pae);
+              "", 3, mse, pae);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

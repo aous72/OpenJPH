@@ -305,6 +305,7 @@ namespace ojph {
       const si32 a = s->rev.Aatk;
       const si32 b = s->rev.Batk;
       const ui32 e = s->rev.Eatk;
+      v128_t va = wasm_i32x4_splat(a);
       v128_t vb = wasm_i32x4_splat(b);
 
       si32* dst = aug->i32;
@@ -394,16 +395,35 @@ namespace ojph {
             wasm_v128_store((v128_t*)dst, d);
           }
       }
-      else { // general case
-        // 32bit multiplication is not supported in sse2; we need sse4.1,
-        // where we can use _mm_mullo_epi32, which multiplies 32bit x 32bit,
-        // keeping the LSBs
+      else 
+      { // general case
+        int i = (int)repeat;
         if (synthesis)
-          for (ui32 i = repeat; i > 0; --i)
-            *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t u = wasm_i32x4_mul(va, t);
+            v128_t v = wasm_i32x4_add(vb, u);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_sub(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
         else
-          for (ui32 i = repeat; i > 0; --i)
-            *dst++ += (b + a * (*src1++ + *src2++)) >> e;
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t u = wasm_i32x4_mul(va, t);
+            v128_t v = wasm_i32x4_add(vb, u);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_add(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
       }
     }
 
@@ -428,6 +448,7 @@ namespace ojph {
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
           const ui32 e = s->rev.Eatk;
+          v128_t va = wasm_i32x4_splat(a);
           v128_t vb = wasm_i32x4_splat(b);
 
           // extension
@@ -522,17 +543,35 @@ namespace ojph {
                 wasm_v128_store((v128_t*)dp, d);
               }
           }
-          else {
-            // general case
-            // 32bit multiplication is not supported in sse2; we need sse4.1,
-            // where we can use _mm_mullo_epi32, which multiplies
-            // 32bit x 32bit, keeping the LSBs
+          else 
+          { // general case
+            int i = (int)h_width;
             if (even)
-              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
-                *dp += (b + a * (sp[0] + sp[1])) >> e;
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
             else
-              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
-                *dp += (b + a * (sp[-1] + sp[0])) >> e;
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);                
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
           }
 
           // swap buffers
@@ -567,6 +606,7 @@ namespace ojph {
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
           const ui32 e = s->rev.Eatk;
+          v128_t va = wasm_i32x4_splat(a);
           v128_t vb = wasm_i32x4_splat(b);
 
           // extension
@@ -661,17 +701,35 @@ namespace ojph {
                 wasm_v128_store((v128_t*)dp, d);
               }
           }
-          else {
-            // general case
-            // 32bit multiplication is not supported in sse2; we need sse4.1,
-            // where we can use _mm_mullo_epi32, which multiplies
-            // 32bit x 32bit, keeping the LSBs
+          else 
+          { // general case
+            int i = (int)aug_width;
             if (ev)
-              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
-                *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
             else
-              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
-                *dp -= (b + a * (sp[0] + sp[1])) >> e;
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);                
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
           }
 
           // swap buffers

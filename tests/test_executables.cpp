@@ -128,7 +128,6 @@ void run_ojph_compress(const std::string& ref_filename,
       + " -i " + REF_FILE_DIR + ref_filename
       + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname +
       "." + out_ext + " " + extra_options;
-    std::cerr << command << std::endl;
     EXPECT_EQ(execute(command, result), 0);
   }
   catch (const std::runtime_error& error) {

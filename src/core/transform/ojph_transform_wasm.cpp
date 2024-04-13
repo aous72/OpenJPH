@@ -550,7 +550,7 @@ namespace ojph {
               for (; i > 0; i -= 4, sp += 4, dp += 4)
               {
                 v128_t s1 = wasm_v128_load((v128_t*)sp);
-                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
                 v128_t d = wasm_v128_load((v128_t*)dp);
                 v128_t t = wasm_i32x4_add(s1, s2);
                 v128_t u = wasm_i32x4_mul(va, t);
@@ -563,7 +563,7 @@ namespace ojph {
               for (; i > 0; i -= 4, sp += 4, dp += 4)
               {
                 v128_t s1 = wasm_v128_load((v128_t*)sp);
-                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
                 v128_t d = wasm_v128_load((v128_t*)dp);
                 v128_t t = wasm_i32x4_add(s1, s2);
                 v128_t u = wasm_i32x4_mul(va, t);                

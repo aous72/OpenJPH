@@ -17,7 +17,7 @@ source_group("others"      FILES ${OJPH_IMG_IO})
 source_group("common"      FILES ${OJPH_IMG_IO_H})
 
 if(EMSCRIPTEN)
-  add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD)
+  add_compile_options(-std=c++11 -O3 -fexceptions)
   add_executable(ojph_expand ${SOURCES})
   add_executable(ojph_expand_simd ${SOURCES} ${OJPH_IMG_IO_SSE4})
   target_compile_options(ojph_expand_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128 -msse4.1)

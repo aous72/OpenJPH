@@ -162,16 +162,14 @@ namespace ojph {
 #endif // !OJPH_DISABLE_INTEL_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
-      rev_vert_ana_step         = wasm_rev_vert_ana_step;
-      rev_horz_ana              = wasm_rev_horz_ana;
-      rev_vert_syn_step         = wasm_rev_vert_syn_step;
-      rev_horz_syn              = wasm_rev_horz_syn;
-
-      irv_vert_ana_step         = wasm_irv_vert_ana_step;
-      irv_horz_ana              = wasm_irv_horz_ana;      
-      irv_vert_syn_step         = wasm_irv_vert_syn_step;
-      irv_horz_syn              = wasm_irv_horz_syn;
-      irv_vert_times_K          = wasm_irv_vert_times_K;
+        rev_vert_step             = wasm_rev_vert_step;
+        rev_horz_ana              = wasm_rev_horz_ana;
+        rev_horz_syn              = wasm_rev_horz_syn;
+        
+        irv_vert_step             = wasm_irv_vert_step;
+        irv_vert_times_K          = wasm_irv_vert_times_K;
+        irv_horz_ana              = wasm_irv_horz_ana;
+        irv_horz_syn              = wasm_irv_horz_syn;
 #endif // !OJPH_ENABLE_WASM_SIMD
 
       wavelet_transform_functions_initialized = true;

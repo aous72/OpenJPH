@@ -2,9 +2,9 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2019-2024, Aous Naman 
+// Copyright (c) 2019-2024, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2019-2024, The University of New South Wales, Australia
 // 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -30,9 +30,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_transform_avx2.cpp
+// File: ojph_transform_avx512.cpp
 // Author: Aous Naman
-// Date: 28 August 2019
+// Date: 13 April 2024
 //***************************************************************************/
 
 #include <cstdio>

@@ -81,6 +81,14 @@ namespace ojph {
 
       used_qcc_fields = 0;
       qcc = qcc_store;
+      used_coc_fields = 0;
+      coc = coc_store;
+
+      atk = atk_store;
+      atk[0].init_irv97();
+      atk[0].link(atk_store + 1);
+      atk[1].init_rev53();
+      atk[1].link(atk_store + 2);
 
       allocator = new mem_fixed_allocator;
       elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
@@ -178,8 +186,6 @@ namespace ojph {
       for (ui32 r = 0; r <= num_decomps; ++r)
       {
         size log_PP = cod.get_log_precinct_size(r);
-        log_PP.w -= (r ? 1 : 0);
-        log_PP.h -= (r ? 1 : 0);
         ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
         ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
       }
@@ -192,7 +198,7 @@ namespace ojph {
       // We need 4 such tables. These tables store
       // 1. missing msbs and 2. their flags, 
       // 3. number of layers and 4. their flags
-      precinct_scratch_needed_bytes = 
+      precinct_scratch_needed_bytes =
         4 * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
@@ -212,9 +218,8 @@ namespace ojph {
 
       ui32 num_tileparts = 0;
       point index;
-      rect tile_rect, recon_tile_rect;
+      rect tile_rect;
       ojph::param_siz sz = access_siz();
-      ui32 ds = 1 << skipped_res_for_recon;
       for (index.y = 0; index.y < num_tiles.h; ++index.y)
       {
         ui32 y0 = sz.get_tile_offset().y
@@ -224,12 +229,6 @@ namespace ojph {
         tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
         tile_rect.siz.h = 
           ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
-
-        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds), 
-          ojph_div_ceil(sz.get_image_offset().y, ds));
-        recon_tile_rect.siz.h = ojph_min(ojph_div_ceil(y1, ds),
-          ojph_div_ceil(sz.get_image_extent().y, ds))
-          - recon_tile_rect.org.y;
 
         ui32 offset = 0;
         for (index.x = 0; index.x < num_tiles.w; ++index.x)
@@ -242,17 +241,9 @@ namespace ojph {
           tile_rect.siz.w = 
             ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
 
-          recon_tile_rect.org.x = ojph_max(ojph_div_ceil(x0, ds),
-            ojph_div_ceil(sz.get_image_offset().x, ds));
-          recon_tile_rect.siz.w = ojph_min(ojph_div_ceil(x1, ds),
-            ojph_div_ceil(sz.get_image_extent().x, ds))
-            - recon_tile_rect.org.x;
-
           ui32 tps = 0; // number of tileparts for this tile
           ui32 idx = index.y * num_tiles.w + index.x;
-          tiles[idx].finalize_alloc(this, tile_rect, recon_tile_rect,
-            idx, offset, tps);
-          offset += recon_tile_rect.siz.w;
+          tiles[idx].finalize_alloc(this, tile_rect, idx, offset, tps);
           num_tileparts += tps;
         }
       }
@@ -554,8 +545,9 @@ namespace ojph {
                                    ui32 num_comments)
     {
       //finalize
-      siz.check_validity();
-      cod.check_validity(siz);
+      siz.check_validity(cod);
+      cod.check_validity(siz);  
+      cod.update_atk(atk);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
       if (profile == OJPH_PN_IMF)
@@ -717,15 +709,15 @@ namespace ojph {
       {
         if (msg_level == OJPH_MSG_LEVEL::INFO)
         {
-          OJPH_INFO(0x00030001, "%s\n", msg);
+          OJPH_INFO(0x00030001, "%s", msg);
         }
         else if (msg_level == OJPH_MSG_LEVEL::WARN)
         {
-          OJPH_WARN(0x00030001, "%s\n", msg);
+          OJPH_WARN(0x00030001, "%s", msg);
         }
         else if (msg_level == OJPH_MSG_LEVEL::ERROR)
         {
-          OJPH_ERROR(0x00030001, "%s\n", msg);
+          OJPH_ERROR(0x00030001, "%s", msg);
         }
         else
           assert(0);
@@ -736,8 +728,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::read_headers(infile_base *file)
     {
-      ui16 marker_list[17] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
-        RGN, POC, PPM, TLM, PLM, CRG, COM, SOT };
+      ui16 marker_list[19] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
+        RGN, POC, PPM, TLM, PLM, CRG, COM, DFS, ATK, SOT };
       find_marker(file, marker_list, 1); //find SOC
       find_marker(file, marker_list + 1, 1); //find SIZ
       siz.read(file);
@@ -745,7 +737,7 @@ namespace ojph {
       int received_markers = 0; //check that COD, & QCD received
       while (true)
       {
-        marker_idx = find_marker(file, marker_list + 2, 15);
+        marker_idx = find_marker(file, marker_list + 2, 17);
         if (marker_idx == 0)
           cap.read(file);
         else if (marker_idx == 1)
@@ -756,7 +748,8 @@ namespace ojph {
           skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
         { 
-          cod.read(file); received_markers |= 1; 
+          cod.read(file, param_cod::COD_MAIN); 
+          received_markers |= 1;
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
           if (num_qlayers != 1)
@@ -764,21 +757,32 @@ namespace ojph {
               "1 quality layer only.  This codestream has %d quality layers",
               num_qlayers);
         }
-        else if (marker_idx == 4)
-          skip_marker(file, "COC", "COC is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
-        else if (marker_idx == 5)
-        { qcd.read(file); received_markers |= 2; }
-        else if (marker_idx == 6)
+        else if (marker_idx == 4) 
+        {
+          ui32 num_comps = siz.get_num_components();
+          if (coc == coc_store && 
+              num_comps * sizeof(param_cod) > sizeof(coc_store))
           {
-            ui32 num_comps = siz.get_num_components();
-            if (qcc == qcc_store && 
-                num_comps * sizeof(param_qcc) > sizeof(qcc_store))
-            {
-              qcc = new param_qcc[num_comps];
-            }
-            qcc[used_qcc_fields++].read(file, num_comps);
+            coc = new param_cod[num_comps];
           }
+          coc[used_coc_fields++].read(
+            file, param_cod::COC_MAIN, num_comps, &cod);
+        }
+        else if (marker_idx == 5)
+        { 
+          qcd.read(file); 
+          received_markers |= 2; 
+        }
+        else if (marker_idx == 6)
+        {
+          ui32 num_comps = siz.get_num_components();
+          if (qcc == qcc_store && 
+              num_comps * sizeof(param_qcc) > sizeof(qcc_store))
+          {
+            qcc = new param_qcc[num_comps];
+          }
+          qcc[used_qcc_fields++].read(file, num_comps);
+        }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
             OJPH_MSG_LEVEL::WARN, false);
@@ -805,10 +809,25 @@ namespace ojph {
         else if (marker_idx == 13)
           skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 14)
+          dfs.read(file);
+        else if (marker_idx == 15)
+          atk[2].read(file);
+        else if (marker_idx == 16)
           break;
         else
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
+
+      cod.update_atk(atk);
+      for (int i = 0; i < used_coc_fields; ++i) 
+      {
+        if (i == 0) cod.link_cod(coc);
+        else coc[i - 1].link_cod(coc + i);
+        coc[i].update_atk(atk);
+      }
+      siz.link(&cod);
+      if (dfs.exists())
+        siz.link(&dfs);
 
       if (received_markers != 3)
         OJPH_ERROR(0x00030052, "markers error, COD and QCD are required");

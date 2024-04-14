@@ -55,7 +55,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void subband::pre_alloc(codestream *codestream, const rect &band_rect,
-                            ui32 res_num)
+                            ui32 comp_num, ui32 res_num, ui32 transform_flags)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -63,12 +63,15 @@ namespace ojph {
       if (empty)
         return;
 
-      const param_cod* cdp = codestream->get_cod();
+      const param_cod* cdp = codestream->get_cod(comp_num);
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
 
-      ui32 xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
-      ui32 ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
+      ui32 x_off = ((transform_flags & resolution::HORZ_TRX) ? 1 : 0);
+      ui32 y_off = ((transform_flags & resolution::VERT_TRX) ? 1 : 0);
+
+      ui32 xcb_prime = ojph_min(log_cb.w, log_PP.w - x_off);
+      ui32 ycb_prime = ojph_min(log_cb.h, log_PP.h - y_off);
 
       size nominal(1 << xcb_prime, 1 << ycb_prime);
 
@@ -111,24 +114,35 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      const param_cod* cdp = codestream->get_cod();
-      this->reversible = cdp->is_reversible();
+      const param_cod* cdp = codestream->get_cod(parent->get_comp_num());
+      this->reversible = cdp->access_atk()->is_reversible();
       size log_cb = cdp->get_log_block_dims();
       log_PP = cdp->get_log_precinct_size(res_num);
 
-      xcb_prime = ojph_min(log_cb.w, log_PP.w - (res_num?1:0));
-      ycb_prime = ojph_min(log_cb.h, log_PP.h - (res_num?1:0));
+      ui32 x_off = ((parent->has_horz_transform()) ? 1 : 0);
+      ui32 y_off = ((parent->has_vert_transform()) ? 1 : 0);
+
+      xcb_prime = ojph_min(log_cb.w, log_PP.w - x_off);
+      ycb_prime = ojph_min(log_cb.h, log_PP.h - y_off);
 
       size nominal(1 << xcb_prime, 1 << ycb_prime);
 
       cur_cb_row = 0;
       cur_line = 0;
       cur_cb_height = 0;
-      param_qcd *qcd = codestream->access_qcd(parent->get_comp_num());
-      this->K_max = qcd->get_Kmax(this->res_num, band_num);
+      const param_dfs* dfs = NULL;
+      if (cdp->is_dfs_defined()) {
+        dfs = codestream->access_dfs();
+        if (dfs != NULL)
+          dfs = dfs->get_dfs(cdp->get_dfs_index());
+      }
+      param_qcd* qcd = codestream->access_qcd(parent->get_comp_num());
+      ui32 num_decomps = cdp->get_num_decompositions();
+      this->K_max = qcd->get_Kmax(dfs, num_decomps, this->res_num, band_num);
       if (!reversible)
       {
-        float d = qcd->irrev_get_delta(res_num, subband_num);
+        float d = 
+          qcd->irrev_get_delta(dfs, num_decomps, res_num, subband_num);
         d /= (float)(1u << (31 - this->K_max));
         delta = d;
         delta_inv = (1.0f/d);
@@ -197,14 +211,16 @@ namespace ojph {
       ui32 pc_lft = (res_rect.org.x >> log_PP.w) << log_PP.w;
       ui32 pc_top = (res_rect.org.y >> log_PP.h) << log_PP.h;
 
-      ui32 pcx0, pcx1, pcy0, pcy1, shift = (band_num != 0 ? 1 : 0);
+      ui32 pcx0, pcx1, pcy0, pcy1;
+      ui32 x_shift = parent->has_horz_transform() ? 1 : 0;
+      ui32 y_shift = parent->has_vert_transform() ? 1 : 0;
       ui32 yb, xb, coly = 0, colx = 0;
       for (ui32 y = 0; y < num_precincts.h; ++y)
       {
         pcy0 = ojph_max(try0, pc_top + (y << log_PP.h));
         pcy1 = ojph_min(try1, pc_top + ((y + 1) << log_PP.h));
-        pcy0 = (pcy0 - (band_num >> 1) + (1<<shift) - 1) >> shift;
-        pcy1 = (pcy1 - (band_num >> 1) + (1<<shift) - 1) >> shift;
+        pcy0 = (pcy0 - (band_num >> 1) + (1 << y_shift) - 1) >> y_shift;
+        pcy1 = (pcy1 - (band_num >> 1) + (1 << y_shift) - 1) >> y_shift;
 
         precinct *p = precincts + y * num_precincts.w;
         yb = ((pcy1 + (1<<ycb_prime) - 1) >> ycb_prime);
@@ -215,8 +231,8 @@ namespace ojph {
         {
           pcx0 = ojph_max(trx0, pc_lft + (x << log_PP.w));
           pcx1 = ojph_min(trx1, pc_lft + ((x + 1) << log_PP.w));
-          pcx0 = (pcx0 - (band_num & 1) + (1<<shift) - 1) >> shift;
-          pcx1 = (pcx1 - (band_num & 1) + (1<<shift) - 1) >> shift;
+          pcx0 = (pcx0 - (band_num & 1) + (1 << x_shift) - 1) >> x_shift;
+          pcx1 = (pcx1 - (band_num & 1) + (1 << x_shift) - 1) >> x_shift;
 
           rect *bp = p->cb_idxs + band_num;
           xb = ((pcx1 + (1<<xcb_prime) - 1) >> xcb_prime);

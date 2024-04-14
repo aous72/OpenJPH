@@ -116,7 +116,7 @@ namespace ojph {
         recon_comp_rect.siz.w = recon_tcx1 - recon_tcx0;
         recon_comp_rect.siz.h = recon_tcy1 - recon_tcy0;
 
-        tile_comp::pre_alloc(codestream, comp_rect, recon_comp_rect);
+        tile_comp::pre_alloc(codestream, i, comp_rect, recon_comp_rect);
         width = ojph_max(width, recon_comp_rect.siz.w);
       }
 
@@ -131,8 +131,8 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void tile::finalize_alloc(codestream *codestream, const rect& tile_rect,
-                              const rect& recon_tile_rect, ui32 tile_idx, 
-                              ui32 offset, ui32 &num_tileparts)
+                              ui32 tile_idx, ui32& offset, 
+                              ui32 &num_tileparts)
     {
       //this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -167,33 +167,29 @@ namespace ojph {
 
       this->resilient = codestream->is_resilient();
       this->tile_rect = tile_rect;
-      this->recon_tile_rect = recon_tile_rect;
 
       ui32 tx0 = tile_rect.org.x;
       ui32 ty0 = tile_rect.org.y;
       ui32 tx1 = tile_rect.org.x + tile_rect.siz.w;
       ui32 ty1 = tile_rect.org.y + tile_rect.siz.h;
-      ui32 recon_tx0 = recon_tile_rect.org.x;
-      ui32 recon_ty0 = recon_tile_rect.org.y;
-      ui32 recon_tx1 = recon_tile_rect.org.x + recon_tile_rect.siz.w;
-      ui32 recon_ty1 = recon_tile_rect.org.y + recon_tile_rect.siz.h;
 
       ui32 width = 0;
       for (ui32 i = 0; i < num_comps; ++i)
       {
         point downsamp = szp->get_downsampling(i);
+        point recon_downsamp = szp->get_recon_downsampling(i);
 
         ui32 tcx0 = ojph_div_ceil(tx0, downsamp.x);
         ui32 tcy0 = ojph_div_ceil(ty0, downsamp.y);
         ui32 tcx1 = ojph_div_ceil(tx1, downsamp.x);
         ui32 tcy1 = ojph_div_ceil(ty1, downsamp.y);
-        ui32 recon_tcx0 = ojph_div_ceil(recon_tx0, downsamp.x);
-        ui32 recon_tcy0 = ojph_div_ceil(recon_ty0, downsamp.y);
-        ui32 recon_tcx1 = ojph_div_ceil(recon_tx1, downsamp.x);
-        ui32 recon_tcy1 = ojph_div_ceil(recon_ty1, downsamp.y);
+        ui32 recon_tcx0 = ojph_div_ceil(tx0, recon_downsamp.x);
+        ui32 recon_tcy0 = ojph_div_ceil(ty0, recon_downsamp.y);
+        ui32 recon_tcx1 = ojph_div_ceil(tx1, recon_downsamp.x);
+        ui32 recon_tcy1 = ojph_div_ceil(ty1, recon_downsamp.y);
 
         line_offsets[i] = 
-          recon_tcx0 - ojph_div_ceil(recon_tx0 - offset, downsamp.x);
+          recon_tcx0 - ojph_div_ceil(tx0 - offset, recon_downsamp.x);
         comp_rects[i].org.x = tcx0;
         comp_rects[i].org.y = tcy0;
         comp_rects[i].siz.w = tcx1 - tcx0;
@@ -212,9 +208,11 @@ namespace ojph {
         cur_line[i] = 0;
       }
 
+      offset += tile_rect.siz.w;
+
       //allocate lines
       const param_cod* cdp = codestream->get_cod();
-      this->reversible = cdp->is_reversible();
+      this->reversible = cdp->access_atk()->is_reversible();
       this->employ_color_transform = cdp->is_employing_color_transform();
       if (this->employ_color_transform)
       {

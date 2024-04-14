@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cmath>
+#include <new>
 
 #include "ojph_mem.h"
 #include "ojph_params.h"
@@ -54,78 +55,53 @@ namespace ojph {
 
   namespace local
   {
-
-    //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf* line1, line_buf* line2,
-                               line_buf* line3, line_buf* line4)
-    {
-      assert(line1->size == line2->size &&
-             line1->pre_size == line2->pre_size &&
-             line1->size == line3->size &&
-             line1->pre_size == line3->pre_size &&
-             line1->size == line4->size &&
-             line1->pre_size == line4->pre_size);
-      si32* p = line4->i32;
-      line4->i32 = line3->i32;
-      line3->i32 = line2->i32;
-      line2->i32 = line1->i32;
-      line1->i32 = p;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    static void rotate_buffers(line_buf* line1, line_buf* line2,
-                               line_buf* line3, line_buf* line4,
-                               line_buf* line5, line_buf* line6)
-    {
-      assert(line1->size == line2->size &&
-             line1->pre_size == line2->pre_size &&
-             line1->size == line3->size &&
-             line1->pre_size == line3->pre_size &&
-             line1->size == line4->size &&
-             line1->pre_size == line4->pre_size &&
-             line1->size == line5->size &&
-             line1->pre_size == line5->pre_size &&
-             line1->size == line6->size &&
-             line1->pre_size == line6->pre_size);
-      si32* p = line6->i32;
-      line6->i32 = line5->i32;
-      line5->i32 = line4->i32;
-      line4->i32 = line3->i32;
-      line3->i32 = line2->i32;
-      line2->i32 = line1->i32;
-      line1->i32 = p;
-    }
-
     //////////////////////////////////////////////////////////////////////////
     void resolution::pre_alloc(codestream* codestream, const rect& res_rect,
-                               const rect& recon_res_rect, ui32 res_num)
+                               const rect& recon_res_rect, 
+                               ui32 comp_num, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      const param_cod* cdp = codestream->get_cod();
-      ui32 t = codestream->get_cod()->get_num_decompositions()
+      const param_cod* cdp = codestream->get_cod(comp_num);
+      ui32 t = cdp->get_num_decompositions()
              - codestream->get_skipped_res_for_recon();
       bool skipped_res_for_recon = res_num > t;
 
-      //create next resolution
-      if (res_num > 0)
-      {
-        //allocate a resolution
-        allocator->pre_alloc_obj<resolution>(1);
-        ui32 trx0 = ojph_div_ceil(res_rect.org.x, 2);
-        ui32 try0 = ojph_div_ceil(res_rect.org.y, 2);
-        ui32 trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
-        ui32 try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
-        rect next_res_rect;
-        next_res_rect.org.x = trx0;
-        next_res_rect.org.y = try0;
-        next_res_rect.siz.w = trx1 - trx0;
-        next_res_rect.siz.h = try1 - try0;
-
-        resolution::pre_alloc(codestream, next_res_rect,
-          skipped_res_for_recon ? recon_res_rect : next_res_rect, res_num - 1);
+      const param_atk* atk = cdp->access_atk();
+      param_dfs::dfs_dwt_type ds = param_dfs::BIDIR_DWT;
+      if (cdp->is_dfs_defined()) {
+        const param_dfs* dfs = codestream->access_dfs();
+        if (dfs == NULL) {
+          OJPH_ERROR(0x00070001, "There is a problem with codestream "
+            "marker segments. COD/COC specifies the use of a DFS marker "
+            "but there are no DFS markers within the main codestream "
+            "headers");
+        }
+        else {
+          ui16 dfs_idx = cdp->get_dfs_index();
+          dfs = dfs->get_dfs(dfs_idx);
+          if (dfs == NULL) {
+            OJPH_ERROR(0x00070002, "There is a problem with codestream "
+              "marker segments. COD/COC specifies the use of a DFS marker "
+              "with index %d, but there are no such marker within the "
+              "main codestream headers", dfs_idx);
+          }
+          ui32 num_decomps = cdp->get_num_decompositions();
+          ds = dfs->get_dwt_type(num_decomps - res_num + 1);
+        }
       }
 
-      //allocate subbands
+      ui32 transform_flags = 0;
+      if (res_num > 0)
+      {
+        if (ds == param_dfs::BIDIR_DWT)
+          transform_flags = HORZ_TRX | VERT_TRX;
+        else if (ds == param_dfs::HORZ_DWT)
+          transform_flags = HORZ_TRX;
+        else if (ds == param_dfs::VERT_DWT)
+          transform_flags = VERT_TRX;
+      }
+
+      //allocate resolution/subbands
       ui32 trx0 = res_rect.org.x;
       ui32 try0 = res_rect.org.y;
       ui32 trx1 = res_rect.org.x + res_rect.siz.w;
@@ -133,23 +109,83 @@ namespace ojph {
       allocator->pre_alloc_obj<subband>(4);
       if (res_num > 0)
       {
-        for (ui32 i = 1; i < 4; ++i)
+        if (ds == param_dfs::BIDIR_DWT)
         {
-          ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
-          ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
-          ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
-          ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
+          for (ui32 i = 0; i < 4; ++i)
+          {
+            ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
+            ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
+            ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
+            ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
 
-          rect band_rect;
-          band_rect.org.x = tbx0;
-          band_rect.org.y = tby0;
-          band_rect.siz.w = tbx1 - tbx0;
-          band_rect.siz.h = tby1 - tby0;
-          subband::pre_alloc(codestream, band_rect, res_num);
+            rect re;
+            re.org.x = tbx0;
+            re.org.y = tby0;
+            re.siz.w = tbx1 - tbx0;
+            re.siz.h = tby1 - tby0;
+            if (i == 0) {
+              allocator->pre_alloc_obj<resolution>(1);
+              resolution::pre_alloc(codestream, re,
+                skipped_res_for_recon ? recon_res_rect : re,
+                comp_num, res_num - 1);
+            }
+            else
+              subband::pre_alloc(codestream, re, comp_num, res_num,
+                                 transform_flags);
+          }
+        }
+        else if (ds == param_dfs::VERT_DWT)
+        {
+          ui32 tby0, tby1;
+          rect re = res_rect;
+          tby0 = (try0 + 1) >> 1;
+          tby1 = (try1 + 1) >> 1;
+          re.org.y = tby0;
+          re.siz.h = tby1 - tby0;
+          allocator->pre_alloc_obj<resolution>(1);
+          resolution::pre_alloc(codestream, re,
+            skipped_res_for_recon ? recon_res_rect : re,
+            comp_num, res_num - 1);
+
+          tby0 = try0 >> 1;
+          tby1 = try1 >> 1;
+          re.org.y = tby0;
+          re.siz.h = tby1 - tby0;
+          subband::pre_alloc(codestream, re, comp_num, res_num, 
+                             transform_flags);
+        }
+        else if (ds == param_dfs::HORZ_DWT)
+        {
+          ui32 tbx0, tbx1;
+          rect re = res_rect;
+          tbx0 = (trx0 + 1) >> 1;
+          tbx1 = (trx1 + 1) >> 1;
+          re.org.x = tbx0;
+          re.siz.w = tbx1 - tbx0;
+          allocator->pre_alloc_obj<resolution>(1);
+          resolution::pre_alloc(codestream, re,
+            skipped_res_for_recon ? recon_res_rect : re,
+            comp_num, res_num - 1);
+
+          tbx0 = trx0 >> 1;
+          tbx1 = trx1 >> 1;
+          re.org.x = tbx0;
+          re.siz.w = tbx1 - tbx0;
+          subband::pre_alloc(codestream, re, comp_num, res_num, 
+                             transform_flags);
+        }
+        else
+        {
+          assert(ds == param_dfs::NO_DWT);
+          allocator->pre_alloc_obj<resolution>(1);
+          resolution::pre_alloc(codestream, res_rect,
+            skipped_res_for_recon ? recon_res_rect : res_rect,
+            comp_num, res_num - 1);
         }
       }
       else
-        subband::pre_alloc(codestream, res_rect, res_num);
+        subband::pre_alloc(codestream, res_rect, comp_num, res_num, 
+                           transform_flags);
 
       //prealloc precincts
       size log_PP = cdp->get_log_precinct_size(res_num);
@@ -166,13 +202,15 @@ namespace ojph {
       //allocate lines
       if (skipped_res_for_recon == false)
       {
-        bool reversible = cdp->is_reversible();
-        ui32 num_lines = reversible ? 4 : 6;
-        allocator->pre_alloc_obj<line_buf>(num_lines);
+        ui32 num_steps = atk->get_num_steps();
+        allocator->pre_alloc_obj<line_buf>(num_steps + 2);
+        allocator->pre_alloc_obj<lifting_buf>(num_steps + 2);
 
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_lines; ++i)
+        for (ui32 i = 0; i < num_steps; ++i)
           allocator->pre_alloc_data<si32>(width, 1);
+        allocator->pre_alloc_data<si32>(width, 1);
+        allocator->pre_alloc_data<si32>(width, 1);
       }
     }
 
@@ -181,18 +219,18 @@ namespace ojph {
                                     const rect& res_rect,
                                     const rect& recon_res_rect,
                                     ui32 comp_num, ui32 res_num,
-                                    point comp_downsamp,
+                                    point comp_downsamp, point res_downsamp,
                                     tile_comp* parent_tile_comp,
                                     resolution* parent_res)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      ui32 t, num_decomps = codestream->get_cod()->get_num_decompositions();
+      const param_cod* cdp = codestream->get_cod(comp_num);
+      ui32 t, num_decomps = cdp->get_num_decompositions();
       t = num_decomps - codestream->get_skipped_res_for_recon();
       skipped_res_for_recon = res_num > t;
       t = num_decomps - codestream->get_skipped_res_for_read();
       skipped_res_for_read = res_num > t;
-      const param_cod* cdp = codestream->get_cod();
 
       this->comp_downsamp = comp_downsamp;
       this->parent_comp = parent_tile_comp;
@@ -201,54 +239,139 @@ namespace ojph {
       this->comp_num = comp_num;
       this->res_num = res_num;
       this->num_bytes = 0;
-      //finalize next resolution
+      this->atk = cdp->access_atk();
+      param_dfs::dfs_dwt_type ds = param_dfs::BIDIR_DWT;
+      if (cdp->is_dfs_defined()) {
+        const param_dfs* dfs = codestream->access_dfs();
+        if (dfs == NULL) {
+          OJPH_ERROR(0x00070011, "There is a problem with codestream "
+              "marker segments. COD/COC specifies the use of a DFS marker "
+              "but there are no DFS markers within the main codestream "
+            "headers");
+        }
+        else {
+          ui16 dfs_idx = cdp->get_dfs_index();
+          dfs = dfs->get_dfs(dfs_idx);
+          if (dfs == NULL) {
+            OJPH_ERROR(0x00070012, "There is a problem with codestream "
+              "marker segments. COD/COC specifies the use of a DFS marker "
+              "with index %d, but there are no such marker within the "
+              "main codestream headers", dfs_idx);
+          }
+          ui32 num_decomps = cdp->get_num_decompositions();
+          ds = dfs->get_dwt_type(num_decomps - res_num + 1);
+        }
+      }
+
+      transform_flags = 0;
       if (res_num > 0)
       {
-        //allocate a resolution
-        child_res = allocator->post_alloc_obj<resolution>(1);
-        ui32 trx0 = ojph_div_ceil(res_rect.org.x, 2);
-        ui32 try0 = ojph_div_ceil(res_rect.org.y, 2);
-        ui32 trx1 = ojph_div_ceil(res_rect.org.x + res_rect.siz.w, 2);
-        ui32 try1 = ojph_div_ceil(res_rect.org.y + res_rect.siz.h, 2);
-        rect next_res_rect;
-        next_res_rect.org.x = trx0;
-        next_res_rect.org.y = try0;
-        next_res_rect.siz.w = trx1 - trx0;
-        next_res_rect.siz.h = try1 - try0;
-
-        child_res->finalize_alloc(codestream, next_res_rect,
-          skipped_res_for_recon ? recon_res_rect : next_res_rect, comp_num,
-          res_num - 1, comp_downsamp, parent_tile_comp, this);
+        if (ds == param_dfs::BIDIR_DWT)
+          transform_flags = HORZ_TRX | VERT_TRX;
+        else if (ds == param_dfs::HORZ_DWT)
+          transform_flags = HORZ_TRX;
+        else if (ds == param_dfs::VERT_DWT)
+          transform_flags = VERT_TRX;
       }
-      else
-        child_res = NULL;
 
-      //allocate subbands
+      //allocate resolution/subbands
       ui32 trx0 = res_rect.org.x;
       ui32 try0 = res_rect.org.y;
       ui32 trx1 = res_rect.org.x + res_rect.siz.w;
       ui32 try1 = res_rect.org.y + res_rect.siz.h;
       bands = allocator->post_alloc_obj<subband>(4);
+      for (int i = 0; i < 4; ++i)
+        new (bands + i) subband;
       if (res_num > 0)
       {
-        this->num_bands = 3;
-        for (ui32 i = 1; i < 4; ++i)
+        if (ds == param_dfs::BIDIR_DWT)
         {
-          ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
-          ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
-          ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
-          ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
+          for (ui32 i = 0; i < 4; ++i)
+          {
+            ui32 tbx0 = (trx0 - (i & 1) + 1) >> 1;
+            ui32 tbx1 = (trx1 - (i & 1) + 1) >> 1;
+            ui32 tby0 = (try0 - (i >> 1) + 1) >> 1;
+            ui32 tby1 = (try1 - (i >> 1) + 1) >> 1;
 
-          rect band_rect;
-          band_rect.org.x = tbx0;
-          band_rect.org.y = tby0;
-          band_rect.siz.w = tbx1 - tbx0;
-          band_rect.siz.h = tby1 - tby0;
-          bands[i].finalize_alloc(codestream, band_rect, this, res_num, i);
+            rect re;
+            re.org.x = tbx0;
+            re.org.y = tby0;
+            re.siz.w = tbx1 - tbx0;
+            re.siz.h = tby1 - tby0;
+            if (i == 0) {
+              point next_res_downsamp;
+              next_res_downsamp.x = res_downsamp.x * 2;
+              next_res_downsamp.y = res_downsamp.y * 2;
+
+              child_res = allocator->post_alloc_obj<resolution>(1);
+              child_res->finalize_alloc(codestream, re,
+                skipped_res_for_recon ? recon_res_rect : re, comp_num,
+                res_num - 1, comp_downsamp, next_res_downsamp, 
+                parent_tile_comp, this);
+            }
+            else
+              bands[i].finalize_alloc(codestream, re, this, res_num, i);
+          }
+        }
+        else if (ds == param_dfs::VERT_DWT)
+        {
+          ui32 tby0, tby1;
+          rect re = res_rect;
+          tby0 = (try0 + 1) >> 1;
+          tby1 = (try1 + 1) >> 1;
+          re.org.y = tby0;
+          re.siz.h = tby1 - tby0;
+
+          point next_res_downsamp;
+          next_res_downsamp.x = res_downsamp.x;
+          next_res_downsamp.y = res_downsamp.y * 2;
+          child_res = allocator->post_alloc_obj<resolution>(1);
+          child_res->finalize_alloc(codestream, re,
+            skipped_res_for_recon ? recon_res_rect : re, comp_num,
+            res_num - 1, comp_downsamp, next_res_downsamp,
+            parent_tile_comp, this);
+
+          tby0 = try0 >> 1;
+          tby1 = try1 >> 1;
+          re.org.y = tby0;
+          re.siz.h = tby1 - tby0;
+          bands[2].finalize_alloc(codestream, re, this, res_num, 2);
+        }
+        else if (ds == param_dfs::HORZ_DWT)
+        {
+          ui32 tbx0, tbx1;
+          rect re = res_rect;
+          tbx0 = (trx0 + 1) >> 1;
+          tbx1 = (trx1 + 1) >> 1;
+          re.org.x = tbx0;
+          re.siz.w = tbx1 - tbx0;
+
+          point next_res_downsamp;
+          next_res_downsamp.x = res_downsamp.x * 2;
+          next_res_downsamp.y = res_downsamp.y;
+          child_res = allocator->post_alloc_obj<resolution>(1);
+          child_res->finalize_alloc(codestream, re,
+            skipped_res_for_recon ? recon_res_rect : re, comp_num,
+            res_num - 1, comp_downsamp, next_res_downsamp,
+            parent_tile_comp, this);
+
+          tbx0 = trx0 >> 1;
+          tbx1 = trx1 >> 1;
+          re.org.x = tbx0;
+          re.siz.w = tbx1 - tbx0;
+          bands[1].finalize_alloc(codestream, re, this, res_num, 1);
+        }
+        else
+        {
+          assert(ds == param_dfs::NO_DWT);
+          child_res = allocator->post_alloc_obj<resolution>(1);
+          child_res->finalize_alloc(codestream, res_rect,
+            skipped_res_for_recon ? recon_res_rect : res_rect, comp_num,
+            res_num - 1, comp_downsamp, res_downsamp, parent_tile_comp, this);
         }
       }
       else {
-        this->num_bands = 1;
+        child_res = NULL;
         bands[0].finalize_alloc(codestream, res_rect, this, res_num, 0);
       }
 
@@ -273,11 +396,7 @@ namespace ojph {
       ui32 x_lower_bound = (trx0 >> log_PP.w) << log_PP.w;
       ui32 y_lower_bound = (try0 >> log_PP.h) << log_PP.h;
 
-      point proj_factor;
-      proj_factor.x = comp_downsamp.x * (1 << (num_decomps - res_num));
-      proj_factor.y = comp_downsamp.y * (1 << (num_decomps - res_num));
       precinct* pp = precincts;
-
       point tile_top_left = parent_tile_comp->get_tile()->get_tile_rect().org;
       for (ui32 y = 0; y < num_precincts.h; ++y)
       {
@@ -285,11 +404,10 @@ namespace ojph {
         for (ui32 x = 0; x < num_precincts.w; ++x, ++pp)
         {
           ui32 ppx0 = x_lower_bound + (x << log_PP.w);
-          point t(proj_factor.x * ppx0, proj_factor.y * ppy0);
+          point t(res_downsamp.x * ppx0, res_downsamp.y * ppy0);
           t.x = t.x > tile_top_left.x ? t.x : tile_top_left.x;
           t.y = t.y > tile_top_left.y ? t.y : tile_top_left.y;
           pp->img_point = t;
-          pp->num_bands = num_bands;
           pp->bands = bands;
           pp->may_use_sop = cdp->packets_may_use_sop();
           pp->uses_eph = cdp->packets_use_eph();
@@ -297,15 +415,15 @@ namespace ojph {
           pp->coded = NULL;
         }
       }
-      if (num_bands == 1)
-        bands[0].get_cb_indices(num_precincts, precincts);
-      else
-        for (int i = 1; i < 4; ++i)
+      for (int i = 0; i < 4; ++i)
+        if (bands[i].exists())
           bands[i].get_cb_indices(num_precincts, precincts);
 
+      // determine how to divide scratch into multiple levels of
+      // tag trees
       size log_cb = cdp->get_log_block_dims();
-      log_PP.w -= (res_num ? 1 : 0);
-      log_PP.h -= (res_num ? 1 : 0);
+      log_PP.w -= (transform_flags & HORZ_TRX) ? 1 : 0;
+      log_PP.h -= (transform_flags & VERT_TRX) ? 1 : 0;
       size ratio;
       ratio.w = log_PP.w - ojph_min(log_cb.w, log_PP.w);
       ratio.h = log_PP.h - ojph_min(log_cb.h, log_PP.h);
@@ -321,16 +439,54 @@ namespace ojph {
       //allocate lines
       if (skipped_res_for_recon == false)
       {
-        this->reversible = cdp->is_reversible();
-        this->num_lines = this->reversible ? 4 : 6;
-        lines = allocator->post_alloc_obj<line_buf>(num_lines);
+        this->atk = cdp->access_atk();
+        this->reversible = atk->is_reversible();
+        this->num_steps = atk->get_num_steps();
+        // create line buffers and lifting_bufs
+        lines = allocator->post_alloc_obj<line_buf>(num_steps + 2);
+        ssp = allocator->post_alloc_obj<lifting_buf>(num_steps + 2);
+        sig = ssp + num_steps;
+        aug = ssp + num_steps + 1;
 
+        // initiate lifting_bufs
+        for (ui32 i = 0; i < num_steps; ++i) {
+          new (ssp + i) lifting_buf;
+          ssp[i].line = lines + i;
+        };
+        new (sig) lifting_buf;
+        sig->line = lines + num_steps;
+        new (aug) lifting_buf;
+        aug->line = lines + num_steps + 1;
+
+        // initiate storage of line_buf
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_lines; ++i)
-          lines[i].wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        for (ui32 i = 0; i < num_steps; ++i)
+          ssp[i].line->wrap(
+            allocator->post_alloc_data<si32>(width, 1), width, 1);
+        sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+
         cur_line = 0;
+        rows_to_produce = res_rect.siz.h;
         vert_even = (res_rect.org.y & 1) == 0;
         horz_even = (res_rect.org.x & 1) == 0;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    line_buf* resolution::get_line()
+    { 
+      if (vert_even)
+      {
+        ++cur_line;
+        sig->active = true;
+        return sig->line;
+      }
+      else
+      {
+        ++cur_line;
+        aug->active = true;
+        return aug->line;
       }
     }
 
@@ -339,8 +495,8 @@ namespace ojph {
     {
       if (res_num == 0)
       {
-        assert(num_bands == 1 && child_res == NULL);
-        bands[0].exchange_buf(lines + 0);//line at location 0
+        assert(child_res == NULL);
+        bands[0].exchange_buf(vert_even ? sig->line : aug->line);
         bands[0].push_line();
         return;
       }
@@ -350,260 +506,143 @@ namespace ojph {
         return;
       if (reversible)
       {
-        //vertical transform
-        assert(num_lines >= 4);
-        if (vert_even)
+        if (res_rect.siz.h > 1)
         {
-          rev_vert_wvlt_fwd_predict(lines,
-                                    cur_line > 1 ? lines + 2 : lines,
-                                    lines + 1, width);
-          rev_vert_wvlt_fwd_update(lines + 1,
-                                   cur_line > 2 ? lines + 3 : lines + 1,
-                                   lines + 2, width);
-
-          // push to horizontal transform lines[2](L) and lines[1] (H)
-          if (cur_line >= 1)
-          {
-            rev_horz_wvlt_fwd_tx(lines + 1, bands[2].get_line(),
-              bands[3].get_line(), width, horz_even);
-            bands[2].push_line();
-            bands[3].push_line();
+          if (!vert_even && cur_line < res_rect.siz.h) {
+            vert_even = !vert_even;
+            return;
           }
-          if (cur_line >= 2)
+
+          do
           {
-            rev_horz_wvlt_fwd_tx(lines + 2, child_res->get_line(),
-              bands[1].get_line(), width, horz_even);
+            //vertical transform
+            for (ui32 i = 0; i < num_steps; ++i)
+            {
+              if (aug->active && (sig->active || ssp[i].active))
+              {
+                line_buf* dp = aug->line;
+                line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
+                line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
+                const lifting_step* s = atk->get_step(num_steps - i - 1);
+                rev_vert_step(s, sp1, sp2, dp, width, false);
+              }
+              lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
+            }
+
+            if (aug->active) {
+              rev_horz_ana(atk, bands[2].get_line(),
+                bands[3].get_line(), aug->line, width, horz_even);
+              bands[2].push_line();
+              bands[3].push_line();
+              aug->active = false;
+              --rows_to_produce;
+            }
+            if (sig->active) {
+              rev_horz_ana(atk, child_res->get_line(),
+                bands[1].get_line(), sig->line, width, horz_even);
+              bands[1].push_line();
+              child_res->push_line();
+              sig->active = false;
+              --rows_to_produce;
+            };
+            vert_even = !vert_even;
+          } while (cur_line >= res_rect.siz.h && rows_to_produce > 0);
+        }
+        else
+        {
+          if (vert_even) {
+            // horizontal transform
+            rev_horz_ana(atk, child_res->get_line(),
+              bands[1].get_line(), sig->line, width, horz_even);
             bands[1].push_line();
             child_res->push_line();
           }
-        }
-
-        if (cur_line >= res_rect.siz.h - 1)
-        { //finished, so we need to process any lines left
-          if (cur_line)
-          {
-            if (vert_even)
-            {
-              rev_vert_wvlt_fwd_update(lines + 1, lines + 1,
-                                       lines, width);
-              //push lines[0] to L
-              rev_horz_wvlt_fwd_tx(lines, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-            }
-            else
-            {
-              rev_vert_wvlt_fwd_predict(lines + 1, lines + 1,
-                                        lines, width);
-              rev_vert_wvlt_fwd_update(lines,
-                                       cur_line > 1 ? lines + 2 : lines,
-                                       lines + 1, width);
-
-              // push to horizontal transform lines[1](L) and line[0] (H)
-              //line[0] to H
-              rev_horz_wvlt_fwd_tx(lines, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-              //line[1] to L
-              rev_horz_wvlt_fwd_tx(lines + 1, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-            }
-          }
           else
-          { //only one line
-            if (vert_even)
-            {
-              //push to L
-              rev_horz_wvlt_fwd_tx(lines, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-            }
-            else
-            {
-              si32* sp = lines[0].i32;
-              for (ui32 i = width; i > 0; --i)
-                *sp++ <<= 1;
-              //push to H
-              rev_horz_wvlt_fwd_tx(lines, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-            }
+          {
+            // vertical transform
+            si32* sp = aug->line->i32;
+            for (ui32 i = width; i > 0; --i)
+              *sp++ <<= 1;
+            // horizontal transform
+            rev_horz_ana(atk, bands[2].get_line(),
+              bands[3].get_line(), aug->line, width, horz_even);
+            bands[2].push_line();
+            bands[3].push_line();
           }
         }
-
-        rotate_buffers(lines, lines + 1, lines + 2, lines + 3);
-
-        ++cur_line;
-        vert_even = !vert_even;
       }
       else
       {
-        //vertical transform
-        assert(num_lines >= 6);
-        if (vert_even)
+        if (res_rect.siz.h > 1)
         {
-          irrev_vert_wvlt_step(lines + 0,
-                               cur_line > 1 ? lines + 2 : lines,
-                               lines + 1, 0, width);
-          irrev_vert_wvlt_step(lines + 1,
-                               cur_line > 2 ? lines + 3 : lines + 1,
-                               lines + 2, 1, width);
-          irrev_vert_wvlt_step(lines + 2,
-                               cur_line > 3 ? lines + 4 : lines + 2,
-                               lines + 3, 2, width);
-          irrev_vert_wvlt_step(lines + 3,
-                               cur_line > 4 ? lines + 5 : lines + 3,
-                               lines + 4, 3, width);
-
-          // push to horizontal transform lines[4](L) and lines[3] (H)
-          if (cur_line >= 3)
-          {
-            irrev_vert_wvlt_K(lines + 3, lines + 5,
-                              false, width);
-            irrev_horz_wvlt_fwd_tx(lines + 5, bands[2].get_line(),
-              bands[3].get_line(), width, horz_even);
-            bands[2].push_line();
-            bands[3].push_line();
+          if (!vert_even && cur_line < res_rect.siz.h) {
+            vert_even = !vert_even;
+            return;
           }
-          if (cur_line >= 4)
+
+          do
           {
-            irrev_vert_wvlt_K(lines + 4, lines + 5,
-                              true, width);
-            irrev_horz_wvlt_fwd_tx(lines + 5, child_res->get_line(),
-              bands[1].get_line(), width, horz_even);
+            //vertical transform
+            for (ui32 i = 0; i < num_steps; ++i)
+            {
+              if (aug->active && (sig->active || ssp[i].active))
+              {
+                line_buf* dp = aug->line;
+                line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
+                line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
+                const lifting_step* s = atk->get_step(num_steps - i - 1);
+                irv_vert_step(s, sp1, sp2, dp, width, false);
+              }
+              lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
+            }
+
+            if (aug->active) {
+              const float K = atk->get_K();
+              irv_vert_times_K(K, aug->line, width);
+
+              irv_horz_ana(atk, bands[2].get_line(),
+                bands[3].get_line(), aug->line, width, horz_even);
+              bands[2].push_line();
+              bands[3].push_line();
+              aug->active = false;
+              --rows_to_produce;
+            }
+            if (sig->active) {
+              const float K_inv = 1.0f / atk->get_K();
+              irv_vert_times_K(K_inv, sig->line, width);
+
+              irv_horz_ana(atk, child_res->get_line(),
+                bands[1].get_line(), sig->line, width, horz_even);
+              bands[1].push_line();
+              child_res->push_line();
+              sig->active = false;
+              --rows_to_produce;
+            };
+            vert_even = !vert_even;
+          } while (cur_line >= res_rect.siz.h && rows_to_produce > 0);
+        }
+        else
+        {
+          if (vert_even) {
+            // horizontal transform
+            irv_horz_ana(atk, child_res->get_line(),
+              bands[1].get_line(), sig->line, width, horz_even);
             bands[1].push_line();
             child_res->push_line();
           }
-        }
-
-        if (cur_line >= res_rect.siz.h - 1)
-        { //finished, so we need to process any left line
-          if (cur_line)
-          {
-            if (vert_even)
-            {
-              irrev_vert_wvlt_step(lines + 1, lines + 1,
-                                   lines, 1, width);
-              irrev_vert_wvlt_step(lines,
-                                   cur_line > 1 ? lines + 2 : lines,
-                                   lines + 1, 2, width);
-              irrev_vert_wvlt_step(lines + 1,
-                                   cur_line > 2 ? lines + 3 : lines + 1,
-                                   lines + 2, 3, width);
-              irrev_vert_wvlt_step(lines + 1, lines + 1,
-                                   lines, 3, width);
-              //push lines[2] to L, lines[1] to H, and lines[0] to L
-              if (cur_line >= 2)
-              {
-                irrev_vert_wvlt_K(lines + 2, lines + 5,
-                                  true, width);
-                irrev_horz_wvlt_fwd_tx(lines + 5,
-                  child_res->get_line(), bands[1].get_line(),
-                  width, horz_even);
-                bands[1].push_line();
-                child_res->push_line();
-              }
-              irrev_vert_wvlt_K(lines + 1, lines + 5,
-                                false, width);
-              irrev_horz_wvlt_fwd_tx(lines + 5, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-              irrev_vert_wvlt_K(lines, lines + 5,
-                                true, width);
-              irrev_horz_wvlt_fwd_tx(lines + 5, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-            }
-            else
-            {
-              irrev_vert_wvlt_step(lines + 1, lines + 1,
-                                   lines, 0, width);
-              irrev_vert_wvlt_step(lines,
-                                   cur_line > 1 ? lines + 2 : lines,
-                                   lines + 1, 1, width);
-              irrev_vert_wvlt_step(lines + 1,
-                                   cur_line > 2 ? lines + 3 : lines + 1,
-                                   lines + 2, 2, width);
-              irrev_vert_wvlt_step(lines + 2,
-                                   cur_line > 3 ? lines + 4 : lines + 2,
-                                   lines + 3, 3, width);
-
-              irrev_vert_wvlt_step(lines + 1, lines + 1,
-                                   lines, 2, width);
-              irrev_vert_wvlt_step(lines,
-                                   cur_line > 1 ? lines + 2 : lines,
-                                   lines + 1, 3, width);
-
-              //push lines[3] L, lines[2] H, lines[1] L, and lines[0] H
-              if (cur_line >= 3)
-              {
-                irrev_vert_wvlt_K(lines + 3, lines + 5,
-                                  true, width);
-                irrev_horz_wvlt_fwd_tx(lines + 5,
-                  child_res->get_line(), bands[1].get_line(),
-                  width, horz_even);
-                bands[1].push_line();
-                child_res->push_line();
-              }
-              if (cur_line >= 2)
-                irrev_vert_wvlt_K(lines + 2, lines + 5, false, width);
-              else
-                irrev_vert_wvlt_K(lines, lines + 5, false, width);
-              irrev_horz_wvlt_fwd_tx(lines + 5, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-              irrev_vert_wvlt_K(lines + 1, lines + 5,
-                                true, width);
-              irrev_horz_wvlt_fwd_tx(lines + 5, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-              irrev_vert_wvlt_K(lines, lines + 5,
-                                false, width);
-              irrev_horz_wvlt_fwd_tx(lines + 5, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-            }
-          }
           else
-          { //only one line
-            if (vert_even)
-            {
-              //push to L
-              irrev_horz_wvlt_fwd_tx(lines, child_res->get_line(),
-                bands[1].get_line(), width, horz_even);
-              bands[1].push_line();
-              child_res->push_line();
-            }
-            else
-            {
-              float* sp = lines[0].f32;
-              for (ui32 i = width; i > 0; --i)
-                *sp++ *= 2.0f;
-              //push to H
-              irrev_horz_wvlt_fwd_tx(lines, bands[2].get_line(),
-                bands[3].get_line(), width, horz_even);
-              bands[2].push_line();
-              bands[3].push_line();
-            }
+          {
+            // vertical transform
+            float* sp = aug->line->f32;
+            for (ui32 i = width; i > 0; --i)
+              *sp++ *= 2.0f;
+            // horizontal transform
+            irv_horz_ana(atk, bands[2].get_line(),
+              bands[3].get_line(), aug->line, width, horz_even);
+            bands[2].push_line();
+            bands[3].push_line();
           }
         }
-
-        rotate_buffers(lines, lines + 1, lines + 2, lines + 3, lines + 4, 
-                       lines + 5);
-
-        ++cur_line;
-        vert_even = !vert_even;
       }
     }
 
@@ -612,7 +651,7 @@ namespace ojph {
     {
       if (res_num == 0)
       {
-        assert(num_bands == 1 && child_res == NULL);
+        assert(child_res == NULL);
         return bands[0].pull_line();
       }
 
@@ -621,147 +660,214 @@ namespace ojph {
 
       ui32 width = res_rect.siz.w;
       if (width == 0)
-        return lines;
-      if (reversible)
+        return NULL;
+
+      if (transform_flags & VERT_TRX)
       {
-        assert(num_lines >= 4);
-        if (res_rect.siz.h > 1)
+        if (reversible)
         {
-          do
+          if (res_rect.siz.h > 1)
           {
-            //horizontal transform
-            if (cur_line < res_rect.siz.h)
+            if (sig->active) {
+              sig->active = false;
+              return sig->line;
+            };
+            for (;;)
             {
-              if (vert_even)
-                rev_horz_wvlt_bwd_tx(lines,
-                  child_res->pull_line(), bands[1].pull_line(),
-                  width, horz_even);
-              else
-                rev_horz_wvlt_bwd_tx(lines,
-                  bands[2].pull_line(), bands[3].pull_line(),
-                  width, horz_even);
-            }
+              //horizontal transform
+              if (cur_line < res_rect.siz.h)
+              {
+                if (vert_even) { // even
+                  if (transform_flags & HORZ_TRX)
+                    rev_horz_syn(atk, aug->line, child_res->pull_line(), 
+                      bands[1].pull_line(), width, horz_even);
+                  else
+                    memcpy(aug->line->i32, child_res->pull_line()->i32,
+                      width * sizeof(si32));
+                  aug->active = true;
+                  vert_even = !vert_even;
+                  ++cur_line;
+                  continue;
+                }
+                else {
+                  if (transform_flags & HORZ_TRX)
+                    rev_horz_syn(atk, sig->line, bands[2].pull_line(), 
+                      bands[3].pull_line(), width, horz_even);
+                  else
+                    memcpy(sig->line->i32, bands[2].pull_line()->i32,
+                      width * sizeof(si32));
+                  sig->active = true;
+                  vert_even = !vert_even;
+                  ++cur_line;
+                }
+              }
 
-            //vertical transform
-            if (!vert_even)
-            {
-              rev_vert_wvlt_bwd_update(
-                cur_line > 1 ? lines + 2 : lines,
-                cur_line < res_rect.siz.h ? lines : lines + 2,
-                lines + 1, width);
-              rev_vert_wvlt_bwd_predict(
-                cur_line > 2 ? lines + 3 : lines + 1,
-                cur_line < res_rect.siz.h + 1 ? lines + 1 : lines + 3,
-                lines + 2, width);
-            }
+              //vertical transform
+              for (ui32 i = 0; i < num_steps; ++i)
+              {
+                if (aug->active && (sig->active || ssp[i].active))
+                {
+                  line_buf* dp = aug->line;
+                  line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
+                  line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
+                  const lifting_step* s = atk->get_step(i);
+                  rev_vert_step(s, sp1, sp2, dp, width, true);
+                }
+                lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
+              }
 
-            vert_even = !vert_even;
-            rotate_buffers(lines, lines + 1, lines + 2, lines + 3);
-            ++cur_line;
-          } while (cur_line < 3);
-          memcpy(lines[0].i32, lines[3].i32, res_rect.siz.w * sizeof(si32));
-          return lines;
-        }
-        else if (res_rect.siz.h == 1)
-        {
-          if (vert_even)
-          {
-            rev_horz_wvlt_bwd_tx(lines, child_res->pull_line(),
-              bands[1].pull_line(), width, horz_even);
+              if (aug->active) {
+                aug->active = false;
+                return aug->line;
+              }
+              if (sig->active) {
+                sig->active = false;
+                return sig->line;
+              };
+            }
           }
           else
           {
-            rev_horz_wvlt_bwd_tx(lines, bands[2].pull_line(),
-              bands[3].pull_line(), width, horz_even);
-            if (width)
+            if (vert_even) {
+              if (transform_flags & HORZ_TRX)
+                rev_horz_syn(atk, aug->line, child_res->pull_line(),
+                  bands[1].pull_line(), width, horz_even);
+              else
+                memcpy(aug->line->i32, child_res->pull_line()->i32,
+                  width * sizeof(si32));
+            }
+            else
             {
-              si32* sp = lines[0].i32;
+              if (transform_flags & HORZ_TRX)
+                rev_horz_syn(atk, aug->line, bands[2].pull_line(),
+                  bands[3].pull_line(), width, horz_even);
+              else
+                memcpy(aug->line->i32, bands[2].pull_line()->i32,
+                  width * sizeof(si32));
+              si32* sp = aug->line->i32;
               for (ui32 i = width; i > 0; --i)
                 *sp++ >>= 1;
             }
+            return aug->line;
           }
-          return lines;
         }
         else
-          return lines;
-      }
-      else
-      {
-        assert(num_lines >= 6);
-        if (res_rect.siz.h > 1)
         {
-          do
+          if (res_rect.siz.h > 1)
           {
-            //horizontal transform
-            if (cur_line < res_rect.siz.h)
+            if (sig->active) {
+              sig->active = false;
+              return sig->line;
+            };
+            for (;;)
             {
-              if (vert_even)
+              //horizontal transform
+              if (cur_line < res_rect.siz.h)
               {
-                irrev_horz_wvlt_bwd_tx(lines,
-                  child_res->pull_line(), bands[1].pull_line(),
-                  width, horz_even);
-                irrev_vert_wvlt_K(lines, lines, false, width);
+                if (vert_even) { // even
+                  if (transform_flags & HORZ_TRX)
+                    irv_horz_syn(atk, aug->line, child_res->pull_line(), 
+                      bands[1].pull_line(), width, horz_even);
+                  else 
+                    memcpy(aug->line->f32, child_res->pull_line()->f32,
+                      width * sizeof(float));
+                  aug->active = true;
+                  vert_even = !vert_even;
+                  ++cur_line;
+
+                  const float K = atk->get_K();
+                  irv_vert_times_K(K, aug->line, width);
+
+                  continue;
+                }
+                else {
+                  if (transform_flags & HORZ_TRX)
+                    irv_horz_syn(atk, sig->line, bands[2].pull_line(), 
+                      bands[3].pull_line(), width, horz_even);
+                  else
+                    memcpy(sig->line->f32, bands[2].pull_line()->f32,
+                      width * sizeof(float));
+                  sig->active = true;
+                  vert_even = !vert_even;
+                  ++cur_line;
+
+                  const float K_inv = 1.0f / atk->get_K();
+                  irv_vert_times_K(K_inv, sig->line, width);
+                }
               }
-              else
+
+              //vertical transform
+              for (ui32 i = 0; i < num_steps; ++i)
               {
-                irrev_horz_wvlt_bwd_tx(lines,
-                  bands[2].pull_line(), bands[3].pull_line(),
-                  width, horz_even);
-                irrev_vert_wvlt_K(lines, lines, true, width);
+                if (aug->active && (sig->active || ssp[i].active))
+                {
+                  line_buf* dp = aug->line;
+                  line_buf* sp1 = sig->active ? sig->line : ssp[i].line;
+                  line_buf* sp2 = ssp[i].active ? ssp[i].line : sig->line;
+                  const lifting_step* s = atk->get_step(i);
+                  irv_vert_step(s, sp1, sp2, dp, width, true);
+                }
+                lifting_buf t = *aug; *aug = ssp[i]; ssp[i] = *sig; *sig = t;
               }
-            }
 
-            //vertical transform
-            if (!vert_even)
-            {
-              irrev_vert_wvlt_step(
-                cur_line > 1 ? lines + 2 : lines,
-                cur_line < res_rect.siz.h ? lines : lines + 2,
-                lines + 1, 7, width);
-              irrev_vert_wvlt_step(
-                cur_line > 2 ? lines + 3 : lines + 1,
-                cur_line < res_rect.siz.h + 1 ? lines + 1 : lines + 3,
-                lines + 2, 6, width);
-              irrev_vert_wvlt_step(
-                cur_line > 3 ? lines + 4 : lines + 2,
-                cur_line < res_rect.siz.h + 2 ? lines + 2 : lines + 4,
-                lines + 3, 5, width);
-              irrev_vert_wvlt_step(
-                cur_line > 4 ? lines + 5 : lines + 3,
-                cur_line < res_rect.siz.h + 3 ? lines + 3 : lines + 5,
-                lines + 4, 4, width);
+              if (aug->active) {
+                aug->active = false;
+                return aug->line;
+              }
+              if (sig->active) {
+                sig->active = false;
+                return sig->line;
+              };
             }
-
-            vert_even = !vert_even;
-            rotate_buffers(lines, lines + 1, lines + 2, lines + 3, lines + 4, 
-                           lines + 5);
-            ++cur_line;
-          } while (cur_line < 5);
-          memcpy(lines[0].f32, lines[5].f32, res_rect.siz.w * sizeof(float));
-          return lines;
-        }
-        else if (res_rect.siz.h == 1)
-        {
-          if (vert_even)
-          {
-            irrev_horz_wvlt_bwd_tx(lines, child_res->pull_line(),
-              bands[1].pull_line(), width, horz_even);
           }
           else
           {
-            irrev_horz_wvlt_bwd_tx(lines, bands[2].pull_line(),
-              bands[3].pull_line(), width, horz_even);
-            if (width)
+            if (vert_even) {
+              if (transform_flags & HORZ_TRX)
+                irv_horz_syn(atk, aug->line, child_res->pull_line(),
+                  bands[1].pull_line(), width, horz_even);
+              else
+                memcpy(aug->line->f32, child_res->pull_line()->f32,
+                  width * sizeof(float));
+            }
+            else
             {
-              float* sp = lines[0].f32;
+              if (transform_flags & HORZ_TRX)
+                irv_horz_syn(atk, aug->line, bands[2].pull_line(),
+                  bands[3].pull_line(), width, horz_even);
+             else
+                memcpy(aug->line->f32, bands[2].pull_line()->f32,
+                  width * sizeof(float));
+              float* sp = aug->line->f32;
               for (ui32 i = width; i > 0; --i)
                 *sp++ *= 0.5f;
             }
+            return aug->line;
           }
-          return lines;
+        }
+      }
+      else
+      { 
+        if (reversible)
+        {
+          if (transform_flags & HORZ_TRX)
+            rev_horz_syn(atk, aug->line, child_res->pull_line(),
+              bands[1].pull_line(), width, horz_even);
+          else
+            memcpy(aug->line->i32, child_res->pull_line()->i32,
+              width * sizeof(si32));
+          return aug->line;
         }
         else
-          return lines;
+        {
+          if (transform_flags & HORZ_TRX)
+            irv_horz_syn(atk, aug->line, child_res->pull_line(),
+              bands[1].pull_line(), width, horz_even);
+          else
+            memcpy(aug->line->f32, child_res->pull_line()->f32,
+              width * sizeof(float));
+          return aug->line;
+        }
       }
     }
 

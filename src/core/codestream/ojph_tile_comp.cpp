@@ -51,7 +51,8 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::pre_alloc(codestream *codestream, const rect& comp_rect,
+    void tile_comp::pre_alloc(codestream *codestream, ui32 comp_num, 
+                              const rect& comp_rect,
                               const rect& recon_comp_rect)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -60,7 +61,7 @@ namespace ojph {
       ui32 num_decomps = codestream->access_cod().get_num_decompositions();
       allocator->pre_alloc_obj<resolution>(1);
 
-      resolution::pre_alloc(codestream, comp_rect, recon_comp_rect, 
+      resolution::pre_alloc(codestream, comp_rect, recon_comp_rect, comp_num, 
                             num_decomps);
     }
 
@@ -72,7 +73,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      num_decomps = codestream->get_cod()->get_num_decompositions();
+      num_decomps = codestream->get_cod(comp_num)->get_num_decompositions();
 
       comp_downsamp = codestream->get_siz()->get_downsampling(comp_num);
       this->comp_rect = comp_rect;
@@ -82,7 +83,8 @@ namespace ojph {
       this->num_bytes = 0;
       res = allocator->post_alloc_obj<resolution>(1);
       res->finalize_alloc(codestream, comp_rect, recon_comp_rect, comp_num,
-                          num_decomps, comp_downsamp, this, NULL);
+                          num_decomps, comp_downsamp, comp_downsamp, this, 
+                          NULL);
     }
 
     //////////////////////////////////////////////////////////////////////////

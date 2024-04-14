@@ -63,8 +63,25 @@ namespace ojph {
     {
       friend struct precinct;
     public:
+      subband() { 
+        res_num = band_num = 0;
+        reversible = false;
+        empty = true;             // <---- true
+        lines = NULL;
+        parent = NULL;
+        blocks = NULL;
+        xcb_prime = ycb_prime = 0;
+        cur_cb_row = 0;
+        cur_line = 0;
+        cur_cb_height = 0;
+        delta = delta_inv = 0.0f;
+        K_max = 0;
+        coded_cbs = NULL;
+        elastic = NULL;
+      }
+
       static void pre_alloc(codestream *codestream, const rect& band_rect,
-                            ui32 res_num);
+                            ui32 comp_num, ui32 res_num, ui32 transform_flags);
       void finalize_alloc(codestream *codestream, const rect& band_rect,
                           resolution* res, ui32 res_num, ui32 subband_num);
 
@@ -74,13 +91,15 @@ namespace ojph {
 
       void get_cb_indices(const size& num_precincts, precinct *precincts);
       float get_delta() { return delta; }
+      bool exists() { return !empty; }
 
       line_buf* pull_line();
 
     private:
+      bool empty;                  // true if the subband has no pixels or
+                                   // the subband is NOT USED
       ui32 res_num, band_num;
       bool reversible;
-      bool empty;
       rect band_rect;
       line_buf *lines;
       resolution* parent;

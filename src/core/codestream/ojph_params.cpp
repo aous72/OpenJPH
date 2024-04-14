@@ -275,7 +275,12 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::is_reversible() const
   {
-    return state->is_reversible();
+    if (state->SPcod.wavelet_trans <= 1)
+      return state->get_wavelet_kern() == local::param_cod::DWT_REV53;
+    else {
+      assert(state->atk != NULL);
+      return state->access_atk()->is_reversible();
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -414,6 +419,16 @@ namespace ojph {
       ui32 u = swap_byte((ui16)(t & 0xFFFFu));
       u <<= 16;
       u |= swap_byte((ui16)(t >> 16));
+      return u;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    ui64 swap_byte(ui64 t)
+    {
+      ui64 u = swap_byte((ui32)(t & 0xFFFFFFFFu));
+      u <<= 32;
+      u |= swap_byte((ui32)(t >> 32));
       return u;
     }
 
@@ -594,8 +609,9 @@ namespace ojph {
         OJPH_ERROR(0x00050043, "error reading SIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
-        OJPH_ERROR(0x00050044, "Rsiz bit 14 not set (this is not a JPH file)");
-      if (Rsiz & 0xBFFF)
+        OJPH_ERROR(0x00050044, 
+          "Rsiz bit 14 is not set (this is not a JPH file)");
+      if ((Rsiz & 0x8000) != 0 && (Rsiz & 0xF5F) != 0)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
         OJPH_ERROR(0x00050045, "error reading SIZ marker");
@@ -642,7 +658,39 @@ namespace ojph {
         if (file->read(&cptr[c].YRsiz, 1) != 1)
           OJPH_ERROR(0x00050053, "error reading SIZ marker");
       }
+
+      ws_kern_support_needed = (Rsiz & 0x20) != 0;
+      dfs_support_needed = (Rsiz & 0x80) != 0;
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    point param_siz::get_recon_downsampling(ui32 comp_num) const
+    {
+      assert(comp_num < get_num_components());
+
+      point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
+      const param_cod* cdp = cod->get_cod(comp_num);
+      if (dfs && cdp && cdp->is_dfs_defined()) {
+        const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
+        factor = d->get_res_downsamp(skipped_resolutions);
+      }
+      factor.x *= (ui32)cptr[comp_num].XRsiz;
+      factor.y *= (ui32)cptr[comp_num].YRsiz;
+      return factor;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    point param_siz::get_recon_size(ui32 comp_num) const
+    {
+      assert(comp_num < get_num_components());
+
+      point factor = get_recon_downsampling(comp_num);
+      point r;
+      r.x = ojph_div_ceil(Xsiz, factor.x) - ojph_div_ceil(XOsiz, factor.x);
+      r.y = ojph_div_ceil(Ysiz, factor.y) - ojph_div_ceil(YOsiz, factor.y);
+      return r;
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -710,6 +758,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
     {
+      assert(type == COD_MAIN);
+
       //marker size excluding header
       Lcod = 12;
       Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
@@ -748,37 +798,102 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::read(infile_base *file)
+    void param_cod::read(infile_base *file, param_cod::cod_type type)
     {
+      assert(this->type == UNDEFINED);
+      assert(type == COD_MAIN);
+
+      this->type = type;
       if (file->read(&Lcod, 2) != 2)
-        OJPH_ERROR(0x00050071, "error reading COD marker");
+        OJPH_ERROR(0x00050071, "error reading COD segment");
       Lcod = swap_byte(Lcod);
       if (file->read(&Scod, 1) != 1)
-        OJPH_ERROR(0x00050072, "error reading COD marker");
+        OJPH_ERROR(0x00050072, "error reading COD segment");
       if (file->read(&SGCod.prog_order, 1) != 1)
-        OJPH_ERROR(0x00050073, "error reading COD marker");
+        OJPH_ERROR(0x00050073, "error reading COD segment");
       if (file->read(&SGCod.num_layers, 2) != 2)
-      { OJPH_ERROR(0x00050074, "error reading COD marker"); }
+      { OJPH_ERROR(0x00050074, "error reading COD segment"); }
       else
         SGCod.num_layers = swap_byte(SGCod.num_layers);
       if (file->read(&SGCod.mc_trans, 1) != 1)
-        OJPH_ERROR(0x00050075, "error reading COD marker");
+        OJPH_ERROR(0x00050075, "error reading COD segment");
       if (file->read(&SPcod.num_decomp, 1) != 1)
-        OJPH_ERROR(0x00050076, "error reading COD marker");
+        OJPH_ERROR(0x00050076, "error reading COD segment");
       if (file->read(&SPcod.block_width, 1) != 1)
-        OJPH_ERROR(0x00050077, "error reading COD marker");
+        OJPH_ERROR(0x00050077, "error reading COD segment");
       if (file->read(&SPcod.block_height, 1) != 1)
-        OJPH_ERROR(0x00050078, "error reading COD marker");
+        OJPH_ERROR(0x00050078, "error reading COD segment");
       if (file->read(&SPcod.block_style, 1) != 1)
-        OJPH_ERROR(0x00050079, "error reading COD marker");
+        OJPH_ERROR(0x00050079, "error reading COD segment");
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
-        OJPH_ERROR(0x0005007A, "error reading COD marker");
+        OJPH_ERROR(0x0005007A, "error reading COD segment");
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
-            OJPH_ERROR(0x0005007B, "error reading COD marker");
+            OJPH_ERROR(0x0005007B, "error reading COD segment");
       if (Lcod != 12 + ((Scod & 1) ? 1 + SPcod.num_decomp : 0))
-        OJPH_ERROR(0x0005007C, "error in COD marker length");
+        OJPH_ERROR(0x0005007C, "error in COD segment length");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_cod::read(infile_base* file, param_cod::cod_type type, 
+                         ui32 num_comps, param_cod *cod)
+    {
+      assert(this->type == UNDEFINED);
+      assert(type == COC_MAIN);
+      assert(cod != NULL);
+
+      this->type = type;
+      this->SGCod = cod->SGCod;
+      this->parent = cod;
+      if (file->read(&Lcod, 2) != 2)
+        OJPH_ERROR(0x00050121, "error reading COC segment");
+      Lcod = swap_byte(Lcod);
+      if (num_comps < 257) {
+        ui8 t;
+        if (file->read(&t, 1) != 1)
+          OJPH_ERROR(0x00050122, "error reading COC segment");
+        comp_num = t;
+      }
+      else {
+        if (file->read(&comp_num, 2) != 2)
+          OJPH_ERROR(0x00050123, "error reading COC segment");
+        comp_num = swap_byte(comp_num);
+      }
+      if (file->read(&Scod, 1) != 1)
+        OJPH_ERROR(0x00050124, "error reading COC segment");
+      if (Scod & 0xF8)
+        OJPH_WARN(0x00050011, 
+          "Unsupported options in Scoc field of the COC segment");
+      if (file->read(&SPcod.num_decomp, 1) != 1)
+        OJPH_ERROR(0x00050125, "error reading COC segment");
+      if (file->read(&SPcod.block_width, 1) != 1)
+        OJPH_ERROR(0x00050126, "error reading COC segment");
+      if (file->read(&SPcod.block_height, 1) != 1)
+        OJPH_ERROR(0x00050127, "error reading COC segment");
+      if (file->read(&SPcod.block_style, 1) != 1)
+        OJPH_ERROR(0x00050128, "error reading COC segment");
+      if (file->read(&SPcod.wavelet_trans, 1) != 1)
+        OJPH_ERROR(0x00050129, "error reading COC segment");
+      if (Scod & 1)
+        for (int i = 0; i <= get_num_decompositions(); ++i)
+          if (file->read(&SPcod.precinct_size[i], 1) != 1)
+            OJPH_ERROR(0x0005012A, "error reading COC segment");
+      ui32 t = 9;
+      t += num_comps < 257 ? 0 : 1;
+      t += (Scod & 1) ? 1 + get_num_decompositions() : 0;
+      if (Lcod != t)
+        OJPH_ERROR(0x0005012B, "error in COC segment length");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_cod::update_atk(const param_atk* atk)
+    {
+      this->atk = atk->get_atk(SPcod.wavelet_trans);
+      if (this->atk == NULL)
+        OJPH_ERROR(0x00050131, "A COD/COC segment employs the DWT kernel "
+          "atk=%d, but a corresponding ATK segment cannot be found", 
+          SPcod.wavelet_trans);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -790,7 +905,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_rev_quant(ui32 bit_depth,
+    void param_qcd::set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
       int guard_bits = 1;
@@ -815,7 +930,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_irrev_quant()
+    void param_qcd::set_irrev_quant(ui32 num_decomps)
     {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
@@ -859,13 +974,17 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 param_qcd::get_MAGBp() const
     { //this can be written better, but it is only executed once
+
+      // this assumes a bi-directional wavelet (conventional DWT)
+      ui32 num_decomps = (num_subbands - 1) / 3;
+
       ui32 B = 0;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible
-        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1u);
       else if (irrev == 2) //scalar expounded
-        for (ui32 i = 0; i < 3 * num_decomps + 1; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
           B = ojph_max(B, (u16_SPqcd[i] >> 11) + get_num_guard_bits() - nb);
@@ -877,14 +996,27 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd::irrev_get_delta(ui32 resolution, ui32 subband) const
+    float param_qcd::irrev_get_delta(const param_dfs* dfs, 
+                                     ui32 num_decompositions,
+                                     ui32 resolution, ui32 subband) const
     {
-      assert((resolution == 0 && subband == 0) ||
-             (resolution <= num_decomps && subband > 0 && subband<4));
-      assert((Sqcd & 0x1F) == 2);
       float arr[] = { 1.0f, 2.0f, 2.0f, 4.0f };
+      assert((Sqcd & 0x1F) == 2);
 
-      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
+      ui32 idx;
+      if (dfs != NULL && dfs->exists())
+        idx = dfs->get_subband_idx(num_decompositions, resolution, subband);
+      else
+        idx = resolution ? (resolution - 1) * 3 + subband : 0;
+      if (idx >= num_subbands) {
+        OJPH_INFO(0x00050101, "Trying to access quantization step size for "
+          "subband %d when the QCD/QCC marker segment specifies "
+          "quantization step sizes for %d subbands only.  To continue "
+          "decoding, we are using the step size for subband %d, which can "
+          "produce incorrect results", 
+          idx + 1, num_subbands, num_subbands - 1);
+        idx = num_subbands - 1;
+      }
       int eps = u16_SPqcd[idx] >> 11;
       float mantissa;
       mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
@@ -900,12 +1032,25 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 param_qcd::get_Kmax(ui32 resolution, ui32 subband) const
+    ui32 param_qcd::get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
+                             ui32 resolution, ui32 subband) const
     {
-      assert((resolution == 0 && subband == 0) ||
-             (resolution <= num_decomps && subband > 0 && subband<4));
       ui32 num_bits = get_num_guard_bits();
-      ui32 idx = resolution == 0 ? 0 : (resolution - 1) * 3 + subband;
+      ui32 idx;
+      if (dfs != NULL && dfs->exists())
+        idx = dfs->get_subband_idx(num_decompositions, resolution, subband);
+      else
+        idx = resolution ? (resolution - 1) * 3 + subband : 0;
+      if (idx >= num_subbands) {
+        OJPH_INFO(0x00050111, "Trying to access quantization step size for "
+          "subband %d when the QCD/QCC marker segment specifies "
+          "quantization step sizes for %d subbands only.  To continue "
+          "decoding, we are using the step size for subband %d, which can "
+          "produce incorrect results", 
+          idx + 1, num_subbands, num_subbands - 1);
+        idx = num_subbands - 1;
+      }
+
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible; this is (10.22) from the J2K book
       {
@@ -926,7 +1071,6 @@ namespace ojph {
     bool param_qcd::write(outfile_base *file)
     {
       int irrev = Sqcd & 0x1F;
-      ui32 num_subbands = 1 + 3 * num_decomps;
 
       //marker size excluding header
       Lqcd = 3;
@@ -976,16 +1120,16 @@ namespace ojph {
         OJPH_ERROR(0x00050082, "error reading QCD marker");
       if ((Sqcd & 0x1F) == 0)
       {
-        num_decomps = (Lqcd - 4) / 3;
-        if (Lqcd != 4 + 3 * num_decomps)
+        num_subbands = (Lqcd - 3);
+        if (Lqcd != 3 + num_subbands)
           OJPH_ERROR(0x00050083, "wrong Lqcd value in QCD marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x00050084, "error reading QCD marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        num_decomps = 0;
+        num_subbands = 0;
         OJPH_ERROR(0x00050089, 
           "Scalar derived quantization is not supported yet in QCD marker");
         if (Lqcd != 5)
@@ -993,10 +1137,10 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        num_decomps = (Lqcd - 5) / 6;
-        if (Lqcd != 5 + 6 * num_decomps)
+        num_subbands = (Lqcd - 3) / 2;
+        if (Lqcd != 3 + 2 * num_subbands)
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x00050087, "error reading QCD marker");
@@ -1036,20 +1180,19 @@ namespace ojph {
       }
       if (file->read(&Sqcd, 1) != 1)
         OJPH_ERROR(0x000500A4, "error reading QCC marker");
+      ui32 offset = num_comps < 257 ? 4 : 5;
       if ((Sqcd & 0x1F) == 0)
       {
-        ui32 offset = num_comps < 257 ? 5 : 6;
-        num_decomps = (Lqcd - offset) / 3;
-        if (Lqcd != offset + 3 * num_decomps)
+        num_subbands = (Lqcd - offset);
+        if (Lqcd != offset + num_subbands)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&u8_SPqcd[i], 1) != 1)
             OJPH_ERROR(0x000500A6, "error reading QCC marker");
       }
       else if ((Sqcd & 0x1F) == 1)
       {
-        ui32 offset = num_comps < 257 ? 6 : 7;
-        num_decomps = 0;
+        num_subbands = 0;
         OJPH_ERROR(0x000500AB, 
           "Scalar derived quantization is not supported yet in QCC marker");
         if (Lqcd != offset)
@@ -1057,11 +1200,10 @@ namespace ojph {
       }
       else if ((Sqcd & 0x1F) == 2)
       {
-        ui32 offset = num_comps < 257 ? 6 : 7;
-        num_decomps = (Lqcd - offset) / 6;
-        if (Lqcd != offset + 6 * num_decomps)
+        num_subbands = (Lqcd - offset) / 2;
+        if (Lqcd != offset + 2 * num_subbands)
           OJPH_ERROR(0x000500A8, "wrong Lqcc value in QCC marker");
-        for (ui32 i = 0; i < 1 + 3 * num_decomps; ++i)
+        for (ui32 i = 0; i < num_subbands; ++i)
         {
           if (file->read(&u16_SPqcd[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
@@ -1260,6 +1402,331 @@ namespace ojph {
       return result;
     }
 
-  }
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
 
-}
+    //////////////////////////////////////////////////////////////////////////
+    const param_dfs* param_dfs::get_dfs(int index) const
+    {
+      const param_dfs* p = this;
+      while (p && p->Sdfs != index)
+        p = p->next;
+      return p;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_dfs::dfs_dwt_type param_dfs::get_dwt_type(ui32 decomp_level) const
+    { 
+      decomp_level = ojph_min(decomp_level, Ids);
+      ui32 d = decomp_level - 1;          // decomp_level starts from 1
+      ui32 idx = d >> 2;                  // complete bytes
+      ui32 bits = d & 0x3;                // bit within the bytes
+      ui32 val = (Ddfs[idx] >> (6 - 2 * bits)) & 0x3;
+      return (dfs_dwt_type)val;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
+                                    ui32 subband) const
+    {
+      assert((resolution == 0 && subband == 0) || 
+              (resolution > 0 && subband > 0 && subband < 4));
+
+      ui32 ns[4] = { 0, 3, 1, 1 };
+
+      ui32 idx = 0;
+      if (resolution > 0)
+      {
+        idx = 0;
+        ui32 i = 1;
+        for (; i < resolution; ++i)
+          idx += ns[get_dwt_type(num_decompositions - i + 1)];
+        dfs_dwt_type t = get_dwt_type(num_decompositions - i + 1);
+        idx += subband;
+        if (t == VERT_DWT && subband == 2)
+          --idx;
+      }
+
+      return idx;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    point param_dfs::get_res_downsamp(ui32 skipped_resolutions) const
+    {
+      point factor(1, 1);
+      ui32 decomp_level = 1;
+      while (skipped_resolutions > 0)
+      {
+        param_dfs::dfs_dwt_type type = get_dwt_type(decomp_level);
+        if (type == BIDIR_DWT)
+        { factor.x *= 2; factor.y *= 2; }
+        else if (type == HORZ_DWT)
+          factor.x *= 2;
+        else if (type == VERT_DWT)
+          factor.y *= 2;
+
+        ++decomp_level;
+        --skipped_resolutions;
+      }
+      return factor;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_dfs::read(infile_base *file)
+    {
+      if (Ldfs != 0) { // this param_dfs is used
+        param_dfs* p = this;
+        while (p->next != NULL)
+          p = p->next;
+        p->next = new param_dfs;
+        p = p->next;
+        return p->read(file);
+      }
+
+      if (file->read(&Ldfs, 2) != 2)
+        OJPH_ERROR(0x000500D1, "error reading DFS-Ldfs parameter");
+      Ldfs = swap_byte(Ldfs);
+      if (file->read(&Sdfs, 2) != 2)
+        OJPH_ERROR(0x000500D2, "error reading DFS-Sdfs parameter");
+      Sdfs = swap_byte(Sdfs);
+      if (Sdfs > 15)
+        OJPH_ERROR(0x000500D3, "The DFS-Sdfs parameter is %d, which is "
+          "larger than the permissible 15", Sdfs);
+      ui8 t, l_Ids = 0;
+      if (file->read(&l_Ids, 1) != 1)
+        OJPH_ERROR(0x000500D4, "error reading DFS-Ids parameter");
+      constexpr int max_Ddfs = sizeof(Ddfs) * 4;
+      if (l_Ids > max_Ddfs)
+        OJPH_INFO(0x000500D5, "The DFS-Ids parameter is %d; while this is "
+          "valid, the number is unnessarily large -- you do not need more "
+          "than %d.  Please contact me regarding this issue.", 
+          l_Ids, max_Ddfs);
+      Ids = l_Ids < max_Ddfs ? l_Ids : max_Ddfs;
+      for (int i = 0; i < Ids; i += 4)
+        if (file->read(&Ddfs[i / 4], 1) != 1)
+          OJPH_ERROR(0x000500D6, "error reading DFS-Ddfs parameters");
+      for (int i = Ids; i < l_Ids; i += 4)
+        if (file->read(&t, 1) != 1)
+          OJPH_ERROR(0x000500D7, "error reading DFS-Ddfs parameters");
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
+    const param_atk* param_atk::get_atk(int index) const
+    {
+      const param_atk* p = this;
+      while (p && p->get_index() != index)
+        p = p->next;
+      return p;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read_coefficient(infile_base *file, float &K)
+    {
+      int coeff_type = get_coeff_type();
+      if (coeff_type == 0) { // 8bit
+        ui8 v;
+        if (file->read(&v, 1) != 1) return false;
+        K = v;
+      }
+      else if (coeff_type == 1) { // 16bit
+        ui16 v;
+        if (file->read(&v, 2) != 2) return false;
+        K = swap_byte(v);
+      }
+      else if (coeff_type == 2) { // float
+        union {
+          float f;
+          ui32 i;
+        } v;
+        if (file->read(&v.i, 4) != 4) return false;
+        v.i = swap_byte(v.i);
+        K = v.f;
+      }
+      else if (coeff_type == 3) { // double
+        union {
+          double d;
+          ui64 i;
+        } v;
+        if (file->read(&v.i, 8) != 8) return false;
+        v.i = swap_byte(v.i);
+        K = (float)v.d;
+      }
+      else if (coeff_type == 4) { // 128 bit float
+        ui64 v, v1;
+        if (file->read(&v, 8) != 8) return false;
+        if (file->read(&v1, 8) != 8) return false; // v1 not needed
+        v = swap_byte(v);
+
+        union {
+          float f;
+          ui32 i;
+        } s;
+        // convert the MSB of 128b float to 32b float
+        // 32b float has 1 sign bit, 8 exponent (offset 127), 23 mantissa
+        // 128b float has 1 sign bit, 15 exponent (offset 16383), 112 mantissa
+        si32 e = (si32)((v >> 48) & 0x7FFF);   // exponent
+        e -= 16383;
+        e += 127;
+        e = e & 0xFF;                          // removes MSBs if negative
+        e <<= 23;                              // move bits to their location
+        s.i = 0;
+        s.i |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
+        s.i |= (ui32)e;                        // copy exponent
+        s.i |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
+        K = s.f;
+      }
+      return true;
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read_coefficient(infile_base *file, si16 &K)
+    {
+      int coeff_type = get_coeff_type();
+      if (coeff_type == 0) {
+        si8 v;
+        if (file->read(&v, 1) != 1) return false;
+        K = v;
+      }
+      else if (coeff_type == 1) {
+        si16 v;
+        if (file->read(&v, 2) != 2) return false;
+        K = (si16)swap_byte((ui16)v);
+      }
+      else
+        return false;
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_atk::read(infile_base *file)
+    {
+      if (Latk != 0) { // this param_atk is used
+        param_atk *p = this;
+        while (p->next != NULL)
+          p = p->next;
+        p->next = new param_atk;
+        p->alloced_next = true;
+        p = p->next;
+        return p->read(file);
+      }
+
+      if (file->read(&Latk, 2) != 2)
+        OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter"); 
+      Latk = swap_byte(Latk);
+      if (file->read(&Satk, 2) != 2)
+        OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter"); 
+      Satk = swap_byte(Satk);
+      if (is_m_init0() == false)  // only even-indexed is supported
+        OJPH_ERROR(0x000500E3, "ATK-Satk parameter sets m_init to 1, "
+          "requiring odd-indexed subsequence in first reconstruction step, "
+          "which is not supported yet.");
+      if (is_whole_sample() == false)  // ARB filter not supported
+        OJPH_ERROR(0x000500E4, "ATK-Satk parameter specified ARB filter, "
+          "which is not supported yet."); 
+      if (is_reversible() && get_coeff_type() >= 2) // reversible & float
+        OJPH_ERROR(0x000500E5, "ATK-Satk parameter does not make sense. "
+          "It employs floats with reversible filtering."); 
+      if (is_using_ws_extension() == false)  // only sym. ext is supported
+        OJPH_ERROR(0x000500E6, "ATK-Satk parameter requires constant "
+          "boundary extension, which is not supported yet.");
+      if (is_reversible() == false) 
+        if (read_coefficient(file, Katk) == false)
+          OJPH_ERROR(0x000500E7, "error reading ATK-Katk parameter"); 
+      if (file->read(&Natk, 1) != 1)
+        OJPH_ERROR(0x000500E8, "error reading ATK-Natk parameter");
+      if (Natk > max_steps) {
+        if (d != d_store) // was this allocated -- very unlikely
+          delete[] d;
+        d = new lifting_step[Natk];
+        max_steps = Natk;
+      }
+
+      if (is_reversible())
+      {
+        for (int s = 0; s < Natk; ++s)
+        {
+          if (file->read(&d[s].rev.Eatk, 1) != 1)
+            OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");           
+          if (file->read(&d[s].rev.Batk, 2) != 2)
+            OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");           
+          d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
+          ui8 LCatk;
+          if (file->read(&LCatk, 1) != 1)
+            OJPH_ERROR(0x000500EB, "error reading ATK-LCatk parameter");
+          if (LCatk == 0)
+            OJPH_ERROR(0x000500EC, "Encountered a ATK-LCatk value of zero; "
+              "something is wrong.");
+          if (LCatk > 1)
+            OJPH_ERROR(0x000500ED, "ATK-LCatk value greater than 1; "
+              "that is, a multitap filter is not supported");
+          if (read_coefficient(file, d[s].rev.Aatk) == false)
+            OJPH_ERROR(0x000500EE, "Error reding ATK-Aatk parameter");
+        }
+      }
+      else
+      {
+        for (int s = 0; s < Natk; ++s)
+        {
+          ui8 LCatk;
+          if (file->read(&LCatk, 1) != 1)
+            OJPH_ERROR(0x000500EF, "error reading ATK-LCatk parameter");
+          if (LCatk == 0)
+            OJPH_ERROR(0x000500F0, "Encountered a ATK-LCatk value of zero; "
+              "something is wrong.");
+          if (LCatk > 1)
+            OJPH_ERROR(0x000500F1, "ATK-LCatk value greater than 1; "
+              "that is, a multitap filter is not supported.");
+          if (read_coefficient(file, d[s].irv.Aatk) == false)
+            OJPH_ERROR(0x000500F2, "Error reding ATK-Aatk parameter");
+        }
+      }
+
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_atk::init_irv97()
+    {
+      Satk = 0x4a00;     // illegal because ATK = 0
+      Katk = (float)1.230174104914001;
+      Natk = 4;
+      // next is (A-4) in T.801 second line
+      Latk = (ui16)(5 + Natk + sizeof(float) * (1 + Natk));
+      d[0].irv.Aatk = (float)0.443506852043971;
+      d[1].irv.Aatk = (float)0.882911075530934;
+      d[2].irv.Aatk = (float)-0.052980118572961;
+      d[3].irv.Aatk = (float)-1.586134342059924;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_atk::init_rev53()
+    {
+      Satk = 0x5801;     // illegal because ATK = 1
+      Natk = 2;
+      // next is (A-4) in T.801 fourth line
+      Latk = (ui16)(5 + 2 * Natk + sizeof(ui8) * (Natk + Natk));
+      d[0].rev.Aatk = 1;
+      d[0].rev.Batk = 2;
+      d[0].rev.Eatk = 2;
+      d[1].rev.Aatk = -1;
+      d[1].rev.Batk = 1;
+      d[1].rev.Eatk = 1;
+    }
+
+  } // !local namespace
+}  // !ojph namespace

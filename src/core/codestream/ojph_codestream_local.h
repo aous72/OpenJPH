@@ -82,8 +82,10 @@ namespace ojph {
       { return &siz; }
       ojph::param_cod access_cod()            //return externally wrapped cod
       { return ojph::param_cod(&cod); }
-      const param_cod* get_cod() //return internal code
+      const param_cod* get_cod()              //return internal cod
       { return &cod; }
+      const param_cod* get_cod(ui32 comp_num) //return internal cod
+      { return cod.get_cod(comp_num); }
       param_qcd* access_qcd(ui32 comp_num)
       { 
         if (used_qcc_fields > 0)
@@ -92,6 +94,8 @@ namespace ojph {
               return qcc + v;
         return &qcd; 
       }
+      const param_dfs* access_dfs()
+      { if (dfs.exists()) return &dfs; else return NULL; }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
       outfile_base* get_file() { return outfile; }
@@ -148,20 +152,30 @@ namespace ojph {
       bool employ_color_transform;
       int planar;
       int profile;
-      ui32 tilepart_div;    // tilepart division value
-      bool need_tlm;       // true if tlm markers are needed
+      ui32 tilepart_div;     // tilepart division value
+      bool need_tlm;         // true if tlm markers are needed
       
     private:
-      param_siz siz;
-      param_cod cod;
-      param_cap cap;
-      param_qcd qcd;
-      param_tlm tlm;
+      param_siz siz;         // image and tile size
+      param_cod cod;         // coding style default
+      param_cap cap;         // extended capabilities
+      param_qcd qcd;         // quantization default
+      param_tlm tlm;         // tile-part lengths
 
-    private: // this is to handle qcc
+    private: // this is to handle qcc and coc
       int used_qcc_fields;
-      param_qcc qcc_store[4], *qcc; // we allocate 4, 
-                                    // if not enough, we allocate more
+      param_qcc *qcc;         // quantization component
+      param_qcc qcc_store[4]; // we allocate 4, we allocate more if needed
+      int used_coc_fields;
+      param_cod *coc;         // coding style component
+      param_cod coc_store[4]; // we allocate 4, we allocate more if needed
+
+    private:  // these are from Part 2 of the standard
+      param_dfs dfs;         // downsmapling factor styles
+      param_atk* atk;        // a pointer to atk
+      param_atk atk_store[3];// 0 and 1 are for DWT from Part 1, 2 onward are
+                             // for arbitrary transformation kernels
+
 
     private:
       mem_fixed_allocator *allocator;

@@ -63,8 +63,7 @@ namespace ojph {
       static void pre_alloc(codestream *codestream, const rect& tile_rect,
                             const rect& recon_tile_rect, ui32 &num_tileparts);
       void finalize_alloc(codestream *codestream, const rect& tile_rect,
-                          const rect& recon_tile_rect, ui32 tile_idx, 
-                          ui32 offset, ui32 &num_tileparts);
+                          ui32 tile_idx, ui32& offset, ui32 &num_tileparts);
 
       bool push(line_buf *line, ui32 comp_num);
       void prepare_for_flush();
@@ -77,7 +76,7 @@ namespace ojph {
 
     private:
       //codestream *parent;
-      rect tile_rect, recon_tile_rect;
+      rect tile_rect;
       ui32 num_comps;
       tile_comp *comps;
       ui32 num_lines;

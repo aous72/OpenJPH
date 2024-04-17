@@ -5,6 +5,7 @@ if (OJPH_BUILD_STREAM_EXPAND)
 
     include_directories(../common)
     include_directories(../../core/common)
+    add_compile_options(-std=c++11)
 
     file(GLOB OJPH_STREAM_EXPAND  "ojph_stream_expand.cpp")
     file(GLOB OJPH_SOCKET         "../others/ojph_socket.cpp")

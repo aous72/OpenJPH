@@ -52,7 +52,7 @@ message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 # C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
-  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   add_compile_options(
@@ -66,9 +66,9 @@ endif()
 
 ## The option OJPH_DISABLE_INTEL_SIMD and OJPH_ENABLE_INTEL_AVX512
 if (OJPH_DISABLE_INTEL_SIMD)
-  add_compile_options(-DOJPH_DISABLE_INTEL_SIMD)
+  add_compile_definitions(OJPH_DISABLE_INTEL_SIMD)
 elseif (OJPH_ENABLE_INTEL_AVX512)
-  add_compile_options(-DOJPH_ENABLE_INTEL_AVX512)
+  add_compile_definitions(OJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## Build library and applications

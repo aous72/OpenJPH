@@ -48,53 +48,53 @@ int main()
 {
   ojph::net::socket_manager smanager;
 	
-  //Create a socket
+  // create a socket
   ojph::net::socket s =
-    smanager.create_socket(AF_INET , SOCK_DGRAM , IPPROTO_UDP);
-	if(s.intern() < 0)
-	{
+  smanager.create_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if(s.intern() < 0)
+  {
     std::string err = smanager.get_last_error_message();
     OJPH_ERROR(0x02000001, "Could not create socket : %s\n", err.data());
-	}
-	
-	//Prepare the sockaddr_in structure
+  }
+
+  // prepare the sockaddr_in structure
   struct sockaddr_in server;
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = htonl(INADDR_ANY);
-	server.sin_port = htons(PORT);
-	
-	//Bind
-	if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
-	{
+  server.sin_family = AF_INET;
+  server.sin_addr.s_addr = htonl(INADDR_ANY);
+  server.sin_port = htons(PORT);
+
+  //Bind
+  if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
+  {
     std::string err = smanager.get_last_error_message();
     OJPH_ERROR(0x02000002, "Could not create socket : %s\n", err.data());
-	}
+  }
 
-	//keep listening for data
-	while(1)
-	{
-  	char buf[BUFLEN];
-		memset(buf, 0, BUFLEN);
-		
-		// receive data -- this is a blocking call
-  	struct sockaddr_in si_other;
+  // keep listening for data
+  while(1)
+  {
+    char buf[BUFLEN];
+    memset(buf, 0, BUFLEN);
+
+    // receive data -- this is a blocking call
+    struct sockaddr_in si_other;
     socklen_t socklen = sizeof(si_other);    
-    int recv_len = recvfrom(
+    int recv_len = (int)recvfrom(
       s.intern(), buf, BUFLEN, 0, (struct sockaddr *) &si_other, &socklen);
-		if (recv_len < 0)
-		{
+    if (recv_len < 0)
+    {
       std::string err = smanager.get_last_error_message();
       OJPH_ERROR(0x02000003, "Could not create socket : %s\n", err.data());
-		}
-		
-		// print details of the client/peer and the data received
+    }
+
+    // print details of the client/peer and the data received
     char src_addr[1024];
     inet_ntop(AF_INET, &si_other.sin_addr, src_addr, sizeof(src_addr));
-   	printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));
+    printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));
     printf("Data: %02x\n" , buf[0]);
-	}
+  }
 
   s.close();
-	return 0;
+  return 0;
 }
 

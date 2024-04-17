@@ -147,10 +147,16 @@ namespace ojph
                                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
                                   buf, max_buf_size, NULL);
       buf[max_buf_size - 1] = 0;
-    #else
+    #elif (defined OJPH_OS_APPLE) || \
+      ((_POSIX_C_SOURCE >= 200112L) && !_GNU_SOURCE)
       // it is not clear if the returned value is in buf or in v
+      int t = strerror_r(errnum, (char*)buf, max_buf_size);
+      if (t != 0)
+        OJPH_ERROR(0x00080002, "Error retrieving a text message for "
+          "socket error number %d\n", errnum);
+      buf[max_buf_size - 1] = 0;
+    #else
       v = strerror_r(errnum, (char*)buf, max_buf_size);
-      v[max_buf_size - 1] = 0;
     #endif
       std::string str;
       str = v;    

@@ -105,29 +105,33 @@ int main(int argc, char* argv[])
   ojph::ui32 num_inflight_packets = 5;
   bool display = false;
   bool decode = false;
-  bool store = true;
+  bool store = false;
 	
   if (argc <= 1) {
     printf(
     "\n"
     "The following arguments are necessary:\n"
-    " -addr      <receiving ipv4 address>, or\n"
-    "            The address should be either localhost, or\n"
-    "            a local network card IP address\n"
-    "            example: -addr 127.0.0.1\n"
-    " -port      <listening port>\n"
-    "\n"
+    " -addr         <receiving ipv4 address>, or\n"
+    "               The address should be either localhost, or\n"
+    "               a local network card IP address\n"
+    "               example: -addr 127.0.0.1\n"
+    " -port         <listening port>\n"
     "\n"
     "The following arguments are options:\n"
-    " -skip_res  x,y a comma-separated list of two elements containing the\n"
-    "            number of resolutions to skip. You can specify 1 or 2\n"
-    "            parameters; the first specifies the number of resolution\n"
-    "            for which data reading is skipped. The second is the\n"
-    "            number of skipped resolution for reconstruction, which is\n"
-    "            either equal to the first or smaller. If the second is not\n"
-    "            specified, it is made to equal to the first.\n"
-    " -resilient true if you want the decoder to be more tolerant of errors\n"
-    "            in the codestream\n\n"
+    " -num_threads  <integer> number of threads for decoding and saving\n"
+    "               files.  You can specify 0 here, and the main thread\n"
+    "               will be responsible for saving files as well.\n"
+    " -num_packets  <integer> number of in-flight packets; this is the\n"
+    "               maximum number of packets to wait before an out-of-order\n"
+    "               or lost packet is considered lost.\n"
+    " -target_name  <string> target file name without extension; the same\n"
+    "               printf formating can be used. For example, output_%%05d.\n"
+    "               An extension will be added, either .j2c for original\n"
+    "               frames, or .ppm for decoded images.\n"
+    " -display      use this to display decoded frames.\n"
+    " -decode       use this to decode files before saving them.\n"
+    " -store        use this to store files\n."
+    "\n"
     );
     exit(-1);
   }

@@ -18,12 +18,14 @@ option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
+option(OJPH_BUILD_STREAM_EXPAND "Enables building ojph_stream_expand executable" ON)
 
 ## Setting some of the options if EMSCRIPTEN is the compiler
 if(EMSCRIPTEN)
   set(OJPH_DISABLE_INTEL_SIMD ON)
   set(BUILD_SHARED_LIBS OFF)
   set(OJPH_ENABLE_TIFF_SUPPORT OFF)
+  set(OJPH_BUILD_STREAM_EXPAND OFF)
 endif()
 
 # This is related to how the timestamp is set for URL downloaded files.

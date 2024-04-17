@@ -173,13 +173,13 @@ int main(int argc, char *argv[]) {
   if (argc <= 1) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
-    " -i input file name\n"
+    " -i <input file name>\n"
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -o output file name (either pgm, ppm, tif(f), or raw(yuv))\n\n"
+    " -o <output file name> (either pgm, ppm, tif(f), or raw(yuv))\n\n"
 #else
-    " -o output file name (either pgm, ppm, or raw(yuv))\n\n"
+    " -o <output file name> (either pgm, ppm, or raw(yuv))\n\n"
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
-    "The following arguments are options:\n"
+    "The following arguments are optional:\n"
     " -skip_res  x,y a comma-separated list of two elements containing the\n"
     "            number of resolutions to skip. You can specify 1 or 2\n"
     "            parameters; the first specifies the number of resolution\n"

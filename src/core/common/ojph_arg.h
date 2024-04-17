@@ -202,6 +202,17 @@ namespace ojph {
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    bool reinterpret(const char *str) {
+      argument t = find_argument(str);
+      if (t.is_valid()) {
+        release_argument(t);
+        return true;
+      }
+      else
+        return false;
+    }    
+
+    ///////////////////////////////////////////////////////////////////////////
     void reinterpret_to_bool(const char *str, int& val) {
       argument t = find_argument(str);
       if (t.is_valid()) {

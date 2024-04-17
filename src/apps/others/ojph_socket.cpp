@@ -132,11 +132,10 @@ namespace ojph
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    std::string socket_manager::get_last_error_message()
+    std::string socket_manager::get_error_message(int errnum)
     {
-      int errnum = get_last_error();
       if( errnum == 0 )
-          return std::string("");
+        return std::string("");
       const int max_buf_size = 1024;
       char buf[max_buf_size]; 
       char *v = buf;
@@ -160,7 +159,15 @@ namespace ojph
     #endif
       std::string str;
       str = v;    
-      return str;    
+      return str;
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    std::string socket_manager::get_last_error_message()
+    {
+      int errnum = get_last_error();
+      return get_error_message(errnum);
+    }
+
   } // !net namespace 
 } // !ojph namespace 

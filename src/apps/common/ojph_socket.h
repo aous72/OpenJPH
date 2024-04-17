@@ -118,6 +118,7 @@ namespace ojph
 
       socket create_socket(int domain, int type, int protocol);
       int get_last_error();
+      std::string get_error_message(int errnum);
       std::string get_last_error_message();
     };
 

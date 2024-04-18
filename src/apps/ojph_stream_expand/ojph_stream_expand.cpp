@@ -39,6 +39,7 @@
 #include "ojph_message.h"
 #include "ojph_arg.h"
 #include "ojph_socket.h"
+#include "ojph_str_ex_support.h"
 
 #ifdef OJPH_OS_WINDOWS
 
@@ -87,6 +88,11 @@ bool get_arguments(int argc, char *argv[],
   if (recv_port == NULL)
   {
     printf("Please use \"-port\" to provide a port number.\n");
+    return false;
+  }
+  if (store && target_name == NULL)
+  {
+    printf("Please use \"-o\" to provide a target file name.\n");
     return false;
   }
 

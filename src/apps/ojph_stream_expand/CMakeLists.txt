@@ -7,7 +7,7 @@ if (OJPH_BUILD_STREAM_EXPAND)
     include_directories(../../core/common)
     set(CMAKE_CXX_STANDARD 14)
     
-    file(GLOB OJPH_STREAM_EXPAND  "ojph_stream_expand.cpp")
+    file(GLOB OJPH_STREAM_EXPAND  "*.cpp")
     file(GLOB OJPH_SOCKET         "../others/ojph_socket.cpp")
     file(GLOB OJPH_SOCKET_H       "../common/ojph_socket.h")
 
@@ -24,4 +24,5 @@ if (OJPH_BUILD_STREAM_EXPAND)
         target_link_libraries(ojph_stream_expand PUBLIC openjph)
     endif(MSVC)
 
+    install(TARGETS ojph_stream_expand DESTINATION bin)
 endif(OJPH_BUILD_STREAM_EXPAND)

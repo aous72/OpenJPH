@@ -102,7 +102,8 @@ namespace ojph
     //************************************************************************/
     /** @brief A small wrapper for some Winsock2 functionality
      * 
-     *  This is useful for windows, as it initializes and destroys the library.
+     *  This is useful for windows, as it initializes and destroys 
+     *  WinSock2 library.
      *  It keeps a count of how many times the constructor is called, 
      *  reducing the count whenever the destructor is called.  When the 
      *  count reaches zero, the library is destroyed -- Windows only.

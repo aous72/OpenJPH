@@ -38,6 +38,8 @@
 #ifndef OJPH_STR_EX_SUPPORT_H
 #define OJPH_STR_EX_SUPPORT_H
 
+#include "ojph_base.h"
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -46,17 +48,20 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+/*****************************************************************************/
 /** @brief 
  * 
  */
-class ojph_packet_buffer 
+struct packet
 {
+  static constexpr int max_size = 2048;
 
-
-
+  packet() { num_bytes = 0; next = NULL; }
+  char data[max_size];
+  int num_bytes;
+  packet* next;
 };
 
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -65,13 +70,48 @@ class ojph_packet_buffer
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+/*****************************************************************************/
 /** @brief 
  * 
  */
-class ojph_file_handler
+class ojph_packets_handler
 {
+public:
+  ojph_packets_handler()
+  { avail = in_use = NULL; num_packets = 0; packet_store = NULL; }
+  ~ojph_packets_handler()
+  { if (packet_store) delete[] packet_store; }
+
+  void init(int num_packets);
+  packet* exchange(packet* p);
+
+private:
+  packet* avail;
+  packet* in_use;
+  int num_packets;
+  packet* packet_store;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************************/
+/** @brief 
+ * 
+ */
+class ojph_files_handler
+{
+public:
+  ojph_files_handler();
+  ~ojph_files_handler();
 
 
+private:
 
 };
 

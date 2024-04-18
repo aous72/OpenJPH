@@ -148,6 +148,8 @@ int main(int argc, char* argv[])
     exit(-1);
   }
 
+  ojph_packets_handler packets_handler;
+  packets_handler.init(num_inflight_packets);
   ojph::net::socket_manager smanager;
 
   struct sockaddr_in server;
@@ -184,15 +186,16 @@ int main(int argc, char* argv[])
   }
 
   // keep listening for data
+  packet* pac = NULL;
   while(1)
   {
-    char buf[buffer_size];
-    memset(buf, 0, buffer_size);
+    pac = packets_handler.exchange(pac);
+    memset(pac->data, 0, packet::max_size);
 
     // receive data -- this is a blocking call
     struct sockaddr_in si_other;
     socklen_t socklen = sizeof(si_other);    
-    int recv_len = (int)recvfrom(s.intern(), buf, buffer_size, 0, 
+    int recv_len = (int)recvfrom(s.intern(), pac->data, buffer_size, 0, 
       (struct sockaddr *) &si_other, &socklen);
     if (recv_len < 0)
     {
@@ -203,11 +206,11 @@ int main(int argc, char* argv[])
     // print details of the client/peer and the data received
     char src_addr[1024];
     inet_ntop(AF_INET, &si_other.sin_addr, src_addr, sizeof(src_addr));
-    if (buf[12] != 0)
-    {
-      printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));
-      printf("Data: %02x\n" , buf[0]);
-    }
+    // if (buf[12] != 0)
+    // {
+    //   printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));
+    //   printf("Data: %02x\n" , buf[0]);
+    // }
   }
 
   s.close();

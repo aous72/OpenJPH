@@ -40,6 +40,13 @@
 
 #include "ojph_base.h"
 
+namespace ojph
+{
+namespace str_ex
+{
+
+  class ojph_packets_handler;
+  class ojph_frames_handler;
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -82,7 +89,7 @@ public:
   ~ojph_packets_handler()
   { if (packet_store) delete[] packet_store; }
 
-  void init(int num_packets);
+  void init(int num_packets, ojph_frames_handler* frames);
   packet* exchange(packet* p);
 
 private:
@@ -90,6 +97,7 @@ private:
   packet* in_use;
   int num_packets;
   packet* packet_store;
+  ojph_frames_handler* frames;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,15 +112,19 @@ private:
 /** @brief 
  * 
  */
-class ojph_files_handler
+class ojph_frames_handler
 {
 public:
-  ojph_files_handler();
-  ~ojph_files_handler();
+  ojph_frames_handler();
+  ~ojph_frames_handler();
 
+  void init(int num_threads);
 
 private:
 
 };
+
+} // !str_ex namespace
+} // !ojph namespace
 
 #endif //!OJPH_STR_EX_SUPPORT_H

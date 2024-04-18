@@ -124,9 +124,10 @@ int main(int argc, char* argv[])
     " -port         <listening port>\n"
     "\n"
     "The following arguments are options:\n"
-    " -num_threads  <integer> number of threads for decoding and saving\n"
-    "               files.  You can specify 0 here, and the main thread\n"
-    "               will be responsible for saving files as well.\n"
+    " -num_threads  <integer> number of threads for decoding and\n"
+    "               displaying files.  This number is ignored unless\n"
+    "               decode or display is selected, where it represents the\n"
+    "               number of working threads."
     " -num_packets  <integer> number of in-flight packets; this is the\n"
     "               maximum number of packets to wait before an out-of-order\n"
     "               or lost packet is considered lost.\n"
@@ -148,8 +149,10 @@ int main(int argc, char* argv[])
     exit(-1);
   }
 
-  ojph_packets_handler packets_handler;
-  packets_handler.init(num_inflight_packets);
+  ojph::str_ex::ojph_frames_handler frames_handler;
+  frames_handler.init(num_threads);
+  ojph::str_ex::ojph_packets_handler packets_handler;
+  packets_handler.init(num_inflight_packets, &frames_handler);
   ojph::net::socket_manager smanager;
 
   struct sockaddr_in server;
@@ -186,11 +189,12 @@ int main(int argc, char* argv[])
   }
 
   // keep listening for data
-  packet* pac = NULL;
+  ojph::str_ex::packet* pac = NULL;
+
   while(1)
   {
     pac = packets_handler.exchange(pac);
-    memset(pac->data, 0, packet::max_size);
+    memset(pac->data, 0, ojph::str_ex::packet::max_size);
 
     // receive data -- this is a blocking call
     struct sockaddr_in si_other;
@@ -206,6 +210,7 @@ int main(int argc, char* argv[])
     // print details of the client/peer and the data received
     char src_addr[1024];
     inet_ntop(AF_INET, &si_other.sin_addr, src_addr, sizeof(src_addr));
+    inet_pton(AF_INET, "0.0.0.0", "0");
     // if (buf[12] != 0)
     // {
     //   printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));

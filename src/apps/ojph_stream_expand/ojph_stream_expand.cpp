@@ -136,8 +136,8 @@ int main(int argc, char* argv[])
     "               An extension will be added, either .j2c for original\n"
     "               frames, or .ppm for decoded images.\n"
     " -display      use this to display decoded frames.\n"
-    " -decode       use this to decode files before saving them.\n"
-    " -store        use this to store files\n."
+    " -decode       use this to decode files and store them.\n"
+    " -store        use this to store encoded files.\n."
     "\n"
     );
     exit(-1);
@@ -161,14 +161,13 @@ int main(int argc, char* argv[])
   if (result != 1)
     OJPH_ERROR(0x02000001, "Please provide a valid ip address, "
       "the provided address %s is not valid\n", recv_addr);
+
   {
     ojph::ui16 port_number = 0;
     port_number = (ojph::ui16)atoi(recv_port);
     if (port_number == 0)
-    {
       OJPH_ERROR(0x02000003, "Please provide a valid port number. "
           "The number you provided is %d\n", recv_port);
-    }
     server.sin_port = htons(port_number);
   }
 
@@ -185,37 +184,42 @@ int main(int argc, char* argv[])
   if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
   {
     std::string err = smanager.get_last_error_message();
-    OJPH_ERROR(0x02000005, "Could not create socket : %s\n", err.data());
+    OJPH_ERROR(0x02000005, 
+      "Could not bind address to socket : %s\n", err.data());
   }
 
-  // keep listening for data
+  // listen to incoming data, and forward it to packet_handler
+  bool first_packet = true;
+  ULONG src_addr;
+  USHORT src_port;
   ojph::str_ex::packet* pac = NULL;
-
   while(1)
   {
     pac = packets_handler.exchange(pac);
-    memset(pac->data, 0, ojph::str_ex::packet::max_size);
 
     // receive data -- this is a blocking call
-    struct sockaddr_in si_other;
-    socklen_t socklen = sizeof(si_other);    
-    int recv_len = (int)recvfrom(s.intern(), pac->data, buffer_size, 0, 
-      (struct sockaddr *) &si_other, &socklen);
-    if (recv_len < 0)
-    {
-      std::string err = smanager.get_last_error_message();
-      OJPH_ERROR(0x02000004, "Could not create socket : %s\n", err.data());
-    }
-
-    // print details of the client/peer and the data received
-    char src_addr[1024];
-    inet_ntop(AF_INET, &si_other.sin_addr, src_addr, sizeof(src_addr));
-    inet_pton(AF_INET, "0.0.0.0", "0");
-    // if (buf[12] != 0)
-    // {
-    //   printf("Received packet from %s:%d .. ", src_addr, ntohs(si_other.sin_port));
-    //   printf("Data: %02x\n" , buf[0]);
-    // }
+    bool success = true;
+    do {
+      struct sockaddr_in si_other;
+      socklen_t socklen = sizeof(si_other);  
+      pac->num_bytes = (int)recvfrom(s.intern(), pac->data, buffer_size, 0, 
+        (struct sockaddr *) &si_other, &socklen);
+      if (pac->num_bytes < 0)
+      {
+        std::string err = smanager.get_last_error_message();
+        OJPH_INFO(0x02000006, "Could not receive data : %s\n", err.data());
+        continue; // if we wish to continue
+      }
+      if (first_packet) {
+        // this is to ignore packets from source other than the first source
+        first_packet = false;
+        src_addr = si_other.sin_addr.S_un.S_addr;
+        src_port = si_other.sin_port;
+        break;
+      }
+      success = (si_other.sin_addr.S_un.S_addr == src_addr);
+      success = success && (si_other.sin_port != src_port);
+    } while (!success);
   }
 
   s.close();

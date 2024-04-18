@@ -55,10 +55,10 @@ namespace str_ex
 ///////////////////////////////////////////////////////////////////////////////
 void ojph_packets_handler::init(int num_packets, ojph_frames_handler* frames)
 { 
-    assert(num_packets == 0);
-    avail = packet_store = new packet[num_packets]; 
-    this->num_packets = num_packets; 
-    this->frames = frames;
+  assert(this->num_packets == 0);
+  avail = packet_store = new packet[num_packets]; 
+  this->num_packets = num_packets; 
+  this->frames = frames;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -72,7 +72,7 @@ packet* ojph_packets_handler::exchange(packet* p)
   {
 
   }
-  return NULL;
+  return packet_store;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

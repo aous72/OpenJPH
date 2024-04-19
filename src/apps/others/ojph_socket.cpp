@@ -169,5 +169,15 @@ namespace ojph
       return get_error_message(errnum);
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    ui32 socket_manager::get_addr(const sockaddr_in& addr)
+    {
+    #ifdef OJPH_OS_WINDOWS
+      return addr.sin_addr.S_un.S_addr;
+    #else
+      return addr.sin_addr.s_addr;
+    #endif
+    }
+
   } // !net namespace 
 } // !ojph namespace 

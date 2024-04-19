@@ -187,17 +187,6 @@ namespace ojph {
     ui16 Rcom;
   };
 
-  ////////////////////////////////////////////////////////////////////////////
-  //class param_qcc
-  //{
-  //public:
-  //  OJPH_EXPORT
-  //  param_qcc(local::param_qcc* p) : state(p) {}
-
-  //private:
-  //  local::param_qcc* state;
-  //};
-
 }
 
 #endif // !OJPH_PARAMS_H

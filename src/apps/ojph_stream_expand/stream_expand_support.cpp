@@ -30,23 +30,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_str_ex_support.cpp
+// File: ojph_str_ex_support.h
 // Author: Aous Naman
 // Date: 18 April 2024
 //***************************************************************************/
 
-#ifndef OJPH_STR_EX_SUPPORT_H
-#define OJPH_STR_EX_SUPPORT_H
-
-#include "ojph_base.h"
+#include <cassert>
+#include <cstddef>
+#include "stream_expand_support.h"
 
 namespace ojph
 {
-namespace str_ex
+namespace stex
 {
 
-  class ojph_packets_handler;
-  class ojph_frames_handler;
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -55,19 +52,30 @@ namespace str_ex
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-/*****************************************************************************/
-/** @brief 
- * 
- */
-struct packet
+///////////////////////////////////////////////////////////////////////////////
+void packets_handler::init(bool quiet, ui32 num_packets,
+                           frames_handler* frames)
+{ 
+  assert(this->num_packets == 0);
+  avail = packet_store = new rtp_packet[num_packets]; 
+  this->quiet = quiet;
+  this->num_packets = num_packets; 
+  this->frames = frames;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+rtp_packet* packets_handler::exchange(rtp_packet* p)
 {
-  static constexpr int max_size = 2048;
+  if (avail != NULL)
+  {
 
-  packet() { num_bytes = 0; next = NULL; }
-  char data[max_size];
-  int num_bytes;
-  packet* next;
-};
+  }
+  else 
+  {
+
+  }
+  return packet_store;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -77,54 +85,30 @@ struct packet
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-/*****************************************************************************/
-/** @brief 
- * 
- */
-class ojph_packets_handler
+///////////////////////////////////////////////////////////////////////////////
+frames_handler::~frames_handler()
+{ 
+  if (files) 
+    delete[] files; 
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void frames_handler::init(bool quiet, ui32 num_threads,
+                          bool store, const char *target_name, 
+                          bool decode, bool display)
 {
-public:
-  ojph_packets_handler()
-  { avail = in_use = NULL; num_packets = 0; packet_store = NULL; }
-  ~ojph_packets_handler()
-  { if (packet_store) delete[] packet_store; }
+  this->quiet = quiet;
+  this->num_threads = num_threads;
+  this->store = store;
+  this->target_name = target_name;
+  this->decode = decode;
+  this->display = display;
 
-  void init(int num_packets, ojph_frames_handler* frames);
-  packet* exchange(packet* p);
-
-private:
-  packet* avail;
-  packet* in_use;
-  int num_packets;
-  packet* packet_store;
-  ojph_frames_handler* frames;
-};
+  num_files = num_threads + 1;
+  files = new stex_file[num_files];
+}
 
 ///////////////////////////////////////////////////////////////////////////////
-//
-//
-//
-//
-//
-///////////////////////////////////////////////////////////////////////////////
 
-/*****************************************************************************/
-/** @brief 
- * 
- */
-class ojph_frames_handler
-{
-public:
-  ojph_frames_handler();
-  ~ojph_frames_handler();
-
-  void init(int num_threads);
-
-private:
-
-};
-
-} // !str_ex namespace
+} // !stex namespace
 } // !ojph namespace
-
-#endif //!OJPH_STR_EX_SUPPORT_H

@@ -121,6 +121,7 @@ namespace ojph
       int get_last_error();
       std::string get_error_message(int errnum);
       std::string get_last_error_message();
+      ui32 get_addr(const sockaddr_in& addr);
     };
 
   } // !net namespace

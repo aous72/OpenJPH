@@ -122,7 +122,7 @@ namespace ojph {
     ~mem_outfile() override;
 
     /**  Call this function to open a memory file.
-	 *
+	   *
      *  This function creates a memory buffer to be used for storing
      *  the generated j2k codestream.
      *
@@ -132,7 +132,7 @@ namespace ojph {
     void open(size_t initial_size = 65536);
 
     /**  Call this function to write data to the memory file.
-	 *
+	   *
      *  This function adds new data to the memory file.  The memory buffer
      *  of the file grows as needed.
      *
@@ -149,13 +149,13 @@ namespace ojph {
     si64 tell() override { return cur_ptr - buf; }
 
     /** Call this function to close the file and deallocate memory
-	 *
+	   *
      *  The object can be used again after calling close
      */
     void close() override;
 
     /** Call this function to access memory file data.
-	 *
+	   *
      *  It is not recommended to store the returned value because buffer
      *  storage address can change between write calls.
      *
@@ -164,7 +164,7 @@ namespace ojph {
     const ui8* get_data() { return buf; }
 
     /** Call this function to access memory file data (for const objects)
-	 *
+	   *
      *  This is similar to the above function, except that it can be used
      *  with constant objects.
      *

@@ -58,9 +58,10 @@ namespace stex // stream expand
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief inteprets RTP and j2k header, and holds received packets.
+/** @brief inteprets RTP header and payload, and holds received packets.
  * 
  *  This object interpret RFC 3550 and draft-ietf-avtcore-rtp-j2k-scl-00.
+ *  
  */
 struct rtp_packet
 {
@@ -183,12 +184,13 @@ private:
 struct stex_file {
 public:
   stex_file() 
-  { ssrc = 0; next = NULL; }
+  { ssrc = timestamp = last_seen_seq = 0; next = NULL; }
 
 public:  
-  ojph::mem_infile f;  //!<holds in-memory j2k codestream
+  ojph::mem_outfile f; //!<holds in-memory j2k codestream
   ui32 ssrc;           //!<source sequence number associated with this file
   ui32 timestamp;      //!<time stamp at which this file must be displayed
+  ui32 last_seen_seq;  //!<the last seen RTP sequence number
   stex_file* next;     //!<used to create files chain
 };
 

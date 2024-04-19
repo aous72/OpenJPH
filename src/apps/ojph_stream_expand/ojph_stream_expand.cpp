@@ -54,7 +54,7 @@ bool get_arguments(int argc, char *argv[],
                    char *&src_addr, char *&src_port, 
                    char *&target_name, ojph::ui32& num_threads, 
                    ojph::ui32& num_inflight_packets,
-                   bool& display, bool& decode, bool& store, bool& quiet)
+                   bool& display, bool& quiet)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -68,8 +68,6 @@ bool get_arguments(int argc, char *argv[],
   interpreter.reinterpret("-num_packets", num_inflight_packets);
 
   display = interpreter.reinterpret("-display");
-  decode = interpreter.reinterpret("-decode");
-  store = interpreter.reinterpret("-store");
   quiet = interpreter.reinterpret("-quiet");
 
   if (interpreter.is_exhausted() == false) {
@@ -94,11 +92,6 @@ bool get_arguments(int argc, char *argv[],
     printf("Please use \"-port\" to provide a port number.\n");
     return false;
   }
-  if (store && target_name == NULL)
-  {
-    printf("Please use \"-o\" to provide a target file name.\n");
-    return false;
-  }
   if (num_threads < 1)
   {
     printf("Please set \"-num_threads\" to 1 or more.\n");
@@ -121,8 +114,6 @@ int main(int argc, char* argv[])
   ojph::ui32 num_threads = 1;
   ojph::ui32 num_inflight_packets = 5;
   bool display = false;
-  bool decode = false;
-  bool store = false;
   bool quiet = false;
 	
   if (argc <= 1) {
@@ -149,13 +140,11 @@ int main(int argc, char* argv[])
     " -num_packets  <integer> number of in-flight packets; this is the\n"
     "               maximum number of packets to wait before an out-of-order\n"
     "               or lost packet is considered lost.\n"
-    " -target_name  <string> target file name without extension; the same\n"
+    " -o            <string> target file name without extension; the same\n"
     "               printf formating can be used. For example, output_%%05d.\n"
     "               An extension will be added, either .j2c for original\n"
     "               frames, or .ppm for decoded images.\n"
     " -display      use this to display decoded frames.\n"
-    " -decode       use this to decode files and store them.\n"
-    " -store        use this to store encoded files.\n."
     " -quiet        use to stop printing informative messages.\n."
     "\n"
     );
@@ -163,13 +152,13 @@ int main(int argc, char* argv[])
   }
   if (!get_arguments(argc, argv, recv_addr, recv_port, src_addr, src_port,
                      target_name, num_threads, num_inflight_packets,
-                     display, decode, store, quiet))
+                     display, quiet))
   {
     exit(-1);
   }
 
   ojph::stex::frames_handler frames_handler;
-  frames_handler.init(quiet, num_threads, store, target_name, decode, display);
+  frames_handler.init(quiet, num_threads, target_name, display);
   ojph::stex::packets_handler packets_handler;
   packets_handler.init(quiet, num_inflight_packets, &frames_handler);
   ojph::net::socket_manager smanager;
@@ -239,38 +228,35 @@ int main(int argc, char* argv[])
 
   bool src_printed = false;
   ojph::stex::rtp_packet* packet = NULL;
-  while(1)
+  while (1)
   {
     packet = packets_handler.exchange(packet);
-    while (1)
+    struct sockaddr_in si_other;
+    socklen_t socklen = sizeof(si_other);
+    // receive data -- this is a blocking call
+    packet->num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
+      buffer_size, 0, (struct sockaddr *) &si_other, &socklen);
+    if (packet->num_bytes < 0)
     {
-      struct sockaddr_in si_other;
-      socklen_t socklen = sizeof(si_other);
-      // receive data -- this is a blocking call
-      packet->num_bytes = (int)recvfrom(s.intern(), packet->data, buffer_size,
-        0, (struct sockaddr *) &si_other, &socklen);
-      if (packet->num_bytes < 0)
-      {
+      std::string err = smanager.get_last_error_message();
+      OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
+      continue; // if we wish to continue
+    }
+    if ((src_addr && saddr != smanager.get_addr(si_other)) ||
+        (src_port && sport != si_other.sin_port))
+      continue;
+    if (!quiet && !src_printed)
+    {
+      constexpr int buf_size = 128;
+      char buf[buf_size];
+      if (!inet_ntop(AF_INET, &si_other, buf, buf_size)) {
         std::string err = smanager.get_last_error_message();
-        OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
-        continue; // if we wish to continue
+        OJPH_INFO(0x02000009, 
+          "Error converting source address.\n", err.data());
       }
-      if ((src_addr && saddr != smanager.get_addr(si_other)) ||
-          (src_port && sport != si_other.sin_port))
-        continue;
-      if (!quiet && !src_printed)
-      {
-        constexpr int buf_size = 128;
-        char buf[buf_size];
-        if (!inet_ntop(AF_INET, &si_other, buf, buf_size)) {
-          std::string err = smanager.get_last_error_message();
-          OJPH_INFO(0x02000009, 
-            "Error converting source address.\n", err.data());
-        }
-        printf("Receiving data from %s, port %d\n",
-          buf, ntohs(si_other.sin_port));
-        src_printed = true;
-      }
+      printf("Receiving data from %s, port %d\n",
+        buf, ntohs(si_other.sin_port));
+      src_printed = true;
     }
   }
 

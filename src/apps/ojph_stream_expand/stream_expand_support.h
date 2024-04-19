@@ -123,7 +123,7 @@ public:
 public:
   static constexpr int max_size = 2048; //!<maximum packet size
                                         // ethernet packet are only 1500
-  char data[max_size];                  //!<data in the packet
+  ui8 data[max_size];                   //!<data in the packet
   int num_bytes;                        //!<number of bytes 
   rtp_packet* next;                     //!<used for linking packets
 };
@@ -211,24 +211,20 @@ public:
   { 
     quiet = false;
     num_threads = 0;
-    store = false; 
     target_name = NULL;
-    decode = display = false; 
     num_files = 0;
     files = NULL; 
   }
   ~frames_handler();
 
 public:
-  void init(bool quiet, ui32 num_threads, bool store, const char *target_name, 
-            bool decode, bool display);
+  void init(bool quiet, ui32 num_threads, const char *target_name, 
+            bool display);
 
 private:
   bool quiet;               //!<no informational info is printed when true
   ui32 num_threads;         //!<max number of threads used for decoding/display
-  bool store;               //!<files are stored when true
   const char *target_name;  //!<target file name template
-  bool decode;              //!<files are decoded when true
   bool display;             //!<images are displayed when true
   ui32 num_files;           //!<maximum number of in-flight files.
   stex_file* files;         //!<address for allocated files

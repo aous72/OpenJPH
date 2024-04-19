@@ -66,13 +66,24 @@ void packets_handler::init(bool quiet, ui32 num_packets,
 ///////////////////////////////////////////////////////////////////////////////
 rtp_packet* packets_handler::exchange(rtp_packet* p)
 {
+
+  if (p != NULL)
+  { // check validity/supported features in p
+  }
+
+  if (p)
+  {
+    ui32 packet_type = p->get_packet_type();
+    if (packet_type == rtp_packet::packet_type::PT_MAIN)
+    printf("A new frame %d\n", p->get_time_stamp());
+  }
+
+
   if (avail != NULL)
   {
-
   }
   else 
   {
-
   }
   return packet_store;
 }
@@ -94,14 +105,11 @@ frames_handler::~frames_handler()
 
 ///////////////////////////////////////////////////////////////////////////////
 void frames_handler::init(bool quiet, ui32 num_threads,
-                          bool store, const char *target_name, 
-                          bool decode, bool display)
+                          const char *target_name, bool display)
 {
   this->quiet = quiet;
   this->num_threads = num_threads;
-  this->store = store;
   this->target_name = target_name;
-  this->decode = decode;
   this->display = display;
 
   num_files = num_threads + 1;

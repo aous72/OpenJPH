@@ -54,7 +54,7 @@ bool get_arguments(int argc, char *argv[],
                    char *&src_addr, char *&src_port, 
                    char *&target_name, ojph::ui32& num_threads, 
                    ojph::ui32& num_inflight_packets,
-                   bool& display, bool& quiet)
+                   bool& quiet, bool& display, bool& decode)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -67,8 +67,9 @@ bool get_arguments(int argc, char *argv[],
   interpreter.reinterpret("-num_threads", num_threads);
   interpreter.reinterpret("-num_packets", num_inflight_packets);
 
-  display = interpreter.reinterpret("-display");
   quiet = interpreter.reinterpret("-quiet");
+  display = interpreter.reinterpret("-display");
+  decode = interpreter.reinterpret("-decode");
 
   if (interpreter.is_exhausted() == false) {
     printf("The following arguments were not interpreted:\n");
@@ -97,6 +98,17 @@ bool get_arguments(int argc, char *argv[],
     printf("Please set \"-num_threads\" to 1 or more.\n");
     return false;
   }
+  if (num_inflight_packets < 1)
+  {
+    printf("Please set \"-num_packets\" to 1 or more.\n");
+    return false;
+  }
+  if (decode && target_name == NULL)
+  {
+    printf("Since \"-decode\" was specified, please set \"-target_name\" "
+      "for the target name of decoded files.\n");
+    return false;
+  }
 
   return true;
 }
@@ -104,8 +116,6 @@ bool get_arguments(int argc, char *argv[],
 //////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[])
 {
-  constexpr int buffer_size = 2048;	// buffer size
-
   char *recv_addr = NULL;
   char *recv_port = NULL;
   char *src_addr = NULL;
@@ -113,8 +123,9 @@ int main(int argc, char* argv[])
   char *target_name = NULL;
   ojph::ui32 num_threads = 1;
   ojph::ui32 num_inflight_packets = 5;
-  bool display = false;
   bool quiet = false;
+  bool display = false;
+  bool decode = false;
 	
   if (argc <= 1) {
     printf(
@@ -152,13 +163,13 @@ int main(int argc, char* argv[])
   }
   if (!get_arguments(argc, argv, recv_addr, recv_port, src_addr, src_port,
                      target_name, num_threads, num_inflight_packets,
-                     display, quiet))
+                     quiet, display, decode))
   {
     exit(-1);
   }
 
   ojph::stex::frames_handler frames_handler;
-  frames_handler.init(quiet, num_threads, target_name, display);
+  frames_handler.init(quiet, display, decode, num_threads, target_name);
   ojph::stex::packets_handler packets_handler;
   packets_handler.init(quiet, num_inflight_packets, &frames_handler);
   ojph::net::socket_manager smanager;
@@ -230,21 +241,27 @@ int main(int argc, char* argv[])
   ojph::stex::rtp_packet* packet = NULL;
   while (1)
   {
-    packet = packets_handler.exchange(packet);
+    if (packet == NULL || packet->num_bytes != 0) // num_bytes == 0
+      packet = packets_handler.exchange(packet);  // if packet was ignored
+
     struct sockaddr_in si_other;
     socklen_t socklen = sizeof(si_other);
     // receive data -- this is a blocking call
-    packet->num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
-      buffer_size, 0, (struct sockaddr *) &si_other, &socklen);
-    if (packet->num_bytes < 0)
+    packet->num_bytes = 0; // if we ignore the packet, we can continue
+    int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
+      packet->max_size, 0, (struct sockaddr *) &si_other, &socklen);
+    if (num_bytes < 0)
     {
       std::string err = smanager.get_last_error_message();
       OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
       continue; // if we wish to continue
     }
     if ((src_addr && saddr != smanager.get_addr(si_other)) ||
-        (src_port && sport != si_other.sin_port))
+        (src_port && sport != si_other.sin_port)) {
       continue;
+    }
+    packet->num_bytes = (ojph::ui32)num_bytes;    
+
     if (!quiet && !src_printed)
     {
       constexpr int buf_size = 128;

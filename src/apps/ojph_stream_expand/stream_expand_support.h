@@ -76,6 +76,7 @@ public:
   rtp_packet() { num_bytes = 0; next = NULL; }
 
 public:
+  // RTP header
   ui32 get_rtp_version() { return ((ui32)data[0]) >> 6; }
   bool is_padded() { return (data[0] & 0x20) != 0; }
   bool is_extended() { return (data[0] & 0x10) != 0; }
@@ -91,41 +92,95 @@ public:
   { return ntohl(*(ui32*)(data + 4)); }
   ui32 get_ssrc()             // not used for the time being
   { return ntohl(*(ui32*)(data + 8)); }
+
+  // common in main and body payload headers
   ui32 get_packet_type() 
   { return ((ui32)data[12]) >> 6; }
-  ui32 get_TP() 
+  ui32 get_TP()
   { return (((ui32)data[12]) >> 3) & 0x7; }
-  ui32 get_ORDH() 
-  { return ((ui32)data[12]) & 0x7; }
-  bool is_PTSTAMP_used() 
-  { return (((ui32)data[13]) & 0x80) != 0; }
-  ui32 get_XTRAC() 
-  { return (((ui32)data[13]) >> 4) & 0x7; }
-  ui32 get_PTSTAMP() { 
+  ui32 get_ORDH() { 
+    if (get_packet_type() != PT_BODY) return ((ui32)data[12]) & 0x7; 
+    else return (((ui32)data[13]) >> 7) & 0x1; 
+  }
+  ui32 get_PTSTAMP() {
     ui32 result = (((ui32)data[13]) & 0xF) << 8;
     result |= (ui32)data[14];
     return result; 
   }
-  bool is_codestream_header_reusable() 
-  { return (((ui32)data[16] >> 7) & 1) != 0; }
-  bool is_component_colorimetry_used() 
-  { return (((ui32)data[16] >> 6) & 1) != 0; }
-  bool is_codeblock_caching_used() 
-  { return (((ui32)data[16] >> 5) & 1) != 0; }
-  bool is_RANGE() 
-  { return ((ui32)data[16] & 1) != 0; }
-  ui32 get_PRIMS()
-  { return (ui32)data[17]; }
-  ui32 get_TRANS()
-  { return (ui32)data[18]; }
-  ui32 get_MAT()
-  { return (ui32)data[19]; }
+  ui8* get_data()
+  { return data + 20; }
+  ui32 get_data_size()
+  { return (ui32)num_bytes - 20; }
+
+  // only in main payload header
+  bool is_PTSTAMP_used() { 
+    assert(get_packet_type() != PT_BODY);
+    return (((ui32)data[13]) & 0x80) != 0; 
+  }
+  ui32 get_XTRAC() { 
+    assert(get_packet_type() != PT_BODY);
+    return (((ui32)data[13]) >> 4) & 0x7; 
+  }
+  bool is_codestream_header_reusable() { 
+    assert(get_packet_type() != PT_BODY);
+    return (((ui32)data[16]) & 0x80) != 0;
+  }
+  bool is_component_colorimetry_used() { 
+    assert(get_packet_type() != PT_BODY);    
+    return (((ui32)data[16]) & 0x40) != 0;
+  }
+  bool is_codeblock_caching_used() {
+    assert(get_packet_type() != PT_BODY);
+    return (((ui32)data[16]) & 0x20) != 0;
+  }
+  bool is_RANGE() {
+    assert(get_packet_type() != PT_BODY); 
+    return ((ui32)data[16] & 1) != 0; 
+  }
+  ui32 get_PRIMS(){
+    assert(get_packet_type() != PT_BODY); 
+    return (ui32)data[17]; 
+  }
+  ui32 get_TRANS() { 
+    assert(get_packet_type() != PT_BODY); 
+    return (ui32)data[18]; 
+  }
+  ui32 get_MAT() { 
+    assert(get_packet_type() != PT_BODY); 
+    return (ui32)data[19]; 
+  }
+
+  // only in body payload header
+  ui32 get_RES() { 
+    assert(get_packet_type() == PT_BODY); 
+    return ((ui32)data[12]) & 0x7; 
+  }
+  ui32 get_QUAL() { 
+    assert(get_packet_type() == PT_BODY); 
+    return (((ui32)data[13]) >> 4) & 0x7; 
+  }
+  ui32 get_data_pos() {
+    ui32 result = 0;
+    if (get_packet_type() == PT_BODY) { 
+      result = ((ui32)data[16]) << 4;
+      result |= (((ui32)data[17]) >> 4) & 0xF;
+    }
+    return result;
+  }
+  ui32 get_PID() {
+    assert(get_packet_type() == PT_BODY);     
+    ui32 result = (((ui32)data[17]) & 0xF) << 16;
+    result |= ((ui32)data[18]) << 8;
+    result |= ((ui32)data[19]);
+    return result;
+  }
+  
 
 public:
   static constexpr int max_size = 2048; //!<maximum packet size
                                         // ethernet packet are only 1500
   ui8 data[max_size];                   //!<data in the packet
-  int num_bytes;                        //!<number of bytes 
+  ui32 num_bytes;                        //!<number of bytes 
   rtp_packet* next;                     //!<used for linking packets
 };
 
@@ -141,10 +196,17 @@ public:
 /** @brief Interprets new packets, buffers them if needed.
  * 
  *  This object primarily attempts to process the RTP packet.
- *  It receives new packets, identifying main vs body J2K packets.
- *  It can buffer packets that are out of order and has no clear file
- *  associated with them.
- *  It also initiates creation of new files, when they are encountered.
+ *  The main purpose is to buffer received packets if it is not clear where
+ *  they fit. It also drops packets if they become stale.
+ * 
+ *  This object basically works as follows.
+ *  The object interact with frames_handler, using the "push" member function.
+ *  which returns true when the packet is consumed and when it cannot be.
+ *  The unconsumed packet are buffered, and push again when the next packet
+ *  arrive.
+ *  
+ *  Packets are dropped when they reach the bottom of the queue.
+ *  The queue is in the "in_use" member variable.
  */
 class packets_handler
 {
@@ -211,7 +273,7 @@ class frames_handler
 public:
   frames_handler()
   { 
-    quiet = false;
+    quiet = display = false;
     num_threads = 0;
     target_name = NULL;
     num_files = 0;
@@ -220,14 +282,17 @@ public:
   ~frames_handler();
 
 public:
-  void init(bool quiet, ui32 num_threads, const char *target_name, 
-            bool display);
+  void init(bool quiet, bool display, bool decode,
+            ui32 num_threads, const char *target_name);
+  bool push(rtp_packet* p);
+
 
 private:
   bool quiet;               //!<no informational info is printed when true
+  bool display;             //!<images are displayed when true
+  bool decode;              //!<when true, images are decoded before saving
   ui32 num_threads;         //!<max number of threads used for decoding/display
   const char *target_name;  //!<target file name template
-  bool display;             //!<images are displayed when true
   ui32 num_files;           //!<maximum number of in-flight files.
   stex_file* files;         //!<address for allocated files
 };

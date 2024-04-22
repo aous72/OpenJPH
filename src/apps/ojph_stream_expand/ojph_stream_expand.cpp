@@ -168,116 +168,126 @@ int main(int argc, char* argv[])
     exit(-1);
   }
 
-  ojph::stex::frames_handler frames_handler;
-  frames_handler.init(quiet, display, decode, num_threads, target_name);
-  ojph::stex::packets_handler packets_handler;
-  packets_handler.init(quiet, num_inflight_packets, &frames_handler);
-  ojph::net::socket_manager smanager;
+  try {
+    ojph::stex::frames_handler frames_handler;
+    frames_handler.init(quiet, display, decode, num_inflight_packets, 
+                        num_threads, target_name);
+    ojph::stex::packets_handler packets_handler;
+    packets_handler.init(quiet, num_inflight_packets, &frames_handler);
+    ojph::net::socket_manager smanager;
 
-  // listening address/port
-  struct sockaddr_in server;
-  {
-    server.sin_family = AF_INET;
-    const char *p = recv_addr;
-    const char localhost[] = "127.0.0.1";
-    if (strcmp(recv_addr, "localhost") == 0)
-      p = localhost;
-    int result = inet_pton(AF_INET, p, &server.sin_addr);
-    if (result != 1)
-      OJPH_ERROR(0x02000001, "Please provide a valid IP address when "
-        "using \"-addr,\" the provided address %s is not valid\n", 
-        recv_addr);
-    ojph::ui16 port_number = 0;
-    port_number = (ojph::ui16)atoi(recv_port);
-    if (port_number == 0)
-      OJPH_ERROR(0x02000003, "Please provide a valid port number. "
-          "The number you provided is %d\n", recv_port);
-    server.sin_port = htons(port_number);
-  }
+    // listening address/port
+    struct sockaddr_in server;
+    {
+      server.sin_family = AF_INET;
+      const char *p = recv_addr;
+      const char localhost[] = "127.0.0.1";
+      if (strcmp(recv_addr, "localhost") == 0)
+        p = localhost;
+      int result = inet_pton(AF_INET, p, &server.sin_addr);
+      if (result != 1)
+        OJPH_ERROR(0x02000001, "Please provide a valid IP address when "
+          "using \"-addr,\" the provided address %s is not valid\n", 
+          recv_addr);
+      ojph::ui16 port_number = 0;
+      port_number = (ojph::ui16)atoi(recv_port);
+      if (port_number == 0)
+        OJPH_ERROR(0x02000003, "Please provide a valid port number. "
+            "The number you provided is %d\n", recv_port);
+      server.sin_port = htons(port_number);
+    }
 
-  // create a socket
-  ojph::net::socket s;
-  s = smanager.create_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if(s.intern() == OJPH_INVALID_SOCKET)
-  {
-    std::string err = smanager.get_last_error_message();
-    OJPH_ERROR(0x02000004, "Could not create socket : %s\n", err.data());
-  }
-
-  // bind to listening address
-  if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
-  {
-    std::string err = smanager.get_last_error_message();
-    OJPH_ERROR(0x02000005, 
-      "Could not bind address to socket : %s\n", err.data());
-  }
-
-  // listen to incoming data, and forward it to packet_handler
-  ojph::ui32 saddr = 0;
-  if (src_addr)
-  {
-    const char *p = src_addr;
-    const char localhost[] = "127.0.0.1";
-    if (strcmp(src_addr, "localhost") == 0)
-      p = localhost;
-    struct sockaddr_in t;
-    int result = inet_pton(AF_INET, p, &t.sin_addr);
-    if (result != 1)
-      OJPH_ERROR(0x02000006, "Please provide a valid IP address when "
-        "using \"-src_addr,\" the provided address %s is not valid\n", 
-        src_addr);
-    saddr = smanager.get_addr(t);
-  }
-  ojph::ui16 sport = 0;
-  if (src_addr)
-  {
-    sport = (ojph::ui16)atoi(src_port);
-    if (sport == 0)
-      OJPH_ERROR(0x02000007, "Please provide a valid port number. "
-          "The number you provided is %d\n", src_port);
-  }
-
-  bool src_printed = false;
-  ojph::stex::rtp_packet* packet = NULL;
-  while (1)
-  {
-    if (packet == NULL || packet->num_bytes != 0) // num_bytes == 0
-      packet = packets_handler.exchange(packet);  // if packet was ignored
-
-    struct sockaddr_in si_other;
-    socklen_t socklen = sizeof(si_other);
-    // receive data -- this is a blocking call
-    packet->num_bytes = 0; // if we ignore the packet, we can continue
-    int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
-      packet->max_size, 0, (struct sockaddr *) &si_other, &socklen);
-    if (num_bytes < 0)
+    // create a socket
+    ojph::net::socket s;
+    s = smanager.create_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(s.intern() == OJPH_INVALID_SOCKET)
     {
       std::string err = smanager.get_last_error_message();
-      OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
-      continue; // if we wish to continue
+      OJPH_ERROR(0x02000004, "Could not create socket : %s\n", err.data());
     }
-    if ((src_addr && saddr != smanager.get_addr(si_other)) ||
-        (src_port && sport != si_other.sin_port)) {
-      continue;
-    }
-    packet->num_bytes = (ojph::ui32)num_bytes;    
 
-    if (!quiet && !src_printed)
+    // bind to listening address
+    if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
     {
-      constexpr int buf_size = 128;
-      char buf[buf_size];
-      if (!inet_ntop(AF_INET, &si_other, buf, buf_size)) {
-        std::string err = smanager.get_last_error_message();
-        OJPH_INFO(0x02000009, 
-          "Error converting source address.\n", err.data());
-      }
-      printf("Receiving data from %s, port %d\n",
-        buf, ntohs(si_other.sin_port));
-      src_printed = true;
+      std::string err = smanager.get_last_error_message();
+      OJPH_ERROR(0x02000005, 
+        "Could not bind address to socket : %s\n", err.data());
     }
-  }
 
-  s.close();
+    // listen to incoming data, and forward it to packet_handler
+    ojph::ui32 saddr = 0;
+    if (src_addr)
+    {
+      const char *p = src_addr;
+      const char localhost[] = "127.0.0.1";
+      if (strcmp(src_addr, "localhost") == 0)
+        p = localhost;
+      struct sockaddr_in t;
+      int result = inet_pton(AF_INET, p, &t.sin_addr);
+      if (result != 1)
+        OJPH_ERROR(0x02000006, "Please provide a valid IP address when "
+          "using \"-src_addr,\" the provided address %s is not valid\n", 
+          src_addr);
+      saddr = smanager.get_addr(t);
+    }
+    ojph::ui16 sport = 0;
+    if (src_addr)
+    {
+      sport = (ojph::ui16)atoi(src_port);
+      if (sport == 0)
+        OJPH_ERROR(0x02000007, "Please provide a valid port number. "
+            "The number you provided is %d\n", src_port);
+    }
+
+    bool src_printed = false;
+    ojph::stex::rtp_packet* packet = NULL;
+    while (1)
+    {
+      if (packet == NULL || packet->num_bytes != 0) // num_bytes == 0
+        packet = packets_handler.exchange(packet);  // if packet was ignored
+
+      struct sockaddr_in si_other;
+      socklen_t socklen = sizeof(si_other);
+      // receive data -- this is a blocking call
+      packet->num_bytes = 0; // if we ignore the packet, we can continue
+      int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
+        packet->max_size, 0, (struct sockaddr *) &si_other, &socklen);
+      if (num_bytes < 0)
+      {
+        std::string err = smanager.get_last_error_message();
+        OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
+        continue; // if we wish to continue
+      }
+      if ((src_addr && saddr != smanager.get_addr(si_other)) ||
+          (src_port && sport != si_other.sin_port)) {
+        continue;
+      }
+      packet->num_bytes = (ojph::ui32)num_bytes;    
+
+      if (!quiet && !src_printed)
+      {
+        constexpr int buf_size = 128;
+        char buf[buf_size];
+        if (!inet_ntop(AF_INET, &si_other, buf, buf_size)) {
+          std::string err = smanager.get_last_error_message();
+          OJPH_INFO(0x02000009, 
+            "Error converting source address.\n", err.data());
+        }
+        printf("Receiving data from %s, port %d\n",
+          buf, ntohs(si_other.sin_port));
+        src_printed = true;
+      }
+    }
+    s.close();    
+  }
+  catch (const std::exception& e)
+  {
+    const char *p = e.what();
+    if (strncmp(p, "ojph error", 10) != 0)
+      printf("%s\n", p);
+    exit(-1);
+  }    
+
   return 0;
 }
 

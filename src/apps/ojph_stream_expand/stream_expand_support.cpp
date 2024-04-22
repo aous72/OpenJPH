@@ -109,22 +109,28 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
     }
     return p;
   }
-  else {
+  else 
+  {
+    // sequence number of the most recent packet
+    ui32 seq = p->get_sequence_number();
+
     // move packet to avail
     assert(p == in_use);
     in_use = in_use->next;
     p->next = avail;
     avail = p;
 
-    // test if you can push more packets
+    // test if you can push more packets, also remove old packets
     p = in_use;
-    rtp_packet *pp = p; // previous p
+    rtp_packet *pp = p; // previous p -- will be updated before use
     while (p != NULL)
     {
+      // if packet is used or it is old
       result = frames->push(p);
+      result = result | (seq > p->get_sequence_number() + num_packets);
       if (result)
       {
-        // move packet to avail
+        // move packet from in_use to avail
         if (p == in_use)
         {
           in_use = in_use->next;
@@ -156,6 +162,34 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+void packets_handler::flush()
+{
+  // move all packets from in_use to avail
+  while (in_use)
+  {
+    rtp_packet *p = in_use;
+    in_use = in_use->next;
+    p->next = avail;
+    avail = p;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+void stex_file::notify_file_completion()
+{ 
+  done = true;
+  parent->increment_num_complete_files(); 
+}
+
+///////////////////////////////////////////////////////////////////////////////
 //
 //
 //
@@ -166,28 +200,173 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
 ///////////////////////////////////////////////////////////////////////////////
 frames_handler::~frames_handler()
 { 
-  if (files) 
-    delete[] files; 
+  if (files_store) 
+    delete[] files_store; 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void frames_handler::init(bool quiet, bool display, bool decode,
-                          ui32 num_threads, const char *target_name)
+void frames_handler::init(bool quiet, bool display, bool decode, 
+                          ui32 packet_queue_length, ui32 num_threads, 
+                          const char *target_name)
 {
   this->quiet = quiet;
   this->display = display;
   this->decode = decode;
+  this->packet_queue_length = packet_queue_length;
   this->num_threads = num_threads;
   this->target_name = target_name;
   num_files = num_threads + 1;
-  files = new stex_file[num_files];
+  avail = files_store = new stex_file[num_files];
+  for (ui32 i = 0; i < num_files - 1; ++i)
+    files_store[i].init(this, files_store + i + 1);
+  files_store[num_files - 1].init(this, NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 bool frames_handler::push(rtp_packet* p)
 {
+  // check if any of the frames processed in other threads are done
+  check_files_in_processing();
 
+  // check if we have any old files that have no hope is updating
+  if (in_use)
+  {
+    ui32 seq = p->get_sequence_number();    
+    stex_file* f = in_use, *pf = NULL;
+    while (f != NULL)
+    {
+      if (seq > f->last_seen_seq + packet_queue_length)
+      {
+        // move from in_use to processing
+        if (f == in_use)
+        {
+          in_use = in_use->next;
+          f->next = processing;
+          processing = f;
+          //<=============================================== queue f for 
+          //<=============================================== further execution
+          f = in_use;
+        }
+        else {
+          pf->next = f->next;
+          f->next = processing;
+          processing = f;
+          //<=============================================== queue f for 
+          //<=============================================== further execution
+          f = pf->next;
+        }
+      }
+      else {
+        pf = f;
+        f = f->next;
+      }
+    }
+  }
+
+  // process newly received packet
+  if (p->get_packet_type() != rtp_packet::PT_BODY)
+  { // main payload header
+    printf("A new file %d\n", p->get_time_stamp());
+    if (avail)
+    {
+      // move from avail to in_use
+      stex_file* f = avail;
+      avail = avail->next;
+      f->next = processing;
+      processing = f;
+      f->timestamp = p->get_time_stamp();
+      f->last_seen_seq = p->get_sequence_number();
+      f->f.open(1<<20, true); // start with 1MB
+      f->write(p);
+      return true;
+    }
+    else 
+      return false;
+  }
+  else 
+  { // body payload header
+    stex_file* f = in_use;
+    while (f != NULL && f->timestamp != p->get_time_stamp())
+      f = f->next;
+    if (f == NULL)    
+      return false;
+    
+    f->write(p);
+    
+    if (p->is_marked())
+      f->marked = true;
+
+    if (f->marked && f->are_packets_missing() == false)
+          //<=============================================== queue f for 
+          //<=============================================== further execution    
+      ;
+    return true;
+  }
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+bool frames_handler::flush()
+{
+  // check if any of the frames processed in other threads are done
+  check_files_in_processing();
+
+  // check files in_use and move them to processing
+  while (in_use != NULL)
+  {
+    // move from in_use to processing    
+    stex_file* f = in_use;
+    in_use = in_use->next;
+    f->next = processing;
+    processing = f;
+    //<=============================================== queue f for 
+    //<=============================================== further execution
+  }
+
+  return (processing != NULL);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void frames_handler::check_files_in_processing()
+{
+  // check if any of the frames processed in other threads are done
+  int nf = num_complete_files.load(std::memory_order_acquire);
+  if (nf > 0)
+  {
+    stex_file* f = processing, *pf = NULL;
+    while(f != NULL && nf > 0)
+    {
+      num_complete_files.fetch_add(-1, std::memory_order_relaxed);
+
+      if (f->done == true)
+      {
+        // move f from processing to avail
+        f->timestamp = 0;
+        f->last_seen_seq = 0;
+        f->done = f->marked = false;
+        f->estimated_size = f->actual_size = 0;
+        if (f == processing)
+        {
+          processing = processing->next;
+          f->next = avail;
+          avail = f;
+          f = processing;        // for next test
+        }
+        else {
+          pf->next = f->next;
+          f->next = avail;
+          avail = f;
+          f = pf->next;
+        }
+      }
+      else 
+      {
+        pf = f;
+        f = f->next;
+      }
+      nf = num_complete_files.load(std::memory_order_acquire);
+    }
+  }
 }
 
 } // !stex namespace

@@ -38,6 +38,7 @@
 #ifndef OJPH_STR_EX_SUPPORT_H
 #define OJPH_STR_EX_SUPPORT_H
 
+#include <atomic>
 #include "ojph_base.h"
 #include "ojph_file.h"
 #include "ojph_socket.h"
@@ -197,7 +198,7 @@ public:
  * 
  *  This object primarily attempts to process the RTP packet.
  *  The main purpose is to buffer received packets if it is not clear where
- *  they fit. It also drops packets if they become stale.
+ *  they fit. It also drops packets if they become old.
  * 
  *  This object basically works as follows.
  *  The object interact with frames_handler, using the "push" member function.
@@ -219,6 +220,7 @@ public:
 public:
   void init(bool quiet, ui32 num_packets, frames_handler* frames);
   rtp_packet* exchange(rtp_packet* p);
+  void flush();
 
 private:
   bool quiet;                //!<no informational info is printed when true
@@ -240,20 +242,49 @@ private:
 /*****************************************************************************/
 /** @brief holds in memory j2k codestream together with other info
  * 
- *  This objects holds a j2k codestream with source sequence number.
+ *  This objects holds a j2k codestream.  The codestream is identified by 
+ *  its timestamp. Once complete the file is pushed to saver/renderer.
  *  It can be used to create a chain of files.
  */
 struct stex_file {
 public:
   stex_file() 
-  { ssrc = timestamp = last_seen_seq = 0; next = NULL; }
+  { 
+    timestamp = last_seen_seq = 0; 
+    done = marked = false;
+    estimated_size = actual_size = 0;
+    parent = NULL;
+    next = NULL; 
+  }
+  void init(frames_handler* parent, stex_file* next)
+  {
+    this->parent = parent;
+    this->next = next;
+  }
+
+  void write(rtp_packet *p)
+  {
+    ui32 pos = p->get_data_pos();
+    ui32 len = p->get_data_size();
+    estimated_size = ojph_max(estimated_size, pos + len);
+    actual_size += len;
+    f.seek(pos, outfile_base::OJPH_SEEK_SET);
+    f.write(p->get_data(), len);
+  }
+  bool are_packets_missing()
+  { return (estimated_size != actual_size); }
+  void notify_file_completion();
 
 public:  
-  ojph::mem_outfile f; //!<holds in-memory j2k codestream
-  ui32 ssrc;           //!<source sequence number associated with this file
-  ui32 timestamp;      //!<time stamp at which this file must be displayed
-  ui32 last_seen_seq;  //!<the last seen RTP sequence number
-  stex_file* next;     //!<used to create files chain
+  ojph::mem_outfile f;    //!<holds in-memory j2k codestream
+  ui32 timestamp;         //!<time stamp at which this file must be displayed
+  ui32 last_seen_seq;     //!<the last seen RTP sequence number
+  bool done;              //!<set to true when saving/rendering complete
+  bool marked;            //!<set to true if a marked packet was received
+  ui32 estimated_size;    //!<this is based on maximum possible size
+  ui32 actual_size;       //!<this is the actual number of received bytes
+  frames_handler* parent; //!<the object holding this frame
+  stex_file* next;        //!<used to create files chain
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -273,28 +304,41 @@ class frames_handler
 public:
   frames_handler()
   { 
-    quiet = display = false;
-    num_threads = 0;
+    quiet = display = decode = false;
+    packet_queue_length = num_threads = 0;
     target_name = NULL;
     num_files = 0;
-    files = NULL; 
+    files_store = NULL; 
+    avail = in_use = processing = NULL;
+    num_complete_files.store(0);
   }
   ~frames_handler();
 
 public:
-  void init(bool quiet, bool display, bool decode,
+  void init(bool quiet, bool display, bool decode, ui32 packet_queue_length,
             ui32 num_threads, const char *target_name);
   bool push(rtp_packet* p);
+  bool flush();
+  void increment_num_complete_files()
+  { num_complete_files.fetch_add(1, std::memory_order_release); }
 
+private:
+  void check_files_in_processing();
 
 private:
   bool quiet;               //!<no informational info is printed when true
   bool display;             //!<images are displayed when true
   bool decode;              //!<when true, images are decoded before saving
+  ui32 packet_queue_length; //!<the number of packets that can be in the queue
   ui32 num_threads;         //!<max number of threads used for decoding/display
   const char *target_name;  //!<target file name template
   ui32 num_files;           //!<maximum number of in-flight files.
-  stex_file* files;         //!<address for allocated files
+  stex_file* files_store;   //!<address for allocated files
+  stex_file* avail;         //!<available frames structures
+  stex_file* in_use;        //!<frames that are being filled with data
+  stex_file* processing;    //!<frames that are being saved/rendered
+  std::atomic_int32_t 
+    num_complete_files;     //<!num. of files for which processing is complete
 };
 
 } // !stex namespace

@@ -85,7 +85,10 @@ namespace ojph {
     virtual size_t write(const void *ptr, size_t size) = 0;
     virtual si64 tell() { return 0; }
     virtual int seek(si64 offset, enum outfile_base::seek origin) 
-    { return -1; /* always fail, to remind you to write an implementation */ }
+    { 
+      ojph_unused(offset); ojph_unused(origin);
+      return -1; /* always fail, to remind you to write an implementation */ 
+    }
     virtual void flush() {}
     virtual void close() {}
   };

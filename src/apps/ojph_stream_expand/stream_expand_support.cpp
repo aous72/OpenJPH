@@ -30,7 +30,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_str_ex_support.h
+// File: stream_expand_support.h
 // Author: Aous Naman
 // Date: 18 April 2024
 //***************************************************************************/

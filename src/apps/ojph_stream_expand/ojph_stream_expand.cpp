@@ -38,7 +38,7 @@
 #include <iostream>
 #include "ojph_message.h"
 #include "ojph_arg.h"
-#include "ojph_socket.h"
+#include "ojph_sockets.h"
 #include "stream_expand_support.h"
 
 #ifdef OJPH_OS_WINDOWS

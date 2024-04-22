@@ -8,14 +8,16 @@ if (OJPH_BUILD_STREAM_EXPAND)
     set(CMAKE_CXX_STANDARD 14)
     
     file(GLOB OJPH_STREAM_EXPAND  "*.cpp")
-    file(GLOB OJPH_SOCKET         "../others/ojph_socket.cpp")
-    file(GLOB OJPH_SOCKET_H       "../common/ojph_socket.h")
+    file(GLOB OJPH_SOCKETS         "../others/ojph_sockets.cpp")
+    file(GLOB OJPH_SOCKETS_H       "../common/ojph_sockets.h")
+    file(GLOB OJPH_THREADS        "../others/ojph_threads.cpp")
+    file(GLOB OJPH_THREADS_H      "../common/ojph_threads.h")
 
-    list(APPEND SOURCES ${OJPH_STREAM_EXPAND} ${OJPH_SOCKET} ${OJPH_SOCKET_H})
+    list(APPEND SOURCES ${OJPH_STREAM_EXPAND} ${OJPH_SOCKETS} ${OJPH_SOCKETS_H} ${OJPH_THREADS} ${OJPH_THREADS_H})
 
     source_group("main"        FILES ${OJPH_STREAM_EXPAND})
-    source_group("others"      FILES ${OJPH_SOCKET})
-    source_group("common"      FILES ${OJPH_SOCKET_H})
+    source_group("others"      FILES ${OJPH_SOCKETS} ${OJPH_THREADS})
+    source_group("common"      FILES ${OJPH_SOCKETS_H} ${OJPH_THREADS_H})
 
     add_executable(ojph_stream_expand ${SOURCES})
     if(MSVC)

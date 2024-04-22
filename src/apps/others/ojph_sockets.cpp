@@ -38,7 +38,7 @@
 #include <cassert>
 #include <string.h>
 #include "ojph_message.h"
-#include "ojph_socket.h"
+#include "ojph_sockets.h"
 
 int ojph_socket_manager_counter = 0;
 

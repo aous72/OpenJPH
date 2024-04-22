@@ -30,7 +30,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_str_ex_support.cpp
+// File: stream_expand_support.cpp
 // Author: Aous Naman
 // Date: 18 April 2024
 //***************************************************************************/
@@ -41,7 +41,7 @@
 #include <atomic>
 #include "ojph_base.h"
 #include "ojph_file.h"
-#include "ojph_socket.h"
+#include "ojph_sockets.h"
 
 namespace ojph
 {

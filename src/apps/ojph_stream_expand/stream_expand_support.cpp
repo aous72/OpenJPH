@@ -313,7 +313,7 @@ bool frames_handler::push(rtp_packet* p)
   }
   else 
   { // body payload header
-    stex_file* f = in_use, *pf;
+    stex_file* f = in_use, *pf = in_use;
     while (f != NULL && f->timestamp != p->get_time_stamp()) {
       pf = f;
       f = f->next;

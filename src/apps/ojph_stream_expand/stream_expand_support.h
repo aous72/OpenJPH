@@ -276,6 +276,7 @@ public:
             j2k_frame_renderer* renderer, const char *name_template)
   {
     this->parent = parent;
+    this->name_template = name_template;
     this->next = next;
     this->storer = storer;
     this->renderer = renderer;

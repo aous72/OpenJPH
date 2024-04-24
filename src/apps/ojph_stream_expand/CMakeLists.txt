@@ -23,7 +23,7 @@ if (OJPH_BUILD_STREAM_EXPAND)
     if(MSVC)
         target_link_libraries(ojph_stream_expand PUBLIC openjph ws2_32)
     else()
-        target_link_libraries(ojph_stream_expand PUBLIC openjph)
+        target_link_libraries(ojph_stream_expand PUBLIC openjph pthread)
     endif(MSVC)
 
     install(TARGETS ojph_stream_expand DESTINATION bin)

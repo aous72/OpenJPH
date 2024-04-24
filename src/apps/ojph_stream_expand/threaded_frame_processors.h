@@ -30,16 +30,23 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_threads.h
+// File: threaded_frame_processors.h
 // Author: Aous Naman
-// Date: 22 April 2024
+// Date: 23 April 2024
 //***************************************************************************/
 
+#ifndef THREADED_FRAME_PROCESSOR_H
+#define THREADED_FRAME_PROCESSOR_H
+
 #include "ojph_threads.h"
+#include "stream_expand_support.h"
 
 namespace ojph
 {
-namespace thds
+  namespace thds 
+  { class thread_pool; }
+
+namespace stex
 {
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,58 +57,109 @@ namespace thds
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////
-thread_pool::~thread_pool()
+/*****************************************************************************/
+/** @brief Store a j2k frame as is.
+ * 
+ */
+struct j2k_frame_storer : public thds::worker_thread_base
 {
-  stop.store(true, std::memory_order_release);
-  condition.notify_all();
-  for (int i = 0; i < threads.size(); ++i)
-    threads[i].join();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::init(size_t num_threads)
-{
-  if (threads.size() < num_threads)
-    threads.resize(num_threads);
-
-  for (size_t i = 0; i < num_threads; ++i) 
-    threads[i] = std::thread(start_thread, this);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::add_task(worker_thread_base* task)
-{
-  mutex.lock();
-  tasks.push_back(task);
-  mutex.unlock();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::start_thread(thread_pool* tp)
-{
-  while (1)
-  {
-    // setup the condition variable
-    std::unique_lock<std::mutex> lock(tp->mutex);
-    // wait releases the mutex, blocks until notified (or spuriously), 
-    // and acquire the mutex
-    tp->condition.wait(lock);
-  
-    if(tp->stop.load(std::memory_order_acquire))
-      return;
-    
-    worker_thread_base* task = NULL;
-    if (!tp->tasks.empty())
-    {
-      task = tp->tasks.front();
-      tp->tasks.pop_front();
-    }
-    lock.unlock();
-    if (task)
-      task->execute();
+public:  
+  j2k_frame_storer() {
+    file = NULL;
+    name_template = NULL;
   }
-}
+  ~j2k_frame_storer() override {}
 
-} // !thds namespace 
+public:  
+  void init(stex_file* file, const char* name_template)
+  {
+    this->file = file;
+    this->name_template = name_template;
+  }
+
+  void execute() override;
+
+private:
+  stex_file* file;
+  const char* name_template;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************************/
+/** @brief Store a decoded j2k frame
+ * 
+ */
+struct decoded_frame_storer : public thds::worker_thread_base
+{
+public:  
+  enum file_type : ui32 {
+    FT_UNKNOWN = 0,
+    FT_PGM = 1,
+    FT_PPM = 2,
+    FT_YUV = 3,
+  };
+
+public:
+  decoded_frame_storer() {
+    file = NULL;
+    name_template = NULL;
+    ft = FT_UNKNOWN;
+  }
+  ~decoded_frame_storer() override {}
+
+public:
+  void execute() override {}
+
+  stex_file* file;
+  const char* name_template;
+  file_type ft;
+  ojph::mem_outfile outfile;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************************/
+/** @brief Decodes and displays a j2k frame
+ * 
+ */
+struct j2k_frame_renderer : public thds::worker_thread_base
+{
+public:  
+  j2k_frame_renderer() {
+    file = NULL;
+    name_template = NULL;
+  }
+  ~j2k_frame_renderer() override {}
+
+public:  
+  void init(stex_file* file, const char* name_template)
+  {
+    this->file = file;
+    this->name_template = name_template;
+  }
+
+  void execute() override {}
+
+private:
+  stex_file* file;
+  const char* name_template;
+  decoded_frame_storer storer;
+};
+
+} // !stex namespace
 } // !ojph namespace
+
+#endif // !THREADED_FRAME_PROCESSOR_H

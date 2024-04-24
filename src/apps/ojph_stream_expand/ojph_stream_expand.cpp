@@ -39,6 +39,7 @@
 #include "ojph_message.h"
 #include "ojph_arg.h"
 #include "ojph_sockets.h"
+#include "ojph_threads.h"
 #include "stream_expand_support.h"
 
 #ifdef OJPH_OS_WINDOWS
@@ -169,9 +170,11 @@ int main(int argc, char* argv[])
   }
 
   try {
+    ojph::thds::thread_pool thread_pool;
+    thread_pool.init(num_threads);
     ojph::stex::frames_handler frames_handler;
     frames_handler.init(quiet, display, decode, num_inflight_packets, 
-                        num_threads, target_name);
+                        num_threads, target_name, &thread_pool);
     ojph::stex::packets_handler packets_handler;
     packets_handler.init(quiet, num_inflight_packets, &frames_handler);
     ojph::net::socket_manager smanager;

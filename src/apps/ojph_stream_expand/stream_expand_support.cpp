@@ -37,6 +37,8 @@
 
 #include <cassert>
 #include <cstddef>
+#include "ojph_threads.h"
+#include "threaded_frame_processors.h"
 #include "stream_expand_support.h"
 
 namespace ojph
@@ -84,7 +86,7 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
   // but we currently do not do that yet
 
   bool result = frames->push(p);
-  if (result == false)
+  if (result == false) // cannot use the packet for the time being
   {
     if (avail)
     { // move from avail to in_use
@@ -185,8 +187,9 @@ void packets_handler::flush()
 ///////////////////////////////////////////////////////////////////////////////
 void stex_file::notify_file_completion()
 { 
-  done = true;
-  parent->increment_num_complete_files(); 
+  int t = done.fetch_add(-1, std::memory_order_acq_rel);
+  if (t == 1) // done is 0
+    parent->increment_num_complete_files();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -200,6 +203,10 @@ void stex_file::notify_file_completion()
 ///////////////////////////////////////////////////////////////////////////////
 frames_handler::~frames_handler()
 { 
+  if (renderers_store)
+    delete[] renderers_store;
+  if (storers_store)
+    delete[] storers_store;
   if (files_store) 
     delete[] files_store; 
 }
@@ -207,7 +214,8 @@ frames_handler::~frames_handler()
 ///////////////////////////////////////////////////////////////////////////////
 void frames_handler::init(bool quiet, bool display, bool decode, 
                           ui32 packet_queue_length, ui32 num_threads, 
-                          const char *target_name)
+                          const char *target_name, 
+                          thds::thread_pool* thread_pool)
 {
   this->quiet = quiet;
   this->display = display;
@@ -217,9 +225,20 @@ void frames_handler::init(bool quiet, bool display, bool decode,
   this->target_name = target_name;
   num_files = num_threads + 1;
   avail = files_store = new stex_file[num_files];
-  for (ui32 i = 0; i < num_files - 1; ++i)
-    files_store[i].init(this, files_store + i + 1);
-  files_store[num_files - 1].init(this, NULL);
+  storers_store = new j2k_frame_storer[num_files];
+  renderers_store = new j2k_frame_renderer[num_files];
+  ui32 i = 0;
+  for (; i < num_files - 1; ++i) {
+    files_store[i].init(this, files_store + i + 1, storers_store + i,
+      renderers_store + i, target_name);
+    storers_store[i].init(files_store + i, target_name);
+    renderers_store[i].init(files_store + i, target_name);
+  }
+  files_store[i].init(this, NULL, storers_store + i, renderers_store + i, 
+    target_name);
+  storers_store[i].init(files_store + i, target_name);
+  renderers_store[i].init(files_store + i, target_name);
+  this->thread_pool = thread_pool;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -243,16 +262,22 @@ bool frames_handler::push(rtp_packet* p)
           in_use = in_use->next;
           f->next = processing;
           processing = f;
-          //<=============================================== queue f for 
-          //<=============================================== further execution
+          if (target_name != NULL)
+          {
+            f->f.close();
+            thread_pool->add_task(f->storer);
+          }
           f = in_use;
         }
         else {
           pf->next = f->next;
           f->next = processing;
           processing = f;
-          //<=============================================== queue f for 
-          //<=============================================== further execution
+          if (target_name != NULL)
+          {
+            f->f.close();
+            thread_pool->add_task(f->storer);
+          }
           f = pf->next;
         }
       }
@@ -272,10 +297,13 @@ bool frames_handler::push(rtp_packet* p)
       // move from avail to in_use
       stex_file* f = avail;
       avail = avail->next;
-      f->next = processing;
-      processing = f;
+      f->next = in_use;
+      in_use = f;
       f->timestamp = p->get_time_stamp();
       f->last_seen_seq = p->get_sequence_number();
+      f->marked = false;
+      f->estimated_size = f->actual_size = 0;
+      f->frame_idx = frame_idx++;
       f->f.open(1<<20, true); // start with 1MB
       f->write(p);
       return true;
@@ -285,21 +313,36 @@ bool frames_handler::push(rtp_packet* p)
   }
   else 
   { // body payload header
-    stex_file* f = in_use;
-    while (f != NULL && f->timestamp != p->get_time_stamp())
+    stex_file* f = in_use, *pf;
+    while (f != NULL && f->timestamp != p->get_time_stamp()) {
+      pf = f;
       f = f->next;
-    if (f == NULL)    
+    }
+    if (f == NULL)
       return false;
-    
+
+    f->last_seen_seq = ojph_max(f->last_seen_seq, p->get_sequence_number());
     f->write(p);
     
     if (p->is_marked())
       f->marked = true;
 
     if (f->marked && f->are_packets_missing() == false)
-          //<=============================================== queue f for 
-          //<=============================================== further execution    
-      ;
+    {
+      // move from from in_use to processing
+      if (f == in_use)
+        in_use = in_use->next;
+      else
+        pf->next = f->next;
+      f->next = processing;
+      processing = f;
+
+      f->f.close();
+      thread_pool->add_task(f->storer);
+    }
+    // else
+    //   printf("%02x %02x\n", p->data[0], p->data[1]);
+
     return true;
   }
   return false;
@@ -319,8 +362,11 @@ bool frames_handler::flush()
     in_use = in_use->next;
     f->next = processing;
     processing = f;
-    //<=============================================== queue f for 
-    //<=============================================== further execution
+    if (target_name != NULL)
+    {
+      f->f.close();
+      thread_pool->add_task(f->storer);
+    }
   }
 
   return (processing != NULL);
@@ -338,13 +384,14 @@ void frames_handler::check_files_in_processing()
     {
       num_complete_files.fetch_add(-1, std::memory_order_relaxed);
 
-      if (f->done == true)
+      if (f->done.load(std::memory_order_acquire) == 0)
       {
         // move f from processing to avail
         f->timestamp = 0;
         f->last_seen_seq = 0;
-        f->done = f->marked = false;
+        f->marked = false;
         f->estimated_size = f->actual_size = 0;
+        f->frame_idx = 0;
         if (f == processing)
         {
           processing = processing->next;

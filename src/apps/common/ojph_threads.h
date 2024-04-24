@@ -38,10 +38,69 @@
 #ifndef OJPH_THREADS_H
 #define OJPH_THREADS_H
 
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <deque>
+#include <condition_variable>
+
 namespace ojph
 {
 namespace thds
 {
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************************/
+/** @brief 
+ *  
+ */
+class worker_thread_base
+{
+public:
+  virtual ~worker_thread_base() { }
+  virtual void execute() = 0;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/*****************************************************************************/
+/** @brief 
+ *  
+ */
+class thread_pool
+{
+public:
+  thread_pool() { stop.store(false, std::memory_order_relaxed); }
+  ~thread_pool();
+
+public:
+  void init(size_t num_threads);
+  void add_task(worker_thread_base* task);
+
+private:
+  static void start_thread(thread_pool* tp);
+
+private:
+  std::vector<std::thread> threads;
+  std::deque<worker_thread_base*> tasks;
+  std::mutex mutex;
+  std::condition_variable condition;
+  std::atomic_bool stop;
+};
 
 } // !thds namespace 
 } // !ojph namespace

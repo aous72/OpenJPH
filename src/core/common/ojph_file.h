@@ -197,6 +197,12 @@ namespace ojph {
      */
     const ui8* get_data() const { return buf; }
 
+    /** 
+     *  @brief Call this function to write the memory file data to a file
+	   *
+     */
+    void write_to_file(const char *file_name) const;
+
   private:
     /**
      *  @brief This function expands storage by x1.5 needed space.
@@ -213,6 +219,7 @@ namespace ojph {
     bool is_open;
     bool clear_mem;
     size_t buf_size;
+    size_t used_size;
     ui8 *buf;
     ui8 *cur_ptr;
   };

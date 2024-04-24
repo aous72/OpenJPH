@@ -30,17 +30,18 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_threads.h
+// File: threaded_frame_processors.cpp
 // Author: Aous Naman
-// Date: 22 April 2024
+// Date: 23 April 2024
 //***************************************************************************/
 
-#include "ojph_threads.h"
+#include "threaded_frame_processors.h"
 
 namespace ojph
 {
-namespace thds
-{
+
+namespace stex
+{  
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -50,58 +51,11 @@ namespace thds
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////
-thread_pool::~thread_pool()
+void j2k_frame_storer::execute()
 {
-  stop.store(true, std::memory_order_release);
-  condition.notify_all();
-  for (int i = 0; i < threads.size(); ++i)
-    threads[i].join();
+  printf("saving file with index %d\n", file->frame_idx);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::init(size_t num_threads)
-{
-  if (threads.size() < num_threads)
-    threads.resize(num_threads);
 
-  for (size_t i = 0; i < num_threads; ++i) 
-    threads[i] = std::thread(start_thread, this);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::add_task(worker_thread_base* task)
-{
-  mutex.lock();
-  tasks.push_back(task);
-  mutex.unlock();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-void thread_pool::start_thread(thread_pool* tp)
-{
-  while (1)
-  {
-    // setup the condition variable
-    std::unique_lock<std::mutex> lock(tp->mutex);
-    // wait releases the mutex, blocks until notified (or spuriously), 
-    // and acquire the mutex
-    tp->condition.wait(lock);
-  
-    if(tp->stop.load(std::memory_order_acquire))
-      return;
-    
-    worker_thread_base* task = NULL;
-    if (!tp->tasks.empty())
-    {
-      task = tp->tasks.front();
-      tp->tasks.pop_front();
-    }
-    lock.unlock();
-    if (task)
-      task->execute();
-  }
-}
-
-} // !thds namespace 
+} // !stex namespace
 } // !ojph namespace

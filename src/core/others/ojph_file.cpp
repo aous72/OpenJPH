@@ -102,7 +102,7 @@ namespace ojph {
   mem_outfile::mem_outfile()
   {
     is_open = clear_mem = false;
-    buf_size = 0;
+    buf_size = used_size = 0;
     buf = cur_ptr = NULL;
   }
 
@@ -112,7 +112,7 @@ namespace ojph {
     if (buf)
       free(buf);
     is_open = clear_mem = false;
-    buf_size = 0;
+    buf_size = used_size = 0;
     buf = cur_ptr = NULL;
   }
 
@@ -126,6 +126,7 @@ namespace ojph {
     this->is_open = true;
     this->clear_mem = clear_mem;
     expand_storage(initial_size, true);
+    this->used_size = 0;
     this->cur_ptr = this->buf;
   }
 
@@ -177,8 +178,22 @@ namespace ojph {
     // copy bytes into buffer and adjust cur_ptr
     memcpy(this->cur_ptr, ptr, new_size);
     cur_ptr += new_size;
+    used_size = ojph_max(used_size, tell());
 
     return new_size;
+  }
+
+  /** */
+  void mem_outfile::write_to_file(const char *file_name) const
+  {
+    assert(is_open == false);
+    FILE *f = fopen(file_name, "wb");
+    if (f == NULL)
+      OJPH_ERROR(0x00060003, "failed to open %s for writing", file_name);
+    if (f != NULL)
+      if (fwrite(this->buf, 1, used_size, f) != used_size)
+        OJPH_ERROR(0x00060004, "failed writing to %s", file_name);
+    fclose(f);
   }
 
   /** */

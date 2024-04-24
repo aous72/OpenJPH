@@ -39,16 +39,28 @@
 #define OJPH_STR_EX_SUPPORT_H
 
 #include <atomic>
+#include <cassert>
 #include "ojph_base.h"
 #include "ojph_file.h"
 #include "ojph_sockets.h"
 
 namespace ojph
 {
+
+namespace thds 
+{ class thread_pool; }
+
 namespace stex // stream expand
 {
-  class packets_handler;
-  class frames_handler;
+
+// defined here
+class packets_handler;
+class frames_handler;
+
+// defined elsewhere
+struct j2k_frame_storer;
+struct decoded_frame_storer;
+struct j2k_frame_renderer;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -251,15 +263,22 @@ public:
   stex_file() 
   { 
     timestamp = last_seen_seq = 0; 
-    done = marked = false;
-    estimated_size = actual_size = 0;
+    marked = false;
+    done.store(0, std::memory_order_relaxed);
+    estimated_size = actual_size = frame_idx = 0;
     parent = NULL;
+    name_template = NULL;
+    storer = NULL;
+    renderer = NULL;
     next = NULL; 
   }
-  void init(frames_handler* parent, stex_file* next)
+  void init(frames_handler* parent, stex_file* next, j2k_frame_storer *storer,
+            j2k_frame_renderer* renderer, const char *name_template)
   {
     this->parent = parent;
     this->next = next;
+    this->storer = storer;
+    this->renderer = renderer;
   }
 
   void write(rtp_packet *p)
@@ -279,11 +298,17 @@ public:
   ojph::mem_outfile f;    //!<holds in-memory j2k codestream
   ui32 timestamp;         //!<time stamp at which this file must be displayed
   ui32 last_seen_seq;     //!<the last seen RTP sequence number
-  bool done;              //!<set to true when saving/rendering complete
+  std::atomic_int done;   //!<saving/rendering is completed when 0 is reached
   bool marked;            //!<set to true if a marked packet was received
   ui32 estimated_size;    //!<this is based on maximum possible size
   ui32 actual_size;       //!<this is the actual number of received bytes
+  ui32 frame_idx;         //!<frame number in the sequence
   frames_handler* parent; //!<the object holding this frame
+
+  const char *name_template; //!<name template for saved files
+  j2k_frame_storer* storer;  //!<stores a j2k frm in a separate thread
+  j2k_frame_renderer* renderer; //!<decodes a j2k frm in a separate thread
+
   stex_file* next;        //!<used to create files chain
 };
 
@@ -307,16 +332,19 @@ public:
     quiet = display = decode = false;
     packet_queue_length = num_threads = 0;
     target_name = NULL;
-    num_files = 0;
-    files_store = NULL; 
-    avail = in_use = processing = NULL;
+    num_files = frame_idx = 0;
+    files_store = avail = in_use = processing = NULL;
     num_complete_files.store(0);
+    thread_pool = NULL;
+    storers_store = NULL;
+    renderers_store = NULL;
   }
   ~frames_handler();
 
 public:
   void init(bool quiet, bool display, bool decode, ui32 packet_queue_length,
-            ui32 num_threads, const char *target_name);
+            ui32 num_threads, const char *target_name, 
+            thds::thread_pool* thread_pool);
   bool push(rtp_packet* p);
   bool flush();
   void increment_num_complete_files()
@@ -333,12 +361,19 @@ private:
   ui32 num_threads;         //!<max number of threads used for decoding/display
   const char *target_name;  //!<target file name template
   ui32 num_files;           //!<maximum number of in-flight files.
+  ui32 frame_idx;           //!<used to keep track of frame numbering
   stex_file* files_store;   //!<address for allocated files
   stex_file* avail;         //!<available frames structures
   stex_file* in_use;        //!<frames that are being filled with data
   stex_file* processing;    //!<frames that are being saved/rendered
   std::atomic_int32_t 
     num_complete_files;     //<!num. of files for which processing is complete
+  thds::thread_pool* 
+    thread_pool;            //!<thread pool for processing frames
+  j2k_frame_storer* 
+    storers_store;          //!<address for allocated frame storers
+  j2k_frame_renderer* 
+    renderers_store;        //!<address for allocated frame renderers
 };
 
 } // !stex namespace

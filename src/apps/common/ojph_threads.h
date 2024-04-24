@@ -38,6 +38,7 @@
 #ifndef OJPH_THREADS_H
 #define OJPH_THREADS_H
 
+#include <atomic>
 #include <vector>
 #include <thread>
 #include <mutex>

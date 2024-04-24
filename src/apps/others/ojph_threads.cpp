@@ -55,7 +55,7 @@ thread_pool::~thread_pool()
 {
   stop.store(true, std::memory_order_release);
   condition.notify_all();
-  for (int i = 0; i < threads.size(); ++i)
+  for (size_t i = 0; i < threads.size(); ++i)
     threads[i].join();
 }
 

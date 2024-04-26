@@ -7,7 +7,7 @@ if (OJPH_BUILD_STREAM_EXPAND)
     include_directories(../../core/common)
     set(CMAKE_CXX_STANDARD 14)
     
-    file(GLOB OJPH_STREAM_EXPAND  "*.cpp")
+    file(GLOB OJPH_STREAM_EXPAND  "*.cpp" "*.h")
     file(GLOB OJPH_SOCKETS         "../others/ojph_sockets.cpp")
     file(GLOB OJPH_SOCKETS_H       "../common/ojph_sockets.h")
     file(GLOB OJPH_THREADS        "../others/ojph_threads.cpp")

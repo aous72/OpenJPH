@@ -53,7 +53,12 @@ namespace stex
 
 void j2k_frame_storer::execute()
 {
-  printf("saving file with index %d\n", file->frame_idx);
+  //printf("saving file with index %d\n", file->frame_idx);
+  char buf[128], name[128];
+  snprintf(buf, 128, "%s.j2c", file->name_template);
+  snprintf(name, 128, buf, file->frame_idx);
+  file->f.write_to_file(name);
+  file->notify_file_completion();
 }
 
 

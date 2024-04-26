@@ -77,6 +77,24 @@ namespace ojph
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    bool socket::set_blocking_mode(bool block)
+    {
+    #ifdef OJPH_OS_WINDOWS
+      u_long mode = block ? 0 : 1;
+      return ioctlsocket(s, FIONBIO, &mode) == 0;
+    #else
+      int flags = fcntl(s, F_GETFL);
+      if (flags == -1) // error
+        return false;
+      if (block)
+        flags &= ~O_NONBLOCK;
+      else
+        flags |= O_NONBLOCK;
+      return fcntl(s, F_SETFL, flags) != -1;
+    #endif  
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     //
     //
     //

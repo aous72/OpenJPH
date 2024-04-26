@@ -74,6 +74,7 @@ void thread_pool::add_task(worker_thread_base* task)
 {
   mutex.lock();
   tasks.push_back(task);
+  condition.notify_one();
   mutex.unlock();
 }
 

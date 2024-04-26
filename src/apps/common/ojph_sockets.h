@@ -47,6 +47,7 @@
 
   typedef SOCKET ojph_socket;
   #define OJPH_INVALID_SOCKET (INVALID_SOCKET)
+  #define OJPH_EWOULDBLOCK (WSAEWOULDBLOCK)
 #else
 	#include <sys/types.h>
 	#include <sys/socket.h>
@@ -55,9 +56,11 @@
 	#include <netdb.h>
 	#include <unistd.h>
 	#include <errno.h>
+  #include <fcntl.h>
 
   typedef int ojph_socket;
   #define OJPH_INVALID_SOCKET (-1)
+  #define OJPH_EWOULDBLOCK (EWOULDBLOCK)
 #endif
 
 namespace ojph 
@@ -85,6 +88,8 @@ namespace ojph
       socket() { s = OJPH_INVALID_SOCKET; }
       socket(ojph_socket s);
       void close();
+      bool set_blocking_mode(bool block);
+
       ojph_socket intern() { return s; }
 
     private:

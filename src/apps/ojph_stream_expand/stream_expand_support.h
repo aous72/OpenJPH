@@ -263,9 +263,8 @@ public:
   stex_file() 
   { 
     timestamp = last_seen_seq = 0; 
-    marked = false;
     done.store(0, std::memory_order_relaxed);
-    estimated_size = actual_size = frame_idx = 0;
+    frame_idx = 0;
     parent = NULL;
     name_template = NULL;
     storer = NULL;
@@ -282,17 +281,6 @@ public:
     this->renderer = renderer;
   }
 
-  void write(rtp_packet *p)
-  {
-    ui32 pos = p->get_data_pos();
-    ui32 len = p->get_data_size();
-    estimated_size = ojph_max(estimated_size, pos + len);
-    actual_size += len;
-    f.seek(pos, outfile_base::OJPH_SEEK_SET);
-    f.write(p->get_data(), len);
-  }
-  bool are_packets_missing()
-  { return (estimated_size != actual_size); }
   void notify_file_completion();
 
 public:  
@@ -300,9 +288,6 @@ public:
   ui32 timestamp;         //!<time stamp at which this file must be displayed
   ui32 last_seen_seq;     //!<the last seen RTP sequence number
   std::atomic_int done;   //!<saving/rendering is completed when 0 is reached
-  bool marked;            //!<set to true if a marked packet was received
-  ui32 estimated_size;    //!<this is based on maximum possible size
-  ui32 actual_size;       //!<this is the actual number of received bytes
   ui32 frame_idx;         //!<frame number in the sequence
   frames_handler* parent; //!<the object holding this frame
 

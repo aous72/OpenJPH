@@ -55,6 +55,7 @@ bool get_arguments(int argc, char *argv[],
                    char *&src_addr, char *&src_port, 
                    char *&target_name, ojph::ui32& num_threads, 
                    ojph::ui32& num_inflight_packets,
+                   ojph::ui32& recvfrm_buf_size, bool& blocking,
                    bool& quiet, bool& display, bool& decode)
 {
   ojph::cli_interpreter interpreter;
@@ -67,7 +68,9 @@ bool get_arguments(int argc, char *argv[],
   interpreter.reinterpret("-o", target_name);
   interpreter.reinterpret("-num_threads", num_threads);
   interpreter.reinterpret("-num_packets", num_inflight_packets);
+  interpreter.reinterpret("-recv_buf_size", recvfrm_buf_size);
 
+  blocking = interpreter.reinterpret("-blocking");
   quiet = interpreter.reinterpret("-quiet");
   display = interpreter.reinterpret("-display");
   decode = interpreter.reinterpret("-decode");
@@ -124,6 +127,8 @@ int main(int argc, char* argv[])
   char *target_name = NULL;
   ojph::ui32 num_threads = 1;
   ojph::ui32 num_inflight_packets = 5;
+  ojph::ui32 recvfrm_buf_size = 65536;
+  bool blocking = false;
   bool quiet = false;
   bool display = false;
   bool decode = false;
@@ -132,39 +137,49 @@ int main(int argc, char* argv[])
     printf(
     "\n"
     "The following arguments are necessary:\n"
-    " -addr         <receiving ipv4 address>, or\n"
-    "               The address should be either localhost, or\n"
-    "               a local network card IP address\n"
-    "               example: -addr 127.0.0.1\n"
-    " -port         <listening port>\n"
+    " -addr          <receiving ipv4 address>, or\n"
+    "                The address should be either localhost, or\n"
+    "                a local network card IP address\n"
+    "                example: -addr 127.0.0.1\n"
+    " -port          <listening port>\n"
     "\n"
     "The following arguments are options:\n"
-    " -src_addr     <source ipv4 address>, packets from other sources\n"
-    "               will be ignored. If not specified, then packets\n"
-    "               from any source are accepted.\n"
-    " -src_port     <source port>, packets from other source ports are\n"    
-    "               ignored. If not specified, then packets from any\n"
-    "               port are accepted -- I would recommend not leaving\n"
-    "               this one out."
-    " -num_threads  <integer> number of threads for decoding and\n"
-    "               displaying files.  It is also the number of files that\n"
-    "               are in flight; i.e., not completely saved yet.\n"
-    " -num_packets  <integer> number of in-flight packets; this is the\n"
-    "               maximum number of packets to wait before an out-of-order\n"
-    "               or lost packet is considered lost.\n"
-    " -o            <string> target file name without extension; the same\n"
-    "               printf formating can be used. For example, output_%%05d.\n"
-    "               An extension will be added, either .j2c for original\n"
-    "               frames, or .ppm for decoded images.\n"
-    " -display      use this to display decoded frames.\n"
-    " -quiet        use to stop printing informative messages.\n."
+    " -src_addr      <source ipv4 address>, packets from other sources\n"
+    "                will be ignored. If not specified, then packets\n"
+    "                from any source are accepted.\n"
+    " -src_port      <source port>, packets from other source ports are\n"    
+    "                ignored. If not specified, then packets from any\n"
+    "                port are accepted -- I would recommend not leaving\n"
+    "                this one out.\n"
+    " -recv_buf_size <integer> recvfrom buffer size; default is 65536.\n"
+    " -blocking      sets the receiving socket blocking mode to blocking.\n"
+    "                The default mode is non-blocking. A blocking socket\n"
+    "                increases the likelihood of not receiving some\n"
+    "                packets; this is because the thread get into sleep\n"
+    "                state, and therefore takes sometime to wakeup. A\n"
+    "                non-blocking socket increase power consumption,\n"
+    "                because it prevents the thread from sleeping.\n"
+    " -num_threads   <integer> number of threads for decoding and\n"
+    "                displaying files.  This number also determines the\n"
+    "                number of in-flight files, not completely\n"
+    "                saved/processed yet. The number of files is set to\n"
+    "                number of threads + 1\n"
+    " -num_packets   <integer> number of in-flight packets; this is the\n"
+    "                maximum number of packets to wait before an\n"
+    "                out-of-order or lost packet is considered lost.\n"
+    " -o             <string> target file name without extension; the same\n"
+    "                printf formating can be used. For example,\n"
+    "                output_%%05d. An extension will be added, either .j2c\n"
+    "                for original frames, or .ppm for decoded images.\n"
+    " -display       use this to display decoded frames.\n"
+    " -quiet         use to stop printing informative messages.\n."
     "\n"
     );
     exit(-1);
   }
   if (!get_arguments(argc, argv, recv_addr, recv_port, src_addr, src_port,
                      target_name, num_threads, num_inflight_packets,
-                     quiet, display, decode))
+                     recvfrm_buf_size, blocking, quiet, display, decode))
   {
     exit(-1);
   }
@@ -190,13 +205,13 @@ int main(int argc, char* argv[])
       int result = inet_pton(AF_INET, p, &server.sin_addr);
       if (result != 1)
         OJPH_ERROR(0x02000001, "Please provide a valid IP address when "
-          "using \"-addr,\" the provided address %s is not valid\n", 
+          "using \"-addr,\" the provided address %s is not valid", 
           recv_addr);
       ojph::ui16 port_number = 0;
       port_number = (ojph::ui16)atoi(recv_port);
       if (port_number == 0)
-        OJPH_ERROR(0x02000003, "Please provide a valid port number. "
-            "The number you provided is %d\n", recv_port);
+        OJPH_ERROR(0x02000002, "Please provide a valid port number. "
+            "The number you provided is %d", recv_port);
       server.sin_port = htons(port_number);
     }
 
@@ -206,18 +221,37 @@ int main(int argc, char* argv[])
     if(s.intern() == OJPH_INVALID_SOCKET)
     {
       std::string err = smanager.get_last_error_message();
-      OJPH_ERROR(0x02000004, "Could not create socket : %s\n", err.data());
+      OJPH_ERROR(0x02000003, "Could not create socket: %s", err.data());
+    }
+
+    // change recv buffer size; default is 65536
+    int32_t nsize = recvfrm_buf_size;
+    if (setsockopt(s.intern(), SOL_SOCKET, SO_RCVBUF,
+                   (char*)&nsize, sizeof(nsize)) == -1)
+    {
+      std::string err = smanager.get_last_error_message();
+      OJPH_INFO(0x02000001,
+        "Failed to expand receive buffer: %s", err.data());
+    }
+
+    // set socket to non-blocking
+    if (s.set_blocking_mode(blocking) == false)
+    {
+      std::string err = smanager.get_last_error_message();
+      OJPH_INFO(0x02000002,
+        "Failed to set the socket's blocking mode to %s, with error %s", 
+        blocking ? "blocking" : "non-blocking", err.data());
     }
 
     // bind to listening address
-    if( bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
+    if(bind(s.intern(), (struct sockaddr *)&server, sizeof(server)) == -1)
     {
       std::string err = smanager.get_last_error_message();
-      OJPH_ERROR(0x02000005, 
-        "Could not bind address to socket : %s\n", err.data());
+      OJPH_ERROR(0x02000004, 
+        "Could not bind address to socket: %s", err.data());
     }
 
-    // listen to incoming data, and forward it to packet_handler
+    // process the source ip address and port
     ojph::ui32 saddr = 0;
     if (src_addr)
     {
@@ -228,8 +262,8 @@ int main(int argc, char* argv[])
       struct sockaddr_in t;
       int result = inet_pton(AF_INET, p, &t.sin_addr);
       if (result != 1)
-        OJPH_ERROR(0x02000006, "Please provide a valid IP address when "
-          "using \"-src_addr,\" the provided address %s is not valid\n", 
+        OJPH_ERROR(0x02000005, "Please provide a valid IP address when "
+          "using \"-src_addr,\" the provided address %s is not valid", 
           src_addr);
       saddr = smanager.get_addr(t);
     }
@@ -238,46 +272,76 @@ int main(int argc, char* argv[])
     {
       sport = (ojph::ui16)atoi(src_port);
       if (sport == 0)
-        OJPH_ERROR(0x02000007, "Please provide a valid port number. "
-            "The number you provided is %d\n", src_port);
+        OJPH_ERROR(0x02000006, "Please provide a valid port number. "
+            "The number you provided is %d", src_port);
     }
 
+    // listen to incoming data, and forward it to packet_handler
+    struct sockaddr_in si_other;
+    socklen_t socklen = sizeof(si_other);
     bool src_printed = false;
     ojph::stex::rtp_packet* packet = NULL;
+    ojph::ui32 lost_packets = 0, last_seq = 0;
     while (1)
     {
       if (packet == NULL || packet->num_bytes != 0) // num_bytes == 0
         packet = packets_handler.exchange(packet);  // if packet was ignored
+      if (packet == NULL)
+        continue;
+      packet->num_bytes = 0;
 
-      struct sockaddr_in si_other;
-      socklen_t socklen = sizeof(si_other);
       // receive data -- this is a blocking call
-      packet->num_bytes = 0; // if we ignore the packet, we can continue
       int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
         packet->max_size, 0, (struct sockaddr *) &si_other, &socklen);
+
       if (num_bytes < 0)
       {
-        std::string err = smanager.get_last_error_message();
-        OJPH_INFO(0x02000008, "Failed to receive data : %s\n", err.data());
+        int last_error = smanager.get_last_error();
+        if (last_error != OJPH_EWOULDBLOCK)
+        {
+          std::string err = smanager.get_error_message(last_error);
+          OJPH_INFO(0x02000003, "Failed to receive data: %s", err.data());
+        }
         continue; // if we wish to continue
       }
+
       if ((src_addr && saddr != smanager.get_addr(si_other)) ||
           (src_port && sport != si_other.sin_port)) {
+        constexpr int buf_size = 128;
+        char buf[buf_size];
+        ojph::ui32 addr = smanager.get_addr(si_other);
+        const char* t = inet_ntop(AF_INET, &addr, buf, buf_size);
+        if (t == NULL) {
+          std::string err = smanager.get_last_error_message();
+          OJPH_INFO(0x02000004, 
+            "Error converting source address: %s", err.data());
+        }
+        printf("Source mistmatch %s, port %d\n",
+          t, ntohs(si_other.sin_port));
         continue;
       }
-      packet->num_bytes = (ojph::ui32)num_bytes;    
+
+      packet->num_bytes = (ojph::ui32)num_bytes;
+
+      if (last_seq + 1 != packet->get_sequence_number()) {
+        //lost_packets = packet->get_sequence_number() - last_seq - 1;
+        printf("lost_packets %d %d\n", last_seq, packet->get_sequence_number());
+      }
+      last_seq = packet->get_sequence_number();
 
       if (!quiet && !src_printed)
       {
         constexpr int buf_size = 128;
         char buf[buf_size];
-        if (!inet_ntop(AF_INET, &si_other, buf, buf_size)) {
+        ojph::ui32 addr = smanager.get_addr(si_other);
+        const char* t = inet_ntop(AF_INET, &addr, buf, buf_size);
+        if (t == NULL) {
           std::string err = smanager.get_last_error_message();
-          OJPH_INFO(0x02000009, 
-            "Error converting source address.\n", err.data());
+          OJPH_INFO(0x02000005, 
+            "Error converting source address: %s", err.data());
         }
         printf("Receiving data from %s, port %d\n",
-          buf, ntohs(si_other.sin_port));
+          t, ntohs(si_other.sin_port));
         src_printed = true;
       }
     }

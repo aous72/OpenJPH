@@ -70,97 +70,103 @@ void packets_handler::init(bool quiet, ui32 num_packets,
 ///////////////////////////////////////////////////////////////////////////////
 rtp_packet* packets_handler::exchange(rtp_packet* p)
 {
-  if (p == NULL) {
-    assert(in_use == NULL && num_packets > 0);
-    // move from avail to in_use
-    rtp_packet* p = avail;
-    avail = avail->next;
-    p->next = in_use;    
-    in_use = p;
-    return p;
-  }
-  if (p->num_bytes == 0)
-    return p;
+  // if (p == NULL) {
+  //   assert(in_use == NULL && num_packets > 0);
+  //   // move from avail to in_use
+  //   rtp_packet* p = avail;
+  //   avail = avail->next;
+  //   p->next = in_use;    
+  //   in_use = p;
+  //   return p;
+  // }
+  // if (p->num_bytes == 0)
+  //   return p;
+
+  if (p != NULL)
+    frames->push(p);
+  else
+    p = avail;
+  return p;
   
   // We can a series of test to remove/warn about unsupported options
   // but we currently do not do that yet
 
-  bool result = frames->push(p);
-  if (result == false) // cannot use the packet for the time being
-  {
-    if (avail)
-    { // move from avail to in_use
-      p = avail;
-      avail = avail->next;
-      p->next = in_use;    
-      in_use = p;
-    }
-    else
-    { 
-      assert(p->next != NULL || num_packets == 1);
-      if (p->next != NULL)
-      { // use the oldest/last packet in in_use
-        assert(p == in_use);
-        rtp_packet *pp = p; // previous p
-        p = p->next;
-        while(p->next != NULL) { pp = p; p = p->next; }
-        pp->next = NULL;
-        p->next = in_use;
-        in_use = p;
-      }
-    }
-    return p;
-  }
-  else 
-  {
-    // sequence number of the most recent packet
-    ui32 seq = p->get_sequence_number();
+  // bool result = frames->push(p);
+  // if (result == false) // cannot use the packet for the time being
+  // {
+  //   if (avail)
+  //   { // move from avail to in_use
+  //     p = avail;
+  //     avail = avail->next;
+  //     p->next = in_use;    
+  //     in_use = p;
+  //   }
+  //   else
+  //   { 
+  //     assert(p->next != NULL || num_packets == 1);
+  //     if (p->next != NULL)
+  //     { // use the oldest/last packet in in_use
+  //       assert(p == in_use);
+  //       rtp_packet *pp = p; // previous p
+  //       p = p->next;
+  //       while(p->next != NULL) { pp = p; p = p->next; }
+  //       pp->next = NULL;
+  //       p->next = in_use;
+  //       in_use = p;
+  //     }
+  //   }
+  //   return p;
+  // }
+  // else 
+  // {
+  //   // sequence number of the most recent packet
+  //   ui32 seq = p->get_sequence_number();
 
-    // move packet to avail
-    assert(p == in_use);
-    in_use = in_use->next;
-    p->next = avail;
-    avail = p;
+  //   // move packet to avail
+  //   assert(p == in_use);
+  //   in_use = in_use->next;
+  //   p->next = avail;
+  //   avail = p;
 
-    // test if you can push more packets, also remove old packets
-    p = in_use;
-    rtp_packet *pp = p; // previous p -- will be updated before use
-    while (p != NULL)
-    {
-      // if packet is used or it is old
-      result = frames->push(p);
-      result = result | (seq > p->get_sequence_number() + num_packets);
-      if (result)
-      {
-        // move packet from in_use to avail
-        if (p == in_use)
-        {
-          in_use = in_use->next;
-          p->next = avail;
-          avail = p;
-          p = in_use;
-        }
-        else
-        {
-          pp->next = p->next;
-          p->next = avail;
-          avail = p;
-          p = pp->next;
-        }
-      }
-      else {
-        pp = p;
-        p = p->next;
-      }
-    }
+  //   // test if you can push more packets, also remove old packets
+  //   p = in_use;
+  //   rtp_packet *pp = p; // previous p -- will be updated before use
+  //   while (p != NULL)
+  //   {
+  //     // if packet is used or it is old
+  //     result = frames->push(p);
+  //     result = result | (seq > p->get_sequence_number() + num_packets);
+  //     if (result)
+  //     {
+  //       // move packet from in_use to avail
+  //       if (p == in_use)
+  //       {
+  //         in_use = in_use->next;
+  //         p->next = avail;
+  //         avail = p;
+  //         p = in_use;
+  //       }
+  //       else
+  //       {
+  //         pp->next = p->next;
+  //         p->next = avail;
+  //         avail = p;
+  //         p = pp->next;
+  //       }
+  //     }
+  //     else {
+  //       pp = p;
+  //       p = p->next;
+  //     }
+  //   }
 
-    // get one from avail and move it to in_use
-    p = avail;
-    avail = avail->next;
-    p->next = in_use;
-    in_use = p;
-    return p;
-  }
+  //   // get one from avail and move it to in_use
+  //   p = avail;
+  //   avail = avail->next;
+  //   p->next = in_use;
+  //   in_use = p;
+  //   return p;
+  // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -229,11 +235,13 @@ void frames_handler::init(bool quiet, bool display, bool decode,
   renderers_store = new j2k_frame_renderer[num_files];
   ui32 i = 0;
   for (; i < num_files - 1; ++i) {
+    files_store[i].f.open(2<<20, false); files_store[i].f.close();
     files_store[i].init(this, files_store + i + 1, storers_store + i,
       renderers_store + i, target_name);
     storers_store[i].init(files_store + i, target_name);
     renderers_store[i].init(files_store + i, target_name);
   }
+  files_store[i].f.open(2<<20, false); files_store[i].f.close();
   files_store[i].init(this, NULL, storers_store + i, renderers_store + i, 
     target_name);
   storers_store[i].init(files_store + i, target_name);
@@ -265,6 +273,7 @@ bool frames_handler::push(rtp_packet* p)
           if (target_name != NULL)
           {
             f->f.close();
+            f->done.store(1, std::memory_order_relaxed);
             thread_pool->add_task(f->storer);
           }
           f = in_use;
@@ -276,6 +285,7 @@ bool frames_handler::push(rtp_packet* p)
           if (target_name != NULL)
           {
             f->f.close();
+            f->done.store(1, std::memory_order_relaxed);
             thread_pool->add_task(f->storer);
           }
           f = pf->next;
@@ -288,10 +298,15 @@ bool frames_handler::push(rtp_packet* p)
     }
   }
 
+  static int count = -1;
+  ++count;
+  static bool happened = false;
+
   // process newly received packet
   if (p->get_packet_type() != rtp_packet::PT_BODY)
-  { // main payload header
-    printf("A new file %d\n", p->get_time_stamp());
+  { // main packet payload
+    printf("A new file %d %d\n", p->get_time_stamp(), count);
+    count = 0;
     if (avail)
     {
       // move from avail to in_use
@@ -301,33 +316,34 @@ bool frames_handler::push(rtp_packet* p)
       in_use = f;
       f->timestamp = p->get_time_stamp();
       f->last_seen_seq = p->get_sequence_number();
-      f->marked = false;
-      f->estimated_size = f->actual_size = 0;
       f->frame_idx = frame_idx++;
-      f->f.open(1<<20, true); // start with 1MB
-      f->write(p);
+      f->f.open();
+      f->f.write(p->get_data(), p->get_data_size());
+      happened = false;
       return true;
     }
     else 
       return false;
   }
   else 
-  { // body payload header
-    stex_file* f = in_use, *pf = in_use;
+  { // body packet payload
+    stex_file* f = in_use, *pf = NULL;
     while (f != NULL && f->timestamp != p->get_time_stamp()) {
       pf = f;
       f = f->next;
     }
     if (f == NULL)
       return false;
+    if (f->last_seen_seq + 1 != p->get_sequence_number()) {
+      if (!happened)
+        printf("expected %d, found %d, count %d\n", f->last_seen_seq + 1, p->get_sequence_number(), count);
+      happened = true;
+      return false;
+    }
 
-    f->last_seen_seq = ojph_max(f->last_seen_seq, p->get_sequence_number());
-    f->write(p);
-    
+    f->last_seen_seq = p->get_sequence_number();
+    f->f.write(p->get_data(), p->get_data_size());
     if (p->is_marked())
-      f->marked = true;
-
-    if (f->marked && f->are_packets_missing() == false)
     {
       // move from from in_use to processing
       if (f == in_use)
@@ -336,13 +352,10 @@ bool frames_handler::push(rtp_packet* p)
         pf->next = f->next;
       f->next = processing;
       processing = f;
-
       f->f.close();
+      f->done.store(1, std::memory_order_relaxed);
       thread_pool->add_task(f->storer);
     }
-    // else
-    //   printf("%02x %02x\n", p->data[0], p->data[1]);
-
     return true;
   }
   return false;
@@ -389,8 +402,6 @@ void frames_handler::check_files_in_processing()
         // move f from processing to avail
         f->timestamp = 0;
         f->last_seen_seq = 0;
-        f->marked = false;
-        f->estimated_size = f->actual_size = 0;
         f->frame_idx = 0;
         if (f == processing)
         {

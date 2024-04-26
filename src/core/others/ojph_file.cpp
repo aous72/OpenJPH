@@ -125,7 +125,7 @@ namespace ojph {
     // do initial buffer allocation or buffer expansion
     this->is_open = true;
     this->clear_mem = clear_mem;
-    expand_storage(initial_size, true);
+    expand_storage(initial_size, this->clear_mem);
     this->used_size = 0;
     this->cur_ptr = this->buf;
   }
@@ -171,14 +171,13 @@ namespace ojph {
     assert(this->cur_ptr);
 
     // expand buffer if needed to make sure it has room for this write
-    si64 used_size = tell(); //current used size
-    size_t needed_size = (size_t)used_size + new_size; //needed size
+    size_t needed_size = (size_t)tell() + new_size; //needed size
     expand_storage(needed_size, false);
 
     // copy bytes into buffer and adjust cur_ptr
     memcpy(this->cur_ptr, ptr, new_size);
     cur_ptr += new_size;
-    used_size = ojph_max(used_size, tell());
+    used_size = ojph_max(used_size, (size_t)tell());
 
     return new_size;
   }

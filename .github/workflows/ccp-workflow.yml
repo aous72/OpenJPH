@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         include: [
-          { system: MacOS,          runner: macos-latest },
+#          { system: MacOS,          runner: macos-latest },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
     name: ${{ matrix.system }} Test

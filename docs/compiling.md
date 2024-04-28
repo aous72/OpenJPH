@@ -29,7 +29,7 @@ To install either use
 
     cmake --install . --prefix <your folder>
 
-to install the library to your desired folder, or, if you want to install to C:\Program Files, you need a PwoerShell/CMD running as administrator, and 
+to install the library to your desired folder, or, if you want to install to C:\Program Files, you need a PowerShell/CMD running as administrator, and 
 
     cmake --install .
 
@@ -69,7 +69,7 @@ before compilation.  Then,
     emcmake cmake ..
     emmake make
 
-Compilation will generate two version of the library and executables, one with WebAssembly SIMD isntructions and one without.
+Compilation will generate two version of the library and executables, one with WebAssembly SIMD instructions and one without.
 
 
 # Compiling to javascript/wasm #

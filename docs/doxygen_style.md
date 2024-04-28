@@ -2,7 +2,7 @@
 
 Documentation is still experimental for me, and I might change things down the line.
 
-Here, we describe how to document the source code. This represent so sort of minial set of markers that need to be used. Other markers can be used to enhance the documentation of the code. This serves as a live document that can be updated when needed.
+Here, we describe how to document the source code. This represent so sort of minimal set of markers that need to be used. Other markers can be used to enhance the documentation of the code. This serves as a live document that can be updated when needed.
 I am preferencing `@` over `\`.
 
 ## Comment block

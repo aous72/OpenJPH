@@ -1,6 +1,6 @@
 # Status #
 
-The code is written in C++; the color and wavelet transform steps can employ SIMD instructions on Intel platforms.  SIMD instuctions are also available for the block decoder (SSE3) and for the block encoder (AVX512). Other parts of the library may include SIMD in the future, for Intel and ARM; existing implementations can also be improved as there is still decent performance improvements on the table. SIMD instructions are also employed for WebAssembly (Emscripten-based), which is now widely supported in most browsers.
+The code is written in C++; the color and wavelet transform steps can employ SIMD instructions on Intel platforms.  SIMD instructions are also available for the block decoder (SSE3) and for the block encoder (AVX512). Other parts of the library may include SIMD in the future, for Intel and ARM; existing implementations can also be improved as there is still decent performance improvements on the table. SIMD instructions are also employed for WebAssembly (Emscripten-based), which is now widely supported in most browsers.
 
 The encoder supports lossless and quantization-based lossy encoding.  There is currently no implementation for rate-control-based encoding.
 

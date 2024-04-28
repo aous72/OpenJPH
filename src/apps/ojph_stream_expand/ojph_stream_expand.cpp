@@ -152,6 +152,10 @@ int main(int argc, char* argv[])
     "                port are accepted -- I would recommend not leaving\n"
     "                this one out.\n"
     " -recv_buf_size <integer> recvfrom buffer size; default is 65536.\n"
+    "                This is the size of the operating system's receive\n"
+    "                buffer, before packets are picked by the program.\n"
+    "                Larger buffers reduces the likelihood that a packet\n"
+    "                is dropped before the program has a chance to pick it.\n"
     " -blocking      sets the receiving socket blocking mode to blocking.\n"
     "                The default mode is non-blocking. A blocking socket\n"
     "                increases the likelihood of not receiving some\n"
@@ -164,9 +168,8 @@ int main(int argc, char* argv[])
     "                number of in-flight files, not completely\n"
     "                saved/processed yet. The number of files is set to\n"
     "                number of threads + 1\n"
-    " -num_packets   <integer> number of in-flight packets; this is the\n"
-    "                maximum number of packets to wait before an\n"
-    "                out-of-order or lost packet is considered lost.\n"
+    " -num_packets   <integer> number of in-flight packets; this is a\n"
+    "                window of packets in which packets can be re-ordered.\n"
     " -o             <string> target file name without extension; the same\n"
     "                printf formating can be used. For example,\n"
     "                output_%%05d. An extension will be added, either .j2c\n"
@@ -281,20 +284,20 @@ int main(int argc, char* argv[])
     socklen_t socklen = sizeof(si_other);
     bool src_printed = false;
     ojph::stex::rtp_packet* packet = NULL;
-    ojph::ui32 lost_packets = 0, last_seq = 0;
+    ojph::ui32 last_time_stamp = 0;
     while (1)
     {
-      if (packet == NULL || packet->num_bytes != 0) // num_bytes == 0
-        packet = packets_handler.exchange(packet);  // if packet was ignored
+      if (packet == NULL || packet->num_bytes != 0)
+        packet = packets_handler.exchange(packet);
       if (packet == NULL)
         continue;
       packet->num_bytes = 0;
 
-      // receive data -- this is a blocking call
-      int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data, 
-        packet->max_size, 0, (struct sockaddr *) &si_other, &socklen);
+      // receive data
+      int num_bytes = (int)recvfrom(s.intern(), (char*)packet->data,
+        packet->max_size, 0, (struct sockaddr*)&si_other, &socklen);
 
-      if (num_bytes < 0)
+      if (num_bytes < 0) // error or non-blocking call
       {
         int last_error = smanager.get_last_error();
         if (last_error != OJPH_EWOULDBLOCK)
@@ -306,14 +309,14 @@ int main(int argc, char* argv[])
       }
 
       if ((src_addr && saddr != smanager.get_addr(si_other)) ||
-          (src_port && sport != si_other.sin_port)) {
+        (src_port && sport != si_other.sin_port)) {
         constexpr int buf_size = 128;
         char buf[buf_size];
         ojph::ui32 addr = smanager.get_addr(si_other);
         const char* t = inet_ntop(AF_INET, &addr, buf, buf_size);
         if (t == NULL) {
           std::string err = smanager.get_last_error_message();
-          OJPH_INFO(0x02000004, 
+          OJPH_INFO(0x02000004,
             "Error converting source address: %s", err.data());
         }
         printf("Source mistmatch %s, port %d\n",
@@ -323,11 +326,21 @@ int main(int argc, char* argv[])
 
       packet->num_bytes = (ojph::ui32)num_bytes;
 
-      if (last_seq + 1 != packet->get_sequence_number()) {
-        //lost_packets = packet->get_sequence_number() - last_seq - 1;
-        printf("lost_packets %d %d\n", last_seq, packet->get_sequence_number());
-      }
-      last_seq = packet->get_sequence_number();
+      if (last_time_stamp == 0)
+        last_time_stamp = packet->get_time_stamp();
+
+      if (!quiet)
+        if (packet->get_time_stamp() >= last_time_stamp + 45000)
+        { // One second is 90000
+          last_time_stamp = packet->get_time_stamp();
+          ojph::ui32 lost_packets = packets_handler.get_num_lost_packets();
+          ojph::ui32 total_frames = 0, trunc_frames = 0, lost_frames = 0;
+          frames_handler.get_stats(total_frames, trunc_frames, lost_frames);
+
+          printf("Total frame %d, tuncated frames %d, lost frames %d, "
+            "packets lost %d\n",
+            total_frames, trunc_frames, lost_frames, lost_packets);
+        }
 
       if (!quiet && !src_printed)
       {

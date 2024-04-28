@@ -74,6 +74,8 @@ struct j2k_frame_renderer;
 /** @brief inteprets RTP header and payload, and holds received packets.
  * 
  *  This object interpret RFC 3550 and draft-ietf-avtcore-rtp-j2k-scl-00.
+ *  The implementation is not complete, but it is sufficient for the time 
+ *  being.
  *  
  */
 struct rtp_packet
@@ -87,6 +89,7 @@ struct rtp_packet
   };
 public:
   rtp_packet() { num_bytes = 0; next = NULL; }
+  void init(rtp_packet* next) { this->next = next; }
 
 public:
   // RTP header
@@ -193,7 +196,7 @@ public:
   static constexpr int max_size = 2048; //!<maximum packet size
                                         // ethernet packet are only 1500
   ui8 data[max_size];                   //!<data in the packet
-  ui32 num_bytes;                        //!<number of bytes 
+  ui32 num_bytes;                       //!<number of bytes 
   rtp_packet* next;                     //!<used for linking packets
 };
 
@@ -213,34 +216,58 @@ public:
  *  they fit. It also drops packets if they become old.
  * 
  *  This object basically works as follows.
- *  The object interact with frames_handler, using the "push" member function.
- *  which returns true when the packet is consumed and when it cannot be.
- *  The unconsumed packet are buffered, and push again when the next packet
- *  arrive.
+ *  The object buffers out-of-order packets, i.e., those with a sequence 
+ *  number higher than expected.  Then, the object tries to push these 
+ *  packets when their sequence number comes.  Packets are pushed to the 
+ *  frames_handler, using the "push" member function.
+ * 
+ *  The buffer has limited size, when it becomes full, the oldest packet is 
+ *  pushed; this basically means that all missing packets are considered
+ *  lost.
  *  
- *  Packets are dropped when they reach the bottom of the queue.
- *  The queue is in the "in_use" member variable.
+ *  When a new packet is pushed, the object looks if it has the next packet
+ *  in its buffer, if so, then it pushes one more packet.  It does not 
+ *  attempt to push more than one packet from its buffer, because this
+ *  might delay picking up the next packet from the operating system network
+ *  stack.
+ * 
+ *  Packets in the buffer are arranged according to their sequence number.
+ *  
  */
 class packets_handler
 {
 public:
   packets_handler()
-  { avail = in_use = NULL; num_packets = 0; packet_store = NULL; }
+  {
+    quiet = false;
+    avail = in_use = NULL; 
+    last_seq_num = lost_packets = 0;
+    frames = NULL;
+    num_packets = 0;
+    packet_store = NULL;
+  }
   ~packets_handler()
   { if (packet_store) delete[] packet_store; }
 
 public:
   void init(bool quiet, ui32 num_packets, frames_handler* frames);
   rtp_packet* exchange(rtp_packet* p);
+  ui32 get_num_lost_packets() const { return lost_packets; }
   void flush();
+
+private:
+  void consume_packet(rtp_packet *p);
 
 private:
   bool quiet;                //!<no informational info is printed when true
   rtp_packet* avail;         //!<start of available packets chain
   rtp_packet* in_use;        //!<start of used packet chain
+  ui32 last_seq_num;         //!<the last observed sequence number
+  ui32 lost_packets;         //!<number of lost packets -- just statistics
+  frames_handler* frames;    //!<frames object
+
   ui32 num_packets;          //!<maximum number of packets in packet_store
   rtp_packet* packet_store;  //!<address of packet memory allocation
-  frames_handler* frames;    //!<frames object
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -254,9 +281,11 @@ private:
 /*****************************************************************************/
 /** @brief holds in memory j2k codestream together with other info
  * 
- *  This objects holds a j2k codestream.  The codestream is identified by 
- *  its timestamp. Once complete the file is pushed to saver/renderer.
- *  It can be used to create a chain of files.
+ *  This objects holds a j2k codestream file.  The codestream is identified 
+ *  by its timestamp. Once complete the file is pushed to saver/renderer.
+ * 
+ *  File chains can be created using the \"next\" member variable.
+ * 
  */
 struct stex_file {
 public:
@@ -309,6 +338,8 @@ public:
 /*****************************************************************************/
 /** @brief 
  * 
+ *  Assumes packets arrive in order.
+ * 
  */
 class frames_handler
 {
@@ -318,7 +349,9 @@ public:
     quiet = display = decode = false;
     packet_queue_length = num_threads = 0;
     target_name = NULL;
-    num_files = frame_idx = 0;
+    num_files = 0;
+    last_seq_number = last_time_stamp = 0;
+    total_frames = trunc_frames = lost_frames = 0;
     files_store = avail = in_use = processing = NULL;
     num_complete_files.store(0);
     thread_pool = NULL;
@@ -331,13 +364,15 @@ public:
   void init(bool quiet, bool display, bool decode, ui32 packet_queue_length,
             ui32 num_threads, const char *target_name, 
             thds::thread_pool* thread_pool);
-  bool push(rtp_packet* p);
+  void push(rtp_packet* p);
+  void get_stats(ui32& total_frames, ui32& trunc_frames, ui32& lost_frames);
   bool flush();
   void increment_num_complete_files()
   { num_complete_files.fetch_add(1, std::memory_order_release); }
 
 private:
   void check_files_in_processing();
+  void truncate_and_process();
 
 private:
   bool quiet;               //!<no informational info is printed when true
@@ -347,7 +382,11 @@ private:
   ui32 num_threads;         //!<max number of threads used for decoding/display
   const char *target_name;  //!<target file name template
   ui32 num_files;           //!<maximum number of in-flight files.
-  ui32 frame_idx;           //!<used to keep track of frame numbering
+  ui32 last_seq_number;     //!<last observed sequence number
+  ui32 last_time_stamp;     //!<last observed time stamp
+  ui32 total_frames;        //!<total number of frames that were observed
+  ui32 trunc_frames;        //!<truncated frames (because of a packet lostt)
+  ui32 lost_frames;         //!<frames for which main header was not received
   stex_file* files_store;   //!<address for allocated files
   stex_file* avail;         //!<available frames structures
   stex_file* in_use;        //!<frames that are being filled with data

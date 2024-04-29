@@ -89,7 +89,7 @@ bool get_arguments(int argc, char *argv[],
   if (recv_addr == NULL)
   {
     printf("Please use \"-addr\" to provide a receiving address, "
-      "\"localhost\" or a local network card IP address.\n");
+      "\"localhost\" or a local network card IPv4 address.\n");
     return false;
   }
   if (recv_port == NULL)
@@ -137,9 +137,9 @@ int main(int argc, char* argv[])
     printf(
     "\n"
     "The following arguments are necessary:\n"
-    " -addr          <receiving ipv4 address>, or\n"
+    " -addr          <receiving IPv4 address>, or\n"
     "                The address should be either localhost, or\n"
-    "                a local network card IP address\n"
+    "                a local network card IPv4 address\n"
     "                example: -addr 127.0.0.1\n"
     " -port          <listening port>\n"
     "\n"
@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
         p = localhost;
       int result = inet_pton(AF_INET, p, &server.sin_addr);
       if (result != 1)
-        OJPH_ERROR(0x02000001, "Please provide a valid IP address when "
+        OJPH_ERROR(0x02000001, "Please provide a valid IPv4 address when "
           "using \"-addr,\" the provided address %s is not valid", 
           recv_addr);
       ojph::ui16 port_number = 0;
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
 
     // change recv buffer size; default is 65536
     int32_t nsize = recvfrm_buf_size;
-    if (setsockopt(s.intern(), SOL_SOCKET, SO_RCVBUF,
+    if (::setsockopt(s.intern(), SOL_SOCKET, SO_RCVBUF,
                    (char*)&nsize, sizeof(nsize)) == -1)
     {
       std::string err = smanager.get_last_error_message();
@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
       printf("Listining on %s, port %d\n", t, ntohs(server.sin_port));
     }
 
-    // process the source ip address and port
+    // process the source IPv4 address and port
     ojph::ui32 saddr = 0;
     if (src_addr)
     {
@@ -277,7 +277,7 @@ int main(int argc, char* argv[])
       struct sockaddr_in t;
       int result = inet_pton(AF_INET, p, &t.sin_addr);
       if (result != 1)
-        OJPH_ERROR(0x02000005, "Please provide a valid IP address when "
+        OJPH_ERROR(0x02000005, "Please provide a valid IPv4 address when "
           "using \"-src_addr,\" the provided address %s is not valid", 
           src_addr);
       saddr = smanager.get_addr(t);

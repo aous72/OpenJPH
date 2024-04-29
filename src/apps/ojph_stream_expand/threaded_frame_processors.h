@@ -58,30 +58,47 @@ namespace stex
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief Store a j2k frame as is.
+/** @brief Saves a j2k frame to disk without decoding.
  * 
  */
 struct j2k_frame_storer : public thds::worker_thread_base
 {
 public:  
+  /**
+   * @brief default construction
+   */
   j2k_frame_storer() {
     file = NULL;
     name_template = NULL;
   }
+  /**
+   * @brief default destructor doing nothing
+   */
   ~j2k_frame_storer() override {}
 
 public:  
+  /**
+   *  @brief call this function to initialize its members
+   * 
+   *  @param file is a stex_file holding the j2k codestream with other
+   *         variables.
+   *  @param name_template holds the a filename template
+   */
   void init(stex_file* file, const char* name_template)
   {
     this->file = file;
     this->name_template = name_template;
   }
 
+  /**
+   * @brief A thread from the thread_pool call this function to execute 
+   *        the task
+   */
   void execute() override;
 
 private:
-  stex_file* file;
-  const char* name_template;
+  stex_file* file;            //!<a j2k codestream file with other variables
+  const char* name_template;  //!<a template for the target file name
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -93,8 +110,9 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief Store a decoded j2k frame
+/** @brief Saves a decoded j2k frame to disk
  * 
+ *  This object is handled by j2k_frame_renderer
  */
 struct decoded_frame_storer : public thds::worker_thread_base
 {
@@ -107,6 +125,9 @@ public:
   };
 
 public:
+  /**
+   * @brief default construction
+   */
   decoded_frame_storer() {
     file = NULL;
     name_template = NULL;
@@ -117,6 +138,7 @@ public:
 public:
   void execute() override {}
 
+private:
   stex_file* file;
   const char* name_template;
   file_type ft;
@@ -138,6 +160,9 @@ public:
 struct j2k_frame_renderer : public thds::worker_thread_base
 {
 public:  
+  /**
+   * @brief default construction
+   */
   j2k_frame_renderer() {
     file = NULL;
     name_template = NULL;

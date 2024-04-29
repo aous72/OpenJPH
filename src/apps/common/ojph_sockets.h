@@ -211,14 +211,14 @@ namespace ojph
       std::string get_last_error_message();
 
       /**
-       *  @brief Abstractly obtains the 32-bit IP4 address integer
+       *  @brief Abstractly obtains the 32-bit IPv4 address integer
        *
-       *  This function obtains a 32-bit integer that represents the IP4 
+       *  This function obtains a 32-bit integer that represents the IPv4 
        *  address in abstrct way (working both in Windows and Linux).
        *  This is really an independent function, but it is convenient to 
        *  put it here.
        *
-       *  @return returns an integer holding IP4 address
+       *  @return returns an integer holding IPv4 address
        *
        */
       static ui32 get_addr(const sockaddr_in& addr);

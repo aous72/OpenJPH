@@ -253,6 +253,19 @@ int main(int argc, char* argv[])
         "Could not bind address to socket: %s", err.data());
     }
 
+    if (!quiet) {
+      constexpr int buf_size = 128;
+      char buf[buf_size];
+      ojph::ui32 addr = smanager.get_addr(server);
+      const char* t = inet_ntop(AF_INET, &addr, buf, buf_size);
+      if (t == NULL) {
+        std::string err = smanager.get_last_error_message();
+        OJPH_INFO(0x02000005,
+          "Error converting source address: %s", err.data());
+      }
+      printf("Listining on %s, port %d\n", t, ntohs(server.sin_port));
+    }
+
     // process the source ip address and port
     ojph::ui32 saddr = 0;
     if (src_addr)
@@ -328,19 +341,6 @@ int main(int argc, char* argv[])
       if (last_time_stamp == 0)
         last_time_stamp = packet->get_time_stamp();
 
-      if (!quiet)
-        if (packet->get_time_stamp() >= last_time_stamp + 45000)
-        { // One second is 90000
-          last_time_stamp = packet->get_time_stamp();
-          ojph::ui32 lost_packets = packets_handler.get_num_lost_packets();
-          ojph::ui32 total_frames = 0, trunc_frames = 0, lost_frames = 0;
-          frames_handler.get_stats(total_frames, trunc_frames, lost_frames);
-
-          printf("Total frame %d, tuncated frames %d, lost frames %d, "
-            "packets lost %d\n",
-            total_frames, trunc_frames, lost_frames, lost_packets);
-        }
-
       if (!quiet && !src_printed)
       {
         constexpr int buf_size = 128;
@@ -356,6 +356,19 @@ int main(int argc, char* argv[])
           t, ntohs(si_other.sin_port));
         src_printed = true;
       }
+
+      if (!quiet)
+        if (packet->get_time_stamp() >= last_time_stamp + 45000)
+        { // One second is 90000
+          last_time_stamp = packet->get_time_stamp();
+          ojph::ui32 lost_packets = packets_handler.get_num_lost_packets();
+          ojph::ui32 total_frames = 0, trunc_frames = 0, lost_frames = 0;
+          frames_handler.get_stats(total_frames, trunc_frames, lost_frames);
+
+          printf("Total frame %d, tuncated frames %d, lost frames %d, "
+            "packets lost %d\n",
+            total_frames, trunc_frames, lost_frames, lost_packets);
+        }
     }
     s.close();    
   }

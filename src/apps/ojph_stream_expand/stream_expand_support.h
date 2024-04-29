@@ -352,7 +352,7 @@ public:
     num_files = 0;
     last_seq_number = last_time_stamp = 0;
     total_frames = trunc_frames = lost_frames = 0;
-    files_store = avail = in_use = processing = NULL;
+    files_store = in_use = avail = processing = NULL;
     num_complete_files.store(0);
     thread_pool = NULL;
     storers_store = NULL;
@@ -372,7 +372,7 @@ public:
 
 private:
   void check_files_in_processing();
-  void truncate_and_process();
+  void send_to_processing();
 
 private:
   bool quiet;               //!<no informational info is printed when true
@@ -388,8 +388,8 @@ private:
   ui32 trunc_frames;        //!<truncated frames (because of a packet lostt)
   ui32 lost_frames;         //!<frames for which main header was not received
   stex_file* files_store;   //!<address for allocated files
+  stex_file* in_use;        //!<the frame that is being filled with data
   stex_file* avail;         //!<available frames structures
-  stex_file* in_use;        //!<frames that are being filled with data
   stex_file* processing;    //!<frames that are being saved/rendered
   std::atomic_int32_t 
     num_complete_files;     //<!num. of files for which processing is complete

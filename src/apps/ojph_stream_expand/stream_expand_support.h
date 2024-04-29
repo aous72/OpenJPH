@@ -80,6 +80,10 @@ struct j2k_frame_renderer;
  */
 struct rtp_packet
 {
+  /**
+   *  @brief packet types based on the main header of 
+   *         draft-ietf-avtcore-rtp-j2k-scl-00
+   */
   enum packet_type : ui32
   {
     PT_BODY                  = 0, // this is body packet
@@ -88,7 +92,16 @@ struct rtp_packet
     PT_MAIN                  = 3, // frame has only one main packet
   };
 public:
+  /**
+   *  @brief default constructor
+   */
   rtp_packet() { num_bytes = 0; next = NULL; }
+
+  /**
+   *  @brief Call this to link packets.
+   * 
+   *  @param next pointer to next packet
+   */
   void init(rtp_packet* next) { this->next = next; }
 
 public:
@@ -237,6 +250,9 @@ public:
 class packets_handler
 {
 public:
+  /**
+   *  @brief default constructor
+   */
   packets_handler()
   {
     quiet = false;
@@ -246,17 +262,61 @@ public:
     num_packets = 0;
     packet_store = NULL;
   }
+  /**
+   *  @brief default destructor
+   */
   ~packets_handler()
   { if (packet_store) delete[] packet_store; }
 
 public:
+  /**
+   *  @brief call this to initialize packets_handler
+   *
+   *  This function creates a chain of packets that is for packet re-ordering
+   *
+   *  @param quiet no messages are printed when true -- as of this writing
+   *         the object prints no messages
+   *  @param num_packets the number of packets in the chain
+   *  @param frames a pointer to the frames_handler object that will be 
+   *         receive the packets
+   */
   void init(bool quiet, ui32 num_packets, frames_handler* frames);
+
+  /**
+   *  @brief Call this function to get a packet from the packet chain.
+   *
+   *  This function is an input-output function.  First time call to this 
+   *  function passes a null pointer, and gets a pointer to use. Subsequent
+   *  calls passes the pointer that was obtained earlier to get a new pointer.
+   *  This function supplies one pointer only.
+   *
+   *  @param  p a pointer to a packet that was previously obtained by calling
+   *          this function.
+   *  @return returns a pointer to a packet
+   */
   rtp_packet* exchange(rtp_packet* p);
+
+  /**
+   *  @brief This function provides information about the observed number 
+   *          of lost packets
+   *
+   *  @return returns number of lost packets up to the time of the call
+   */
   ui32 get_num_lost_packets() const { return lost_packets; }
+
+  /**
+   *  @brief This function is not used, and therefore it is not clear how to 
+   *         use it.
+   */
   void flush();
 
 private:
-  void consume_packet(rtp_packet *p);
+  /**
+   *  @brief This function sends the packet in in_use (oldest) to frames 
+   *         handler object.
+   * 
+   */
+  void consume_packet();
 
 private:
   bool quiet;                //!<no informational info is printed when true
@@ -286,9 +346,19 @@ private:
  * 
  *  File chains can be created using the \"next\" member variable.
  * 
+ *  This object is handled by frames_handler, and therefore, it does not 
+ *  have many functions.  stex_file does not create any objects of its own.
+ * 
+ *  The object also serves to pass information to the 
+ *  j2k_frame_storer, decoded_frame_storer, or j2k_frame_renderer, which are
+ *  run by other threads
+ * 
  */
 struct stex_file {
 public:
+  /**
+   *  @brief default constructor
+   */
   stex_file() 
   { 
     timestamp = last_seen_seq = 0; 
@@ -300,6 +370,21 @@ public:
     renderer = NULL;
     next = NULL; 
   }
+
+public:
+  /**
+   *  @brief call this function to initialize stex_file
+   * 
+   *  It just copies parameters to the object.
+   * 
+   *  @param parent is a pointer to the object holding this file, which is
+   *         frames_handler
+   *  @param next is used to chain files
+   *  @param storer this object is used to store j2k codestreams
+   *  @param renderer this object is used to render/decode j2k codestreams
+   *                  and can potentionally store decoded codestreams
+   *  @param name_template file name template to use for storeing files
+   */
   void init(frames_handler* parent, stex_file* next, j2k_frame_storer *storer,
             j2k_frame_renderer* renderer, const char *name_template)
   {
@@ -310,6 +395,14 @@ public:
     this->renderer = renderer;
   }
 
+  /**
+   *  @brief other threads can call this function to signal completion of 
+   *         processing.  
+   *
+   *  This function basically reduces \"done\", and when 0 is reached
+   *  the function will let the parent know that there is a stex_file 
+   *  waiting removal.
+   */
   void notify_file_completion();
 
 public:  
@@ -344,10 +437,13 @@ public:
 class frames_handler
 {
 public:
+  /**
+   *  @brief default construction
+   */
   frames_handler()
   { 
     quiet = display = decode = false;
-    packet_queue_length = num_threads = 0;
+    num_threads = 0;
     target_name = NULL;
     num_files = 0;
     last_seq_number = last_time_stamp = 0;
@@ -358,28 +454,96 @@ public:
     storers_store = NULL;
     renderers_store = NULL;
   }
+  /**
+   *  @brief default destructor
+   */  
   ~frames_handler();
 
 public:
-  void init(bool quiet, bool display, bool decode, ui32 packet_queue_length,
-            ui32 num_threads, const char *target_name, 
+  /**
+   *  @brief call this function to initialize this object
+   *
+   *  The function just copies collected statistics
+   *
+   *  @param quiet when true, no messages are printed -- as of this writing
+   *         the object prints no messages
+   *  @param display when true, j2k codestreams are rendered and displayed
+   *  @param decode when true j2k codestreams are decoded before saving
+   *  @param target_name a template for the saved file names
+   *  @param thread_pool a thread pool for processing j2k codestreams
+   *         (saving and rendering)
+   * 
+   */
+  void init(bool quiet, bool display, bool decode, const char *target_name, 
             thds::thread_pool* thread_pool);
+
+  /**
+   *  @brief call this function to push rtp_packets to this object
+   *
+   *  Packets received by this object has to be sequentially increasing; 
+   *  older packets are ignored.  That is, a packet with a sequential number 
+   *  smaller than the last observed sequential number is ignored.
+   *
+   *  @param p returns a pointer to the packet.
+   */
   void push(rtp_packet* p);
+
+  /**
+   *  @brief call this function to collect statistics about frames
+   *
+   *  The function just copies collected statistics
+   *
+   *  @param total_frames returns the number of observed total frames
+   *  @param trunc_frames returns the number of truncated frames
+   *  @param lost_frames returns the number of lost frames -- for which the
+   *                     main header payload packet was not received, but
+   *                     time stamp was observed
+   */
   void get_stats(ui32& total_frames, ui32& trunc_frames, ui32& lost_frames);
+
+  /**
+   *  @brief This function is not used, and therefore it is not clear how to
+   *         use it.
+   */
   bool flush();
+
+  /**
+   *  @brief other threads call this function to let frames_handler know that 
+   *         processing is done.
+   *
+   *  This function basically increment the number of objects that need to 
+   *  be moved from processing to avail.
+   *
+   */
   void increment_num_complete_files()
   { num_complete_files.fetch_add(1, std::memory_order_release); }
 
 private:
+  /**
+   *  @brief call this function to process stex_file for which processing is
+   *         complete
+   *
+   *  This function moves stex_file from processing to avail if storing or
+   *  rendering was completed.
+   * 
+   */
   void check_files_in_processing();
+
+  /**
+   *  @brief Handles complete/truncated files and send them for storing or 
+   *         rendering
+   *
+   *  This function moves stex_file from in_use to processing if there are
+   *  further processors (such as storer or renderer) or to avail if there
+   *  are no processors.
+   */
   void send_to_processing();
 
 private:
   bool quiet;               //!<no informational info is printed when true
   bool display;             //!<images are displayed when true
   bool decode;              //!<when true, images are decoded before saving
-  ui32 packet_queue_length; //!<the number of packets that can be in the queue
-  ui32 num_threads;         //!<max number of threads used for decoding/display
+  ui32 num_threads;         //!<number of threads used for decoding/display
   const char *target_name;  //!<target file name template
   ui32 num_files;           //!<maximum number of in-flight files.
   ui32 last_seq_number;     //!<last observed sequence number

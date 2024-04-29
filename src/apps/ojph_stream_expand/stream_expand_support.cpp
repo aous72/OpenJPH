@@ -90,10 +90,10 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
       return p;
     else if (p->get_sequence_number() == last_seq_num + 1)
     {
-      consume_packet(p);
+      consume_packet();
       // see if we can push one packet from the top of the buffer
       if (in_use && in_use->get_sequence_number() == last_seq_num + 1)
-        consume_packet(in_use);
+        consume_packet();
     }
     else // sequence larger than expected
     {
@@ -140,9 +140,9 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
       {
         if (avail == NULL)
           lost_packets += in_use->get_sequence_number() - last_seq_num - 1;
-        consume_packet(in_use);
+        consume_packet();
         if (in_use && in_use->get_sequence_number() == last_seq_num + 1)
-          consume_packet(in_use);
+          consume_packet();
       }
     }
   }
@@ -170,12 +170,12 @@ void packets_handler::flush()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void packets_handler::consume_packet(rtp_packet* p)
+void packets_handler::consume_packet()
 {
-  last_seq_num = p->get_sequence_number();
-  frames->push(p);
+  last_seq_num = in_use->get_sequence_number();
+  frames->push(in_use);
   // move pack from in_use to avail; the packet must be equal to in_use
-  assert(p == in_use);
+  rtp_packet* p = in_use;
   in_use = in_use->next;
   p->next = avail;
   avail = p;
@@ -218,15 +218,13 @@ frames_handler::~frames_handler()
 
 ///////////////////////////////////////////////////////////////////////////////
 void frames_handler::init(bool quiet, bool display, bool decode, 
-                          ui32 packet_queue_length, ui32 num_threads, 
                           const char *target_name, 
                           thds::thread_pool* thread_pool)
 {
   this->quiet = quiet;
   this->display = display;
   this->decode = decode;
-  this->packet_queue_length = packet_queue_length;
-  this->num_threads = num_threads;
+  this->num_threads = (ui32)thread_pool->get_num_threads();
   this->target_name = target_name;
   num_files = num_threads + 1;
   avail = files_store = new stex_file[num_files];

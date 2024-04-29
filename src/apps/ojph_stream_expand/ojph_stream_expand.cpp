@@ -191,8 +191,7 @@ int main(int argc, char* argv[])
     ojph::thds::thread_pool thread_pool;
     thread_pool.init(num_threads);
     ojph::stex::frames_handler frames_handler;
-    frames_handler.init(quiet, display, decode, num_inflight_packets, 
-                        num_threads, target_name, &thread_pool);
+    frames_handler.init(quiet, display, decode, target_name, &thread_pool);
     ojph::stex::packets_handler packets_handler;
     packets_handler.init(quiet, num_inflight_packets, &frames_handler);
     ojph::net::socket_manager smanager;

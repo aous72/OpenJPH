@@ -59,13 +59,24 @@ namespace thds
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief 
+/** @brief A base object for queuing tasks in the thread_pool
  *  
+ *  Tasks run in the thread_pool must derive from this function and define
+ *  \"execute\".  Derived objects can include their own member variables.
+ * 
  */
 class worker_thread_base
 {
 public:
+  /**
+   *  @brief virtual construction is a necessity to deconstruct derived 
+   *  objects.
+   */
   virtual ~worker_thread_base() { }
+
+  /**
+   *  @brief Derived functions must define this function to execute its work
+   */
   virtual void execute() = 0;
 };
 
@@ -79,20 +90,50 @@ public:
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief 
+/** 
+ *  @brief Implements a pool of threads, and can queue tasks.
  *  
  */
 class thread_pool
 {
 public:
+  /**
+   *  @brief default constructor
+   */
   thread_pool() { stop.store(false, std::memory_order_relaxed); }
+  /**
+   *  @brief default destructor
+   */
   ~thread_pool();
 
 public:
+  /**
+   *  @brief Initializes the thread pool
+   * 
+   *  @param num_threads the number of threads the thread pool holds
+   */
   void init(size_t num_threads);
+
+  /**
+   *  @brief Adds a task to the thread pool
+   *
+   *  @param task the task to added, must be derived from worker_thread_base
+   */
   void add_task(worker_thread_base* task);
 
+  /**
+   *  @brief Returns the number of threads in the thread pool
+   *
+   *  @retuen number of threads in the thread pool
+   */
+  size_t get_num_threads() { return threads.size(); }
+
 private:
+  /**
+   *  @brief A static function to start a thread
+   *
+   *  @param tp a pointer to the thread pool
+   */
   static void start_thread(thread_pool* tp);
 
 private:

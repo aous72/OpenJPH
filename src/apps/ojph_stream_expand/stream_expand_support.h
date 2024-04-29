@@ -46,9 +46,8 @@
 
 namespace ojph
 {
-
-namespace thds 
-{ class thread_pool; }
+  namespace thds 
+  { class thread_pool; }
 
 namespace stex // stream expand
 {
@@ -59,8 +58,6 @@ class frames_handler;
 
 // defined elsewhere
 struct j2k_frame_storer;
-struct decoded_frame_storer;
-struct j2k_frame_renderer;
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -342,16 +339,15 @@ private:
 /** @brief holds in memory j2k codestream together with other info
  * 
  *  This objects holds a j2k codestream file.  The codestream is identified 
- *  by its timestamp. Once complete the file is pushed to saver/renderer.
+ *  by its timestamp. Once complete the file is pushed to saver.
  * 
  *  File chains can be created using the \"next\" member variable.
  * 
  *  This object is handled by frames_handler, and therefore, it does not 
  *  have many functions.  stex_file does not create any objects of its own.
  * 
- *  The object also serves to pass information to the 
- *  j2k_frame_storer, decoded_frame_storer, or j2k_frame_renderer, which are
- *  run by other threads
+ *  The object also serves to pass information to the j2k_frame_storer, 
+ *  which is run by another thread
  * 
  */
 struct stex_file {
@@ -367,7 +363,6 @@ public:
     parent = NULL;
     name_template = NULL;
     storer = NULL;
-    renderer = NULL;
     next = NULL; 
   }
 
@@ -381,18 +376,15 @@ public:
    *         frames_handler
    *  @param next is used to chain files
    *  @param storer this object is used to store j2k codestreams
-   *  @param renderer this object is used to render/decode j2k codestreams
-   *                  and can potentionally store decoded codestreams
    *  @param name_template file name template to use for storeing files
    */
   void init(frames_handler* parent, stex_file* next, j2k_frame_storer *storer,
-            j2k_frame_renderer* renderer, const char *name_template)
+            const char *name_template)
   {
     this->parent = parent;
     this->name_template = name_template;
     this->next = next;
     this->storer = storer;
-    this->renderer = renderer;
   }
 
   /**
@@ -409,13 +401,12 @@ public:
   ojph::mem_outfile f;    //!<holds in-memory j2k codestream
   ui32 timestamp;         //!<time stamp at which this file must be displayed
   ui32 last_seen_seq;     //!<the last seen RTP sequence number
-  std::atomic_int done;   //!<saving/rendering is completed when 0 is reached
+  std::atomic_int done;   //!<saving is completed when 0 is reached
   ui32 frame_idx;         //!<frame number in the sequence
   frames_handler* parent; //!<the object holding this frame
 
   const char *name_template; //!<name template for saved files
-  j2k_frame_storer* storer;  //!<stores a j2k frm in a separate thread
-  j2k_frame_renderer* renderer; //!<decodes a j2k frm in a separate thread
+  j2k_frame_storer* storer;  //!<stores a j2k frame using another thread
 
   stex_file* next;        //!<used to create files chain
 };
@@ -442,7 +433,7 @@ public:
    */
   frames_handler()
   { 
-    quiet = display = decode = false;
+    quiet = false;
     num_threads = 0;
     target_name = NULL;
     num_files = 0;
@@ -452,7 +443,6 @@ public:
     num_complete_files.store(0);
     thread_pool = NULL;
     storers_store = NULL;
-    renderers_store = NULL;
   }
   /**
    *  @brief default destructor
@@ -467,14 +457,12 @@ public:
    *
    *  @param quiet when true, no messages are printed -- as of this writing
    *         the object prints no messages
-   *  @param display when true, j2k codestreams are rendered and displayed
-   *  @param decode when true j2k codestreams are decoded before saving
    *  @param target_name a template for the saved file names
    *  @param thread_pool a thread pool for processing j2k codestreams
-   *         (saving and rendering)
+   *         (saving)
    * 
    */
-  void init(bool quiet, bool display, bool decode, const char *target_name, 
+  void init(bool quiet, const char *target_name, 
             thds::thread_pool* thread_pool);
 
   /**
@@ -523,27 +511,24 @@ private:
    *  @brief call this function to process stex_file for which processing is
    *         complete
    *
-   *  This function moves stex_file from processing to avail if storing or
-   *  rendering was completed.
+   *  This function moves stex_file from processing to avail if storing 
+   *  is complete.
    * 
    */
   void check_files_in_processing();
 
   /**
-   *  @brief Handles complete/truncated files and send them for storing or 
-   *         rendering
+   *  @brief Handles complete/truncated files and send them for storing
    *
    *  This function moves stex_file from in_use to processing if there are
-   *  further processors (such as storer or renderer) or to avail if there
-   *  are no processors.
+   *  further processors (such as a storer) or to avail if there are no 
+   *  processors.
    */
   void send_to_processing();
 
 private:
   bool quiet;               //!<no informational info is printed when true
-  bool display;             //!<images are displayed when true
-  bool decode;              //!<when true, images are decoded before saving
-  ui32 num_threads;         //!<number of threads used for decoding/display
+  ui32 num_threads;         //!<number of threads used for saving
   const char *target_name;  //!<target file name template
   ui32 num_files;           //!<maximum number of in-flight files.
   ui32 last_seq_number;     //!<last observed sequence number
@@ -554,15 +539,13 @@ private:
   stex_file* files_store;   //!<address for allocated files
   stex_file* in_use;        //!<the frame that is being filled with data
   stex_file* avail;         //!<available frames structures
-  stex_file* processing;    //!<frames that are being saved/rendered
+  stex_file* processing;    //!<frames that are being saved
   std::atomic_int32_t 
     num_complete_files;     //<!num. of files for which processing is complete
   thds::thread_pool* 
     thread_pool;            //!<thread pool for processing frames
   j2k_frame_storer* 
     storers_store;          //!<address for allocated frame storers
-  j2k_frame_renderer* 
-    renderers_store;        //!<address for allocated frame renderers
 };
 
 } // !stex namespace

@@ -39,7 +39,6 @@
 
 namespace ojph
 {
-
 namespace stex
 {  
 
@@ -60,7 +59,6 @@ void j2k_frame_storer::execute()
   file->f.write_to_file(name);
   file->notify_file_completion();
 }
-
 
 } // !stex namespace
 } // !ojph namespace

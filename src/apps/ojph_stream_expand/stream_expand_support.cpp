@@ -208,8 +208,6 @@ void stex_file::notify_file_completion()
 ///////////////////////////////////////////////////////////////////////////////
 frames_handler::~frames_handler()
 { 
-  if (renderers_store)
-    delete[] renderers_store;
   if (storers_store)
     delete[] storers_store;
   if (files_store) 
@@ -217,34 +215,27 @@ frames_handler::~frames_handler()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void frames_handler::init(bool quiet, bool display, bool decode, 
-                          const char *target_name, 
+void frames_handler::init(bool quiet, const char *target_name, 
                           thds::thread_pool* thread_pool)
 {
   this->quiet = quiet;
-  this->display = display;
-  this->decode = decode;
   this->num_threads = (ui32)thread_pool->get_num_threads();
   this->target_name = target_name;
   num_files = num_threads + 1;
   avail = files_store = new stex_file[num_files];
   storers_store = new j2k_frame_storer[num_files];
-  renderers_store = new j2k_frame_renderer[num_files];
   ui32 i = 0;
   for (; i < num_files - 1; ++i) {
     files_store[i].f.open(2 << 20, false); 
     files_store[i].f.close();
     files_store[i].init(this, files_store + i + 1, storers_store + i,
-      renderers_store + i, target_name);
+      target_name);
     storers_store[i].init(files_store + i, target_name);
-    renderers_store[i].init(files_store + i, target_name);
   }
   files_store[i].f.open(2 << 20, false); 
   files_store[i].f.close();
-  files_store[i].init(this, NULL, storers_store + i, renderers_store + i, 
-    target_name);
+  files_store[i].init(this, NULL, storers_store + i, target_name);
   storers_store[i].init(files_store + i, target_name);
-  renderers_store[i].init(files_store + i, target_name);
   this->thread_pool = thread_pool;
 }
 

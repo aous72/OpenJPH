@@ -56,7 +56,7 @@ bool get_arguments(int argc, char *argv[],
                    char *&target_name, ojph::ui32& num_threads, 
                    ojph::ui32& num_inflight_packets,
                    ojph::ui32& recvfrm_buf_size, bool& blocking,
-                   bool& quiet, bool& display, bool& decode)
+                   bool& quiet)
 {
   ojph::cli_interpreter interpreter;
   interpreter.init(argc, argv);
@@ -72,8 +72,6 @@ bool get_arguments(int argc, char *argv[],
 
   blocking = interpreter.reinterpret("-blocking");
   quiet = interpreter.reinterpret("-quiet");
-  display = interpreter.reinterpret("-display");
-  decode = interpreter.reinterpret("-decode");
 
   if (interpreter.is_exhausted() == false) {
     printf("The following arguments were not interpreted:\n");
@@ -107,12 +105,6 @@ bool get_arguments(int argc, char *argv[],
     printf("Please set \"-num_packets\" to 1 or more.\n");
     return false;
   }
-  if (decode && target_name == NULL)
-  {
-    printf("Since \"-decode\" was specified, please set \"-target_name\" "
-      "for the target name of decoded files.\n");
-    return false;
-  }
 
   return true;
 }
@@ -125,13 +117,11 @@ int main(int argc, char* argv[])
   char *src_addr = NULL;
   char *src_port = NULL;
   char *target_name = NULL;
-  ojph::ui32 num_threads = 1;
+  ojph::ui32 num_threads = 2;
   ojph::ui32 num_inflight_packets = 5;
   ojph::ui32 recvfrm_buf_size = 65536;
   bool blocking = false;
   bool quiet = false;
-  bool display = false;
-  bool decode = false;
 	
   if (argc <= 1) {
     printf(
@@ -174,7 +164,6 @@ int main(int argc, char* argv[])
     "                printf formating can be used. For example,\n"
     "                output_%%05d. An extension will be added, either .j2c\n"
     "                for original frames, or .ppm for decoded images.\n"
-    " -display       use this to display decoded frames.\n"
     " -quiet         use to stop printing informative messages.\n."
     "\n"
     );
@@ -182,7 +171,7 @@ int main(int argc, char* argv[])
   }
   if (!get_arguments(argc, argv, recv_addr, recv_port, src_addr, src_port,
                      target_name, num_threads, num_inflight_packets,
-                     recvfrm_buf_size, blocking, quiet, display, decode))
+                     recvfrm_buf_size, blocking, quiet))
   {
     exit(-1);
   }
@@ -191,7 +180,7 @@ int main(int argc, char* argv[])
     ojph::thds::thread_pool thread_pool;
     thread_pool.init(num_threads);
     ojph::stex::frames_handler frames_handler;
-    frames_handler.init(quiet, display, decode, target_name, &thread_pool);
+    frames_handler.init(quiet, target_name, &thread_pool);
     ojph::stex::packets_handler packets_handler;
     packets_handler.init(quiet, num_inflight_packets, &frames_handler);
     ojph::net::socket_manager smanager;

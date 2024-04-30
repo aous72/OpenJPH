@@ -109,7 +109,7 @@ public:
   ui32 get_csrc_count() { return (ui32)(data[0]) & 0xF; }
   bool is_marked() { return (data[1] & 0x80) != 0; }
   ui32 get_payload_type() { return (ui32)(data[1]) & 0x7F; }
-  ui32 get_sequence_number() {
+  ui32 get_seq_num() {
     ui32 result = ntohs(*(ui16*)(data + 2));
     result |= ((ui32)data[15]) << 16;   // extended sequence (ESEQ)
     return result;
@@ -357,7 +357,7 @@ public:
    */
   stex_file() 
   { 
-    timestamp = last_seen_seq = 0; 
+    time_stamp = last_seen_seq = 0; 
     done.store(0, std::memory_order_relaxed);
     frame_idx = 0;
     parent = NULL;
@@ -399,7 +399,7 @@ public:
 
 public:  
   ojph::mem_outfile f;    //!<holds in-memory j2k codestream
-  ui32 timestamp;         //!<time stamp at which this file must be displayed
+  ui32 time_stamp;        //!<time stamp at which this file must be displayed
   ui32 last_seen_seq;     //!<the last seen RTP sequence number
   std::atomic_int done;   //!<saving is completed when 0 is reached
   ui32 frame_idx;         //!<frame number in the sequence

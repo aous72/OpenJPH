@@ -72,6 +72,9 @@ namespace ojph {
   void message_info::operator()(int info_code, const char* file_name,
     int line_num, const char* fmt, ...)
   {
+    if (info_stream == NULL)
+      return;
+    
     fprintf(info_stream, "ojph info 0x%08X at %s:%d: ",
       info_code, file_name, line_num);
     va_list args;
@@ -110,6 +113,9 @@ namespace ojph {
   void message_warning::operator()(int warn_code, const char* file_name,
     int line_num, const char *fmt, ...)
   {
+    if (warning_stream == NULL)
+      return;
+
     fprintf(warning_stream, "ojph warning 0x%08X at %s:%d: ",
       warn_code, file_name, line_num);
     va_list args;
@@ -148,6 +154,9 @@ namespace ojph {
   void message_error::operator()(int error_code, const char* file_name,
     int line_num, const char *fmt, ...)
   {
+    if (error_stream == NULL)
+      return;
+
     fprintf(error_stream, "ojph error 0x%08X at %s:%d: ",
       error_code, file_name, line_num);
     va_list args;

@@ -18,12 +18,14 @@ option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
+option(OJPH_BUILD_STREAM_EXPAND "Enables building ojph_stream_expand executable" OFF)
 
 ## Setting some of the options if EMSCRIPTEN is the compiler
 if(EMSCRIPTEN)
   set(OJPH_DISABLE_INTEL_SIMD ON)
   set(BUILD_SHARED_LIBS OFF)
   set(OJPH_ENABLE_TIFF_SUPPORT OFF)
+  set(OJPH_BUILD_STREAM_EXPAND OFF)
 endif()
 
 # This is related to how the timestamp is set for URL downloaded files.
@@ -50,7 +52,7 @@ message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 # C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
-  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   add_compile_options(
@@ -64,9 +66,9 @@ endif()
 
 ## The option OJPH_DISABLE_INTEL_SIMD and OJPH_ENABLE_INTEL_AVX512
 if (OJPH_DISABLE_INTEL_SIMD)
-  add_compile_options(-DOJPH_DISABLE_INTEL_SIMD)
+  add_compile_definitions(OJPH_DISABLE_INTEL_SIMD)
 elseif (OJPH_ENABLE_INTEL_AVX512)
-  add_compile_options(-DOJPH_ENABLE_INTEL_AVX512)
+  add_compile_definitions(OJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## Build library and applications

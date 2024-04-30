@@ -21,3 +21,4 @@ endif()
 ## Build executables
 add_subdirectory(ojph_expand)
 add_subdirectory(ojph_compress)
+add_subdirectory(ojph_stream_expand)

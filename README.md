@@ -10,7 +10,7 @@ The interested reader is referred to the [short HTJ2K white paper](http://ds.jpe
 
 The standard is available free of charge from [ITU website](https://www.itu.int/rec/T-REC-T.814/en). It can also be purchased from the [ISO website](https://www.iso.org/standard/76621.html).
 
-# Tabke of Contents #
+# Table of Contents #
 
 * [Status](/docs/status.md)
 * [Compiling](./docs/compiling.md)

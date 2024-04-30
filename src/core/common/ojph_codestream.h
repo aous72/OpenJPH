@@ -65,61 +65,39 @@ namespace ojph {
   class infile_base;
 
   ////////////////////////////////////////////////////////////////////////////
-  class codestream
+  class OJPH_EXPORT codestream
   {
   public:
-    OJPH_EXPORT
     codestream();
-    OJPH_EXPORT
     ~codestream();
 
-    OJPH_EXPORT
     void set_planar(bool planar);
-    OJPH_EXPORT
     void set_profile(const char* s);
-    OJPH_EXPORT    
     void set_tilepart_divisions(bool at_resolutions, bool at_components);
-    OJPH_EXPORT
     bool is_tilepart_division_at_resolutions();
-    OJPH_EXPORT
     bool is_tilepart_division_at_components();
 
-    OJPH_EXPORT    
     void request_tlm_marker(bool needed);
-    OJPH_EXPORT
     bool is_tlm_requested();
 
-    OJPH_EXPORT
     void write_headers(outfile_base *file, 
                        const comment_exchange* comments = NULL, 
                        ui32 num_comments = 0);
-    OJPH_EXPORT
     line_buf* exchange(line_buf* line, ui32& next_component);
-    OJPH_EXPORT
     void flush();
 
-    OJPH_EXPORT
     void enable_resilience();             // before read_headers
-    OJPH_EXPORT
     void read_headers(infile_base *file); // before resolution restrictions
-    OJPH_EXPORT
     void restrict_input_resolution(ui32 skipped_res_for_data,
-      ui32 skipped_res_for_recon);         // before create
-    OJPH_EXPORT
+                                   ui32 skipped_res_for_recon); //before create
     void create(); 
-    OJPH_EXPORT
     line_buf* pull(ui32 &comp_num);
 
-    OJPH_EXPORT
     void close();
 
-    OJPH_EXPORT
     param_siz access_siz();
-    OJPH_EXPORT
     param_cod access_cod();
-    OJPH_EXPORT
     param_qcd access_qcd();
-    OJPH_EXPORT
     bool is_planar() const;
 
   private:

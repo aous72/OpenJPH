@@ -216,9 +216,8 @@ int main(int argc, char* argv[])
     }
 
     // change recv buffer size; default is 65536
-    int32_t nsize = recvfrm_buf_size;
     if (::setsockopt(s.intern(), SOL_SOCKET, SO_RCVBUF,
-                   (char*)&nsize, sizeof(nsize)) == -1)
+                   (char*)&recvfrm_buf_size, sizeof(recvfrm_buf_size)) == -1)
     {
       std::string err = smanager.get_last_error_message();
       OJPH_INFO(0x02000001,

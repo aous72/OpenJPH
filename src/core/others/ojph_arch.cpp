@@ -160,7 +160,7 @@ namespace ojph {
     return true;
   }
 
-  #elif defined(OJPH_ARCH_ARM)
+  #elif defined(OJPH_ARCH_ARM) || defined(OJPH_ARCH_UNKNOWN)
 
   bool init_cpu_ext_level(int& level) {
     level = 0;

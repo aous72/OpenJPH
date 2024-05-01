@@ -66,7 +66,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 // preprocessor directives for architecture
 ///////////////////////////////////////////////////////////////////////////////
-#if defined(__arm__) || defined(__TARGET_ARCH_ARM) || defined(__arm64e__)
+#if defined(__arm__) || defined(__TARGET_ARCH_ARM)  \
+  || defined(__aarch64__) || defined(_M_ARM64)
   #define OJPH_ARCH_ARM
 #elif defined(__i386) || defined(__i386__) || defined(_M_IX86)
   #define OJPH_ARCH_I386
@@ -88,6 +89,12 @@
 #endif
 
 namespace ojph {
+  ////////////////////////////////////////////////////////////////////////////
+  //                  disable SIMD for unknown architecture
+  ////////////////////////////////////////////////////////////////////////////
+#if !defined(OJPH_ARCH_X86_64) && !defined(OJPH_ARCH_I386)
+#define OJPH_DISABLE_SIMD
+#endif // !OJPH_ARCH_UNKNOWN
 
   ////////////////////////////////////////////////////////////////////////////
   //                         OS detection definitions

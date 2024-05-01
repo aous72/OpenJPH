@@ -6,7 +6,7 @@
 # https://qt.gitorious.org/qt/qtbase/blobs/master/src/corelib/global/qprocessordetection.h
 
 set(archdetect_c_code "
-#if defined(__arm__) || defined(__TARGET_ARCH_ARM)
+#if defined(__arm__) || defined(__TARGET_ARCH_ARM) || defined(__arm64e__)
   #error cmake_ARCH OJPH_ARCH_ARM
 #elif defined(__i386) || defined(__i386__) || defined(_M_IX86)
   #error cmake_ARCH OJPH_ARCH_I386

@@ -66,7 +66,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // preprocessor directives for architecture
 ///////////////////////////////////////////////////////////////////////////////
-#if defined(__arm__) || defined(__TARGET_ARCH_ARM)
+#if defined(__arm__) || defined(__TARGET_ARCH_ARM) || defined(__arm64e__)
   #define OJPH_ARCH_ARM
 #elif defined(__i386) || defined(__i386__) || defined(_M_IX86)
   #define OJPH_ARCH_I386
@@ -83,6 +83,8 @@
   #else
     #define OJPH_ARCH_PPC
   #endif
+#else  
+  #define OJPH_ARCH_UNKNOWN
 #endif
 
 namespace ojph {

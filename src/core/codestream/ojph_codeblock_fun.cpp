@@ -124,49 +124,64 @@ namespace ojph {
       }
       encode_cb = ojph_encode_codeblock;
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
+  #ifndef OJPH_DISABLE_SIMD
 
-      // Accelerated functions for INTEL/AMD CPUs
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
-        mem_clear = sse_mem_clear;
+    #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2) {
-        find_max_val = sse2_find_max_val;
-        if (reversible) {
-          tx_to_cb = sse2_rev_tx_to_cb;
-          tx_from_cb = sse2_rev_tx_from_cb;
+        // Accelerated functions for INTEL/AMD CPUs
+      #ifndef OJPH_DISABLE_SSE
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
+          mem_clear = sse_mem_clear;
+      #endif // !OJPH_DISABLE_SSE
+
+      #ifndef OJPH_DISABLE_SSE2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2) {
+          find_max_val = sse2_find_max_val;
+          if (reversible) {
+            tx_to_cb = sse2_rev_tx_to_cb;
+            tx_from_cb = sse2_rev_tx_from_cb;
+          }
+          else {
+            tx_to_cb = sse2_irv_tx_to_cb;
+            tx_from_cb = sse2_irv_tx_from_cb;
+          }
         }
-        else {
-          tx_to_cb = sse2_irv_tx_to_cb;
-          tx_from_cb = sse2_irv_tx_from_cb;
+      #endif // !OJPH_DISABLE_SSE2
+
+      #ifndef OJPH_DISABLE_SSSE3
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSSE3)
+          decode_cb = ojph_decode_codeblock_ssse3;
+      #endif // !OJPH_DISABLE_SSSE3
+
+      #ifndef OJPH_DISABLE_AVX
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
+          mem_clear = avx_mem_clear;
+      #endif // !OJPH_DISABLE_AVX
+
+      #ifndef OJPH_DISABLE_AVX2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
+          find_max_val = avx2_find_max_val;
+          if (reversible) {
+            tx_to_cb = avx2_rev_tx_to_cb;
+            tx_from_cb = avx2_rev_tx_from_cb;
+          }
+          else {
+            tx_to_cb = avx2_irv_tx_to_cb;
+            tx_from_cb = avx2_irv_tx_from_cb;
+          }
         }
-      }
+      #endif // !OJPH_DISABLE_AVX2
 
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSSE3)
-        decode_cb = ojph_decode_codeblock_ssse3;
+      #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+          encode_cb = ojph_encode_codeblock_avx512;
+      #endif // !OJPH_DISABLE_AVX512
 
+    #elif defined(OJPH_ARCH_ARM)
+    
+    #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
-        mem_clear = avx_mem_clear;
-
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
-        find_max_val = avx2_find_max_val;
-        if (reversible) {
-          tx_to_cb = avx2_rev_tx_to_cb;
-          tx_from_cb = avx2_rev_tx_from_cb;
-        }
-        else {
-          tx_to_cb = avx2_irv_tx_to_cb;
-          tx_from_cb = avx2_irv_tx_from_cb;
-        }
-      }
-
-#ifdef OJPH_ENABLE_INTEL_AVX512
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
-        encode_cb = ojph_encode_codeblock_avx512;
-#endif // !OJPH_ENABLE_INTEL_AVX512
-
-#endif // !OJPH_DISABLE_INTEL_SIMD
+  #endif // !OJPH_DISABLE_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
 

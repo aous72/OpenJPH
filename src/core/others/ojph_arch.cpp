@@ -41,7 +41,9 @@
 
 namespace ojph {
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
+#ifndef OJPH_DISABLE_SIMD
+
+  #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
   ////////////////////////////////////////////////////////////////////////////
   // This snippet is borrowed from Intel; see for example
@@ -157,6 +159,15 @@ namespace ojph {
     }
     return true;
   }
+
+  #elif defined(OJPH_ARCH_ARM)
+
+  bool init_cpu_ext_level(int& level) {
+    level = 0;
+    return true;
+  }
+    
+  #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
 #elif defined(OJPH_ENABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
 

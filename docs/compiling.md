@@ -109,10 +109,8 @@ The scripts, in the ```.devcontainer``` folder, will build a docker image that c
 
 # Compiling for ARM and other platforms #
 
-To compile for platforms where x86_64 SIMD instructions are not supported, such as on ARM, we need to disable SIMD instructions; this can be achieved using
+Compilation should simply work now.  The simple test code I have passes when run on MacOS ARM on GitHub.
 
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=Release \ -DOJPH_DISABLE_INTEL_SIMD=ON ../
-    make
+# Disabling SIMD instructions #
 
-You may need to install libtiff. As I do not have an ARM board, I tested this using QEMU for aarch64 architecture, targeting a Cortex-A57 CPU. The code worked without issues, but because the ARM platform is emulated, the whole process was slow.
+The code now employs the architecture-agnostic option `OJPH_DISABLE_SIMD`, which should include SIMD instructions wherever they are supported.  This can be achieved with `-DOJPH_DISABLE_SIMD=ON` option during CMake configuration.  Individual instruction sets can be disabled; see the options in the main CMakeLists.txt file.

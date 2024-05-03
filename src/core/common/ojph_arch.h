@@ -103,6 +103,8 @@ namespace ojph {
 #define OJPH_OS_WINDOWS
 #elif (defined __APPLE__)
 #define OJPH_OS_APPLE
+#elif (defined __ANDROID__)
+#define OJPH_OS_ANDROID
 #elif (defined __linux)
 #define OJPH_OS_LINUX
 #endif

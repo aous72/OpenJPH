@@ -41,7 +41,9 @@
 
 namespace ojph {
 
-#if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+#ifndef OJPH_DISABLE_SIMD
+
+  #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
   ////////////////////////////////////////////////////////////////////////////
   // This snippet is borrowed from Intel; see for example
@@ -157,6 +159,41 @@ namespace ojph {
     }
     return true;
   }
+  #elif defined(OJPH_ARCH_ARM)
+
+    #ifndef OJPH_OS_LINUX  //Windows/Apple/Android
+
+    bool init_cpu_ext_level(int& level) {
+      level = 1;
+      return true;
+    }
+
+    #else  // Linux
+
+    #include <sys/auxv.h>
+    #include <asm/hwcap.h>
+
+    bool init_cpu_ext_level(int& level) {
+      unsigned long hwcaps= getauxval(AT_HWCAP);
+
+      if (hwcaps & HWCAP_NEON)
+        level = 1;
+      else
+        level = 0;
+      return true;
+    }
+
+    #endif
+
+  #else // architectures other than Intel/AMD and ARM
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool init_cpu_ext_level(int& level) {
+    level = 0;
+    return true;
+  }
+
+  #endif // !OJPH_DISABLE_SIMD
 
 #elif defined(OJPH_ENABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
 

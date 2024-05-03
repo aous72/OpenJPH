@@ -15,12 +15,29 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: cmake
-      run: cmake ..
+      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: make
+      working-directory: build
+
+  build_windows:
+    strategy:
+      matrix:
+        include: [
+          { system: Windows,  runner: windows-latest },
+        ]
+    name: ${{ matrix.system }} Build
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: cmake
+      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
       working-directory: build
 
   test:
@@ -33,7 +50,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: cmake
       run: cmake -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
@@ -53,9 +70,9 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=off -DOJPH_BUILD_TESTS=yes ..
+      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release

@@ -111,55 +111,67 @@ namespace ojph {
       irv_horz_ana              = gen_irv_horz_ana;
       irv_horz_syn              = gen_irv_horz_syn;
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
+  #ifndef OJPH_DISABLE_SIMD
 
-      int level = get_cpu_ext_level();
+    #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE)
-      {
-        irv_vert_step             = sse_irv_vert_step;
-        irv_vert_times_K          = sse_irv_vert_times_K;
-        irv_horz_ana              = sse_irv_horz_ana;
-        irv_horz_syn              = sse_irv_horz_syn;
-      }
+      #ifndef OJPH_DISABLE_SSE
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
+        {
+          irv_vert_step             = sse_irv_vert_step;
+          irv_vert_times_K          = sse_irv_vert_times_K;
+          irv_horz_ana              = sse_irv_horz_ana;
+          irv_horz_syn              = sse_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE2)
-      {
-        rev_vert_step             = sse2_rev_vert_step;
-        rev_horz_ana              = sse2_rev_horz_ana;
-        rev_horz_syn              = sse2_rev_horz_syn;
-      }
+      #ifndef OJPH_DISABLE_SSE2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
+        {
+          rev_vert_step             = sse2_rev_vert_step;
+          rev_horz_ana              = sse2_rev_horz_ana;
+          rev_horz_syn              = sse2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE2
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX)
-      {
-        irv_vert_step             = avx_irv_vert_step;
-        irv_vert_times_K          = avx_irv_vert_times_K;
-        irv_horz_ana              = avx_irv_horz_ana;      
-        irv_horz_syn              = avx_irv_horz_syn;
-      }
+      #ifndef OJPH_DISABLE_AVX
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
+        {
+          irv_vert_step             = avx_irv_vert_step;
+          irv_vert_times_K          = avx_irv_vert_times_K;
+          irv_horz_ana              = avx_irv_horz_ana;      
+          irv_horz_syn              = avx_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX2)
-      {
-        rev_vert_step             = avx2_rev_vert_step;
-        rev_horz_ana              = avx2_rev_horz_ana;
-        rev_horz_syn              = avx2_rev_horz_syn;
-      }
+      #ifndef OJPH_DISABLE_AVX2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
+        {
+          rev_vert_step             = avx2_rev_vert_step;
+          rev_horz_ana              = avx2_rev_horz_ana;
+          rev_horz_syn              = avx2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX2
 
-#ifdef OJPH_ENABLE_INTEL_AVX512
-      if (level >= X86_CPU_EXT_LEVEL_AVX512)
-      {
-        rev_vert_step             = avx512_rev_vert_step;
-        rev_horz_ana              = avx512_rev_horz_ana;
-        rev_horz_syn              = avx512_rev_horz_syn;
+      #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+        {
+          rev_vert_step             = avx512_rev_vert_step;
+          rev_horz_ana              = avx512_rev_horz_ana;
+          rev_horz_syn              = avx512_rev_horz_syn;
 
-        irv_vert_step             = avx512_irv_vert_step;
-        irv_vert_times_K          = avx512_irv_vert_times_K;
-        irv_horz_ana              = avx512_irv_horz_ana;
-        irv_horz_syn              = avx512_irv_horz_syn;
-      }
-#endif // !OJPH_ENABLE_INTEL_AVX512
+          irv_vert_step             = avx512_irv_vert_step;
+          irv_vert_times_K          = avx512_irv_vert_times_K;
+          irv_horz_ana              = avx512_irv_horz_ana;
+          irv_horz_syn              = avx512_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX512
+    
+    #elif defined(OJPH_ARCH_ARM)
 
-#endif // !OJPH_DISABLE_INTEL_SIMD
+    #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+
+  #endif // !OJPH_DISABLE_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
         rev_vert_step             = wasm_rev_vert_step;

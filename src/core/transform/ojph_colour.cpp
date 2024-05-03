@@ -106,45 +106,59 @@ namespace ojph {
       ict_forward = gen_ict_forward;
       ict_backward = gen_ict_backward;
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
-      int level = get_cpu_ext_level();
+  #ifndef OJPH_DISABLE_SIMD
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE)
-      {
-        cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
-        cnvrt_si32_to_float = sse_cnvrt_si32_to_float;
-        cnvrt_float_to_si32_shftd = sse_cnvrt_float_to_si32_shftd;
-        cnvrt_float_to_si32 = sse_cnvrt_float_to_si32;
-        ict_forward = sse_ict_forward;
-        ict_backward = sse_ict_backward;
-      }
+    #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE2)
-      {
-        cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
-        cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
-        cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
-        rct_forward = sse2_rct_forward;
-        rct_backward = sse2_rct_backward;
-      }
+      #ifndef OJPH_DISABLE_SSE
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
+        {
+          cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
+          cnvrt_si32_to_float = sse_cnvrt_si32_to_float;
+          cnvrt_float_to_si32_shftd = sse_cnvrt_float_to_si32_shftd;
+          cnvrt_float_to_si32 = sse_cnvrt_float_to_si32;
+          ict_forward = sse_ict_forward;
+          ict_backward = sse_ict_backward;
+        }
+      #endif // !OJPH_DISABLE_SSE
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX)
-      {
-        cnvrt_si32_to_float_shftd = avx_cnvrt_si32_to_float_shftd;
-        cnvrt_si32_to_float = avx_cnvrt_si32_to_float;
-        cnvrt_float_to_si32_shftd = avx_cnvrt_float_to_si32_shftd;
-        cnvrt_float_to_si32 = avx_cnvrt_float_to_si32;
-        ict_forward = avx_ict_forward;
-        ict_backward = avx_ict_backward;
-      }
+      #ifndef OJPH_DISABLE_SSE2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
+        {
+          cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
+          cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
+          cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
+          rct_forward = sse2_rct_forward;
+          rct_backward = sse2_rct_backward;
+        }
+      #endif // !OJPH_DISABLE_SSE2
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX2)
-      {
-        cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
-        rct_forward = avx2_rct_forward;
-        rct_backward = avx2_rct_backward;
-      }
-#endif // !OJPH_DISABLE_INTEL_SIMD
+      #ifndef OJPH_DISABLE_AVX
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
+        {
+          cnvrt_si32_to_float_shftd = avx_cnvrt_si32_to_float_shftd;
+          cnvrt_si32_to_float = avx_cnvrt_si32_to_float;
+          cnvrt_float_to_si32_shftd = avx_cnvrt_float_to_si32_shftd;
+          cnvrt_float_to_si32 = avx_cnvrt_float_to_si32;
+          ict_forward = avx_ict_forward;
+          ict_backward = avx_ict_backward;
+        }
+      #endif // !OJPH_DISABLE_AVX
+
+      #ifndef OJPH_DISABLE_AVX2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
+        {
+          cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
+          rct_forward = avx2_rct_forward;
+          rct_backward = avx2_rct_backward;
+        }
+      #endif // !OJPH_DISABLE_AVX2
+
+    #elif defined(OJPH_ARCH_ARM)
+    
+    #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+
+  #endif // !OJPH_DISABLE_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
       cnvrt_si32_to_si32_shftd = wasm_cnvrt_si32_to_si32_shftd;

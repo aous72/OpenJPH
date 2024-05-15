@@ -92,7 +92,8 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   //                  disable SIMD for unknown architecture
   ////////////////////////////////////////////////////////////////////////////
-#if !defined(OJPH_ARCH_X86_64) && !defined(OJPH_ARCH_I386)
+#if !defined(OJPH_ARCH_X86_64) && !defined(OJPH_ARCH_I386) &&  \
+    !defined(OJPH_ARCH_ARM) && !defined(OJPH_DISABLE_SIMD)
 #define OJPH_DISABLE_SIMD
 #endif // !OJPH_ARCH_UNKNOWN
 

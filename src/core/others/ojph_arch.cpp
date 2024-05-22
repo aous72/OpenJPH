@@ -164,24 +164,47 @@ namespace ojph {
     #ifndef OJPH_OS_LINUX  //Windows/Apple/Android
 
     bool init_cpu_ext_level(int& level) {
-      level = 1;
+      level = ARM_CPU_EXT_LEVEL_ASIMD;
       return true;
     }
 
     #else  // Linux
 
-    #include <sys/auxv.h>
-    #include <asm/hwcap.h>
+      #ifdef defined(__aarch64__) || defined(_M_ARM64) // 64 bit ARM
 
-    bool init_cpu_ext_level(int& level) {
-      unsigned long hwcaps= getauxval(AT_HWCAP);
+        #include <sys/auxv.h>
+        #include <asm/hwcap.h>
 
-      if (hwcaps & HWCAP_NEON)
-        level = 1;
-      else
-        level = 0;
-      return true;
-    }
+        bool init_cpu_ext_level(int& level) {
+          unsigned long hwcaps = getauxval(AT_HWCAP);
+          unsigned long hwcaps2 = getauxval(AT_HWCAP2);
+
+          level = ARM_CPU_EXT_LEVEL_GENERIC;
+          if (hwcaps & HWCAP_ASIMD) {
+            level = ARM_CPU_EXT_LEVEL_ASIMD;
+            if (hwcaps & HWCAP_SVE) {
+              level = ARM_CPU_EXT_LEVEL_SVE;
+              if (hwcaps2 & HWCAP2_SVE2)
+                level = ARM_CPU_EXT_LEVEL_SVE2;
+            }
+          }
+          return true;          
+        }
+
+      #else // ARM 32 bit
+
+        #include <sys/auxv.h>
+        #include <asm/hwcap.h>
+
+        bool init_cpu_ext_level(int& level) {
+          unsigned long hwcaps = getauxval(AT_HWCAP);
+          level = ARM_CPU_EXT_LEVEL_GENERIC;
+          if (hwcaps & HWCAP_NEON)
+            level = ARM_CPU_EXT_LEVEL_NEON;
+          return true;
+        }
+
+      #endif // end of ARM 64 bit
 
     #endif
 

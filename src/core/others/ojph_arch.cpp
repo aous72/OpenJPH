@@ -170,7 +170,7 @@ namespace ojph {
 
     #else  // Linux
 
-      #ifdef defined(__aarch64__) || defined(_M_ARM64) // 64 bit ARM
+      #if defined(__aarch64__) || defined(_M_ARM64) // 64-bit ARM
 
         #include <sys/auxv.h>
         #include <asm/hwcap.h>
@@ -191,7 +191,7 @@ namespace ojph {
           return true;          
         }
 
-      #else // ARM 32 bit
+      #else // 32-bit ARM
 
         #include <sys/auxv.h>
         #include <asm/hwcap.h>
@@ -204,7 +204,7 @@ namespace ojph {
           return true;
         }
 
-      #endif // end of ARM 64 bit
+      #endif // end of 64-bit ARM
 
     #endif
 

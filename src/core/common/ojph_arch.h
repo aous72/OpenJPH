@@ -140,6 +140,14 @@ namespace ojph {
     X86_CPU_EXT_LEVEL_AVX512 = 11,
   };
 
+  enum : int {
+    ARM_CPU_EXT_LEVEL_GENERIC = 0,
+    ARM_CPU_EXT_LEVEL_NEON = 1,
+    ARM_CPU_EXT_LEVEL_ASIMD = 1,
+    ARM_CPU_EXT_LEVEL_SVE = 2,
+    ARM_CPU_EXT_LEVEL_SVE2 = 3,
+  };
+
   /////////////////////////////////////////////////////////////////////////////
   static inline ui32 population_count(ui32 val)
   {

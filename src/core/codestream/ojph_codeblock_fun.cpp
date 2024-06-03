@@ -170,6 +170,7 @@ namespace ojph {
             tx_from_cb = avx2_irv_tx_from_cb;
           }
           encode_cb = ojph_encode_codeblock_avx2;
+          decode_cb = ojph_decode_codeblock_avx2;
         }
       #endif // !OJPH_DISABLE_AVX2
 

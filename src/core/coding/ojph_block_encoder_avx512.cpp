@@ -377,6 +377,13 @@ namespace ojph {
       if (melp->run > 0)
         mel_emit_bit(melp, 1);
 
+      if (vlcp->last_greater_than_8F && (vlcp->tmp & 0x7f) == 0x7f) {
+        *(vlcp->buf - vlcp->pos) = 0x7f;
+        vlcp->pos++;
+        vlcp->tmp >>= 7;
+        vlcp->used_bits -= 7;
+      }
+
       melp->tmp = melp->tmp << melp->remaining_bits;
       int mel_mask = (0xFF << melp->remaining_bits) & 0xFF;
       int vlc_mask = 0xFF >> (8 - vlcp->used_bits);

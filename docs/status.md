@@ -6,4 +6,4 @@ The encoder supports lossless and quantization-based lossy encoding.  There is c
 
 As it stands, the OpenJPH library needs documentation. The provided encoder ojph\_compress only generates HTJ2K codestreams, with the extension j2c; the generated files lack the .jph header.  Adding the .jph header is of little urgency, as the codestream contains all needed information to properly decode an image.  The .jph header will be added at a future point in time.  The provided decoder ojph\_expand decodes .jph files, by ignoring the .jph header if it is present.
 
-The provided command line tools ojph\_compress and ojph\_expand accepts and generated .pgm, .ppm, .yuv, .raw, and .dpx. See the usage examples below.
+The provided command line tools ojph\_compress and ojph\_expand accepts and generates .pgm, .ppm, .yuv, .raw, and .dpx. See the usage examples below.

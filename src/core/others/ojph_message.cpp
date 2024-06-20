@@ -48,16 +48,16 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   message_info info;
-  message_info& local_info = info;
+  message_info* local_info = &info;
 
   ////////////////////////////////////////////////////////////////////////////
   void configure_info(message_info* info)
   {
-    local_info = *info;
+    local_info = info;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  message_info& get_info()
+  message_info* get_info()
   {
     return local_info;
   }
@@ -89,16 +89,16 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   message_warning warn;
-  message_warning& local_warn = warn;
+  message_warning* local_warn = &warn;
 
   ////////////////////////////////////////////////////////////////////////////
   void configure_warning(message_warning* warn)
   {
-    local_warn = *warn;
+    local_warn = warn;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  message_warning& get_warning()
+  message_warning* get_warning()
   {
     return local_warn;
   }
@@ -130,16 +130,16 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   message_error error;
-  message_error& local_error = error;
+  message_error* local_error = &error;
 
   ////////////////////////////////////////////////////////////////////////////
   void configure_error(message_error* error)
   {
-    local_error = *error;
+    local_error = error;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  message_error& get_error()
+  message_error* get_error()
   {
     return local_error;
   }
@@ -154,18 +154,17 @@ namespace ojph {
   void message_error::operator()(int error_code, const char* file_name,
     int line_num, const char *fmt, ...)
   {
-    if (error_stream == NULL)
-      return;
-
-    fprintf(error_stream, "ojph error 0x%08X at %s:%d: ",
-      error_code, file_name, line_num);
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(error_stream, fmt, args);
-    fprintf(error_stream, "\n");
-    va_end(args);
+    if (error_stream != NULL)
+    {
+      fprintf(error_stream, "ojph error 0x%08X at %s:%d: ",
+        error_code, file_name, line_num);
+      va_list args;
+      va_start(args, fmt);
+      vfprintf(error_stream, fmt, args);
+      fprintf(error_stream, "\n");
+      va_end(args);
+    }
 
     throw std::runtime_error("ojph error");
   }
-
 }

@@ -558,7 +558,7 @@ int main(int argc, char * argv[]) {
     "               LRCP, RLCP, RPCL, PCRL, CPRL\n"
     " -block_size   {x,y} (64,64) where x and y are the height and width of\n"
     "               a codeblock. In unix-like environment, { and } must be\n"
-    "               proceeded by a ""\\""\n"
+    "               preceded by a ""\\""\n"
     " -precincts    {x,y},{x,y},...,{x,y} where {x,y} is the precinct size\n"
     "               starting from the coarsest resolution; the last precinct\n"
     "               is repeated for all finer resolutions\n"

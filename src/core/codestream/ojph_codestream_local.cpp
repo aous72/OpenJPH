@@ -719,7 +719,7 @@ namespace ojph {
         {
           OJPH_ERROR(0x00030001, "%s", msg);
         }
-        else
+        else // there is the option of ALL_MSG but it should not be used here
           assert(0);
       }
       return 0;

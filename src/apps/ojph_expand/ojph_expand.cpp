@@ -187,8 +187,10 @@ int main(int argc, char *argv[]) {
     "            number of skipped resolution for reconstruction, which is\n"
     "            either equal to the first or smaller. If the second is not\n"
     "            specified, it is made to equal to the first.\n"
-    " -resilient true if you want the decoder to be more tolerant of errors\n"
-    "            in the codestream\n\n"
+    " -resilient <true | false> if 'true', the decoder will not exit when\n"
+    "            running into recoverable errors in the codestream.\n"
+    "            Default: 'false'.\n"
+    "\n"
     ;
     return -1;
   }

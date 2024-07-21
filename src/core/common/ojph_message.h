@@ -51,10 +51,11 @@ namespace ojph {
    */
   enum OJPH_MSG_LEVEL : int
   {
-    NO_MSG = 0,
-    INFO = 1,
-    WARN = 2,
-    ERROR = 3
+    ALL_MSG = 0,  // uninitialized or print all message
+    INFO = 1,     // info message
+    WARN = 2,     // warning message
+    ERROR = 3,    // error message (the highest severity)
+    NO_MSG = 4,   // no message (higher severity for message printing only)
   };
 
   //////////////////////////////////////////////////////////////////////////////
@@ -251,6 +252,16 @@ namespace ojph {
    */
   OJPH_EXPORT
     message_error* get_error();
+
+  //////////////////////////////////////////////////////////////////////////////
+  /**
+   * @brief Sets the minimum severity of the message to be reported.
+   *
+   * @param level is the level of the message severity; values are defined in
+   *              OJPH_MSG_LEVEL.
+   */
+  OJPH_EXPORT
+    void set_message_level(OJPH_MSG_LEVEL level);
 }
 
 //////////////////////////////////////////////////////////////////////////////

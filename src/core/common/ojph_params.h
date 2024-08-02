@@ -39,6 +39,7 @@
 #ifndef OJPH_PARAMS_H
 #define OJPH_PARAMS_H
 
+#include "ojph_arch.h"
 #include "ojph_base.h"
 
 namespace ojph {
@@ -55,49 +56,32 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_siz
+  class OJPH_EXPORT param_siz
   {
   public:
-    OJPH_EXPORT
     param_siz(local::param_siz *p) : state(p) {}
 
     //setters
-    OJPH_EXPORT
     void set_image_extent(point extent);
-    OJPH_EXPORT
     void set_tile_size(size s);
-    OJPH_EXPORT
     void set_image_offset(point offset);
-    OJPH_EXPORT
     void set_tile_offset(point offset);
-    OJPH_EXPORT
     void set_num_components(ui32 num_comps);
-    OJPH_EXPORT
     void set_component(ui32 comp_num, const point& downsampling,
                        ui32 bit_depth, bool is_signed);
 
     //getters
-    OJPH_EXPORT
     point get_image_extent() const;
-    OJPH_EXPORT
     point get_image_offset() const;
-    OJPH_EXPORT
     size get_tile_size() const;
-    OJPH_EXPORT
     point get_tile_offset() const;
-    OJPH_EXPORT
     ui32 get_num_components() const;
-    OJPH_EXPORT
     ui32 get_bit_depth(ui32 comp_num) const;
-    OJPH_EXPORT
     bool is_signed(ui32 comp_num) const;
-    OJPH_EXPORT
     point get_downsampling(ui32 comp_num) const;
 
     //deeper getters
-    OJPH_EXPORT
     ui32 get_recon_width(ui32 comp_num) const;
-    OJPH_EXPORT
     ui32 get_recon_height(ui32 comp_num) const;
 
   private:
@@ -105,50 +89,30 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_cod
+  class OJPH_EXPORT param_cod
   {
   public:
-    OJPH_EXPORT
     param_cod(local::param_cod* p) : state(p) {}
 
-    OJPH_EXPORT
     void set_num_decomposition(ui32 num_decompositions);
-    OJPH_EXPORT
     void set_block_dims(ui32 width, ui32 height);
-    OJPH_EXPORT
     void set_precinct_size(int num_levels, size* precinct_size);
-    OJPH_EXPORT
     void set_progression_order(const char *name);
-    OJPH_EXPORT
     void set_color_transform(bool color_transform);
-    OJPH_EXPORT
     void set_reversible(bool reversible);
 
-    OJPH_EXPORT
     ui32 get_num_decompositions() const;
-    OJPH_EXPORT
     size get_block_dims() const;
-    OJPH_EXPORT
     size get_log_block_dims() const;
-    OJPH_EXPORT
     bool is_reversible() const;
-    OJPH_EXPORT
     size get_precinct_size(ui32 level_num) const;
-    OJPH_EXPORT
     size get_log_precinct_size(ui32 level_num) const;
-    OJPH_EXPORT
     int get_progression_order() const;
-    OJPH_EXPORT
     const char* get_progression_order_as_string() const;
-    OJPH_EXPORT
     int get_num_layers() const;
-    OJPH_EXPORT
     bool is_using_color_transform() const;
-    OJPH_EXPORT
     bool packets_may_use_sop() const;
-    OJPH_EXPORT
     bool packets_use_eph() const;
-    OJPH_EXPORT
     bool get_block_vertical_causality() const;
 
   private:
@@ -156,13 +120,11 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class param_qcd
+  class OJPH_EXPORT param_qcd
   {
   public:
-    OJPH_EXPORT
     param_qcd(local::param_qcd* p) : state(p) {}
 
-    OJPH_EXPORT
     void set_irrev_quant(float delta);
 
   private:
@@ -170,32 +132,19 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
-  class comment_exchange
+  class OJPH_EXPORT comment_exchange
   {
     friend class local::codestream;
   public:
     comment_exchange() : data(NULL), len(0), Rcom(0) {}
-    OJPH_EXPORT
-    void set_string(char* str);
-    OJPH_EXPORT
-    void set_data(char* data, ui16 len);
+    void set_string(const char* str);
+    void set_data(const char* data, ui16 len);
 
   private:
-    char* data;
+    const char* data;
     ui16 len;
     ui16 Rcom;
   };
-
-  ////////////////////////////////////////////////////////////////////////////
-  //class param_qcc
-  //{
-  //public:
-  //  OJPH_EXPORT
-  //  param_qcc(local::param_qcc* p) : state(p) {}
-
-  //private:
-  //  local::param_qcc* state;
-  //};
 
 }
 

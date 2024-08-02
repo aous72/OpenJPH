@@ -59,7 +59,7 @@ namespace ojph {
     {
       precinct() {
         scratch = NULL; bands = NULL; coded = NULL;
-        num_bands = 0; may_use_sop = uses_eph = false;
+        may_use_sop = uses_eph = false;
       }
       ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
@@ -69,11 +69,10 @@ namespace ojph {
                  ui32& data_left, infile_base *file, bool skipped);
 
       ui8 *scratch;
-      point img_point;   //the precinct projected to full resolution
+      point img_point; //the precinct projected to full resolution
       rect cb_idxs[4]; //indices of codeblocks
       subband *bands;  //the subbands
       coded_lists* coded;
-      ui32 num_bands;
       bool may_use_sop, uses_eph;
     };
 

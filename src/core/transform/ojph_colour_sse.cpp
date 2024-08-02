@@ -42,7 +42,7 @@
 #include "ojph_colour.h"
 #include "ojph_colour_local.h"
 
-#include <immintrin.h>
+#include <xmmintrin.h>
 
 namespace ojph {
   namespace local {

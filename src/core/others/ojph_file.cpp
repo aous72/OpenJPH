@@ -101,46 +101,69 @@ namespace ojph {
   /**  */
   mem_outfile::mem_outfile()
   {
-    is_open = false;
-    buf_size = 0;
+    is_open = clear_mem = false;
+    buf_size = used_size = 0;
     buf = cur_ptr = NULL;
   }
 
   /**  */
   mem_outfile::~mem_outfile()
   {
-    close();
+    if (buf)
+      free(buf);
+    is_open = clear_mem = false;
+    buf_size = used_size = 0;
+    buf = cur_ptr = NULL;
   }
 
   /**  */
-  void mem_outfile::open(size_t initial_size /* = 65536 */)
+  void mem_outfile::open(size_t initial_size, bool clear_mem)
   {
     assert(this->is_open == false);
-    assert(this->buf_size == 0);
-    assert(this->buf == NULL);
-    assert(this->cur_ptr == NULL);
+    assert(this->cur_ptr == this->buf);
 
-    // do initial buffer allocation
+    // do initial buffer allocation or buffer expansion
     this->is_open = true;
-    this->buf_size = initial_size;
-    if (initial_size)
-      this->buf = (ui8*)malloc(this->buf_size);
+    this->clear_mem = clear_mem;
+    expand_storage(initial_size, this->clear_mem);
+    this->used_size = 0;
     this->cur_ptr = this->buf;
   }
 
   /**  */
   void mem_outfile::close() {
-    if (buf)
-      free(buf);
     is_open = false;
-    buf_size = 0;
-    buf = cur_ptr = NULL;
+    cur_ptr = buf;
   }
 
-  /** The function starts with a buffer size of 65536.  Then, whenever the
-   *  need arises, this buffer is expanded by a factor approx 1.5x
+  /** The seek function expands the buffer whenever offset goes beyond
+   *  the buffer end
    */
-  size_t mem_outfile::write(const void *ptr, size_t size)
+  int mem_outfile::seek(si64 offset, enum outfile_base::seek origin)
+  {
+    if (origin == OJPH_SEEK_SET)
+      ; // do nothing
+    else if (origin == OJPH_SEEK_CUR)
+      offset += tell();
+    else if (origin == OJPH_SEEK_END)
+      offset += (si64)buf_size;
+    else {
+      assert(0); 
+      return -1;
+    }
+    
+    if (offset >= 0)
+      expand_storage((size_t)offset, false);
+    else
+      return -1;
+
+    cur_ptr = buf + offset;
+    return 0;
+  }
+
+  /** Whenever the need arises, the buffer is expanded by a factor approx 1.5x
+   */
+  size_t mem_outfile::write(const void *ptr, size_t new_size)
   {
     assert(this->is_open);
     assert(this->buf_size);
@@ -148,24 +171,51 @@ namespace ojph {
     assert(this->cur_ptr);
 
     // expand buffer if needed to make sure it has room for this write
-    si64 used_size = tell(); //current used size
-    size_t new_used_size = (size_t)used_size + size; //needed size
-    if (new_used_size > this->buf_size) //only expand when there is need
-    {
-      size_t new_buf_size = this->buf_size;
-      while (new_used_size > new_buf_size)
-        new_buf_size += new_buf_size >> 1; //expand by ~1.5x
-
-      this->buf = (ui8*)realloc(this->buf, new_buf_size);
-      this->buf_size = new_buf_size;
-      this->cur_ptr = this->buf + used_size;
-    }
+    size_t needed_size = (size_t)tell() + new_size; //needed size
+    expand_storage(needed_size, false);
 
     // copy bytes into buffer and adjust cur_ptr
-    memcpy(this->cur_ptr, ptr, size);
-    cur_ptr += size;
+    memcpy(this->cur_ptr, ptr, new_size);
+    cur_ptr += new_size;
+    used_size = ojph_max(used_size, (size_t)tell());
 
-    return size;
+    return new_size;
+  }
+
+  /** */
+  void mem_outfile::write_to_file(const char *file_name) const
+  {
+    assert(is_open == false);
+    FILE *f = fopen(file_name, "wb");
+    if (f == NULL)
+      OJPH_ERROR(0x00060003, "failed to open %s for writing", file_name);
+    if (f != NULL)
+      if (fwrite(this->buf, 1, used_size, f) != used_size)
+        OJPH_ERROR(0x00060004, "failed writing to %s", file_name);
+    fclose(f);
+  }
+
+  /** */
+  void mem_outfile::expand_storage(size_t needed_size, bool clear_all)
+  {
+    needed_size += (needed_size + 1) >> 1; // x1.5
+    if (needed_size > buf_size)
+    {
+      si64 used_size = tell(); // current used size
+
+      if (this->buf)
+        this->buf = (ui8*)realloc(this->buf, needed_size);
+      else
+        this->buf = (ui8*)malloc(needed_size);
+
+      if (clear_mem && !clear_all) // will be cleared later
+        memset(this->buf + buf_size, 0, needed_size - this->buf_size);
+      
+      this->buf_size = needed_size;
+      this->cur_ptr = this->buf + used_size;
+    }
+    if (clear_all)
+      memset(this->buf, 0, this->buf_size);
   }
 
 

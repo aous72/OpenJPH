@@ -276,7 +276,7 @@ namespace ojph {
     {
       close();
       OJPH_ERROR(0x030000005, "wrong file extension, a file with keyword P6 "
-        "must have a .ppm extension fir file %s", filename);
+        "must have a .ppm extension for file %s", filename);
     }
 
     // set number of components based on file-type
@@ -309,7 +309,7 @@ namespace ojph {
           temp_buf = malloc(temp_buf_byte_size);
         if (temp_buf == NULL) { // failed to allocate memory
           if (t) free(t); // the original buffer is still valid
-          OJPH_ERROR(0x030000007, "error allocating mmeory");
+          OJPH_ERROR(0x030000007, "error allocating memory");
         }
       }
       else
@@ -471,39 +471,49 @@ namespace ojph {
         converter = gen_cvrt_32b3c_to_16ub3c_be;
     }
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
+#ifndef OJPH_DISABLE_SIMD
 
-    if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE41) {
-      if (bytes_per_sample == 1) {
-        if (num_components == 1) 
-          converter = sse41_cvrt_32b1c_to_8ub1c;
-        else
-          converter = sse41_cvrt_32b3c_to_8ub3c;
-      }
-      else {
-        if (num_components == 1) 
-          converter = sse41_cvrt_32b1c_to_16ub1c_be;
-        else
-          converter = sse41_cvrt_32b3c_to_16ub3c_be;
-      }
-    }
+  #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-    if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
-      if (bytes_per_sample == 1) {
-        if (num_components == 1) 
-          converter = avx2_cvrt_32b1c_to_8ub1c;
-        else
-          converter = avx2_cvrt_32b3c_to_8ub3c;
+    #ifndef OJPH_DISABLE_SSE4
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE41) {
+        if (bytes_per_sample == 1) {
+          if (num_components == 1) 
+            converter = sse41_cvrt_32b1c_to_8ub1c;
+          else
+            converter = sse41_cvrt_32b3c_to_8ub3c;
+        }
+        else {
+          if (num_components == 1) 
+            converter = sse41_cvrt_32b1c_to_16ub1c_be;
+          else
+            converter = sse41_cvrt_32b3c_to_16ub3c_be;
+        }
       }
-      else {
-        if (num_components == 1) 
-          converter = avx2_cvrt_32b1c_to_16ub1c_be;
-        else
-          { } // did not find an implementation better than sse41
-      }
-    }
+    #endif // !OJPH_DISABLE_SSE4
 
-#endif
+    #ifndef OJPH_DISABLE_AVX2
+      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
+        if (bytes_per_sample == 1) {
+          if (num_components == 1) 
+            converter = avx2_cvrt_32b1c_to_8ub1c;
+          else
+            converter = avx2_cvrt_32b3c_to_8ub3c;
+        }
+        else {
+          if (num_components == 1) 
+            converter = avx2_cvrt_32b1c_to_16ub1c_be;
+          else
+            { } // did not find an implementation better than sse41
+        }
+      }
+    #endif // !OJPH_DISABLE_AVX2
+
+  #elif defined(OJPH_ARCH_ARM)
+
+  #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+
+#endif // !OJPH_DISABLE_SIMD
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -586,7 +596,7 @@ namespace ojph {
     // Error on known incompatilbe input formats
     if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 )
     {
-      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited to file limited"
+      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited"
         " to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \n"
         "input file = %s has TIFFTAG_BITSPERSAMPLE=%d", 
         filename, tiff_bits_per_sample);
@@ -1650,7 +1660,7 @@ namespace ojph {
         be2le(offset_to_data_for_image_element_1);
 
     // set to starting point of image data
-    if (fseek(file_handle, offset_to_image_data_in_bytes, SEEK_SET) != 0)
+    if (fseek(file_handle, (long)offset_to_image_data_in_bytes, SEEK_SET) != 0)
     {
       close();
       OJPH_ERROR(0x0300000E7, "Error reading file %s", filename);

@@ -1,36 +1,74 @@
 cmake_minimum_required(VERSION 3.11.0)
 
-project (openjph DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+## Library name/version
+include(ojph_version.cmake)
+
+## project
+project (openjph VERSION ${OPENJPH_VERSION} DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ################################################################################################
 # Building OpenJPH
 ################################################################################################
 
-############################################################
-# Parse version file
-# credit: https://stackoverflow.com/a/47084079
+## Target architecture
+# We use the target architecture to help with arranging files in "source_group" commands.
+# The code does not use the results provided by target_arch.cmake, and relies, instead, 
+# on its own logic, which matches that in target_arch.cmake, to identify the architecture
+include(target_arch.cmake)
+target_architecture(OJPH_TARGET_ARCH)
+message(STATUS "CPU Architecture is ${OJPH_TARGET_ARCH}")
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/common/ojph_version.h" VERFILE)
-if (NOT VERFILE)
-    message(FATAL_ERROR "Failed to parse ojph_version.h!")
-endif()
-
-string(REGEX MATCH "OPENJPH_VERSION_MAJOR ([0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_MAJOR ${CMAKE_MATCH_1})
-string(REGEX MATCH "OPENJPH_VERSION_MINOR ([0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_MINOR ${CMAKE_MATCH_1})
-string(REGEX MATCH "OPENJPH_VERSION_PATCH ([a-z0-9]*)" _ ${VERFILE})
-set(OPENJPH_VERSION_PATCH ${CMAKE_MATCH_1})
-
-set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH_VERSION_PATCH}")
-############################################################
-
-option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
-option(OJPH_ENABLE_INTEL_AVX512 "enables the use of AVX512 SIMD instructions and associated files" ON)
+## options
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
+option(OJPH_BUILD_STREAM_EXPAND "Enables building ojph_stream_expand executable" OFF)
+
+option(OJPH_DISABLE_SIMD "Disables the use of SIMD instructions -- agnostic to architectures" OFF)
+option(OJPH_DISABLE_SSE "Disables the use of SSE SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_SSE2 "Disables the use of SSE2 SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_SSSE3 "Disables the use of SSSE3 SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_SSE4 "Disables the use of SSE4 SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_AVX "Disables the use of AVX SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_AVX2 "Disables the use of AVX2 SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_AVX512 "Disables the use of AVX512 SIMD instructions and associated files" OFF)
+option(OJPH_DISABLE_NEON "Disables the use of NEON SIMD instructions and associated files" OFF)
+
+## options that are being deprecated
+if (DEFINED OJPH_DISABLE_INTEL_SIMD)
+  message(STATUS "OJPH_DISABLE_INTEL_SIMD is being deprecated. Instead, use \"OJPH_DISABLE_SIMD\", "
+                 "which is architecture agnostic. If you do not specify any, the default is "
+                 "OJPH_DISABLE_SIMD=OFF.")
+  set(OJPH_DISABLE_SIMD ${OJPH_DISABLE_INTEL_SIMD})
+  message(STATUS "OJPH_DISABLE_SIMD is set to ${OJPH_DISABLE_SIMD}")  
+  unset(OJPH_DISABLE_INTEL_SIMD)  
+endif()
+if (DEFINED OJPH_ENABLE_INTEL_AVX512)
+  message(STATUS "OJPH_ENABLE_INTEL_AVX512 is being deprecated, use \"OJPH_DISABLE_AVX512\" instead."
+                 "If you do not specify any, the default is OJPH_DISABLE_AVX512=OFF.")
+  if (OJPH_ENABLE_INTEL_AVX512)
+    set(OJPH_DISABLE_AVX512 OFF)
+  else()
+    set(OJPH_DISABLE_AVX512 ON)
+  endif()
+  message(STATUS "OJPH_DISABLE_AVX512 is set to ${OJPH_DISABLE_AVX512}")  
+  unset(OJPH_ENABLE_INTEL_AVX512)
+endif()
+
+## Setting some of the options if EMSCRIPTEN is the compiler
+# WebAssembly SIMD is treated differently.  The SIMD flags above have no effect on the 
+# use of WASM SIMD.  This is because, for WASM, both non-SIMD and SIMD are required,
+# and therefore two sets of binaries are generated. For CPUs, one binary can carry both 
+# non-SIMD and SIMD, and the program, at run-time, can decide which path to follow, 
+# depending on what CPU instructions are available.
+if(EMSCRIPTEN)
+  set(BUILD_SHARED_LIBS OFF)
+  set(OJPH_ENABLE_TIFF_SUPPORT OFF)
+  set(OJPH_BUILD_STREAM_EXPAND OFF)
+  set(OJPH_DISABLE_SIMD ON)
+endif()
 
 # This is related to how the timestamp is set for URL downloaded files.
 # Set DOWNLOAD_EXTRACT_TIMESTAMP
@@ -40,248 +78,106 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24.0")
   endif()
 endif()
 
+## Added by Michael Smith
 set(CMAKE_CXX_FLAGS_ASAN
   "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O1"
   CACHE STRING "Flags used by the C++ compiler during AddressSanitizer builds."
   FORCE)
 
+## Build type
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
-  message( STATUS "To use AddressSanitizer, use \"cmake .. -DCMAKE_BUILD_TYPE=asan\"" )
+  message(STATUS "To use AddressSanitizer, use \"cmake .. -DCMAKE_BUILD_TYPE=asan\"" )
 endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
+## C++ version and flags
+# C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
 set(CMAKE_CXX_STANDARD 14)
 if (MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /D \"_CRT_SECURE_NO_WARNINGS\"")
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -Wconversion -Wunused-parameter")
+  add_compile_options(
+  -fexceptions 
+  -Wall 
+  -Wextra 
+  -Wconversion 
+  -Wunused-parameter
+  )
 endif()
 
-if (OJPH_DISABLE_INTEL_SIMD)
-	if (MSVC)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_DISABLE_INTEL_SIMD\"")
-	else()
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_DISABLE_INTEL_SIMD")
-	endif()
-endif()
-
-if (OJPH_ENABLE_INTEL_AVX512)
-	if (MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_INTEL_AVX512\"")
-	else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_INTEL_AVX512")
-	endif()
-endif()
-
-if (BUILD_SHARED_LIBS AND MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_BUILD_SHARED_LIBRARY\"")
-endif()
-
-if (OJPH_CODE_COVERAGE AND NOT MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
-endif()
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
-
-include_directories(src/core/common)
-include_directories(src/apps/common)
-
-file(GLOB CODESTREAM       "src/core/codestream/*.cpp" "src/core/codestream/*.h")
-file(GLOB CODESTREAM_SSE   "src/core/codestream/*_sse.cpp")
-file(GLOB CODESTREAM_SSE2  "src/core/codestream/*_sse2.cpp")
-file(GLOB CODESTREAM_AVX   "src/core/codestream/*_avx.cpp")
-file(GLOB CODESTREAM_AVX2  "src/core/codestream/*_avx2.cpp")
-file(GLOB CODESTREAM_WASM  "src/core/codestream/*_wasm.cpp")
-file(GLOB CODING           "src/core/coding/*.cpp" "src/core/coding/*.h")
-file(GLOB CODING_SSSE3     "src/core/coding/*_ssse3.cpp")
-file(GLOB CODING_WASM      "src/core/coding/*_wasm.cpp")
-file(GLOB CODING_AVX512    "src/core/coding/*_avx512.cpp")
-file(GLOB COMMON           "src/core/common/*.h")
-file(GLOB OTHERS           "src/core/others/*.cpp")
-file(GLOB TRANSFORM        "src/core/transform/*.cpp" "src/core/transform/*.h")
-file(GLOB TRANSFORM_SSE    "src/core/transform/*_sse.cpp")
-file(GLOB TRANSFORM_SSE2   "src/core/transform/*_sse2.cpp")
-file(GLOB TRANSFORM_AVX    "src/core/transform/*_avx.cpp")
-file(GLOB TRANSFORM_AVX2   "src/core/transform/*_avx2.cpp")
-file(GLOB TRANSFORM_WASM   "src/core/transform/*_wasm.cpp")
-
-list(REMOVE_ITEM CODESTREAM ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2} ${CODESTREAM_WASM})
-list(REMOVE_ITEM CODING ${CODING_SSSE3} ${CODING_WASM} ${CODING_AVX512})
-list(REMOVE_ITEM TRANSFORM ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2} ${TRANSFORM_WASM})
-list(APPEND SOURCES ${CODESTREAM} ${CODING} ${COMMON} ${OTHERS} ${TRANSFORM})
-
-source_group("codestream"        FILES ${CODESTREAM})
-source_group("coding"            FILES ${CODING})
-source_group("common"            FILES ${COMMON})
-source_group("others"            FILES ${OTHERS})
-source_group("transform"         FILES ${TRANSFORM})
-
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
-  "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
-)
-
-if(EMSCRIPTEN)
-  set(OJPH_DISABLE_INTEL_SIMD ON)
-  set(BUILD_SHARED_LIBS OFF)
-  set(OJPH_ENABLE_TIFF_SUPPORT OFF)
-  add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_DISABLE_INTEL_SIMD)
-  add_library(openjph ${SOURCES})
-  add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
-  target_include_directories(openjph PUBLIC src/core/common)
-  target_include_directories(openjphsimd PUBLIC src/core/common)
-  target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
-  source_group("codestream" FILES ${CODESTREAM_WASM})
-  source_group("coding" FILES ${CODING_WASM})
-  source_group("transform" FILES ${TRANSFORM_WASM})
-elseif(NOT OJPH_DISABLE_INTEL_SIMD)
-  add_library(openjph ${SOURCES} ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2} ${CODING_SSSE3} ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2})
-  source_group("codestream" FILES ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2})
-  source_group("coding" FILES ${CODING_SSSE3})
-  source_group("transform" FILES ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2})
-  if (OJPH_ENABLE_INTEL_AVX512)
-    target_sources(openjph PRIVATE ${CODING_AVX512})
-    source_group("coding" FILES ${CODING_AVX512})
+## Enhanced instruction options
+if (OJPH_DISABLE_SIMD)
+  add_compile_definitions(OJPH_DISABLE_SIMD)
+else()
+  if(OJPH_DISABLE_SSE)
+    add_compile_definitions(OJPH_DISABLE_SSE)
   endif()
-else()
-  add_library(openjph ${SOURCES})
-endif()
-
-target_include_directories(openjph PUBLIC src/core/common)
-
-target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
-
-if (OPENJPH_VERSION)
-  if (WIN32)
-    set_target_properties(openjph
-      PROPERTIES
-        OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
-  else()
-    set_target_properties(openjph
-      PROPERTIES
-        SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
-        VERSION "${OPENJPH_VERSION}")
+  if(OJPH_DISABLE_SSE2)
+    add_compile_definitions(OJPH_DISABLE_SSE2)
   endif()
-else()
-  message(FATAL_ERROR "OPENJPH_VERSION is not set")
-endif()
-
-if (MSVC)
-  set_source_files_properties(src/core/codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
-  set_source_files_properties(src/core/codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-  set_source_files_properties(src/core/coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX512")
-  set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
-  set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-  set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
-  set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-else()
-  set_source_files_properties(src/core/codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
-  set_source_files_properties(src/core/codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-  set_source_files_properties(src/core/coding/ojph_block_decoder_ssse3.cpp PROPERTIES COMPILE_FLAGS -mssse3)
-  set_source_files_properties(src/core/coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512cd)
-  set_source_files_properties(src/core/transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
-  set_source_files_properties(src/core/transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-  set_source_files_properties(src/core/transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
-  set_source_files_properties(src/core/transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-endif()
-
-############################################################
-if( OJPH_ENABLE_TIFF_SUPPORT )
-
-  if( WIN32 )
-
-    set(TIFF_INCLUDE_DIR "C:\\Program Files\\tiff\\include" CACHE PATH "the directory containing the TIFF headers")
-    set(TIFF_LIBRARY_DEBUG   "C:\\Program Files\\tiff\\lib\\tiffd.lib" CACHE FILEPATH "the path to the TIFF library for debug configurations")
-    set(TIFF_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiff.lib"  CACHE FILEPATH "the path to the TIFF library for release configurations")
-    set(TIFFXX_LIBRARY_DEBUG  "C:\\Program Files\\tiff\\lib\\tiffxxd.lib" CACHE FILEPATH "the path to the TIFFXX  library for debug configurations")
-    set(TIFFXX_LIBRARY_RELEASE "C:\\Program Files\\tiff\\lib\\tiffxx.lib" CACHE FILEPATH "the path to the TIFFXX  library for release configurations")
-
-    message( STATUS "WIN32 detected: Setting CMakeCache TIFF values as follows, use CMake-gui Advanced to modify them" )
-    message( STATUS "   TIFF_INCLUDE_DIR : \"${TIFF_INCLUDE_DIR}\"  " )
-    message( STATUS "   TIFF_LIBRARY_DEBUG : \"${TIFF_LIBRARY_DEBUG}\"  " )
-    message( STATUS "   TIFF_LIBRARY_RELEASE : \"${TIFF_LIBRARY_RELEASE}\"  " )
-    message( STATUS "   TIFFXX_LIBRARY_DEBUG : \"${TIFFXX_LIBRARY_DEBUG}\"  " )
-    message( STATUS "   TIFFXX_LIBRARY_RELEASE : \"${TIFFXX_LIBRARY_RELEASE}\"  " )
-
-  endif( WIN32 )
-
-  FIND_PACKAGE( TIFF )
-
-  if( TIFF_FOUND )
-    set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
-    include_directories( ${TIFF_INCLUDE_DIR} ) 
-    if (MSVC)
-		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_TIFF_SUPPORT\"")
-	  else()
-		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_TIFF_SUPPORT")
-	  endif()
-    #include_directories(${CMAKE_BINARY_DIR}/libtiff) # for tiffconf.h on windows
-  endif( TIFF_FOUND )
-
-endif() 
-############################################################
-
-set(OJPH_EXPAND src/apps/ojph_expand/ojph_expand.cpp src/apps/others/ojph_img_io.cpp)
-set(OJPH_COMPRESS src/apps/ojph_compress/ojph_compress.cpp src/apps/others/ojph_img_io.cpp)
-set(OJPH_IMG_IO_SSE41 src/apps/others/ojph_img_io_sse41.cpp)
-set(OJPH_IMG_IO_AVX2 src/apps/others/ojph_img_io_avx2.cpp)
-
-if(NOT OJPH_DISABLE_INTEL_SIMD)
-  list(APPEND OJPH_EXPAND ${OJPH_IMG_IO_SSE41})
-  list(APPEND OJPH_EXPAND ${OJPH_IMG_IO_AVX2})
-  list(APPEND OJPH_COMPRESS ${OJPH_IMG_IO_SSE41})
-  list(APPEND OJPH_COMPRESS ${OJPH_IMG_IO_AVX2})
-endif()
-
-if(OJPH_BUILD_EXECUTABLES)
-  add_executable(ojph_expand ${OJPH_EXPAND})
-  add_executable(ojph_compress ${OJPH_COMPRESS})
-endif()
-
-if (MSVC)
-  set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
-else()
-  set_source_files_properties(src/apps/others/ojph_img_io_sse41.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
-  set_source_files_properties(src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
-endif()
-
-if(OJPH_BUILD_EXECUTABLES)
-  if( USE_TIFF )
-    target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
-    target_link_libraries(ojph_compress PUBLIC openjph ${TIFF_LIBRARIES})
-  else()
-    target_link_libraries(ojph_expand PUBLIC openjph)
-    target_link_libraries(ojph_compress PUBLIC openjph)
+  if(OJPH_DISABLE_SSSE3)
+    add_compile_definitions(OJPH_DISABLE_SSSE3)
+  endif()
+  if(OJPH_DISABLE_SSE4)
+    add_compile_definitions(OJPH_DISABLE_SSE4)
+  endif()
+  if(OJPH_DISABLE_AVX)
+    add_compile_definitions(OJPH_DISABLE_AVX)
+  endif()
+  if(OJPH_DISABLE_AVX2)
+    add_compile_definitions(OJPH_DISABLE_AVX2)
+  endif()
+  if(OJPH_DISABLE_AVX512)
+    add_compile_definitions(OJPH_DISABLE_AVX512)
+  endif()
+  if(OJPH_DISABLE_NEON)
+    add_compile_definitions(OJPH_DISABLE_NEON)
   endif()
 endif()
 
+## Build library and applications
+add_subdirectory(src/core)
+if (OJPH_BUILD_EXECUTABLES)
+  add_subdirectory(src/apps)
+endif()
 
 ################################################################################################
 # Install
 ################################################################################################
 
-if(OJPH_BUILD_EXECUTABLES)
-  install(TARGETS ojph_expand
-    DESTINATION bin)
-
-  install(TARGETS ojph_compress
-          DESTINATION bin)
-endif()
-
 include(GNUInstallDirs)
-install(TARGETS openjph LIBRARY
-  DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS openjph
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-install (DIRECTORY src/core/common/
-  DESTINATION include/openjph
+install(DIRECTORY src/core/common/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openjph
   FILES_MATCHING
   PATTERN "*.h")
 
-install(FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${PROJECT_NAME}.pc"
+install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+  set(PKG_CONFIG_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+else()
+  set(PKG_CONFIG_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+  set(PKG_CONFIG_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+else()
+  set(PKG_CONFIG_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
+  "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+  @ONLY
+)
 
 ################################################################################################
 # Testing (OJPH_BUILD_TESTS)

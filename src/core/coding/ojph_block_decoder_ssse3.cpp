@@ -66,7 +66,7 @@ namespace ojph {
       dec_mel_st() : data(NULL), tmp(0), bits(0), size(0), unstuff(false),
         k(0), num_runs(0), runs(0)
       {}
-      // data decoding machinary
+      // data decoding machinery
       ui8* data;    //!<the address of data (or bitstream)
       ui64 tmp;     //!<temporary buffer for read data
       int bits;     //!<number of bits stored in tmp
@@ -507,7 +507,7 @@ namespace ojph {
      *         an architecture that read size must be compatible with the
      *         alignment of the read address
      *
-     *  There is another simiar subroutine rev_init.  This subroutine does 
+     *  There is another similar subroutine rev_init.  This subroutine does 
      *  NOT skip the first 12 bits, and starts with unstuff set to true.
      *
      *  @param [in]  mrp is a pointer to rev_struct structure
@@ -596,7 +596,7 @@ namespace ojph {
      *  X controls this value.
      *
      *  Unstuffing prevent sequences that are more than 0xFF7F from appearing
-     *  in the conpressed sequence.  So whenever a value of 0xFF is coded, the
+     *  in the compressed sequence.  So whenever a value of 0xFF is coded, the
      *  MSB of the next byte is set 0 and must be ignored during decoding.
      *
      *  Reading can go beyond the end of buffer by up to 16 bytes.
@@ -1033,14 +1033,14 @@ namespace ojph {
       {
         OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
                               "one coding pass, but zero length for "
-                              "2nd and potential 3rd pass.\n");
+                              "2nd and potential 3rd pass");
         num_passes = 1;
       }
 
       if (num_passes > 3)
       {
         OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
-                              "This codeblocks has %d passes.\n",
+                              "This codeblocks has %d passes",
                               num_passes);
         return false;
       }
@@ -1052,7 +1052,7 @@ namespace ojph {
           insufficient_precision = true;
           OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
                                 "codeblock. This message will not be "
-                                "displayed again.\n");
+                                "displayed again");
         }
         return false;
       }       
@@ -1063,7 +1063,7 @@ namespace ojph {
           OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
                                 "pass. The code can be modified to support "
                                 "this case. This message will not be "
-                                "displayed again.\n");
+                                "displayed again");
         }
          return false;         // 32 bits are not enough to decode this
        }
@@ -1076,7 +1076,7 @@ namespace ojph {
             OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
                                   "nor MagRef passes; both will be skipped. "
                                   "This message will not be displayed "
-                                  "again.\n");
+                                  "again");
           }
         }
       }
@@ -1086,7 +1086,7 @@ namespace ojph {
 
       if (lengths1 < 2)
       {
-        OJPH_WARN(0x00010006, "Wrong codeblock length.\n");
+        OJPH_WARN(0x00010006, "Wrong codeblock length");
         return false;
       }
 

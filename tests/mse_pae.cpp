@@ -40,8 +40,8 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <cctype>
-#include "../common/ojph_img_io.h"
-#include "../common/ojph_mem.h"
+#include "ojph_img_io.h"
+#include "ojph_mem.h"
 
 using namespace ojph;
 using namespace std;

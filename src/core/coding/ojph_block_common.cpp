@@ -55,13 +55,13 @@ namespace ojph {
      *  \li \c cwd_len : 3bits -> the codeword length of the VLC codeword;    
      *                   the VLC cwd is in the LSB of bitstream              \n
      *  \li \c u_off   : 1bit  -> u_offset, which is 1 if u value is not 0   \n
-     *  \li \c rho     : 4bits -> signficant samples within a quad           \n
+     *  \li \c rho     : 4bits -> significant samples within a quad           \n
      *  \li \c e_1     : 4bits -> EMB e_1                                    \n
      *  \li \c e_k     : 4bits -> EMB e_k                                    \n
      *                                                                       \n
      *  The table index is 10 bits and composed of two parts:                \n
      *  The 7 LSBs contain a codeword which might be shorter than 7 bits;    
-     *  this word is the next decoable bits in the bitstream.                \n
+     *  this word is the next decodable bits in the bitstream.                \n
      *  The 3 MSB is the context of for the codeword.                        \n
      */
 
@@ -75,7 +75,7 @@ namespace ojph {
     //************************************************************************/
     /** @defgroup uvlc_decoding_tables_grp VLC decoding tables
      *  @{
-     *  UVLC decoding tables used to partiallu decode u values from UVLC     
+     *  UVLC decoding tables used to partially decode u values from UVLC     
      *  codewords.                                                           \n
      *  The table index is 8 (or 9)  bits and composed of two parts:         \n
      *  The 6 LSBs carries the head of the VLC to be decoded. Up to 6 bits to 
@@ -109,7 +109,7 @@ namespace ojph {
 
       //Data in the table is arranged in this format (taken from the standard)
       // c_q is the context for a quad
-      // rho is the signficance pattern for a quad
+      // rho is the significance pattern for a quad
       // u_off indicate if u value is 0 (u_off is 0), or communicated
       // e_k, e_1 EMB patterns
       // cwd VLC codeword
@@ -132,7 +132,7 @@ namespace ojph {
       if (debug) memset(vlc_tbl0, 0, sizeof(vlc_tbl0)); //unnecessary
 
       // this is to convert table entries into values for decoder look up
-      // There can be at most 1024 possibilites, not all of them are valid.
+      // There can be at most 1024 possibilities, not all of them are valid.
       // 
       for (int i = 0; i < 1024; ++i)
       {

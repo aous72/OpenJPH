@@ -41,7 +41,9 @@
 
 namespace ojph {
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
+#ifndef OJPH_DISABLE_SIMD
+
+  #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
   ////////////////////////////////////////////////////////////////////////////
   // This snippet is borrowed from Intel; see for example
@@ -157,6 +159,64 @@ namespace ojph {
     }
     return true;
   }
+  #elif defined(OJPH_ARCH_ARM)
+
+    #ifndef OJPH_OS_LINUX  //Windows/Apple/Android
+
+    bool init_cpu_ext_level(int& level) {
+      level = ARM_CPU_EXT_LEVEL_ASIMD;
+      return true;
+    }
+
+    #else  // Linux
+
+      #if defined(__aarch64__) || defined(_M_ARM64) // 64-bit ARM
+
+        #include <sys/auxv.h>
+        #include <asm/hwcap.h>
+
+        bool init_cpu_ext_level(int& level) {
+          unsigned long hwcaps = getauxval(AT_HWCAP);
+          unsigned long hwcaps2 = getauxval(AT_HWCAP2);
+
+          level = ARM_CPU_EXT_LEVEL_GENERIC;
+          if (hwcaps & HWCAP_ASIMD) {
+            level = ARM_CPU_EXT_LEVEL_ASIMD;
+            if (hwcaps & HWCAP_SVE) {
+              level = ARM_CPU_EXT_LEVEL_SVE;
+              if (hwcaps2 & HWCAP2_SVE2)
+                level = ARM_CPU_EXT_LEVEL_SVE2;
+            }
+          }
+          return true;          
+        }
+
+      #else // 32-bit ARM
+
+        #include <sys/auxv.h>
+        #include <asm/hwcap.h>
+
+        bool init_cpu_ext_level(int& level) {
+          unsigned long hwcaps = getauxval(AT_HWCAP);
+          level = ARM_CPU_EXT_LEVEL_GENERIC;
+          if (hwcaps & HWCAP_NEON)
+            level = ARM_CPU_EXT_LEVEL_NEON;
+          return true;
+        }
+
+      #endif // end of 64-bit ARM
+
+    #endif
+
+  #else // architectures other than Intel/AMD and ARM
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool init_cpu_ext_level(int& level) {
+    level = 0;
+    return true;
+  }
+
+  #endif // !OJPH_DISABLE_SIMD
 
 #elif defined(OJPH_ENABLE_WASM_SIMD) && defined(OJPH_EMSCRIPTEN)
 

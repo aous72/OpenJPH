@@ -36,280 +36,218 @@
 //***************************************************************************/
 
 #include <cstdio>
+#include <xmmintrin.h>
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_mem.h"
+#include "ojph_params.h"
+#include "../codestream/ojph_params_local.h"
+
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
-
-#include <immintrin.h>
 
 namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void sse_irrev_vert_wvlt_step(const line_buf* line_src1,
-                                  const line_buf* line_src2,
-                                  line_buf *line_dst,
-                                  int step_num, ui32 repeat)
+    static inline void sse_multiply_const(float* p, float f, int width)
     {
-      float *dst = line_dst->f32;
-      const float *src1 = line_src1->f32, *src2 = line_src2->f32;
+      __m128 factor = _mm_set1_ps(f);
+      for (; width > 0; width -= 4, p += 4)
+      {
+        __m128 s = _mm_load_ps(p);
+        _mm_store_ps(p, _mm_mul_ps(factor, s));
+      }
+    }
 
-      __m128 factor = _mm_set1_ps(LIFTING_FACTORS::steps[step_num]);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
+    //////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_step(const lifting_step* s, const line_buf* sig, 
+                           const line_buf* other, const line_buf* aug, 
+                           ui32 repeat, bool synthesis)
+    {
+      float a = s->irv.Aatk;
+      if (synthesis)
+        a = -a;
+
+      __m128 factor = _mm_set1_ps(a);
+
+      float* dst = aug->f32;
+      const float* src1 = sig->f32, * src2 = other->f32;
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
       {
         __m128 s1 = _mm_load_ps(src1);
         __m128 s2 = _mm_load_ps(src2);
-        __m128 d = _mm_load_ps(dst);
+        __m128 d  = _mm_load_ps(dst);
         d = _mm_add_ps(d, _mm_mul_ps(factor, _mm_add_ps(s1, s2)));
         _mm_store_ps(dst, d);
       }
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    void sse_irrev_vert_wvlt_K(const line_buf* line_src, line_buf* line_dst,
-                               bool L_analysis_or_H_synthesis, ui32 repeat)
+    //////////////////////////////////////////////////////////////////////////
+    void sse_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
     {
-      float *dst = line_dst->f32;
-      const float *src = line_src->f32;
-
-      float f = LIFTING_FACTORS::K_inv;
-      f = L_analysis_or_H_synthesis ? f : LIFTING_FACTORS::K;
-      __m128 factor = _mm_set1_ps(f);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src+=4)
-      {
-        __m128 s = _mm_load_ps(src);
-        _mm_store_ps(dst, _mm_mul_ps(factor, s));
-      }
+      sse_multiply_const(aug->f32, K, (int)repeat);
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void sse_irrev_horz_wvlt_fwd_tx(line_buf* line_src, line_buf *line_ldst,
-                                    line_buf *line_hdst, ui32 width,
-                                    bool even)
+    void sse_irv_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                          const line_buf* hdst, const line_buf* src, 
+                          ui32 width, bool even)
     {
       if (width > 1)
       {
-        float *src = line_src->f32;
-        float *ldst = line_ldst->f32, *hdst = line_hdst->f32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        //extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        const float* sp = src + (even ? 1 : 0);
-        float *dph = hdst;
-        __m128 factor = _mm_set1_ps(LIFTING_FACTORS::steps[0]);
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
-        { //this is doing twice the work it needs to do
-          //it can be definitely written better
-          __m128 s1 = _mm_loadu_ps(sp - 1);
-          __m128 s2 = _mm_loadu_ps(sp + 1);
-          __m128 d = _mm_loadu_ps(sp);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          __m128 d1 = _mm_add_ps(d, s1);
-          sp += 4;
-          s1 = _mm_loadu_ps(sp - 1);
-          s2 = _mm_loadu_ps(sp + 1);
-          d = _mm_loadu_ps(sp);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          __m128 d2 = _mm_add_ps(d, s1);
-          sp += 4;
-          d = _mm_shuffle_ps(d1, d2, _MM_SHUFFLE(2, 0, 2, 0));
-          _mm_store_ps(dph, d);
+        // split src into ldst and hdst
+        {
+          float* dpl = ldst->f32;
+          float* dph = hdst->f32;
+          float* sp = src->f32;
+          int w = (int)width;
+          SSE_DEINTERLEAVE(dpl, dph, sp, w, even);
         }
 
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[1]);
-        sp = src + (even ? 0 : 1);
-        const float* sph = hdst + (even ? 0 : 1);
-        float *dpl = ldst;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
+        // the actual horizontal transform
+        float* hp = hdst->f32, * lp = ldst->f32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
         {
-          __m128 s1 = _mm_loadu_ps(sph - 1);
-          __m128 s2 = _mm_loadu_ps(sph);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          __m128 d1 = _mm_loadu_ps(sp);
-          __m128 d2 = _mm_loadu_ps(sp + 4);
-          __m128 d = _mm_shuffle_ps(d1, d2, _MM_SHUFFLE(2, 0, 2, 0));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dpl, d);
+          const lifting_step* s = atk->get_step(j - 1);
+          const float a = s->irv.Aatk;
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const float* sp = lp;
+          float* dp = hp;
+          int i = (int)h_width;
+          __m128 f = _mm_set1_ps(a);
+          if (even)
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp + 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_add_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp - 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_add_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+
+          // swap buffers
+          float* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
         }
 
-        //extension
-        ldst[-1] = ldst[0];
-        ldst[L_width] = ldst[L_width-1];
-        //predict
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[2]);
-        const float* spl = ldst + (even ? 1 : 0);
-        dph = hdst;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, spl+=4, dph+=4)
-        {
-          __m128 s1 = _mm_loadu_ps(spl - 1);
-          __m128 s2 = _mm_loadu_ps(spl);
-          __m128 d = _mm_loadu_ps(dph);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dph, d);
-        }
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[3]);
-        sph = hdst + (even ? 0 : 1);
-        dpl = ldst;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sph+=4, dpl+=4)
-        {
-          __m128 s1 = _mm_loadu_ps(sph - 1);
-          __m128 s2 = _mm_loadu_ps(sph);
-          __m128 d = _mm_loadu_ps(dpl);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dpl, d);
-        }
-
-        //multipliers
-        float *dp = ldst;
-        factor = _mm_set1_ps(LIFTING_FACTORS::K_inv);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          __m128 d = _mm_load_ps(dp);
-          _mm_store_ps(dp, _mm_mul_ps(factor, d));
-        }
-        dp = hdst;
-        factor = _mm_set1_ps(LIFTING_FACTORS::K);
-        for (int i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          __m128 d = _mm_load_ps(dp);
-          _mm_store_ps(dp, _mm_mul_ps(factor, d));
+        { // multiply by K or 1/K
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          sse_multiply_const(lp, K_inv, (int)l_width);
+          sse_multiply_const(hp, K, (int)h_width);
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_ldst->f32[0] = line_src->f32[0];
+          ldst->f32[0] = src->f32[0];
         else
-          line_hdst->f32[0] = line_src->f32[0] + line_src->f32[0];
+          hdst->f32[0] = src->f32[0] * 2.0f;
       }
     }
-
-    /////////////////////////////////////////////////////////////////////////
-    void sse_irrev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
-                                    line_buf *line_hsrc, ui32 width,
-                                    bool even)
+    
+    //////////////////////////////////////////////////////////////////////////
+    void sse_irv_horz_syn(const param_atk* atk, const line_buf* dst, 
+                          const line_buf* lsrc, const line_buf* hsrc, 
+                          ui32 width, bool even)
     {
       if (width > 1)
       {
-        float *lsrc = line_lsrc->f32, *hsrc = line_hsrc->f32;
-        float *dst = line_dst->f32;
+        bool ev = even;
+        float* oth = hsrc->f32, * aug = lsrc->f32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
 
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        //multipliers
-        float *dp = lsrc;
-        __m128 factor = _mm_set1_ps(LIFTING_FACTORS::K);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          __m128 d = _mm_load_ps(dp);
-          _mm_store_ps(dp, _mm_mul_ps(factor, d));
-        }
-        dp = hsrc;
-        factor = _mm_set1_ps(LIFTING_FACTORS::K_inv);
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          __m128 d = _mm_load_ps(dp);
-          _mm_store_ps(dp, _mm_mul_ps(factor, d));
+        { // multiply by K or 1/K
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          sse_multiply_const(aug, K, (int)aug_width);
+          sse_multiply_const(oth, K_inv, (int)oth_width);
         }
 
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[7]);
-        const float *sph = hsrc + (even ? 0 : 1);
-        float *dpl = lsrc;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
+        // the actual horizontal transform
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
         {
-          __m128 s1 = _mm_loadu_ps(sph - 1);
-          __m128 s2 = _mm_loadu_ps(sph);
-          __m128 d = _mm_loadu_ps(dpl);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dpl, d);
+          const lifting_step* s = atk->get_step(j);
+          const float a = s->irv.Aatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const float* sp = oth;
+          float* dp = aug;
+          int i = (int)aug_width;
+          __m128 f = _mm_set1_ps(a);
+          if (ev)
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp - 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_sub_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+          else
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              __m128 m = _mm_load_ps(sp);
+              __m128 n = _mm_loadu_ps(sp + 1);
+              __m128 p = _mm_load_ps(dp);
+              p = _mm_sub_ps(p, _mm_mul_ps(f, _mm_add_ps(m, n)));
+              _mm_store_ps(dp, p);
+            }
+          }
+
+          // swap buffers
+          float* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
         }
 
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[6]);
-        const float *spl = lsrc + (even ? 0 : -1);
-        float *dph = hsrc;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4, spl+=4)
+        // combine both lsrc and hsrc into dst
         {
-          __m128 s1 = _mm_loadu_ps(spl);
-          __m128 s2 = _mm_loadu_ps(spl + 1);
-          __m128 d = _mm_loadu_ps(dph);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dph, d);
-        }
-
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[5]);
-        sph = hsrc + (even ? 0 : 1);
-        dpl = lsrc;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
-        {
-          __m128 s1 = _mm_loadu_ps(sph - 1);
-          __m128 s2 = _mm_loadu_ps(sph);
-          __m128 d = _mm_loadu_ps(dpl);
-          s1 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s1);
-          _mm_store_ps(dpl, d);
-        }
-
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict and combine
-        factor = _mm_set1_ps(LIFTING_FACTORS::steps[4]);
-        dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        ui32 width = L_width + (even ? 0 : 1);
-        for (ui32 i = (width + 3) >> 2; i > 0; --i, spl+=4, sph+=4, dp+=8)
-        {
-          __m128 s1 = _mm_loadu_ps(spl);
-          __m128 s2 = _mm_loadu_ps(spl + 1);
-          __m128 d = _mm_load_ps(sph);
-          s2 = _mm_mul_ps(factor, _mm_add_ps(s1, s2));
-          d = _mm_add_ps(d, s2);
-          _mm_storeu_ps(dp, _mm_unpacklo_ps(s1, d));
-          _mm_storeu_ps(dp + 4, _mm_unpackhi_ps(s1, d));
+          float* dp = dst->f32;
+          float* spl = lsrc->f32;
+          float* sph = hsrc->f32;
+          int w = (int)width;
+          SSE_INTERLEAVE(dp, spl, sph, w, even);
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_dst->f32[0] = line_lsrc->f32[0];
+          dst->f32[0] = lsrc->f32[0];
         else
-          line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
+          dst->f32[0] = hsrc->f32[0] * 0.5f;
       }
     }
-  }
-}
+
+  } // !local
+} // !ojph

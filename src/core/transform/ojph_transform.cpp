@@ -41,6 +41,8 @@
 #include "ojph_mem.h"
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
+#include "ojph_params.h"
+#include "../codestream/ojph_params_local.h"
 
 namespace ojph {
   struct line_buf;
@@ -52,58 +54,42 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    void (*rev_vert_wvlt_fwd_predict)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat) = NULL;
+    void (*rev_vert_step)
+      (const lifting_step* s, const line_buf* sig, const line_buf* other,
+        const line_buf* aug, ui32 repeat, bool synthesis) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
-    void (*rev_vert_wvlt_fwd_update)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat) = NULL;
+    void (*rev_horz_ana)
+      (const param_atk* atk, const line_buf* ldst, const line_buf* hdst,
+        const line_buf* src, ui32 width, bool even) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
-    void (*rev_horz_wvlt_fwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = NULL;
-
-    /////////////////////////////////////////////////////////////////////////
-    void (*rev_vert_wvlt_bwd_predict)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat) = NULL;
-
-    /////////////////////////////////////////////////////////////////////////
-    void (*rev_vert_wvlt_bwd_update)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       ui32 repeat) = NULL;
-
-    /////////////////////////////////////////////////////////////////////////
-    void (*rev_horz_wvlt_bwd_tx)
-      (line_buf* dst, line_buf *lsrc, line_buf *hsrc, ui32 width, bool even)
-      = NULL;
-
+    void (*rev_horz_syn)
+      (const param_atk* atk, const line_buf* dst, const line_buf* lsrc,
+        const line_buf* hsrc, ui32 width, bool even) = NULL;
+    
     /////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    void (*irrev_vert_wvlt_step)
-      (const line_buf* src1, const line_buf* src2, line_buf *dst,
-       int step_num, ui32 repeat) = NULL;
+    void (*irv_vert_step)
+      (const lifting_step* s, const line_buf* sig, const line_buf* other,
+        const line_buf* aug, ui32 repeat, bool synthesis) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
-    void (*irrev_vert_wvlt_K)
-      (const line_buf *src, line_buf *dst, bool L_analysis_or_H_synthesis,
-       ui32 repeat) = NULL;
+    void (*irv_vert_times_K)
+      (float K, const line_buf* aug, ui32 repeat) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
-    void (*irrev_horz_wvlt_fwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = NULL;
+    void (*irv_horz_ana)
+      (const param_atk* atk, const line_buf* ldst, const line_buf* hdst,
+        const line_buf* src, ui32 width, bool even) = NULL;
 
     /////////////////////////////////////////////////////////////////////////
-    void (*irrev_horz_wvlt_bwd_tx)
-      (line_buf* src, line_buf *ldst, line_buf *hdst, ui32 width, bool even)
-      = NULL;
+    void (*irv_horz_syn)
+      (const param_atk* atk, const line_buf* dst, const line_buf* lsrc,
+        const line_buf* hsrc, ui32 width, bool even) = NULL;
 
     ////////////////////////////////////////////////////////////////////////////
     static bool wavelet_transform_functions_initialized = false;
@@ -116,386 +102,461 @@ namespace ojph {
 
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
-      rev_vert_wvlt_fwd_predict = gen_rev_vert_wvlt_fwd_predict;
-      rev_vert_wvlt_fwd_update  = gen_rev_vert_wvlt_fwd_update;
-      rev_horz_wvlt_fwd_tx      = gen_rev_horz_wvlt_fwd_tx;
-      rev_vert_wvlt_bwd_predict = gen_rev_vert_wvlt_bwd_predict;
-      rev_vert_wvlt_bwd_update  = gen_rev_vert_wvlt_bwd_update;
-      rev_horz_wvlt_bwd_tx      = gen_rev_horz_wvlt_bwd_tx;
-      irrev_vert_wvlt_step      = gen_irrev_vert_wvlt_step;
-      irrev_vert_wvlt_K         = gen_irrev_vert_wvlt_K;
-      irrev_horz_wvlt_fwd_tx    = gen_irrev_horz_wvlt_fwd_tx;
-      irrev_horz_wvlt_bwd_tx    = gen_irrev_horz_wvlt_bwd_tx;
+      rev_vert_step             = gen_rev_vert_step;
+      rev_horz_ana              = gen_rev_horz_ana;
+      rev_horz_syn              = gen_rev_horz_syn;
 
-#ifndef OJPH_DISABLE_INTEL_SIMD
-      int level = get_cpu_ext_level();
+      irv_vert_step             = gen_irv_vert_step;
+      irv_vert_times_K          = gen_irv_vert_times_K;
+      irv_horz_ana              = gen_irv_horz_ana;
+      irv_horz_syn              = gen_irv_horz_syn;
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE)
-      {
-        irrev_vert_wvlt_step    = sse_irrev_vert_wvlt_step;
-        irrev_vert_wvlt_K       = sse_irrev_vert_wvlt_K;
-        irrev_horz_wvlt_fwd_tx  = sse_irrev_horz_wvlt_fwd_tx;
-        irrev_horz_wvlt_bwd_tx  = sse_irrev_horz_wvlt_bwd_tx;
-      }
+  #ifndef OJPH_DISABLE_SIMD
 
-      if (level >= X86_CPU_EXT_LEVEL_SSE2)
-      {
-        rev_vert_wvlt_fwd_predict = sse2_rev_vert_wvlt_fwd_predict;
-        rev_vert_wvlt_fwd_update  = sse2_rev_vert_wvlt_fwd_update;
-        rev_horz_wvlt_fwd_tx      = sse2_rev_horz_wvlt_fwd_tx;
-        rev_vert_wvlt_bwd_predict = sse2_rev_vert_wvlt_bwd_predict;
-        rev_vert_wvlt_bwd_update  = sse2_rev_vert_wvlt_bwd_update;
-        rev_horz_wvlt_bwd_tx      = sse2_rev_horz_wvlt_bwd_tx;
-      }
+    #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX)
-      {
-        irrev_vert_wvlt_step   = avx_irrev_vert_wvlt_step;
-        irrev_vert_wvlt_K      = avx_irrev_vert_wvlt_K;
-        irrev_horz_wvlt_fwd_tx = avx_irrev_horz_wvlt_fwd_tx;
-        irrev_horz_wvlt_bwd_tx = avx_irrev_horz_wvlt_bwd_tx;
-      }
+      #ifndef OJPH_DISABLE_SSE
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
+        {
+          irv_vert_step             = sse_irv_vert_step;
+          irv_vert_times_K          = sse_irv_vert_times_K;
+          irv_horz_ana              = sse_irv_horz_ana;
+          irv_horz_syn              = sse_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE
 
-      if (level >= X86_CPU_EXT_LEVEL_AVX2)
-      {
-        rev_vert_wvlt_fwd_predict = avx2_rev_vert_wvlt_fwd_predict;
-        rev_vert_wvlt_fwd_update  = avx2_rev_vert_wvlt_fwd_update;
-        rev_horz_wvlt_fwd_tx      = avx2_rev_horz_wvlt_fwd_tx;
-        rev_vert_wvlt_bwd_predict = avx2_rev_vert_wvlt_bwd_predict;
-        rev_vert_wvlt_bwd_update  = avx2_rev_vert_wvlt_bwd_update;
-        rev_horz_wvlt_bwd_tx      = avx2_rev_horz_wvlt_bwd_tx;
-      }
-#endif // !OJPH_DISABLE_INTEL_SIMD
+      #ifndef OJPH_DISABLE_SSE2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
+        {
+          rev_vert_step             = sse2_rev_vert_step;
+          rev_horz_ana              = sse2_rev_horz_ana;
+          rev_horz_syn              = sse2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE2
+
+      #ifndef OJPH_DISABLE_AVX
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
+        {
+          irv_vert_step             = avx_irv_vert_step;
+          irv_vert_times_K          = avx_irv_vert_times_K;
+          irv_horz_ana              = avx_irv_horz_ana;      
+          irv_horz_syn              = avx_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX
+
+      #ifndef OJPH_DISABLE_AVX2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
+        {
+          rev_vert_step             = avx2_rev_vert_step;
+          rev_horz_ana              = avx2_rev_horz_ana;
+          rev_horz_syn              = avx2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX2
+
+      #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+        {
+          rev_vert_step             = avx512_rev_vert_step;
+          rev_horz_ana              = avx512_rev_horz_ana;
+          rev_horz_syn              = avx512_rev_horz_syn;
+
+          irv_vert_step             = avx512_irv_vert_step;
+          irv_vert_times_K          = avx512_irv_vert_times_K;
+          irv_horz_ana              = avx512_irv_horz_ana;
+          irv_horz_syn              = avx512_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX512
+    
+    #elif defined(OJPH_ARCH_ARM)
+
+    #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+
+  #endif // !OJPH_DISABLE_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
-      rev_vert_wvlt_fwd_predict = wasm_rev_vert_wvlt_fwd_predict;
-      rev_vert_wvlt_fwd_update  = wasm_rev_vert_wvlt_fwd_update;
-      rev_horz_wvlt_fwd_tx      = wasm_rev_horz_wvlt_fwd_tx;
-      rev_vert_wvlt_bwd_predict = wasm_rev_vert_wvlt_bwd_predict;
-      rev_vert_wvlt_bwd_update  = wasm_rev_vert_wvlt_bwd_update;
-      rev_horz_wvlt_bwd_tx      = wasm_rev_horz_wvlt_bwd_tx;
-      irrev_vert_wvlt_step      = wasm_irrev_vert_wvlt_step;
-      irrev_vert_wvlt_K         = wasm_irrev_vert_wvlt_K;
-      irrev_horz_wvlt_fwd_tx    = wasm_irrev_horz_wvlt_fwd_tx;
-      irrev_horz_wvlt_bwd_tx    = wasm_irrev_horz_wvlt_bwd_tx;
+        rev_vert_step             = wasm_rev_vert_step;
+        rev_horz_ana              = wasm_rev_horz_ana;
+        rev_horz_syn              = wasm_rev_horz_syn;
+        
+        irv_vert_step             = wasm_irv_vert_step;
+        irv_vert_times_K          = wasm_irv_vert_times_K;
+        irv_horz_ana              = wasm_irv_horz_ana;
+        irv_horz_syn              = wasm_irv_horz_syn;
 #endif // !OJPH_ENABLE_WASM_SIMD
 
       wavelet_transform_functions_initialized = true;
     }
     
     //////////////////////////////////////////////////////////////////////////
-    const float LIFTING_FACTORS::steps[8] =
-    {
-      -1.586134342059924f, -0.052980118572961f, +0.882911075530934f,
-      +0.443506852043971f,
-      +1.586134342059924f, +0.052980118572961f, -0.882911075530934f,
-      -0.443506852043971f
-    };
-    const float LIFTING_FACTORS::K = 1.230174104914001f;
-    const float LIFTING_FACTORS::K_inv  = (float)(1.0 / 1.230174104914001);
-
-    //////////////////////////////////////////////////////////////////////////
 
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_predict(const line_buf* line_src1,
-                                       const line_buf* line_src2,
-                                       line_buf *line_dst, ui32 repeat)
+    /////////////////////////////////////////////////////////////////////////
+    void gen_rev_vert_step(const lifting_step* s, const line_buf* sig, 
+                           const line_buf* other, const line_buf* aug, 
+                           ui32 repeat, bool synthesis)
     {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ -= (*src1++ + *src2++) >> 1;
-    }
+      const si32 a = s->rev.Aatk;
+      const si32 b = s->rev.Batk;
+      const ui32 e = s->rev.Eatk;
 
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_fwd_update(const line_buf* line_src1,
-                                      const line_buf* line_src2,
-                                      line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ += (*src1++ + *src2++ + 2) >> 2;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst,
-                                  line_buf *line_hdst, ui32 width, bool even)
-    {
-      if (width > 1)
-      {
-        si32 *src = line_src->i32;
-        si32 *ldst = line_ldst->i32, *hdst = line_hdst->i32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        const si32* sp = src + (even ? 1 : 0);
-        si32 *dph = hdst;
-        for (ui32 i = H_width; i > 0; --i, sp+=2)
-          *dph++ = sp[0] - ((sp[-1] + sp[1]) >> 1);
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        sp = src + (even ? 0 : 1);
-        const si32* sph = hdst + (even ? 0 : 1);
-        si32 *dpl = ldst;
-        for (ui32 i = L_width; i > 0; --i, sp+=2, sph++)
-          *dpl++ = *sp + ((2 + sph[-1] + sph[0]) >> 2);
-      }
-      else
-      {
-        if (even)
-          line_ldst->i32[0] = line_src->i32[0];
+      si32* dst = aug->i32;
+      const si32* src1 = sig->i32, * src2 = other->i32;
+      // The general definition of the wavelet in Part 2 is slightly 
+      // different to part 2, although they are mathematically equivalent
+      // here, we identify the simpler form from Part 1 and employ them
+      if (a == 1)
+      { // 5/3 update and any case with a == 1
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b + *src1++ + *src2++) >> e;
         else
-          line_hdst->i32[0] = line_src->i32[0] << 1;
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b + *src1++ + *src2++) >> e;
+      }
+      else if (a == -1 && b == 1 && e == 1)
+      { // 5/3 predict
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (*src1++ + *src2++) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (*src1++ + *src2++) >> e;
+      }
+      else if (a == -1)
+      { // any case with a == -1, which is not 5/3 predict
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b - (*src1++ + *src2++)) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b - (*src1++ + *src2++)) >> e;
+      }
+      else { // general case
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b + a * (*src1++ + *src2++)) >> e;
       }
     }
 
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_predict(const line_buf* line_src1,
-                                       const line_buf* line_src2,
-                                       line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ += (*src1++ + *src2++) >> 1;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_vert_wvlt_bwd_update(const line_buf* line_src1,
-                                      const line_buf* line_src2,
-                                      line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ -= (2 + *src1++ + *src2++) >> 2;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
-                                  line_buf *line_hsrc, ui32 width, bool even)
+    /////////////////////////////////////////////////////////////////////////
+    void gen_rev_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                          const line_buf* hdst, const line_buf* src, 
+                          ui32 width, bool even)
     {
       if (width > 1)
       {
-        si32 *lsrc = line_lsrc->i32, *hsrc = line_hsrc->i32;
-        si32 *dst = line_dst->i32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        const si32 *sph = hsrc + (even ? 0 : 1);
-        si32 *spl = lsrc;
-        for (ui32 i = L_width; i > 0; --i, sph++, spl++)
-          *spl -= ((2 + sph[-1] + sph[0]) >> 2);
-
-        // extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width - 1];
-        // inverse predict and combine
-        si32 *dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        for (ui32 i = L_width + (even ? 0 : 1); i > 0; --i, spl++, sph++)
+        // combine both lsrc and hsrc into dst
+        si32* dph = hdst->i32;
+        si32* dpl = ldst->i32;
+        si32* sp = src->i32;
+        ui32 w = width;
+        if (!even)
         {
-          *dp++ = *spl;
-          *dp++ = *sph + ((spl[0] + spl[1]) >> 1);
+          *dph++ = *sp++; --w;
+        }
+        for (; w > 1; w -= 2)
+        {
+          *dpl++ = *sp++; *dph++ = *sp++;
+        }
+        if (w)
+        {
+          *dpl++ = *sp++; --w;
+        }
+
+        si32* hp = hdst->i32, * lp = ldst->i32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const si32* sp = lp + (even ? 1 : 0);
+          si32* dp = hp;
+          if (a == 1) 
+          { // 5/3 update and any case with a == 1
+            for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+              *dp += (b + (sp[-1] + sp[0])) >> e;
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+              *dp -= (sp[-1] + sp[0]) >> e;
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+              *dp += (b - (sp[-1] + sp[0])) >> e;
+          }
+          else {
+            // general case
+            for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+              *dp += (b + a * (sp[-1] + sp[0])) >> e;
+          }
+
+          // swap buffers
+          si32* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_dst->i32[0] = line_lsrc->i32[0];
+          ldst->i32[0] = src->i32[0];
         else
-          line_dst->i32[0] = line_hsrc->i32[0] >> 1;
+          hdst->i32[0] = src->i32[0] << 1;
       }
     }
-
-
+    
     //////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_step(const line_buf* line_src1,
-                                  const line_buf* line_src2,
-                                  line_buf *line_dst,
-                                  int step_num, ui32 repeat)
-    {
-      float *dst = line_dst->f32;
-      const float *src1 = line_src1->f32, *src2 = line_src2->f32;
-      float factor = LIFTING_FACTORS::steps[step_num];
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ += factor * (*src1++ + *src2++);
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_vert_wvlt_K(const line_buf* line_src,
-                               line_buf* line_dst,
-                               bool L_analysis_or_H_synthesis, ui32 repeat)
-    {
-      float *dst = line_dst->f32;
-      const float *src = line_src->f32;
-      float factor = LIFTING_FACTORS::K_inv;
-      factor = L_analysis_or_H_synthesis ? factor : LIFTING_FACTORS::K;
-      for (ui32 i = repeat; i > 0; --i)
-        *dst++ = *src++ * factor;
-    }
-
-
-    /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_fwd_tx(line_buf* line_src,
-                                    line_buf *line_ldst,
-                                    line_buf *line_hdst,
-                                    ui32 width, bool even)
+    void gen_rev_horz_syn(const param_atk* atk, const line_buf* dst, 
+                          const line_buf* lsrc, const line_buf* hsrc, 
+                          ui32 width, bool even)
     {
       if (width > 1)
       {
-        float *src = line_src->f32;
-        float *ldst = line_ldst->f32, *hdst = line_hdst->f32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        //extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        float factor = LIFTING_FACTORS::steps[0];
-        const float* sp = src + (even ? 1 : 0);
-        float *dph = hdst;
-        for (ui32 i = H_width; i > 0; --i, sp+=2)
-          *dph++ = sp[0] + factor * (sp[-1] + sp[1]);
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = LIFTING_FACTORS::steps[1];
-        sp = src + (even ? 0 : 1);
-        const float* sph = hdst + (even ? 0 : 1);
-        float *dpl = ldst;
-        for (ui32 i = L_width; i > 0; --i, sp+=2, sph++)
-          *dpl++ = sp[0] + factor * (sph[-1] + sph[0]);
-
-        //extension
-        ldst[-1] = ldst[0];
-        ldst[L_width] = ldst[L_width-1];
-        //predict
-        factor = LIFTING_FACTORS::steps[2];
-        const float* spl = ldst + (even ? 1 : 0);
-        dph = hdst;
-        for (ui32 i = H_width; i > 0; --i, spl++)
-          *dph++ += factor * (spl[-1] + spl[0]);
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = LIFTING_FACTORS::steps[3];
-        sph = hdst + (even ? 0 : 1);
-        dpl = ldst;
-        for (ui32 i = L_width; i > 0; --i, sph++)
-          *dpl++ += factor * (sph[-1] + sph[0]);
-
-        //multipliers
-        float *dp = ldst;
-        for (ui32 i = L_width; i > 0; --i, dp++)
-          *dp *= LIFTING_FACTORS::K_inv;
-        dp = hdst;
-        for (ui32 i = H_width; i > 0; --i, dp++)
-          *dp *= LIFTING_FACTORS::K;
-      }
-      else
-      {
-        if (even)
-          line_ldst->f32[0] = line_src->f32[0];
-        else
-          line_hdst->f32[0] = line_src->f32[0] + line_src->f32[0];
-      }
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    void gen_irrev_horz_wvlt_bwd_tx(line_buf* line_dst, line_buf *line_lsrc,
-                                    line_buf *line_hsrc, ui32 width,
-                                    bool even)
-    {
-      if (width > 1)
-      {
-        float *lsrc = line_lsrc->f32, *hsrc = line_hsrc->f32;
-        float *dst = line_dst->f32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        //multipliers
-        float *dp = lsrc;
-        for (ui32 i = L_width; i > 0; --i, dp++)
-          *dp *= LIFTING_FACTORS::K;
-        dp = hsrc;
-        for (ui32 i = H_width; i > 0; --i, dp++)
-          *dp *= LIFTING_FACTORS::K_inv;
-
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        float factor = LIFTING_FACTORS::steps[7];
-        const float *sph = hsrc + (even ? 0 : 1);
-        float *dpl = lsrc;
-        for (ui32 i = L_width; i > 0; --i, dpl++, sph++)
-          *dpl += factor * (sph[-1] + sph[0]);
-
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict
-        factor = LIFTING_FACTORS::steps[6];
-        const float *spl = lsrc + (even ? 0 : -1);
-        float *dph = hsrc;
-        for (ui32 i = H_width; i > 0; --i, dph++, spl++)
-          *dph += factor * (spl[0] + spl[1]);
-
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        factor = LIFTING_FACTORS::steps[5];
-        sph = hsrc + (even ? 0 : 1);
-        dpl = lsrc;
-        for (ui32 i = L_width; i > 0; --i, dpl++, sph++)
-          *dpl += factor * (sph[-1] + sph[0]);
-
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict and combine
-        factor = LIFTING_FACTORS::steps[4];
-        dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        for (ui32 i = L_width+(even?0:1); i > 0; --i, spl++, sph++)
+        bool ev = even;
+        si32* oth = hsrc->i32, * aug = lsrc->i32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
         {
-          *dp++ = *spl;
-          *dp++ = *sph + factor * (spl[0] + spl[1]);
+          const lifting_step* s = atk->get_step(j);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const si32* sp = oth + (ev ? 0 : 1);
+          si32* dp = aug;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp -= (b + (sp[-1] + sp[0])) >> e;
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp += (sp[-1] + sp[0]) >> e;
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp -= (b - (sp[-1] + sp[0])) >> e;
+          }
+          else {
+            // general case
+            for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+              *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+          }
+
+          // swap buffers
+          si32* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        si32* sph = hsrc->i32;
+        si32* spl = lsrc->i32;
+        si32* dp = dst->i32;
+        ui32 w = width;
+        if (!even)
+        {
+          *dp++ = *sph++; --w;
+        }
+        for (; w > 1; w -= 2)
+        {
+          *dp++ = *spl++; *dp++ = *sph++;
+        }
+        if (w)
+        {
+          *dp++ = *spl++; --w;
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_dst->f32[0] = line_lsrc->f32[0];
+          dst->i32[0] = lsrc->i32[0];
         else
-          line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
+          dst->i32[0] = hsrc->i32[0] >> 1;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_vert_step(const lifting_step* s, const line_buf* sig, 
+                           const line_buf* other, const line_buf* aug, 
+                           ui32 repeat, bool synthesis)
+    {
+      float a = s->irv.Aatk;
+
+      if (synthesis)
+        a = -a;
+
+      float* dst = aug->f32;
+      const float* src1 = sig->f32, * src2 = other->f32;
+      for (ui32 i = repeat; i > 0; --i)
+        *dst++ += a * (*src1++ + *src2++);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
+    {
+      float* dst = aug->f32;
+      for (ui32 i = repeat; i > 0; --i)
+        *dst++ *= K;
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    void gen_irv_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                          const line_buf* hdst, const line_buf* src, 
+                          ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        // split src into ldst and hdst
+        float* dph = hdst->f32;
+        float* dpl = ldst->f32;
+        float* sp = src->f32;
+        ui32 w = width;
+        if (!even)
+        {
+          *dph++ = *sp++; --w;
+        }
+        for (; w > 1; w -= 2)
+        {
+          *dpl++ = *sp++; *dph++ = *sp++;
+        }
+        if (w)
+        {
+          *dpl++ = *sp++; --w;
+        }
+
+        float* hp = hdst->f32, * lp = ldst->f32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          const lifting_step* s = atk->get_step(j - 1);
+          const float a = s->irv.Aatk;
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const float* sp = lp + (even ? 1 : 0);
+          float* dp = hp;
+          for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+            *dp += a * (sp[-1] + sp[0]);
+
+          // swap buffers
+          float* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
+        }
+
+        {
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          float* dp;
+
+          dp = lp;
+          for (ui32 i = l_width; i > 0; --i)
+            *dp++ *= K_inv;
+
+          dp = hp;
+          for (ui32 i = h_width; i > 0; --i)
+            *dp++ *= K;
+        }
+      }
+      else {
+        if (even)
+          ldst->f32[0] = src->f32[0];
+        else
+          hdst->f32[0] = src->f32[0] * 2.0f;
+      }
+    }
+    
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_horz_syn(const param_atk* atk, const line_buf* dst, 
+                          const line_buf* lsrc, const line_buf* hsrc, 
+                          ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        float* oth = hsrc->f32, * aug = lsrc->f32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+
+        {
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          float* dp;
+
+          dp = aug;
+          for (ui32 i = aug_width; i > 0; --i)
+            *dp++ *= K;
+
+          dp = oth;
+          for (ui32 i = oth_width; i > 0; --i)
+            *dp++ *= K_inv;
+        }
+
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
+        {
+          const lifting_step* s = atk->get_step(j);
+          const float a = s->irv.Aatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const float* sp = oth + (ev ? 0 : 1);
+          float* dp = aug;
+          for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+            *dp -= a * (sp[-1] + sp[0]);
+
+          // swap buffers
+          float* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        float* sph = hsrc->f32;
+        float* spl = lsrc->f32;
+        float* dp = dst->f32;
+        ui32 w = width;
+        if (!even)
+        { *dp++ = *sph++; --w; }
+        for (; w > 1; w -= 2)
+        { *dp++ = *spl++; *dp++ = *sph++; }
+        if (w)
+        { *dp++ = *spl++; --w; }
+      }
+      else {
+        if (even)
+          dst->f32[0] = lsrc->f32[0];
+        else
+          dst->f32[0] = hsrc->f32[0] * 0.5f;
       }
     }
 

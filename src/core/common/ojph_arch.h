@@ -63,7 +63,39 @@
 #include <intrin.h>
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+// preprocessor directives for architecture
+///////////////////////////////////////////////////////////////////////////////
+#if defined(__arm__) || defined(__TARGET_ARCH_ARM)  \
+  || defined(__aarch64__) || defined(_M_ARM64)
+  #define OJPH_ARCH_ARM
+#elif defined(__i386) || defined(__i386__) || defined(_M_IX86)
+  #define OJPH_ARCH_I386
+#elif defined(__x86_64) || defined(__x86_64__) || defined(__amd64) \
+  || defined(_M_X64)
+  #define OJPH_ARCH_X86_64
+#elif defined(__ia64) || defined(__ia64__) || defined(_M_IA64)
+  #define OJPH_ARCH_IA64
+#elif defined(__ppc__) || defined(__ppc) || defined(__powerpc__)  \
+  || defined(_ARCH_COM) || defined(_ARCH_PWR) || defined(_ARCH_PPC)  \
+  || defined(_M_MPPC) || defined(_M_PPC)
+  #if defined(__ppc64__) || defined(__powerpc64__) || defined(__64BIT__)
+    #define OJPH_ARCH_PPC64
+  #else
+    #define OJPH_ARCH_PPC
+  #endif
+#else  
+  #define OJPH_ARCH_UNKNOWN
+#endif
+
 namespace ojph {
+  ////////////////////////////////////////////////////////////////////////////
+  //                  disable SIMD for unknown architecture
+  ////////////////////////////////////////////////////////////////////////////
+#if !defined(OJPH_ARCH_X86_64) && !defined(OJPH_ARCH_I386) &&  \
+    !defined(OJPH_ARCH_ARM) && !defined(OJPH_DISABLE_SIMD)
+#define OJPH_DISABLE_SIMD
+#endif // !OJPH_ARCH_UNKNOWN
 
   ////////////////////////////////////////////////////////////////////////////
   //                         OS detection definitions
@@ -72,6 +104,8 @@ namespace ojph {
 #define OJPH_OS_WINDOWS
 #elif (defined __APPLE__)
 #define OJPH_OS_APPLE
+#elif (defined __ANDROID__)
+#define OJPH_OS_ANDROID
 #elif (defined __linux)
 #define OJPH_OS_LINUX
 #endif
@@ -106,10 +140,19 @@ namespace ojph {
     X86_CPU_EXT_LEVEL_AVX512 = 11,
   };
 
+  enum : int {
+    ARM_CPU_EXT_LEVEL_GENERIC = 0,
+    ARM_CPU_EXT_LEVEL_NEON = 1,
+    ARM_CPU_EXT_LEVEL_ASIMD = 1,
+    ARM_CPU_EXT_LEVEL_SVE = 2,
+    ARM_CPU_EXT_LEVEL_SVE2 = 3,
+  };
+
   /////////////////////////////////////////////////////////////////////////////
   static inline ui32 population_count(ui32 val)
   {
-  #ifdef OJPH_COMPILER_MSVC
+  #if defined(OJPH_COMPILER_MSVC)  \
+    && (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
     return (ui32)__popcnt(val);
   #elif (defined OJPH_COMPILER_GNUC)
     return (ui32)__builtin_popcount(val);
@@ -194,11 +237,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // constants
   ////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_ENABLE_INTEL_AVX512
-  const ui32 byte_alignment = 64; //64 bytes == 512 bits
-#else
-  const ui32 byte_alignment = 32; //32 bytes == 256 bits
-#endif
+  const ui32 byte_alignment = 64; // 64 bytes == 512 bits
   const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
   const ui32 object_alignment = 8;
 

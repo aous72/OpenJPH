@@ -40,219 +40,422 @@
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_mem.h"
+#include "ojph_params.h"
+#include "../codestream/ojph_params_local.h"
+
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
-#include <immintrin.h>
+#include <emmintrin.h>
 
 namespace ojph {
   namespace local {
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_fwd_predict(const line_buf* line_src1,
-                                        const line_buf* line_src2,
-                                        line_buf *line_dst, ui32 repeat)
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_vert_step(const lifting_step* s, const line_buf* sig, 
+                            const line_buf* other, const line_buf* aug, 
+                            ui32 repeat, bool synthesis)
     {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
+      const si32 a = s->rev.Aatk;
+      const si32 b = s->rev.Batk;
+      const si32 e = s->rev.Eatk;
+      __m128i vb = _mm_set1_epi32(b);
 
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        __m128i s1 = _mm_load_si128((__m128i*)src1);
-        __m128i s2 = _mm_load_si128((__m128i*)src2);
-        __m128i d = _mm_load_si128((__m128i*)dst);
-        s1 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
-        d = _mm_sub_epi32(d, s1);
-        _mm_store_si128((__m128i*)dst, d);
+      si32* dst = aug->i32;
+      const si32* src1 = sig->i32, * src2 = other->i32;
+      // The general definition of the wavelet in Part 2 is slightly 
+      // different to part 2, although they are mathematically equivalent
+      // here, we identify the simpler form from Part 1 and employ them
+      if (a == 1)
+      { // 5/3 update and any case with a == 1
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i v = _mm_add_epi32(vb, t);
+            __m128i w = _mm_srai_epi32(v, e);
+            d = _mm_sub_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i v = _mm_add_epi32(vb, t);
+            __m128i w = _mm_srai_epi32(v, e);
+            d = _mm_add_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else if (a == -1 && b == 1 && e == 1)
+      { // 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i w = _mm_srai_epi32(t, e);
+            d = _mm_add_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i w = _mm_srai_epi32(t, e);
+            d = _mm_sub_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else if (a == -1)
+      { // any case with a == -1, which is not 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i v = _mm_sub_epi32(vb, t);
+            __m128i w = _mm_srai_epi32(v, e);
+            d = _mm_sub_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi32(s1, s2);
+            __m128i v = _mm_sub_epi32(vb, t);
+            __m128i w = _mm_srai_epi32(v, e);
+            d = _mm_add_epi32(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else { // general case
+        // 32bit multiplication is not supported in sse2; we need sse4.1,
+        // where we can use _mm_mullo_epi32, which multiplies 32bit x 32bit,
+        // keeping the LSBs
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b + a * (*src1++ + *src2++)) >> e;
       }
     }
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_fwd_update(const line_buf* line_src1,
-                                       const line_buf* line_src2,
-                                       line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-    
-      __m128i offset = _mm_set1_epi32(2);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        __m128i s1 = _mm_load_si128((__m128i*)src1);
-        s1 = _mm_add_epi32(s1, offset);
-        __m128i s2 = _mm_load_si128((__m128i*)src2);
-        s2 = _mm_add_epi32(s2, s1);
-        __m128i d = _mm_load_si128((__m128i*)dst);
-        d = _mm_add_epi32(d, _mm_srai_epi32(s2, 2));
-        _mm_store_si128((__m128i*)dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst,
-                                   line_buf *line_hdst, ui32 width, bool even)
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even)
     {
       if (width > 1)
       {
-        si32 *src = line_src->i32;
-        si32 *ldst = line_ldst->i32, *hdst = line_hdst->i32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        const si32* sp = src + (even ? 1 : 0);
-        si32 *dph = hdst;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
-        { //this is doing twice the work it needs to do
-          //it can be definitely written better
-          __m128i s1 = _mm_loadu_si128((__m128i*)(sp-1));
-          __m128i s2 = _mm_loadu_si128((__m128i*)(sp+1));
-          __m128i d = _mm_loadu_si128((__m128i*)sp);
-          s1 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
-          __m128i d1 = _mm_sub_epi32(d, s1);
-          sp += 4;
-          s1 = _mm_loadu_si128((__m128i*)(sp-1));
-          s2 = _mm_loadu_si128((__m128i*)(sp+1));
-          d = _mm_loadu_si128((__m128i*)sp);
-          s1 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
-          __m128i d2 = _mm_sub_epi32(d, s1);
-          sp += 4;
-          d = _mm_castps_si128(_mm_shuffle_ps(
-              _mm_castsi128_ps(d1), _mm_castsi128_ps(d2), 0x88));
-          _mm_store_si128((__m128i*)dph, d);
-        }
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        sp = src + (even ? 0 : 1);
-        const si32* sph = hdst + (even ? 0 : 1);
-        si32 *dpl = ldst;
-        __m128i offset = _mm_set1_epi32(2);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
+        // combine both lsrc and hsrc into dst
         {
-          __m128i s1 = _mm_loadu_si128((__m128i*)(sph-1));
-          s1 = _mm_add_epi32(s1, offset);
-          __m128i s2 = _mm_loadu_si128((__m128i*)sph);
-          s2 = _mm_add_epi32(s2, s1);
-          __m128i d1 = _mm_loadu_si128((__m128i*)sp);
-          __m128i d2 = _mm_loadu_si128((__m128i*)sp + 1);
-          __m128i d = _mm_castps_si128(_mm_shuffle_ps(
-              _mm_castsi128_ps(d1), _mm_castsi128_ps(d2), 0x88));
-          d = _mm_add_epi32(d, _mm_srai_epi32(s2, 2));
-          _mm_store_si128((__m128i*)dpl, d);
+          float* dpl = ldst->f32;
+          float* dph = hdst->f32;
+          float* sp = src->f32;
+          int w = (int)width;
+          SSE_DEINTERLEAVE(dpl, dph, sp, w, even);
+        }
+
+        si32* hp = hdst->i32, * lp = ldst->i32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const si32 e = s->rev.Eatk;
+          __m128i vb = _mm_set1_epi32(b);
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const si32* sp = lp;
+          si32* dp = hp;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)h_width;
+            if (even)
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_add_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_add_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i w = _mm_srai_epi32(t, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i w = _mm_srai_epi32(t, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_sub_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_sub_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else {
+            // general case
+            // 32bit multiplication is not supported in sse2; we need sse4.1,
+            // where we can use _mm_mullo_epi32, which multiplies
+            // 32bit x 32bit, keeping the LSBs
+            if (even)
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[0] + sp[1])) >> e;
+            else
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[-1] + sp[0])) >> e;
+          }
+
+          // swap buffers
+          si32* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_ldst->i32[0] = line_src->i32[0];
+          ldst->i32[0] = src->i32[0];
         else
-          line_hdst->i32[0] = line_src->i32[0] << 1;
+          hdst->i32[0] = src->i32[0] << 1;
       }
     }
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_bwd_predict(const line_buf* line_src1,
-                                        const line_buf* line_src2,
-                                        line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
     
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        __m128i s1 = _mm_load_si128((__m128i*)src1);
-        __m128i s2 = _mm_load_si128((__m128i*)src2);
-        __m128i d = _mm_load_si128((__m128i*)dst);
-        s1 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
-        d = _mm_add_epi32(d, s1);
-        _mm_store_si128((__m128i*)dst, d);
-      }
-    }
-
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_wvlt_bwd_update(const line_buf* line_src1,
-                                       const line_buf* line_src2,
-                                       line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-    
-      __m128i offset = _mm_set1_epi32(2);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        __m128i s1 = _mm_load_si128((__m128i*)src1);
-        s1 = _mm_add_epi32(s1, offset);
-        __m128i s2 = _mm_load_si128((__m128i*)src2);
-        s2 = _mm_add_epi32(s2, s1);
-        __m128i d = _mm_load_si128((__m128i*)dst);
-        d = _mm_sub_epi32(d, _mm_srai_epi32(s2, 2));
-        _mm_store_si128((__m128i*)dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_wvlt_bwd_tx(line_buf *line_dst, line_buf *line_lsrc,
-                                   line_buf *line_hsrc, ui32 width, bool even)
+    void sse2_rev_horz_syn(const param_atk* atk, const line_buf* dst, 
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even)
     {
       if (width > 1)
       {
-        si32 *lsrc = line_lsrc->i32, *hsrc = line_hsrc->i32;
-        si32 *dst = line_dst->i32;
-
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        const si32 *sph = hsrc + (even ? 0 : 1);
-        si32 *spl = lsrc;
-        __m128i offset = _mm_set1_epi32(2);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sph+=4, spl+=4)
+        bool ev = even;
+        si32* oth = hsrc->i32, * aug = lsrc->i32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
         {
-          __m128i s1 = _mm_loadu_si128((__m128i*)(sph-1));
-          s1 = _mm_add_epi32(s1, offset);
-          __m128i s2 = _mm_loadu_si128((__m128i*)sph);
-          s2 = _mm_add_epi32(s2, s1);
-          __m128i d = _mm_load_si128((__m128i*)spl);
-          d = _mm_sub_epi32(d, _mm_srai_epi32(s2, 2));
-          _mm_store_si128((__m128i*)spl, d);
+          const lifting_step* s = atk->get_step(j);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const si32 e = s->rev.Eatk;
+          __m128i vb = _mm_set1_epi32(b);
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const si32* sp = oth;
+          si32* dp = aug;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)aug_width;
+            if (ev)
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_add_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_add_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i w = _mm_srai_epi32(t, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i w = _mm_srai_epi32(t, e);
+                d = _mm_add_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_sub_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi32(s1, s2);
+                __m128i v = _mm_sub_epi32(vb, t);
+                __m128i w = _mm_srai_epi32(v, e);
+                d = _mm_sub_epi32(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else {
+            // general case
+            // 32bit multiplication is not supported in sse2; we need sse4.1,
+            // where we can use _mm_mullo_epi32, which multiplies
+            // 32bit x 32bit, keeping the LSBs
+            if (ev)
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+            else
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[0] + sp[1])) >> e;
+          }
+
+          // swap buffers
+          si32* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
         }
 
-        // extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width - 1];
-        // inverse predict and combine
-        si32 *dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        ui32 width = L_width + (even ? 0 : 1);
-        for (ui32 i = (width + 3) >> 2; i > 0; --i, sph+=4, spl+=4, dp+=8)
+        // combine both lsrc and hsrc into dst
         {
-          __m128i s1 = _mm_loadu_si128((__m128i*)spl);
-          __m128i s2 = _mm_loadu_si128((__m128i*)(spl+1));
-          __m128i d = _mm_load_si128((__m128i*)sph);
-          s2 = _mm_srai_epi32(_mm_add_epi32(s1, s2), 1);
-          d = _mm_add_epi32(d, s2);
-          _mm_storeu_si128((__m128i*)dp, _mm_unpacklo_epi32(s1, d));
-          _mm_storeu_si128((__m128i*)dp + 1, _mm_unpackhi_epi32(s1, d));
+          float* dp = dst->f32;
+          float* spl = lsrc->f32;
+          float* sph = hsrc->f32;
+          int w = (int)width;
+          SSE_INTERLEAVE(dp, spl, sph, w, even);
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_dst->i32[0] = line_lsrc->i32[0];
+          dst->i32[0] = lsrc->i32[0];
         else
-          line_dst->i32[0] = line_hsrc->i32[0] >> 1;
+          dst->i32[0] = hsrc->i32[0] >> 1;
       }
     }
-  }
-}
+
+  } // !local
+} // !ojph

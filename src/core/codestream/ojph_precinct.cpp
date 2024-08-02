@@ -98,11 +98,12 @@ namespace ojph {
       coded_lists *cur_coded_list = NULL;
       ui32 cb_bytes = 0; //cb_bytes;
       ui32 ph_bytes = 0; //precinct header size
-      int sst = num_bands == 3 ? 1 : 0;
-      int send = num_bands == 3 ? 4 : 1;
       int num_skipped_subbands = 0;
-      for (int s = sst; s < send; ++s)
+      for (int s = 0; s < 4; ++s)
       {
+        if (bands[s].empty)
+          continue;
+
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
@@ -288,10 +289,11 @@ namespace ojph {
         }
 
         //write codeblocks
-        int sst = num_bands == 3 ? 1 : 0;
-        int send = num_bands == 3 ? 4 : 1;
-        for (int s = sst; s < send; ++s)
+        for (int s = 0; s < 4; ++s)
         {
+          if (bands[s].empty)
+            continue;
+
           ui32 band_width = bands[s].num_blocks.w;
           ui32 width = cb_idxs[s].siz.w;
           ui32 height = cb_idxs[s].siz.h;
@@ -332,11 +334,21 @@ namespace ojph {
       if (may_use_sop)
         bb_skip_sop(&bb);
 
-      int sst = num_bands == 3 ? 1 : 0;
-      int send = num_bands == 3 ? 4 : 1;
-      bool empty_packet = true;
-      for (int s = sst; s < send; ++s)
+      if (bands[0].empty && bands[1].empty && bands[2].empty && bands[3].empty)
       {
+        ui32 bit = 0;
+        bb_read_bit(&bb, bit);
+        bb_terminate(&bb, uses_eph);
+        assert(bit == 0);
+        return;
+      }
+
+      bool empty_packet = true;
+      for (int s = 0; s < 4; ++s)
+      {
+        if (bands[s].empty)
+          continue;
+
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
@@ -496,8 +508,10 @@ namespace ojph {
       }
       bb_terminate(&bb, uses_eph);
       //read codeblock data
-      for (int s = sst; s < send; ++s)
+      for (int s = 0; s < 4; ++s)
       {
+        if (bands[s].empty)
+          continue;
         ui32 band_width = bands[s].num_blocks.w;
         ui32 width = cb_idxs[s].siz.w;
         ui32 height = cb_idxs[s].siz.h;

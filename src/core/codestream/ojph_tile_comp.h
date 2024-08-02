@@ -62,7 +62,8 @@ namespace ojph {
     class tile_comp
     {
     public:
-      static void pre_alloc(codestream *codestream, const rect& comp_rect,
+      static void pre_alloc(codestream *codestream, ui32 comp_num, 
+                            const rect& comp_rect,
                             const rect& recon_comp_rect);
       void finalize_alloc(codestream *codestream, tile *parent,
                           ui32 comp_num, const rect& comp_rect,

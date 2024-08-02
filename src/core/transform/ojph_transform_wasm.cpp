@@ -41,6 +41,9 @@
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_mem.h"
+#include "ojph_params.h"
+#include "../codestream/ojph_params_local.h"
+
 #include "ojph_transform.h"
 #include "ojph_transform_local.h"
 
@@ -48,473 +51,703 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_fwd_predict(const line_buf* line_src1, 
-                                        const line_buf* line_src2,
-                                        line_buf *line_dst, ui32 repeat)
+    void wasm_deinterleave(float* dpl, float* dph, float* sp, 
+                           int width, bool even)
     {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        v128_t s1 = wasm_v128_load(src1);
-        v128_t s2 = wasm_v128_load(src2);
-        v128_t d = wasm_v128_load(dst);
-        s1 = wasm_i32x4_shr(wasm_i32x4_add(s1, s2), 1);
-        d = wasm_i32x4_sub(d, s1);
-        wasm_v128_store(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_fwd_update(const line_buf* line_src1, 
-                                       const line_buf* line_src2,
-                                       line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-
-      v128_t offset = wasm_i32x4_splat(2);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        v128_t s1 = wasm_v128_load(src1);
-        s1 = wasm_i32x4_add(s1, offset);
-        v128_t s2 = wasm_v128_load(src2);
-        s2 = wasm_i32x4_add(s2, s1);
-        v128_t d = wasm_v128_load(dst);
-        d = wasm_i32x4_add(d, wasm_i32x4_shr(s2, 2));
-        wasm_v128_store(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
-                                   line_buf *line_hdst, ui32 width, bool even)
-    {
-      if (width > 1)
-      {
-        si32 *src = line_src->i32;
-        si32 *ldst = line_ldst->i32, *hdst = line_hdst->i32;
-      
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        const si32* sp = src + (even ? 1 : 0);
-        si32 *dph = hdst;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
-        { //this is doing twice the work it needs to do
-          //it can be definitely written better
-          v128_t s1 = wasm_v128_load(sp - 1);
-          v128_t s2 = wasm_v128_load(sp + 1);
-          v128_t d = wasm_v128_load(sp);
-          s1 = wasm_i32x4_shr(wasm_i32x4_add(s1, s2), 1);
-          v128_t d1 = wasm_i32x4_sub(d, s1);
-          sp += 4;
-          s1 = wasm_v128_load(sp - 1);
-          s2 = wasm_v128_load(sp + 1);
-          d = wasm_v128_load(sp);
-          s1 = wasm_i32x4_shr(wasm_i32x4_add(s1, s2), 1);
-          v128_t d2 = wasm_i32x4_sub(d, s1);
-          sp += 4;
-          d = wasm_i32x4_shuffle(d1, d2, 0, 2, 4, 6);
+      if (even)
+        for (; width > 0; width -= 8, sp += 8, dpl += 4, dph += 4)
+        {
+          v128_t a = wasm_v128_load(sp);
+          v128_t b = wasm_v128_load(sp + 4);
+          v128_t c = wasm_i32x4_shuffle(a, b, 0, 2, 4 + 0, 4 + 2);
+          v128_t d = wasm_i32x4_shuffle(a, b, 1, 3, 4 + 1, 4 + 3);
+          // v128_t c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
+          // v128_t d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
+          wasm_v128_store(dpl, c);
           wasm_v128_store(dph, d);
         }
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        sp = src + (even ? 0 : 1);
-        const si32* sph = hdst + (even ? 0 : 1);
-        si32 *dpl = ldst;
-        v128_t offset = wasm_i32x4_splat(2);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
+      else
+        for (; width > 0; width -= 8, sp += 8, dpl += 4, dph += 4)
         {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          s1 = wasm_i32x4_add(s1, offset);
-          v128_t s2 = wasm_v128_load(sph);
-          s2 = wasm_i32x4_add(s2, s1);
-          v128_t d1 = wasm_v128_load(sp);
-          v128_t d2 = wasm_v128_load(sp + 4);
-          v128_t d = wasm_i32x4_shuffle(d1, d2, 0, 2, 4, 6);
-          d = wasm_i32x4_add(d, wasm_i32x4_shr(s2, 2));
+          v128_t a = wasm_v128_load(sp);
+          v128_t b = wasm_v128_load(sp + 4);
+          v128_t c = wasm_i32x4_shuffle(a, b, 0, 2, 4 + 0, 4 + 2);
+          v128_t d = wasm_i32x4_shuffle(a, b, 1, 3, 4 + 1, 4 + 3);
+          // v128_t c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
+          // v128_t d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
           wasm_v128_store(dpl, d);
+          wasm_v128_store(dph, c);
         }
-      }
-      else
-      {
-        if (even)
-          line_ldst->i32[0] = line_src->i32[0];
-        else
-          line_hdst->i32[0] = line_src->i32[0] << 1;
-      }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_predict(const line_buf *line_src1, 
-                                        const line_buf *line_src2,
-                                        line_buf *line_dst, ui32 repeat)
+    void wasm_interleave(float* dp, float* spl, float* sph, 
+                         int width, bool even)
     {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-    
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        v128_t s1 = wasm_v128_load(src1);
-        v128_t s2 = wasm_v128_load(src2);
-        v128_t d = wasm_v128_load(dst);
-        s1 = wasm_i32x4_shr(wasm_i32x4_add(s1, s2), 1);
-        d = wasm_i32x4_add(d, s1);
-        wasm_v128_store(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_vert_wvlt_bwd_update(const line_buf *line_src1, 
-                                       const line_buf *line_src2,
-                                       line_buf *line_dst, ui32 repeat)
-    {
-      si32 *dst = line_dst->i32;
-      const si32 *src1 = line_src1->i32, *src2 = line_src2->i32;
-    
-      v128_t offset = wasm_i32x4_splat(2);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
-      {
-        v128_t s1 = wasm_v128_load(src1);
-        s1 = wasm_i32x4_add(s1, offset);
-        v128_t s2 = wasm_v128_load(src2);
-        s2 = wasm_i32x4_add(s2, s1);
-        v128_t d = wasm_v128_load(dst);
-        d = wasm_i32x4_sub(d, wasm_i32x4_shr(s2, 2));
-        wasm_v128_store(dst, d);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_horz_wvlt_bwd_tx(line_buf *line_dst, line_buf *line_lsrc, 
-                                   line_buf *line_hsrc, ui32 width, bool even)
-    {
-      if (width > 1)
-      {
-        si32 *lsrc = line_lsrc->i32, *hsrc = line_hsrc->i32;
-        si32 *dst = line_dst->i32;
-      
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
-
-        // extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        const si32 *sph = hsrc + (even ? 0 : 1);
-        si32 *spl = lsrc;
-        v128_t offset = wasm_i32x4_splat(2);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sph+=4, spl+=4)
+      if (even)
+        for (; width > 0; width -= 8, dp += 8, spl += 4, sph += 4)
         {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          s1 = wasm_i32x4_add(s1, offset);
-          v128_t s2 = wasm_v128_load(sph);
-          s2 = wasm_i32x4_add(s2, s1);
-          v128_t d = wasm_v128_load(spl);
-          d = wasm_i32x4_sub(d, wasm_i32x4_shr(s2, 2));
-          wasm_v128_store(spl, d);
+          v128_t a = wasm_v128_load(spl);
+          v128_t b = wasm_v128_load(sph);
+          v128_t c = wasm_i32x4_shuffle(a, b, 0, 4 + 0, 1, 4 + 1);
+          v128_t d = wasm_i32x4_shuffle(a, b, 2, 4 + 2, 3, 4 + 3);
+          // v128_t c = _mm_unpacklo_ps(a, b);
+          // v128_t d = _mm_unpackhi_ps(a, b);
+          wasm_v128_store(dp, c);
+          wasm_v128_store(dp + 4, d);
         }
-
-        // extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width - 1];
-        // inverse predict and combine
-        si32 *dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        ui32 width = L_width + (even ? 0 : 1);
-        for (ui32 i = (width + 3) >> 2; i > 0; --i, sph+=4, spl+=4, dp+=8)
-        {
-          v128_t s1 = wasm_v128_load(spl);
-          v128_t s2 = wasm_v128_load(spl + 1);
-          v128_t d = wasm_v128_load(sph);
-          s2 = wasm_i32x4_shr(wasm_i32x4_add(s1, s2), 1);
-          d = wasm_i32x4_add(d, s2);
-          wasm_v128_store(dp, wasm_i32x4_shuffle(s1, d, 0, 4, 1, 5));
-          wasm_v128_store(dp + 4, wasm_i32x4_shuffle(s1, d, 2, 6, 3, 7));
-        }
-      }
       else
+        for (; width > 0; width -= 8, dp += 8, spl += 4, sph += 4)
+        {
+          v128_t a = wasm_v128_load(spl);
+          v128_t b = wasm_v128_load(sph);
+          v128_t c = wasm_i32x4_shuffle(b, a, 0, 4 + 0, 1, 4 + 1);
+          v128_t d = wasm_i32x4_shuffle(b, a, 2, 4 + 2, 3, 4 + 3);
+          // v128_t c = _mm_unpacklo_ps(b, a);
+          // v128_t d = _mm_unpackhi_ps(b, a);
+          wasm_v128_store(dp, c);
+          wasm_v128_store(dp + 4, d);
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline void wasm_multiply_const(float* p, float f, int width)
+    {
+      v128_t factor = wasm_f32x4_splat(f);
+      for (; width > 0; width -= 4, p += 4)
       {
-        if (even)
-          line_dst->i32[0] = line_lsrc->i32[0];
-        else
-          line_dst->i32[0] = line_hsrc->i32[0] >> 1;
+        v128_t s = wasm_v128_load(p);
+        wasm_v128_store(p, wasm_f32x4_mul(factor, s));
       }
     }
-    
+
     //////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_vert_wvlt_step(const line_buf *line_src1, 
-                                   const line_buf *line_src2,
-                                   line_buf *line_dst, int step_num, 
-                                   ui32 repeat)
+    void wasm_irv_vert_step(const lifting_step* s, const line_buf* sig, 
+                            const line_buf* other, const line_buf* aug, 
+                            ui32 repeat, bool synthesis)
     {
-      float *dst = line_dst->f32;
-      const float *src1 = line_src1->f32, *src2 = line_src2->f32;
-    
-      v128_t factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[step_num]);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src1+=4, src2+=4)
+      float a = s->irv.Aatk;
+      if (synthesis)
+        a = -a;
+
+      v128_t factor = wasm_f32x4_splat(a);
+
+      float* dst = aug->f32;
+      const float* src1 = sig->f32, * src2 = other->f32;
+      int i = (int)repeat;
+      for ( ; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
       {
         v128_t s1 = wasm_v128_load(src1);
         v128_t s2 = wasm_v128_load(src2);
-        v128_t d = wasm_v128_load(dst);
+        v128_t d  = wasm_v128_load(dst);
         d = wasm_f32x4_add(d, wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2)));
         wasm_v128_store(dst, d);
       }
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_vert_wvlt_K(const line_buf *line_src, line_buf *line_dst,
-                                bool L_analysis_or_H_synthesis, ui32 repeat)
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_vert_times_K(float K, const line_buf* aug, ui32 repeat)
     {
-      float *dst = line_dst->f32;
-      const float *src = line_src->f32;
-
-      float f = LIFTING_FACTORS::K_inv;
-      f = L_analysis_or_H_synthesis ? f : LIFTING_FACTORS::K;
-      v128_t factor = wasm_f32x4_splat(f);
-      for (ui32 i = (repeat + 3) >> 2; i > 0; --i, dst+=4, src+=4)
-      {
-        v128_t s = wasm_v128_load(src);
-        wasm_v128_store(dst, wasm_f32x4_mul(factor, s));
-      }
+      wasm_multiply_const(aug->f32, K, (int)repeat);
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_horz_wvlt_fwd_tx(line_buf *line_src, line_buf *line_ldst, 
-                                     line_buf *line_hdst, ui32 width, 
-                                     bool even)
+    void wasm_irv_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even)
     {
       if (width > 1)
       {
-        float *src = line_src->f32;
-        float *ldst = line_ldst->f32, *hdst = line_hdst->f32;
-      
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
+        // split src into ldst and hdst
+        wasm_deinterleave(ldst->f32, hdst->f32, src->f32, (int)width, even);
 
-        //extension
-        src[-1] = src[1];
-        src[width] = src[width-2];
-        // predict
-        const float* sp = src + (even ? 1 : 0);
-        float *dph = hdst;
-        v128_t factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[0]);
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4)
-        { //this is doing twice the work it needs to do
-          //it can be definitely written better
-          v128_t s1 = wasm_v128_load(sp - 1);
-          v128_t s2 = wasm_v128_load(sp + 1);
-          v128_t d = wasm_v128_load(sp);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          v128_t d1 = wasm_f32x4_add(d, s1);
-          sp += 4;
-          s1 = wasm_v128_load(sp - 1);
-          s2 = wasm_v128_load(sp + 1);
-          d = wasm_v128_load(sp);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          v128_t d2 = wasm_f32x4_add(d, s1);
-          sp += 4;
-          d = wasm_i32x4_shuffle(d1, d2, 0, 2, 4, 6);
-          wasm_v128_store(dph, d);
+        // the actual horizontal transform
+        float* hp = hdst->f32, * lp = ldst->f32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          const lifting_step* s = atk->get_step(j - 1);
+          const float a = s->irv.Aatk;
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const float* sp = lp;
+          float* dp = hp;
+          int i = (int)h_width;
+          v128_t f = wasm_f32x4_splat(a);
+          if (even)
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              v128_t m = wasm_v128_load(sp);
+              v128_t n = wasm_v128_load(sp + 1);
+              v128_t p = wasm_v128_load(dp);
+              p = wasm_f32x4_add(p, wasm_f32x4_mul(f, wasm_f32x4_add(m, n)));
+              wasm_v128_store(dp, p);
+            }
+          }
+          else
+          {
+            for (; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              v128_t m = wasm_v128_load(sp);
+              v128_t n = wasm_v128_load(sp - 1);
+              v128_t p = wasm_v128_load(dp);
+              p = wasm_f32x4_add(p, wasm_f32x4_mul(f, wasm_f32x4_add(m, n)));
+              wasm_v128_store(dp, p);
+            }
+          }
+
+          // swap buffers
+          float* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
         }
 
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[1]);
-        sp = src + (even ? 0 : 1);
-        const float* sph = hdst + (even ? 0 : 1);
-        float *dpl = ldst;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sp+=8, sph+=4, dpl+=4)
-        {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          v128_t s2 = wasm_v128_load(sph);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          v128_t d1 = wasm_v128_load(sp);
-          v128_t d2 = wasm_v128_load(sp + 4);
-          v128_t d = wasm_i32x4_shuffle(d1, d2, 0, 2, 4, 6);
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dpl, d);
-        }
-
-        //extension
-        ldst[-1] = ldst[0];
-        ldst[L_width] = ldst[L_width-1];
-        //predict
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[2]);
-        const float* spl = ldst + (even ? 1 : 0);
-        dph = hdst;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, spl+=4, dph+=4)
-        {
-          v128_t s1 = wasm_v128_load(spl - 1);
-          v128_t s2 = wasm_v128_load(spl);
-          v128_t d = wasm_v128_load(dph);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dph, d);
-        }
-
-        // extension
-        hdst[-1] = hdst[0];
-        hdst[H_width] = hdst[H_width-1];
-        // update
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[3]);
-        sph = hdst + (even ? 0 : 1);
-        dpl = ldst;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, sph+=4, dpl+=4)
-        {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          v128_t s2 = wasm_v128_load(sph);
-          v128_t d = wasm_v128_load(dpl);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dpl, d);
-        }
-
-        //multipliers
-        float *dp = ldst;
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::K_inv);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          v128_t d = wasm_v128_load(dp);
-          wasm_v128_store(dp, wasm_f32x4_mul(factor, d));
-        }
-        dp = hdst;
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::K);
-        for (int i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          v128_t d = wasm_v128_load(dp);
-          wasm_v128_store(dp, wasm_f32x4_mul(factor, d));
+        { // multiply by K or 1/K
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          wasm_multiply_const(lp, K_inv, (int)l_width);
+          wasm_multiply_const(hp, K, (int)h_width);
         }
       }
-      else
-      {
+      else {
         if (even)
-          line_ldst->f32[0] = line_src->f32[0];
+          ldst->f32[0] = src->f32[0];
         else
-          line_hdst->f32[0] = line_src->f32[0] + line_src->f32[0];
+          hdst->f32[0] = src->f32[0] * 2.0f;
+      }
+    }
+    
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_horz_syn(const param_atk* atk, const line_buf* dst, 
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        float* oth = hsrc->f32, * aug = lsrc->f32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+
+        { // multiply by K or 1/K
+          float K = atk->get_K();
+          float K_inv = 1.0f / K;
+          wasm_multiply_const(aug, K, (int)aug_width);
+          wasm_multiply_const(oth, K_inv, (int)oth_width);
+        }
+
+        // the actual horizontal transform
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
+        {
+          const lifting_step* s = atk->get_step(j);
+          const float a = s->irv.Aatk;
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const float* sp = oth;
+          float* dp = aug;
+          int i = (int)aug_width;
+          v128_t f = wasm_f32x4_splat(a);
+          if (ev)
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              v128_t m = wasm_v128_load(sp);
+              v128_t n = wasm_v128_load(sp - 1);
+              v128_t p = wasm_v128_load(dp);
+              p = wasm_f32x4_sub(p, wasm_f32x4_mul(f, wasm_f32x4_add(m, n)));
+              wasm_v128_store(dp, p);
+            }
+          }
+          else
+          {
+            for ( ; i > 0; i -= 4, sp += 4, dp += 4)
+            {
+              v128_t m = wasm_v128_load(sp);
+              v128_t n = wasm_v128_load(sp + 1);
+              v128_t p = wasm_v128_load(dp);
+              p = wasm_f32x4_sub(p, wasm_f32x4_mul(f, wasm_f32x4_add(m, n)));
+              wasm_v128_store(dp, p);
+            }
+          }
+
+          // swap buffers
+          float* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        wasm_interleave(dst->f32, lsrc->f32, hsrc->f32, (int)width, even);
+      }
+      else {
+        if (even)
+          dst->f32[0] = lsrc->f32[0];
+        else
+          dst->f32[0] = hsrc->f32[0] * 0.5f;
       }
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void wasm_irrev_horz_wvlt_bwd_tx(line_buf *line_dst, line_buf *line_lsrc, 
-                                     line_buf *line_hsrc, ui32 width, 
-                                     bool even)
+    void wasm_rev_vert_step(const lifting_step* s, const line_buf* sig, 
+                            const line_buf* other, const line_buf* aug, 
+                            ui32 repeat, bool synthesis)
     {
-      if (width > 1)
-      {
-        float *lsrc = line_lsrc->f32, *hsrc = line_hsrc->f32;
-        float *dst = line_dst->f32;
-      
-        const ui32 L_width = (width + (even ? 1 : 0)) >> 1;
-        const ui32 H_width = (width + (even ? 0 : 1)) >> 1;
+      const si32 a = s->rev.Aatk;
+      const si32 b = s->rev.Batk;
+      const ui32 e = s->rev.Eatk;
+      v128_t va = wasm_i32x4_splat(a);
+      v128_t vb = wasm_i32x4_splat(b);
 
-        //multipliers
-        float *dp = lsrc;
-        v128_t factor = wasm_f32x4_splat(LIFTING_FACTORS::K);
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          v128_t d = wasm_v128_load(dp);
-          wasm_v128_store(dp, wasm_f32x4_mul(factor, d));
-        }
-        dp = hsrc;
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::K_inv);
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dp+=4)
-        {
-          v128_t d = wasm_v128_load(dp);
-          wasm_v128_store(dp, wasm_f32x4_mul(factor, d));
-        }
-
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[7]);
-        const float *sph = hsrc + (even ? 0 : 1);
-        float *dpl = lsrc;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
-        {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          v128_t s2 = wasm_v128_load(sph);
-          v128_t d = wasm_v128_load(dpl);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dpl, d);
-        }
-
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[6]);
-        const float *spl = lsrc + (even ? 0 : -1);
-        float *dph = hsrc;
-        for (ui32 i = (H_width + 3) >> 2; i > 0; --i, dph+=4, spl+=4)
-        {
-          v128_t s1 = wasm_v128_load(spl);
-          v128_t s2 = wasm_v128_load(spl + 1);
-          v128_t d = wasm_v128_load(dph);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dph, d);
-        }
-
-        //extension
-        hsrc[-1] = hsrc[0];
-        hsrc[H_width] = hsrc[H_width-1];
-        //inverse update
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[5]);
-        sph = hsrc + (even ? 0 : 1);
-        dpl = lsrc;
-        for (ui32 i = (L_width + 3) >> 2; i > 0; --i, dpl+=4, sph+=4)
-        {
-          v128_t s1 = wasm_v128_load(sph - 1);
-          v128_t s2 = wasm_v128_load(sph);
-          v128_t d = wasm_v128_load(dpl);
-          s1 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s1);
-          wasm_v128_store(dpl, d);
-        }
-
-        //extension
-        lsrc[-1] = lsrc[0];
-        lsrc[L_width] = lsrc[L_width-1];
-        //inverse perdict and combine
-        factor = wasm_f32x4_splat(LIFTING_FACTORS::steps[4]);
-        dp = dst + (even ? 0 : -1);
-        spl = lsrc + (even ? 0 : -1);
-        sph = hsrc;
-        ui32 width = L_width + (even ? 0 : 1);
-        for (ui32 i = (width + 3) >> 2; i > 0; --i, spl+=4, sph+=4, dp+=8)
-        {
-          v128_t s1 = wasm_v128_load(spl);
-          v128_t s2 = wasm_v128_load(spl + 1);
-          v128_t d = wasm_v128_load(sph);
-          s2 = wasm_f32x4_mul(factor, wasm_f32x4_add(s1, s2));
-          d = wasm_f32x4_add(d, s2);
-          wasm_v128_store(dp, wasm_i32x4_shuffle(s1, d, 0, 4, 1, 5));
-          wasm_v128_store(dp + 4, wasm_i32x4_shuffle(s1, d, 2, 6, 3, 7));
-        }
-      }
-      else
-      {
-        if (even)
-          line_dst->f32[0] = line_lsrc->f32[0];
+      si32* dst = aug->i32;
+      const si32* src1 = sig->i32, * src2 = other->i32;
+      // The general definition of the wavelet in Part 2 is slightly 
+      // different to part 2, although they are mathematically equivalent
+      // here, we identify the simpler form from Part 1 and employ them
+      if (a == 1)
+      { // 5/3 update and any case with a == 1
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t v = wasm_i32x4_add(vb, t);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_sub(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
         else
-          line_dst->f32[0] = line_hsrc->f32[0] * 0.5f;
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t v = wasm_i32x4_add(vb, t);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_add(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+      }
+      else if (a == -1 && b == 1 && e == 1)
+      { // 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t w = wasm_i32x4_shr(t, e);
+            d = wasm_i32x4_add(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t w = wasm_i32x4_shr(t, e);
+            d = wasm_i32x4_sub(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+      }
+      else if (a == -1)
+      { // any case with a == -1, which is not 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t v = wasm_i32x4_sub(vb, t);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_sub(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t v = wasm_i32x4_sub(vb, t);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_add(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+      }
+      else 
+      { // general case
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t u = wasm_i32x4_mul(va, t);
+            v128_t v = wasm_i32x4_add(vb, u);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_sub(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+          {
+            v128_t s1 = wasm_v128_load((v128_t*)src1);
+            v128_t s2 = wasm_v128_load((v128_t*)src2);
+            v128_t d = wasm_v128_load((v128_t*)dst);
+            v128_t t = wasm_i32x4_add(s1, s2);
+            v128_t u = wasm_i32x4_mul(va, t);
+            v128_t v = wasm_i32x4_add(vb, u);
+            v128_t w = wasm_i32x4_shr(v, e);
+            d = wasm_i32x4_add(d, w);
+            wasm_v128_store((v128_t*)dst, d);
+          }
       }
     }
 
-  }
-}
+    /////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        // combine both lsrc and hsrc into dst
+        wasm_deinterleave(ldst->f32, hdst->f32, src->f32, (int)width, even);          
+
+        si32* hp = hdst->i32, * lp = ldst->i32;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
+          v128_t va = wasm_i32x4_splat(a);
+          v128_t vb = wasm_i32x4_splat(b);
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const si32* sp = lp;
+          si32* dp = hp;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)h_width;
+            if (even)
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_add(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_add(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t w = wasm_i32x4_shr(t, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t w = wasm_i32x4_shr(t, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_sub(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_sub(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+          else 
+          { // general case
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);                
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+
+          // swap buffers
+          si32* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
+        }
+      }
+      else {
+        if (even)
+          ldst->i32[0] = src->i32[0];
+        else
+          hdst->i32[0] = src->i32[0] << 1;
+      }
+    }
+    
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_horz_syn(const param_atk* atk, const line_buf* dst, 
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        si32* oth = hsrc->i32, * aug = lsrc->i32;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
+        {
+          const lifting_step* s = atk->get_step(j);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui32 e = s->rev.Eatk;
+          v128_t va = wasm_i32x4_splat(a);
+          v128_t vb = wasm_i32x4_splat(b);
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const si32* sp = oth;
+          si32* dp = aug;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)aug_width;
+            if (ev)
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_add(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_add(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t w = wasm_i32x4_shr(t, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t w = wasm_i32x4_shr(t, e);
+                d = wasm_i32x4_add(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_sub(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t v = wasm_i32x4_sub(vb, t);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+          else 
+          { // general case
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp - 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 4, sp += 4, dp += 4)
+              {
+                v128_t s1 = wasm_v128_load((v128_t*)sp);
+                v128_t s2 = wasm_v128_load((v128_t*)(sp + 1));
+                v128_t d = wasm_v128_load((v128_t*)dp);
+                v128_t t = wasm_i32x4_add(s1, s2);
+                v128_t u = wasm_i32x4_mul(va, t);                
+                v128_t v = wasm_i32x4_add(vb, u);
+                v128_t w = wasm_i32x4_shr(v, e);
+                d = wasm_i32x4_sub(d, w);
+                wasm_v128_store((v128_t*)dp, d);
+              }
+          }
+
+          // swap buffers
+          si32* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        wasm_interleave(dst->f32, lsrc->f32, hsrc->f32, (int)width, even);
+      }
+      else {
+        if (even)
+          dst->i32[0] = lsrc->i32[0];
+        else
+          dst->i32[0] = hsrc->i32[0] >> 1;
+      }
+    }
+    
+  } // !local
+} // !ojph

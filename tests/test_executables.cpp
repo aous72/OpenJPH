@@ -44,7 +44,7 @@
 // STATIC                         ojph_popen
 ////////////////////////////////////////////////////////////////////////////////
 static inline
-FILE *ojph_popen(const char *command, const char *modes) 
+FILE* ojph_popen(const char* command, const char* modes)
 {
 #ifdef OJPH_COMPILER_MSVC
   return _popen(command, modes);
@@ -57,7 +57,7 @@ FILE *ojph_popen(const char *command, const char *modes)
 // STATIC                         ojph_pclose
 ////////////////////////////////////////////////////////////////////////////////
 static inline
-int ojph_pclose(FILE *stream) 
+int ojph_pclose(FILE* stream)
 {
 #ifdef OJPH_COMPILER_MSVC
   return _pclose(stream);
@@ -69,16 +69,16 @@ int ojph_pclose(FILE *stream)
 ////////////////////////////////////////////////////////////////////////////////
 // STATIC                           execute
 ////////////////////////////////////////////////////////////////////////////////
-static 
-int execute(const std::string& cmd, std::string& result) 
+static
+int execute(const std::string& cmd, std::string& result)
 {
   std::array<char, 128> buffer;
   result.clear();
 
   FILE* pipe = ojph_popen(cmd.c_str(), "r");
-  if (!pipe) 
+  if (!pipe)
     throw std::runtime_error("ojph_popen() failed!");
-  
+
   while (!feof(pipe))
     if (fgets(buffer.data(), 128, pipe) != nullptr)
       result += buffer.data();
@@ -94,21 +94,21 @@ int execute(const std::string& cmd, std::string& result)
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef OJPH_OS_WINDOWS
-	#define SRC_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\"
-	#define OUT_FILE_DIR ".\\"
-	#define REF_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\references\\"
-	#define MSE_PAE_PATH  ".\\Release\\mse_pae"
-	#define COMPARE_FILES_PATH  ".\\Release\\compare_files"
-	#define EXPAND_EXECUTABLE "..\\..\\bin\\Release\\ojph_expand.exe"
-	#define COMPRESS_EXECUTABLE "..\\..\\bin\\Release\\ojph_compress.exe"
+#define SRC_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\"
+#define OUT_FILE_DIR ".\\"
+#define REF_FILE_DIR ".\\jp2k_test_codestreams\\openjph\\references\\"
+#define MSE_PAE_PATH  ".\\mse_pae"
+#define COMPARE_FILES_PATH  ".\\compare_files"
+#define EXPAND_EXECUTABLE ".\\ojph_expand.exe"
+#define COMPRESS_EXECUTABLE ".\\ojph_compress.exe"
 #else
-	#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
-	#define OUT_FILE_DIR "./"
-	#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
-	#define MSE_PAE_PATH  "./mse_pae"
-	#define COMPARE_FILES_PATH  "./compare_files"
-	#define EXPAND_EXECUTABLE "../../bin/ojph_expand"
-	#define COMPRESS_EXECUTABLE "../../bin/ojph_compress"
+#define SRC_FILE_DIR "./jp2k_test_codestreams/openjph/"
+#define OUT_FILE_DIR "./"
+#define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
+#define MSE_PAE_PATH  "./mse_pae"
+#define COMPARE_FILES_PATH  "./compare_files"
+#define EXPAND_EXECUTABLE "./ojph_expand"
+#define COMPRESS_EXECUTABLE "./ojph_compress"
 #endif
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1
@@ -116,22 +116,21 @@ int execute(const std::string& cmd, std::string& result)
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_compress
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_compress(const std::string& ref_filename, 
-                       const std::string& base_filename, 
-                       const std::string& extended_base_fname, 
-                       const std::string& out_ext,
-                       const std::string& extra_options)
+void run_ojph_compress(const std::string& ref_filename,
+  const std::string& base_filename,
+  const std::string& extended_base_fname,
+  const std::string& out_ext,
+  const std::string& extra_options)
 {
   try {
     std::string result, command;
-    command = std::string(COMPRESS_EXECUTABLE) 
+    command = std::string(COMPRESS_EXECUTABLE)
       + " -i " + REF_FILE_DIR + ref_filename
-      + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname + 
+      + " -o " + OUT_FILE_DIR + base_filename + extended_base_fname +
       "." + out_ext + " " + extra_options;
-    std::cerr << command << std::endl;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -139,18 +138,18 @@ void run_ojph_compress(const std::string& ref_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_expand
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_expand(const std::string& base_filename, 
-                     const std::string& src_ext,
-                     const std::string& out_ext)
+void run_ojph_expand(const std::string& base_filename,
+  const std::string& src_ext,
+  const std::string& out_ext)
 {
   try {
     std::string result, command;
-    command = std::string(EXPAND_EXECUTABLE) 
+    command = std::string(EXPAND_EXECUTABLE)
       + " -i " + SRC_FILE_DIR + base_filename + "." + src_ext
       + " -o " + OUT_FILE_DIR + base_filename + "." + out_ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -158,34 +157,34 @@ void run_ojph_expand(const std::string& base_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                            run_ojph_compress
 ////////////////////////////////////////////////////////////////////////////////
-void run_ojph_compress_expand(const std::string& base_filename, 
-                              const std::string& out_ext,
-                              const std::string& decode_ext)
+void run_ojph_compress_expand(const std::string& base_filename,
+  const std::string& out_ext,
+  const std::string& decode_ext)
 {
   try {
     std::string result, command;
-    command = std::string(EXPAND_EXECUTABLE) 
+    command = std::string(EXPAND_EXECUTABLE)
       + " -i " + OUT_FILE_DIR + base_filename + "." + out_ext
       + " -o " + OUT_FILE_DIR + base_filename + "." + decode_ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
-  }  
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                             run_mse_pae
 ////////////////////////////////////////////////////////////////////////////////
-void run_mse_pae(const std::string& base_filename, 
-                 const std::string& out_ext, 
-                 const std::string& ref_filename, 
-                 const std::string& yuv_specs,
-                 int num_components, double* mse, int* pae) 
+void run_mse_pae(const std::string& base_filename,
+  const std::string& out_ext,
+  const std::string& ref_filename,
+  const std::string& yuv_specs,
+  int num_components, double* mse, int* pae)
 {
   try {
     std::string result, command;
-    command = std::string(MSE_PAE_PATH) 
+    command = std::string(MSE_PAE_PATH)
       + " " + OUT_FILE_DIR + base_filename + "." + out_ext + yuv_specs
       + " " + REF_FILE_DIR + ref_filename + yuv_specs;
     EXPECT_EQ(execute(command, result), 0);
@@ -214,7 +213,7 @@ void run_mse_pae(const std::string& base_filename,
         ++pos;
     }
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -222,20 +221,20 @@ void run_mse_pae(const std::string& base_filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                             compare_files
 ////////////////////////////////////////////////////////////////////////////////
-void compare_files(const std::string& base_filename, 
-                   const std::string& extended_base_fname, 
-                   const std::string& ext) 
+void compare_files(const std::string& base_filename,
+  const std::string& extended_base_fname,
+  const std::string& ext)
 {
   try {
     std::string result, command;
-    command = std::string(COMPARE_FILES_PATH) 
+    command = std::string(COMPARE_FILES_PATH)
       + " " + OUT_FILE_DIR + base_filename + extended_base_fname + "." + ext
       + " " + SRC_FILE_DIR + base_filename + "." + ext;
     EXPECT_EQ(execute(command, result), 0);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
-  }  
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -249,7 +248,7 @@ TEST(TestExecutables, OpenJPHCompressNoArguments) {
     std::string result;
     EXPECT_EQ(execute(COMPRESS_EXECUTABLE, result), 1);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -261,7 +260,7 @@ TEST(TestExecutables, OpenJPHExpandNoArguments) {
     std::string result;
     EXPECT_EQ(execute(EXPAND_EXECUTABLE, result), 1);
   }
-  catch(const std::runtime_error& error) {
+  catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
 }
@@ -824,6 +823,22 @@ TEST(TestExecutables, SimpleDecRev5364x6416bitGray) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Test ojph_expand with codeblocks when the rev53 wavelet is used.
+// Command-line options used to obtain this file is:
+// -o simple_dec_irv53_bhvhb_low_latency.jph -quiet Corder=PCRL Clevels=5
+// Cmodes=HT|CAUSAL -rate 2 Catk=2 Kkernels:I2=I5X3
+// Cprecincts={16,8192},{8,8192},{4,8192} Cblk={8,256}
+// Cdecomp=B(-:-:-),H(-),V(-),H(-),B(-:-:-) Qstep=0.0001 -precise -no_weights
+// -tolerance 0
+TEST(TestExecutables, SimpleDecIrv53BhvhbLowLatency) {
+  double mse[3] = { 5.52392, 4.01405, 6.8166};
+  int pae[3] = { 16, 17, 23};
+  run_ojph_expand("simple_dec_irv53_bhvhb_low_latency", "jph", "ppm");
+  run_mse_pae("simple_dec_irv53_bhvhb_low_latency", "ppm", "Malamute.ppm",
+              "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
@@ -1019,6 +1034,40 @@ TEST(TestExecutables, SimpleEncIrv9732x128) {
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_tiles_33x33_d5.j2c -qstep 0.01 -tile_size {33,33}
+// -num_decomps 5
+TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D5) {
+  double mse[3] = { 1.88906, 1.30757, 2.5347};
+  int pae[3] = { 9, 6, 10};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_64x64_tiles_33x33_d5", "", "j2c",
+                    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 5");
+  run_ojph_compress_expand("simple_enc_irv97_64x64_tiles_33x33_d5", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64_tiles_33x33_d5", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_64x64_tiles_33x33_d6.j2c -qstep 0.01 -tile_size {33,33}
+// -num_decomps 6
+TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D6) {
+  double mse[3] = { 1.88751, 1.30673, 2.53378};
+  int pae[3] = { 8, 6, 10};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_64x64_tiles_33x33_d6", "", "j2c",
+                    "-qstep 0.01 -tile_size \"{33,33}\" -num_decomps 6");
+  run_ojph_compress_expand("simple_enc_irv97_64x64_tiles_33x33_d6", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_64x64_tiles_33x33_d6", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the irv97 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
 TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
   double mse[3] = { 51727.3, 32596.4, 45897.8};
@@ -1160,6 +1209,40 @@ TEST(TestExecutables, SimpleEncRev534x1024) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_tiles_33x33_d5.j2c -reversible true -tile_size
+// {32,32} -num_decomps 5
+TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D5) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_64x64_tiles_33x33_d5", "", "j2c",
+                    "-reversible true -tile_size \"{32,32}\" -num_decomps 5");
+  run_ojph_compress_expand("simple_enc_rev53_64x64_tiles_33x33_d5", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64_tiles_33x33_d5", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with codeblocks when the rev53 wavelet is used.
+// We test by comparing MSE and PAE of decoded images. 
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_rev53_64x64_tiles_33x33_d6.j2c -reversible true -tile_size
+// {32,32} -num_decomps 6
+TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D6) {
+  double mse[3] = { 0, 0, 0};
+  int pae[3] = { 0, 0, 0};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_rev53_64x64_tiles_33x33_d6", "", "j2c",
+                    "-reversible true -tile_size \"{32,32}\" -num_decomps 6");
+  run_ojph_compress_expand("simple_enc_rev53_64x64_tiles_33x33_d6", "j2c", "ppm");
+  run_mse_pae("simple_enc_rev53_64x64_tiles_33x33_d6", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
 // We test by comparing MSE and PAE of decoded images. 
 // The compressed file is obtained using these command-line options:
@@ -1220,8 +1303,8 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
-  double mse[3] = { 96.7935, 69.6824, 66.7822};
-  int pae[3] = { 41, 39, 35};
+  double mse[3] = { 100.906, 76.113, 72.8347};
+  int pae[3] = { 39, 35, 34};
   run_ojph_compress("tall_narrow.ppm",
                     "simple_enc_irv97_tall_narrow1", "", "j2c",
                     "-image_offset \"{1,0}\" -qstep 0.1");
@@ -1361,7 +1444,7 @@ TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
 ////////////////////////////////////////////////////////////////////////////////
 //                                   main
 ////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -109,9 +109,29 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  bool codestream::is_tilepart_division_at_resolutions()
+  {
+    ui32 res = state->get_tilepart_div() & OJPH_TILEPART_RESOLUTIONS;
+    return res ? true : false;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool codestream::is_tilepart_division_at_components()
+  {
+    ui32 comp = state->get_tilepart_div() & OJPH_TILEPART_COMPONENTS;
+    return comp ? true : false;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void codestream::request_tlm_marker(bool needed)
   {
     state->request_tlm_marker(needed);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool codestream::is_tlm_requested()
+  {
+    return state->is_tlm_needed();
   }
 
   ////////////////////////////////////////////////////////////////////////////

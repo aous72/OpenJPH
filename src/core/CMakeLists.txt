@@ -1,0 +1,135 @@
+
+include_directories(common)
+
+file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h")
+file(GLOB CODESTREAM_SSE   "codestream/*_sse.cpp")
+file(GLOB CODESTREAM_SSE2  "codestream/*_sse2.cpp")
+file(GLOB CODESTREAM_AVX   "codestream/*_avx.cpp")
+file(GLOB CODESTREAM_AVX2  "codestream/*_avx2.cpp")
+file(GLOB CODESTREAM_WASM  "codestream/*_wasm.cpp")
+file(GLOB CODING           "coding/*.cpp" "coding/*.h")
+file(GLOB CODING_SSSE3     "coding/*_ssse3.cpp")
+file(GLOB CODING_WASM      "coding/*_wasm.cpp")
+file(GLOB CODING_AVX512    "coding/*_avx512.cpp")
+file(GLOB COMMON           "common/*.h")
+file(GLOB OTHERS           "others/*.cpp")
+file(GLOB TRANSFORM        "transform/*.cpp" "transform/*.h")
+file(GLOB TRANSFORM_SSE    "transform/*_sse.cpp")
+file(GLOB TRANSFORM_SSE2   "transform/*_sse2.cpp")
+file(GLOB TRANSFORM_AVX    "transform/*_avx.cpp")
+file(GLOB TRANSFORM_AVX2   "transform/*_avx2.cpp")
+file(GLOB TRANSFORM_AVX512 "transform/*_avx512.cpp")
+file(GLOB TRANSFORM_WASM   "transform/*_wasm.cpp")
+
+list(REMOVE_ITEM CODESTREAM ${CODESTREAM_SSE} ${CODESTREAM_SSE2} ${CODESTREAM_AVX} ${CODESTREAM_AVX2} ${CODESTREAM_WASM})
+list(REMOVE_ITEM CODING ${CODING_SSSE3} ${CODING_WASM} ${CODING_AVX512})
+list(REMOVE_ITEM TRANSFORM ${TRANSFORM_SSE} ${TRANSFORM_SSE2} ${TRANSFORM_AVX} ${TRANSFORM_AVX2} ${TRANSFORM_AVX512} ${TRANSFORM_WASM})
+list(APPEND SOURCES ${CODESTREAM} ${CODING} ${COMMON} ${OTHERS} ${TRANSFORM})
+
+source_group("codestream"        FILES ${CODESTREAM})
+source_group("coding"            FILES ${CODING})
+source_group("common"            FILES ${COMMON})
+source_group("others"            FILES ${OTHERS})
+source_group("transform"         FILES ${TRANSFORM})
+
+if(EMSCRIPTEN)
+  add_compile_options(-std=c++11 -O3 -fexceptions)
+  add_library(openjph ${SOURCES})
+  add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
+
+  target_include_directories(openjph PUBLIC common)
+  target_include_directories(openjphsimd PUBLIC common)
+
+  target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
+
+  source_group("codestream" FILES ${CODESTREAM_WASM})
+  source_group("coding" FILES ${CODING_WASM})
+  source_group("transform" FILES ${TRANSFORM_WASM})
+
+else()
+  if (NOT OJPH_DISABLE_SIMD)
+    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
+
+      if (NOT OJPH_DISABLE_SSE)
+        list(APPEND SOURCES ${CODESTREAM_SSE} ${TRANSFORM_SSE})
+        source_group("codestream" FILES ${CODESTREAM_SSE})
+        source_group("transform" FILES ${TRANSFORM_SSE})
+      endif()
+      if (NOT OJPH_DISABLE_SSE2)
+        list(APPEND SOURCES ${CODESTREAM_SSE2} ${TRANSFORM_SSE2})
+        source_group("codestream" FILES ${CODESTREAM_SSE2})
+        source_group("transform" FILES ${TRANSFORM_SSE2})
+      endif()
+      if (NOT OJPH_DISABLE_SSSE3)
+        list(APPEND SOURCES ${CODING_SSSE3})
+        source_group("coding" FILES ${CODING_SSSE3})
+      endif()
+      if (NOT OJPH_DISABLE_AVX)
+        list(APPEND SOURCES ${CODESTREAM_AVX} ${TRANSFORM_AVX})
+        source_group("codestream" FILES ${CODESTREAM_AVX})
+        source_group("transform" FILES ${TRANSFORM_AVX})
+      endif()
+      if (NOT OJPH_DISABLE_AVX2)
+        list(APPEND SOURCES ${CODESTREAM_AVX2} ${TRANSFORM_AVX2})
+        source_group("codestream" FILES ${CODESTREAM_AVX2})
+        source_group("transform" FILES ${TRANSFORM_AVX2})
+      endif()
+      if ((NOT OJPH_DISABLE_AVX512) AND ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64"))
+        list(APPEND SOURCES ${CODING_AVX512} ${TRANSFORM_AVX512})
+        source_group("coding" FILES ${CODING_AVX512})
+        source_group("transform" FILES ${TRANSFORM_AVX512})
+      endif()
+
+      # Set compilation flags
+      if (MSVC)
+        set_source_files_properties(codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
+        set_source_files_properties(codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+        set_source_files_properties(coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX512")
+        set_source_files_properties(transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
+        set_source_files_properties(transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+        set_source_files_properties(transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
+        set_source_files_properties(transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+        set_source_files_properties(transform/ojph_transform_avx512.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX512")
+      else()
+        set_source_files_properties(codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+        set_source_files_properties(codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+        set_source_files_properties(coding/ojph_block_decoder_ssse3.cpp PROPERTIES COMPILE_FLAGS -mssse3)
+        set_source_files_properties(coding/ojph_block_encoder_avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512cd)
+        set_source_files_properties(transform/ojph_colour_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+        set_source_files_properties(transform/ojph_colour_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+        set_source_files_properties(transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+        set_source_files_properties(transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
+        set_source_files_properties(transform/ojph_transform_avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512f)
+      endif()
+
+    elseif ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM")
+
+    endif()
+
+  endif()
+
+  add_library(openjph ${SOURCES})
+
+endif()
+
+## The option BUILD_SHARED_LIBS
+if (BUILD_SHARED_LIBS AND WIN32)
+  target_compile_definitions(openjph PRIVATE OJPH_BUILD_SHARED_LIBRARY)
+endif()
+
+## include library version/name
+target_include_directories(openjph PUBLIC common)
+target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
+
+if (MSVC)
+  set(OJPH_LIB_NAME_STRING "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
+  set_target_properties(openjph
+    PROPERTIES
+      OUTPUT_NAME "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
+else()
+  set(OJPH_LIB_NAME_STRING "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
+  set_target_properties(openjph
+    PROPERTIES
+      SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
+      VERSION "${OPENJPH_VERSION}")
+endif()

@@ -538,29 +538,27 @@ int main(int argc, char * argv[]) {
     "               compression; quantization steps size for all subbands are\n"
     "               derived from this value. {The default value for 8bit\n"
     "               images is 0.0039}\n"
-    " -reversible   (false) for irreversible; this should be false to perform\n"
-    "               lossy compression using the 9/7 wavelet transform;\n" 
-    "               or true to perform reversible compression, where\n"
-    "               the 5/3 wavelet is employed with lossless compression.\n"
-    " -colour_trans (true) this option employs a color transform, to\n"
-    "               transform RGB color images into the YUV domain.\n"
-    "               This option should not be used with YUV images, because\n"
+    " -reversible   <true | false> If this is 'false', an irreversible or\n"
+    "               lossy compression is employed, using the 9/7 wavelet\n"
+    "               transform; if 'true', a reversible compression is\n"
+    "               performed, where the 5/3 wavelet is used.\n"
+    "               Default value is 'false'.\n"
+    " -colour_trans <true | false> This option employs a color transform,\n"
+    "               to transform RGB color images into the YUV domain.\n"
+    "               This option should NOT be used with YUV images, because\n"
     "               they have already been transformed.\n"
     "               If there are three color components that are\n"
-    "               downsampled by the same amount then the color transform\n"
-    "               can be true or false. This option is also available\n"
-    "               when there are more than three colour components,\n"
-    "               where it is applied to the first three colour\n"
-    "               components.\n"
-    "               it has already been applied to convert the original RGB\n"
-    "               or whatever the original format to YUV.\n"
+    "               downsampled by the same amount then this option can be\n"
+    "               'true' or 'false'. This option is also available when\n"
+    "               there are more than three colour components, where it is\n"
+    "               applied to the first three colour components.\n"
     " -prog_order   (RPCL) is the progression order, and can be one of:\n"
-    "               LRCP, RLCP, RPCL, PCRL, CPRL\n"
+    "               LRCP, RLCP, RPCL, PCRL, CPRL.\n"
     " -block_size   {x,y} (64,64) where x and y are the height and width of\n"
     "               a codeblock. In unix-like environment, { and } must be\n"
-    "               proceeded by a ""\\""\n"
+    "               preceded by a ""\\"".\n"
     " -precincts    {x,y},{x,y},...,{x,y} where {x,y} is the precinct size\n"
-    "               starting from the coarest resolution; the last precinct\n"
+    "               starting from the coarsest resolution; the last precinct\n"
     "               is repeated for all finer resolutions\n"
     " -tile_offset  {x,y} tile offset. \n"
     " -tile_size    {x,y} tile width and height. \n"
@@ -568,14 +566,15 @@ int main(int argc, char * argv[]) {
     " -tileparts    (None) employ tilepart divisions at each resolution, \n"
     "               indicated by the letter R, and/or component, indicated \n"
     "               by the letter C. For both, use \"-tileparts RC\".\n"
-    " -tlm_marker   (false) insert a TLM marker, either \"true\" or \"false\"\n"
+    " -tlm_marker   <true | false> if 'true', a TLM marker is inserted.\n"
+    "               Default value is false.\n"
     " -profile      (None) is the profile, the code will check if the \n"
     "               selected options meet the profile.  Currently only \n"
     "               BROADCAST and IMF are supported.  This automatically \n"
     "               sets tlm_marker to true and tileparts to C.\n"
     " -com          (None) if set, inserts a COM marker with the specified\n"
     "               string. If the string has spaces, please use\n"
-    "               double quotes, as in -com \"This is a comment\"\n"
+    "               double quotes, as in -com \"This is a comment\".\n"
     "\n"
 
     "When the input file is a YUV file, these arguments need to be \n"
@@ -900,7 +899,7 @@ int main(int argc, char * argv[]) {
         cod.set_progression_order(prog_order);
         if (employ_color_transform != -1)
           OJPH_ERROR(0x01000086,
-            "color transform is not meaningless since .raw files are single "
+            "color transform is meaningless since .raw files are single "
             "component files");
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
@@ -917,55 +916,55 @@ int main(int argc, char * argv[]) {
       }
       else if (is_matching(".dpx", v))
       {
-      dpx.open(input_filename);
-      ojph::param_siz siz = codestream.access_siz();
-      siz.set_image_extent(ojph::point(image_offset.x + dpx.get_size().w,
-        image_offset.y + dpx.get_size().h));
-      ojph::ui32 num_comps = dpx.get_num_components();
-      siz.set_num_components(num_comps);
-      //if (num_bit_depths > 0)
-      //  dpx.set_bit_depth(num_bit_depths, bit_depth);
-      for (ojph::ui32 c = 0; c < num_comps; ++c)
-        siz.set_component(c, dpx.get_comp_subsampling(c),
-          dpx.get_bit_depth(c), dpx.get_is_signed(c));
-      siz.set_image_offset(image_offset);
-      siz.set_tile_size(tile_size);
-      siz.set_tile_offset(tile_offset);
+        dpx.open(input_filename);
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + dpx.get_size().w,
+          image_offset.y + dpx.get_size().h));
+        ojph::ui32 num_comps = dpx.get_num_components();
+        siz.set_num_components(num_comps);
+        //if (num_bit_depths > 0)
+        //  dpx.set_bit_depth(num_bit_depths, bit_depth);
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
+          siz.set_component(c, dpx.get_comp_subsampling(c),
+            dpx.get_bit_depth(c), dpx.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
 
-      ojph::param_cod cod = codestream.access_cod();
-      cod.set_num_decomposition(num_decompositions);
-      cod.set_block_dims(block_size.w, block_size.h);
-      if (num_precincts != -1)
-        cod.set_precinct_size(num_precincts, precinct_size);
-      cod.set_progression_order(prog_order);
-      if (employ_color_transform == -1 && num_comps >= 3)
-        cod.set_color_transform(true);
-      else
-        cod.set_color_transform(employ_color_transform == 1);
-      cod.set_reversible(reversible);
-      if (!reversible && quantization_step != -1)
-        codestream.access_qcd().set_irrev_quant(quantization_step);
-      codestream.set_planar(false);
-      if (profile_string[0] != '\0')
-        codestream.set_profile(profile_string);
-      codestream.set_tilepart_divisions(tileparts_at_resolutions,
-        tileparts_at_components);
-      codestream.request_tlm_marker(tlm_marker);
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1 && num_comps >= 3)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
+          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
 
-      if (dims.w != 0 || dims.h != 0)
-        OJPH_WARN(0x01000071,
-          "-dims option is not needed and was not used\n");
-      if (num_components != 0)
-        OJPH_WARN(0x01000072,
-          "-num_comps is not needed and was not used\n");
-      if (is_signed[0] != -1)
-        OJPH_WARN(0x01000073,
-          "-signed is not needed and was not used\n");
-      if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-        OJPH_WARN(0x01000075,
-          "-downsamp is not needed and was not used\n");
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000071,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000072,
+            "-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          OJPH_WARN(0x01000073,
+            "-signed is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000075,
+            "-downsamp is not needed and was not used\n");
 
-      base = &dpx;
+        base = &dpx;
       }
       else
 #if defined( OJPH_ENABLE_TIFF_SUPPORT)

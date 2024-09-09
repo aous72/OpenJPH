@@ -2,8 +2,7 @@
 
 name: C/C++ CI
 on: 
-  push
-on:
+  push:
   pull_request:
     types: [opened, reopened]
 

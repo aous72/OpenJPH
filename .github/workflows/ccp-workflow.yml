@@ -2,10 +2,11 @@
 
 name: C/C++ CI
 on: 
-  push:
+  push
 
 on:
   pull_request:
+    types: [opened, reopened]
 
 
 jobs:

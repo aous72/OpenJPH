@@ -59,6 +59,13 @@ namespace ojph {
                             ojph::coded_lists *& coded);
 
     void
+      ojph_encode_codeblock_avx2(ui32* buf, ui32 missing_msbs,
+                                 ui32 num_passes, ui32 width, ui32 height,
+                                 ui32 stride, ui32* lengths,
+                                 ojph::mem_elastic_allocator* elastic,
+                                 ojph::coded_lists*& coded);
+
+    void
       ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, 
                                    ui32 num_passes, ui32 width, ui32 height, 
                                    ui32 stride, ui32* lengths,

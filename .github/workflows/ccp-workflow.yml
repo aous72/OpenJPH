@@ -1,8 +1,8 @@
 # taken from https://github.com/onqtam/doctest/blob/master/.github/workflows/main.yml
 
 name: C/C++ CI
-on: push
-on:
+on: 
+  push
   pull_request:
     types: [opened, reopened]
 

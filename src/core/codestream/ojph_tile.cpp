@@ -67,6 +67,7 @@ namespace ojph {
       allocator->pre_alloc_obj<ui32>(num_comps); //for line_offsets
       allocator->pre_alloc_obj<ui32>(num_comps); //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
+      allocator->pre_alloc_obj<bool>(num_comps); //for nlt_type3
       allocator->pre_alloc_obj<ui32>(num_comps); //for cur_line
 
       ui32 tilepart_div = codestream->get_tilepart_div();
@@ -142,6 +143,7 @@ namespace ojph {
 
       //allocate tiles_comp
       const param_siz *szp = codestream->get_siz();
+      const param_nlt *nlp = codestream->get_nlt();
 
       this->num_bytes = 0;
       num_comps = szp->get_num_components();
@@ -152,6 +154,7 @@ namespace ojph {
       line_offsets = allocator->post_alloc_obj<ui32>(num_comps);
       num_bits = allocator->post_alloc_obj<ui32>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
+      nlt_type3 = allocator->post_alloc_obj<bool>(num_comps);
       cur_line = allocator->post_alloc_obj<ui32>(num_comps);
 
       profile = codestream->get_profile();
@@ -176,6 +179,8 @@ namespace ojph {
       ui32 width = 0;
       for (ui32 i = 0; i < num_comps; ++i)
       {
+        ui8 bd; bool is; // used for nlt_type3
+
         point downsamp = szp->get_downsampling(i);
         point recon_downsamp = szp->get_recon_downsampling(i);
 
@@ -205,6 +210,13 @@ namespace ojph {
 
         num_bits[i] = szp->get_bit_depth(i);
         is_signed[i] = szp->is_signed(i);
+        nlt_type3[i] = nlp->get_type3_transformation(i, bd, is);
+        if (nlt_type3[i] == true && (bd != num_bits[i] || is != is_signed[i]))
+          OJPH_ERROR(0x000300A1, "Mismatch between Ssiz (bit_depth = %d, "
+            "is_signed = %s) from SIZ marker segment, and BDnlt "
+            "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
+            "for component %d",i, num_bits[i], 
+            is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
         cur_line[i] = 0;
       }
 
@@ -250,8 +262,12 @@ namespace ojph {
           int shift = 1 << (num_bits[comp_num] - 1);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           si32* dp = tc->i32;
-          if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num]) {
+            if (nlt_type3[comp_num])
+              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
+            else
+              memcpy(dp, sp, comp_width * sizeof(si32));
+          }
           else
             cnvrt_si32_to_si32_shftd(sp, dp, -shift, comp_width);
         }
@@ -269,14 +285,18 @@ namespace ojph {
       }
       else
       {
+        int shift = 1 << (num_bits[comp_num] - 1);
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible)
         {
-          int shift = 1 << (num_bits[comp_num] - 1);
           const si32 *sp = line->i32 + line_offsets[comp_num];
           si32 *dp = lines[comp_num].i32;
-          if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num]) {
+            if (nlt_type3[comp_num])
+              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
+            else
+              memcpy(dp, sp, comp_width * sizeof(si32));
+          }
           else
             cnvrt_si32_to_si32_shftd(sp, dp, -shift, comp_width);
           if (comp_num == 2)
@@ -333,8 +353,12 @@ namespace ojph {
           int shift = 1 << (num_bits[comp_num] - 1);
           const si32 *sp = src_line->i32;
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num]) {
+            if (nlt_type3[comp_num])
+              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
+            else
+              memcpy(dp, sp, comp_width * sizeof(si32));
+          }
           else
             cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }
@@ -373,8 +397,12 @@ namespace ojph {
           else
             sp = comps[comp_num].pull_line()->i32;
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num])
-            memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num]) {
+            if (nlt_type3[comp_num])
+              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
+            else
+              memcpy(dp, sp, comp_width * sizeof(si32));
+          }
           else
             cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }

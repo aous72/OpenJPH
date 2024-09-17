@@ -49,43 +49,47 @@ namespace ojph {
     void (*cnvrt_si32_to_si32_shftd)
       (const si32 *sp, si32 *dp, int shift, ui32 width) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    void (*cnvrt_si32_to_si32_nlt_type3)
+      (const si32* sp, si32* dp, int shift, ui32 width) = NULL;
+
+    //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float_shftd)
       (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float)
       (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
       
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32_shftd)
       (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32)
       (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*rct_forward)
       (const si32 *r, const si32 *g, const si32 *b,
        si32 *y, si32 *cb, si32 *cr, ui32 repeat) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*rct_backward)
       (const si32 *y, const si32 *cb, const si32 *cr,
        si32 *r, si32 *g, si32 *b, ui32 repeat) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*ict_forward)
       (const float *r, const float *g, const float *b,
        float *y, float *cb, float *cr, ui32 repeat) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     void (*ict_backward)
       (const float *y, const float *cb, const float *cr,
        float *r, float *g, float *b, ui32 repeat) = NULL;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     static bool colour_transform_functions_initialized = false;
 
     //////////////////////////////////////////////////////////////////////////
@@ -97,6 +101,7 @@ namespace ojph {
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
       cnvrt_si32_to_si32_shftd = gen_cnvrt_si32_to_si32_shftd;
+      cnvrt_si32_to_si32_nlt_type3 = gen_cnvrt_si32_to_si32_nlt_type3;
       cnvrt_si32_to_float_shftd = gen_cnvrt_si32_to_float_shftd;
       cnvrt_si32_to_float = gen_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = gen_cnvrt_float_to_si32_shftd;
@@ -128,6 +133,7 @@ namespace ojph {
           cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
           cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
           cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
+          cnvrt_si32_to_si32_nlt_type3 = sse2_cnvrt_si32_to_si32_nlt_type3;
           rct_forward = sse2_rct_forward;
           rct_backward = sse2_rct_backward;
         }
@@ -149,6 +155,7 @@ namespace ojph {
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
         {
           cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
+          cnvrt_si32_to_si32_nlt_type3 = avx2_cnvrt_si32_to_si32_nlt_type3;
           rct_forward = avx2_rct_forward;
           rct_backward = avx2_rct_backward;
         }
@@ -162,6 +169,7 @@ namespace ojph {
 
 #else // OJPH_ENABLE_WASM_SIMD
       cnvrt_si32_to_si32_shftd = wasm_cnvrt_si32_to_si32_shftd;
+      cnvrt_si32_to_si32_nlt_type3 = wasm_cnvrt_si32_to_si32_nlt_type3;
       cnvrt_si32_to_float_shftd = wasm_cnvrt_si32_to_float_shftd;
       cnvrt_si32_to_float = wasm_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = wasm_cnvrt_float_to_si32_shftd;
@@ -198,6 +206,16 @@ namespace ojph {
     {
       for (ui32 i = width; i > 0; --i)
         *dp++ = *sp++ + shift;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
+                                          int shift, ui32 width)
+    {
+      for (ui32 i = width; i > 0; --i) {
+        const si32 v = *sp++;
+        *dp++ = v > 0 ? v : (- v - shift);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////

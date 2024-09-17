@@ -50,6 +50,10 @@ namespace ojph {
     (const si32 *sp, si32 *dp, int shift, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
+  extern void (*cnvrt_si32_to_si32_nlt_type3)
+    (const si32 *sp, si32 *dp, int shift, ui32 width);
+
+  ////////////////////////////////////////////////////////////////////////////
   extern void (*cnvrt_si32_to_float_shftd)
     (const si32 *sp, float *dp, float mul, ui32 width);
 

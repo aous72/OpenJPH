@@ -95,6 +95,24 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_si32_to_si32_nlt_type3(const si32* sp, si32* dp,
+                                           int shift, ui32 width)
+    {
+      __m128i sh = _mm_set1_epi32(-shift);
+      __m128i zero = _mm_setzero_si128();
+      for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
+      {
+        __m128i s = _mm_loadu_si128((__m128i*)sp);
+        __m128i c = _mm_cmplt_epi32(s, zero);  // 0xFFFFFFFF for -ve value
+        __m128i v_m_sh = _mm_sub_epi32(sh, s); // - shift - value 
+        v_m_sh = _mm_and_si128(c, v_m_sh);     // keep only - shift - value
+        s = _mm_andnot_si128(c, s);            // keep only +ve or 0
+        s = _mm_or_si128(s, v_m_sh);           // combine
+        _mm_storeu_si128((__m128i*)dp, s);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
                           si32 *y, si32 *cb, si32 *cr, ui32 repeat)
     {

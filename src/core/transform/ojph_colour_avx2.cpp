@@ -60,6 +60,27 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void avx2_cnvrt_si32_to_si32_nlt_type3(const si32* sp, si32* dp,
+                                           int shift, ui32 width)
+    {
+      __m256i sh = _mm256_set1_epi32(-shift);
+      __m256i zero = _mm256_setzero_si256();
+      for (int i = (width + 7) >> 3; i > 0; --i, sp += 8, dp += 8)
+      {
+        __m256i s = _mm256_loadu_si256((__m256i*)sp);
+        __m256i c = _mm256_cmpgt_epi32(s, zero);  // 0xFFFFFFFF for +ve value
+        __m256i z = _mm256_cmpeq_epi32(s, zero);  // 0xFFFFFFFF for 0
+        c = _mm256_or_si256(c, z);                // 0xFFFFFFFF for +ve and 0
+
+        __m256i v_m_sh = _mm256_sub_epi32(sh, s); // - shift - value 
+        v_m_sh = _mm256_andnot_si256(c, v_m_sh);  // keep only - shift - value
+        s = _mm256_and_si256(c, s);               // keep only +ve or 0
+        s = _mm256_or_si256(s, v_m_sh);           // combine
+        _mm256_storeu_si256((__m256i*)dp, s);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
                           si32 *y, si32 *cb, si32 *cr, ui32 repeat)
     {

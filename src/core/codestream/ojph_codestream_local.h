@@ -96,7 +96,7 @@ namespace ojph {
       }
       const param_dfs* access_dfs()
       { if (dfs.exists()) return &dfs; else return NULL; }
-      const param_nlt* access_nlt()
+      const param_nlt* get_nlt()
       { return &nlt; }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }

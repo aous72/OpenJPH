@@ -1324,7 +1324,7 @@ namespace ojph {
                                              bool& is_signed) const
     {
       const param_nlt* p = get_comp_object(comp_num);
-      p = p ? p : NULL;
+      p = p ? p : this;
       if (p->enabled)
       {
         bit_depth = (p->BDnlt & 0x7F) + 1;

@@ -550,6 +550,7 @@ namespace ojph {
       cod.update_atk(atk);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
+      nlt.check_validity(siz);
       if (profile == OJPH_PN_IMF)
         check_imf_validity();
       else if (profile == OJPH_PN_BROADCAST)
@@ -632,6 +633,9 @@ namespace ojph {
       if (!qcd.write(file))
         OJPH_ERROR(0x00030026, "Error writing to file");
 
+      if (!nlt.write(file))
+        OJPH_ERROR(0x00030027, "Error writing to file");
+
       char buf[] = "      OpenJPH Ver "
         OJPH_INT_TO_STRING(OPENJPH_VERSION_MAJOR) "."
         OJPH_INT_TO_STRING(OPENJPH_VERSION_MINOR) "."
@@ -642,23 +646,23 @@ namespace ojph {
       //1 for General use (IS 8859-15:1999 (Latin) values)
       *(ui16*)(buf + 4) = swap_byte((ui16)(1)); 
       if (file->write(buf, len) != len)
-        OJPH_ERROR(0x00030027, "Error writing to file");
+        OJPH_ERROR(0x00030028, "Error writing to file");
 
       if (comments != NULL) {
         for (ui32 i = 0; i < num_comments; ++i)
         {
           t = swap_byte(JP2K_MARKER::COM);
           if (file->write(&t, 2) != 2)
-            OJPH_ERROR(0x00030028, "Error writing to file");
+            OJPH_ERROR(0x00030029, "Error writing to file");
           t = swap_byte((ui16)(comments[i].len + 4));
           if (file->write(&t, 2) != 2)
-            OJPH_ERROR(0x00030029, "Error writing to file");
+            OJPH_ERROR(0x0003002A, "Error writing to file");
           //1 for General use (IS 8859-15:1999 (Latin) values)
           t = swap_byte(comments[i].Rcom);
           if (file->write(&t, 2) != 2)
-            OJPH_ERROR(0x0003002A, "Error writing to file");
-          if (file->write(comments[i].data, comments[i].len)!=comments[i].len)
             OJPH_ERROR(0x0003002B, "Error writing to file");
+          if (file->write(comments[i].data, comments[i].len)!=comments[i].len)
+            OJPH_ERROR(0x0003002C, "Error writing to file");
         }
       }
     }
@@ -728,8 +732,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::read_headers(infile_base *file)
     {
-      ui16 marker_list[19] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
-        RGN, POC, PPM, TLM, PLM, CRG, COM, DFS, ATK, SOT };
+      ui16 marker_list[20] = { SOC, SIZ, CAP, PRF, CPF, COD, COC, QCD, QCC,
+        RGN, POC, PPM, TLM, PLM, CRG, COM, DFS, ATK, NLT, SOT };
       find_marker(file, marker_list, 1); //find SOC
       find_marker(file, marker_list + 1, 1); //find SIZ
       siz.read(file);
@@ -737,7 +741,7 @@ namespace ojph {
       int received_markers = 0; //check that COD, & QCD received
       while (true)
       {
-        marker_idx = find_marker(file, marker_list + 2, 17);
+        marker_idx = find_marker(file, marker_list + 2, 18);
         if (marker_idx == 0)
           cap.read(file);
         else if (marker_idx == 1)
@@ -813,6 +817,8 @@ namespace ojph {
         else if (marker_idx == 15)
           atk[2].read(file);
         else if (marker_idx == 16)
+          nlt.read(file);
+        else if (marker_idx == 17)
           break;
         else
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
@@ -902,19 +908,20 @@ namespace ojph {
             }
 
             bool sod_found = false;
-            ui16 other_tile_part_markers[6] = { SOT, POC, PPT, PLT, COM, SOD };
+            ui16 other_tile_part_markers[7] = { SOT, POC, PPT, PLT, COM, 
+              NLT, SOD };
             while (true)
             {
               int marker_idx = 0;
               int result = 0;
-              marker_idx = find_marker(infile, other_tile_part_markers + 1, 5);
+              marker_idx = find_marker(infile, other_tile_part_markers + 1, 6);
               if (marker_idx == 0)
                 result = skip_marker(infile, "POC",
-                  "POC in a tile is not supported yet",
+                  "POC marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 1)
                 result = skip_marker(infile, "PPT",
-                  "PPT in a tile is not supported yet",
+                  "PPT marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 2)
                 //Skipping PLT marker segment;this should not cause any issues
@@ -924,6 +931,10 @@ namespace ojph {
                 result = skip_marker(infile, "COM", NULL,
                   OJPH_MSG_LEVEL::NO_MSG, resilient);
               else if (marker_idx == 4)
+                result = skip_marker(infile, "NLT", 
+                  "NLT marker in tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 5)
               {
                 sod_found = true;
                 break;
@@ -961,40 +972,40 @@ namespace ojph {
           else
           { //first tile part
             bool sod_found = false;
-            ui16 first_tile_part_markers[11] = { SOT, COD, COC, QCD, QCC, RGN,
-              POC, PPT, PLT, COM, SOD };
+            ui16 first_tile_part_markers[12] = { SOT, COD, COC, QCD, QCC, RGN,
+              POC, PPT, PLT, COM, NLT, SOD };
             while (true)
             {
               int marker_idx = 0;
               int result = 0;
-              marker_idx = find_marker(infile, first_tile_part_markers+1, 10);
+              marker_idx = find_marker(infile, first_tile_part_markers+1, 11);
               if (marker_idx == 0)
                 result = skip_marker(infile, "COD",
-                  "COD in a tile is not supported yet",
+                  "COD marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 1)
                 result = skip_marker(infile, "COC",
-                  "COC in a tile is not supported yet",
+                  "COC marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 2)
                 result = skip_marker(infile, "QCD",
-                  "QCD in a tile is not supported yet",
+                  "QCD marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 3)
                 result = skip_marker(infile, "QCC",
-                  "QCC in a tile is not supported yet",
+                  "QCC marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 4)
                 result = skip_marker(infile, "RGN",
-                  "RGN in a tile is not supported yet",
+                  "RGN marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 5)
                 result = skip_marker(infile, "POC",
-                  "POC in a tile is not supported yet",
+                  "POC marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 6)
                 result = skip_marker(infile, "PPT",
-                  "PPT in a tile is not supported yet",
+                  "PPT marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 7)
                 //Skipping PLT marker segment;this should not cause any issues
@@ -1004,6 +1015,10 @@ namespace ojph {
                 result = skip_marker(infile, "COM", NULL,
                   OJPH_MSG_LEVEL::NO_MSG, resilient);
               else if (marker_idx == 9)
+                result = skip_marker(infile, "NLT", 
+                  "PPT marker segment in a tile is not supported yet",
+                  OJPH_MSG_LEVEL::WARN, resilient);
+              else if (marker_idx == 10)
               {
                 sod_found = true;
                 break;

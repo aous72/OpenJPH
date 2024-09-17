@@ -934,13 +934,13 @@ namespace ojph {
       ui32 B = bit_depth;
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
-      float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
+      double bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       ui32 X = (ui32) ceil(log(bibo_l * bibo_l) / M_LN2);
       u8_SPqcd[s++] = (ui8)((B + X) << 3);
       for (ui32 d = num_decomps; d > 0; --d)
       {
-        float bibo_l = bibo_gains::get_bibo_gain_l(d, true);
-        float bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
+        double bibo_l = bibo_gains::get_bibo_gain_l(d, true);
+        double bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
         X = (ui32) ceil(log(bibo_h * bibo_l) / M_LN2);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
@@ -1366,9 +1366,8 @@ namespace ojph {
     void param_nlt::read(infile_base* file)
     {
       ui8 buf[6];
-      bool result = true;
 
-      if (result &= file->read(buf, 6) == 6)
+      if (file->read(buf, 6) != 6)
         OJPH_ERROR(0x00050141, "error reading NLT marker segment");
 
       ui16 length = swap_byte(*(ui16*)buf);

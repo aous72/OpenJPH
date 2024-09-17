@@ -1275,7 +1275,7 @@ namespace ojph {
         else
         {
           p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-          p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : (ui8)0);
+          p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
         }
       }
 
@@ -1298,7 +1298,7 @@ namespace ojph {
                 p = add_object(c);
                 p->enabled = true;
                 p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-                p->BDnlt |= siz.is_signed(c) ? 0x80 : (ui8)0;
+                p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
               }
             }
           }
@@ -1327,7 +1327,7 @@ namespace ojph {
       p = p ? p : this;
       if (p->enabled)
       {
-        bit_depth = (p->BDnlt & 0x7F) + (ui8)1;
+        bit_depth = (ui8)((p->BDnlt & 0x7F) + 1);
         bit_depth = bit_depth <= 38 ? bit_depth : 38;
         is_signed = (p->BDnlt & 0x80) == 0x80;
       }

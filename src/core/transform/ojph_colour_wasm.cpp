@@ -126,8 +126,8 @@ namespace ojph {
     void wasm_cnvrt_si32_to_si32_nlt_type3(const si32* sp, si32* dp,
                                            int shift, ui32 width)
     {
-      v128_t sh = wasm_f32x4_splat(-shift);
-      v128_t zero = wasm_f32x4_splat(0);
+      v128_t sh = wasm_i32x4_splat(-shift);
+      v128_t zero = wasm_i32x4_splat(0);
       for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
       {
         v128_t s = wasm_v128_load(sp);

@@ -57,6 +57,7 @@ namespace ojph {
   class param_siz;
   class param_cod;
   class param_qcd;
+  class param_nlt;
   class comment_exchange;
   class mem_fixed_allocator;
   struct point;
@@ -318,7 +319,7 @@ namespace ojph {
      * @brief Returns the underlying SIZ marker segment object
      * 
      * @return param_siz This object holds SIZ marker segment information,
-     *                   which are related to codestream dimensions, number
+     *                   which deals with codestream dimensions, number
      *                   of components, bit depth, ... etc.
      */
     param_siz access_siz();
@@ -327,7 +328,7 @@ namespace ojph {
      * @brief Returns the underlying COD marker segment object
      * 
      * @return param_cod This object holds COD marker segment information,
-     *                   which are related to coding parameters, such as
+     *                   which deals with coding parameters, such as
      *                   codeblock sizes, progression order, reversible,
      *                   ... etc.
      */
@@ -337,10 +338,19 @@ namespace ojph {
      * @brief Returns the underlying QCD marker segment object
      * 
      * @return param_qcd This object holds QCD marker segment information,
-     *                   which are related to quantization parameters --
+     *                   which deals with quantization parameters --
      *                   quantization step size for each subband.
      */
     param_qcd access_qcd();
+
+    /**
+     * @brief Returns the underlying NLT marker segment object
+     * 
+     * @return param_nlt This object holds NLT marker segment information,
+     *                   which deals with non-linearity point transformation
+     *                   for each component.
+     */
+    param_nlt access_nlt();
 
     /**
      * @brief Query if the codestream extraction is planar or not.

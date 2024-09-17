@@ -138,6 +138,7 @@ namespace ojph {
       COM = 0xFF64, //comment
       DFS = 0xFF72, //downsampling factor styles
       ADS = 0xFF73, //arbitrary decomposition styles
+      NLT = 0xFF76, //non-linearity point transformation
       ATK = 0xFF79, //arbitrary transformation kernels
       SOT = 0xFF90, //start of tile-part
       SOP = 0xFF91, //start of packet
@@ -657,6 +658,62 @@ namespace ojph {
 
     protected:
         ui16 comp_idx;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    ///////////////////////////////////////////////////////////////////////////
+    // data structures used by param_nlt
+    struct param_nlt
+    {
+    public:
+      param_nlt() { 
+        Lnlt = 6;
+        Cnlt = 65535; // default
+        BDnlt = 0;
+        Tnlt = 3;
+        enabled = false; next = NULL; alloced_next = false;
+      }
+
+      ~param_nlt() {
+        if (next && alloced_next) {
+          delete next;
+          next = NULL;
+        }
+      }
+
+      void check_validity(const param_siz& siz);
+      void set_type3_transformation(ui16 comp_num, bool enable);
+      bool get_type3_transformation(ui16 comp_num, ui8& bit_depth, 
+                                    bool& is_signed) const;
+      bool write(outfile_base* file) const;
+      void read(infile_base* file);
+
+    private:
+      const param_nlt* get_comp_object(ui32 comp_num) const;
+      param_nlt* get_comp_object(ui32 comp_num);
+      param_nlt* add_object(ui32 comp_num);
+      bool is_any_enabled() const;
+      void trim_non_existing_components(ui32 num_comps);
+
+    private:
+      ui16 Lnlt;         // length of the marker segment excluding marker
+      ui16 Cnlt;         // Component involved in the transformation
+      ui8 BDnlt;         // Decoded image component bit depth parameter
+      ui8 Tnlt;          // Type of non-linearity
+      bool enabled;      // true if this object is used
+      param_nlt* next;   // for chaining NLT markers
+      bool alloced_next; // true if next was allocated, not just set to an
+                         // existing object
+
+      // The top level param_nlt object is not allocated, but as part of 
+      // codestream, and is used to manage allocated next objects.
+      // next holds a list of param_nlt objects, which are managed by the top
+      // param_nlt object.
     };
 
     ///////////////////////////////////////////////////////////////////////////

@@ -245,8 +245,8 @@ namespace ojph {
         const param_dfs* dfs = codestream->access_dfs();
         if (dfs == NULL) {
           OJPH_ERROR(0x00070011, "There is a problem with codestream "
-              "marker segments. COD/COC specifies the use of a DFS marker "
-              "but there are no DFS markers within the main codestream "
+            "marker segments. COD/COC specifies the use of a DFS marker "
+            "but there are no DFS markers within the main codestream "
             "headers");
         }
         else {

@@ -373,6 +373,27 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////
+  void param_nlt::set_type3_transformation(ui16 comp_num, bool enable)
+  {
+    state->set_type3_transformation(comp_num, enable);
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  bool param_nlt::get_type3_transformation(ui16 comp_num, ui8& bit_depth,
+                                           bool& is_signed)
+  {
+    return state->get_type3_transformation(comp_num, bit_depth, is_signed);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////
   void comment_exchange::set_string(const char* str)
   { 
     size_t t = strlen(str);
@@ -611,7 +632,7 @@ namespace ojph {
       if ((Rsiz & 0x4000) == 0)
         OJPH_ERROR(0x00050044, 
           "Rsiz bit 14 is not set (this is not a JPH file)");
-      if ((Rsiz & 0x8000) != 0 && (Rsiz & 0xF5F) != 0)
+      if ((Rsiz & 0x8000) != 0 && (Rsiz & 0xD5F) != 0)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
         OJPH_ERROR(0x00050045, "error reading SIZ marker");
@@ -1223,6 +1244,220 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    void param_nlt::check_validity(const param_siz& siz)
+    {
+      if (is_any_enabled() == false)
+        return;
+
+      bool all_same_bit_depth = true;
+      bool all_same_signedness = true;
+      ui32 num_comps = siz.get_num_components();
+
+      ui32 bit_depth = 0;      // unknown yet
+      bool is_signed = false;  // unknown yet
+      for (ui32 c = 0; c < num_comps; ++c)
+      {
+        param_nlt* p = get_comp_object(c);
+        if (p == NULL || !p->enabled) // comp is not in list or not enabled
+        {
+          if (bit_depth == 0)
+          { // this is the first component which has not type 3 nlt definition
+            bit_depth = siz.get_bit_depth(c);
+            is_signed = siz.is_signed(c);
+          }
+          else
+          { // we have seen an undefined component previously
+            all_same_bit_depth =
+              all_same_bit_depth && (bit_depth == siz.get_bit_depth(c));
+            all_same_signedness =
+              all_same_signedness && (is_signed != siz.is_signed(c));
+          }
+        }
+        else
+        {
+          p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+          p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : 0);
+        }
+      }
+
+      if (this->enabled)
+      {
+        if (bit_depth != 0) // default captures some components
+        {
+          this->BDnlt = (ui8)((bit_depth - 1) | (is_signed ? 0x80 : 0));
+          if (!all_same_bit_depth || !all_same_signedness)
+          {
+            // We cannot use the default for all undefined components, so we 
+            // will keep it and set it to the values of the first undefined 
+            // component, but we will also define that component
+
+            for (ui32 c = 0; c < num_comps; ++c)
+            {
+              param_nlt* p = get_comp_object(c);
+              if (p == NULL) {
+                // values were defined previously for (p && enabled)
+                p = add_object(c);
+                p->enabled = true;
+                p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+                p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : 0);
+              }
+            }
+          }
+        }
+        else
+          this->enabled = false;
+      }
+
+      trim_non_existing_components(num_comps);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_nlt::set_type3_transformation(ui16 comp_num, bool enable)
+    {
+      param_nlt* p = get_comp_object(comp_num);
+      if (p == NULL)
+        p = add_object(comp_num);
+      p->enabled = enable;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_nlt::get_type3_transformation(ui16 comp_num, ui8& bit_depth, 
+                                             bool& is_signed) const
+    {
+      const param_nlt* p = get_comp_object(comp_num);
+      p = p ? p : NULL;
+      if (p->enabled)
+      {
+        bit_depth = (p->BDnlt & 0x7F) + 1;
+        bit_depth = bit_depth <= 38 ? bit_depth : 38;
+        is_signed = (p->BDnlt & 0x80) == 0x80;
+      }
+      return p->enabled;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_nlt::write(outfile_base* file) const
+    {
+      if (is_any_enabled() == false)
+        return true;
+
+      char buf[2];
+      bool result = true;
+      const param_nlt* p = this;
+      while (p)
+      {
+        if (p->enabled)
+        {
+          *(ui16*)buf = JP2K_MARKER::NLT;
+          *(ui16*)buf = swap_byte(*(ui16*)buf);
+          result &= file->write(&buf, 2) == 2;
+          *(ui16*)buf = swap_byte(Lnlt);
+          result &= file->write(&buf, 2) == 2;
+          *(ui16*)buf = swap_byte(Cnlt);
+          result &= file->write(&buf, 2) == 2;
+          result &= file->write(&BDnlt, 1) == 1;
+          result &= file->write(&Tnlt, 1) == 1;
+        }
+        p = p->next;
+      }
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_nlt::read(infile_base* file)
+    {
+      ui8 buf[6];
+      bool result = true;
+
+      if (result &= file->read(buf, 6) == 6)
+        OJPH_ERROR(0x00050141, "error reading NLT marker segment");
+
+      ui16 length = swap_byte(*(ui16*)buf);
+      if (length != 6 || buf[5] != 3) // wrong length or type
+        OJPH_ERROR(0x00050142, "Unsupported NLT type %d\n", buf[5]);
+
+      ui16 comp = swap_byte(*(ui16*)(buf + 2));
+      param_nlt* p = this;
+      if (comp != 65535)
+      {
+        p = get_comp_object(comp);
+        if (p == NULL)
+          p = add_object(comp);
+      }
+      p->enabled = true;
+      p->Cnlt = comp;
+      p->BDnlt = buf[4];
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_nlt* param_nlt::get_comp_object(ui32 comp_num) 
+    { 
+      // cast object to constant
+      const param_nlt* const_p = const_cast<const param_nlt*>(this);
+      // call using the constant object, then cast to non-const
+      return const_cast<param_nlt*>(const_p->get_comp_object(comp_num));
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    const param_nlt* param_nlt::get_comp_object(ui32 comp_num) const
+    {
+      if (Cnlt == comp_num)
+        return this;
+      else {
+        param_nlt* p = next;
+        while (p && p->Cnlt != comp_num)
+          p = p->next;
+        return p;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_nlt* param_nlt::add_object(ui32 comp_num)
+    {
+      assert(Cnlt != comp_num);
+      param_nlt* p = this;
+      while (p->next != NULL) {
+        assert(p->Cnlt != comp_num);
+        p = p->next;
+      }
+      p->next = new param_nlt;
+      p = p->next;
+      p->Cnlt = (ui16)comp_num;
+      p->alloced_next = true;
+      return p;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_nlt::is_any_enabled() const
+    {
+      // check if any field is enabled
+      const param_nlt* p = this;
+      while (p && p->enabled == false)
+        p = p->next;
+      return (p != NULL);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_nlt::trim_non_existing_components(ui32 num_comps)
+    {
+      param_nlt* p = this->next;
+      while (p) {
+        if (p->enabled == true && p->Cnlt >= num_comps)
+          p->enabled = false;
+        p = p->next;
+      }
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    //
+    //
+    //
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////
     bool param_sot::write(outfile_base *file, ui32 payload_len)
     {
       char buf[4];
@@ -1239,10 +1474,8 @@ namespace ojph {
       result &= file->write(&buf, 2) == 2;
       *(ui32*)buf = swap_byte(Psot);
       result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = TPsot;
-      result &= file->write(&buf, 1) == 1;
-      *(ui8*)buf = TNsot;
-      result &= file->write(&buf, 1) == 1;
+      result &= file->write(&TPsot, 1) == 1;
+      result &= file->write(&TNsot, 1) == 1;
 
       return result;
     }
@@ -1263,10 +1496,8 @@ namespace ojph {
       result &= file->write(&buf, 2) == 2;
       *(ui32*)buf = swap_byte(payload_len + 14);
       result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = TPsot;
-      result &= file->write(&buf, 1) == 1;
-      *(ui8*)buf = TNsot;
-      result &= file->write(&buf, 1) == 1;
+      result &= file->write(&TPsot, 1) == 1;
+      result &= file->write(&TNsot, 1) == 1;
 
       return result;
     }
@@ -1363,7 +1594,7 @@ namespace ojph {
                    "In any case, this limit means that we have 10922 "
                    "tileparts or more, which is a huge number.");
       this->num_pairs = num_pairs;
-      pairs = (Ttlm_Ptlm_pair*)store;
+      pairs = store;
       Ltlm = (ui16)(4 + 6 * num_pairs);
       Ztlm = 0;
       Stlm = 0x60;

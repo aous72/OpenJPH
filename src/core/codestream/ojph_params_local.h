@@ -687,8 +687,8 @@ namespace ojph {
       }
 
       void check_validity(const param_siz& siz);
-      void set_type3_transformation(ui16 comp_num, bool enable);
-      bool get_type3_transformation(ui16 comp_num, ui8& bit_depth, 
+      void set_type3_transformation(ui32 comp_num, bool enable);
+      bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
                                     bool& is_signed) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);

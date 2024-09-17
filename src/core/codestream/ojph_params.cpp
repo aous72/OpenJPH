@@ -1275,7 +1275,7 @@ namespace ojph {
         else
         {
           p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-          p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : 0);
+          p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : (ui8)0);
         }
       }
 
@@ -1283,7 +1283,7 @@ namespace ojph {
       {
         if (bit_depth != 0) // default captures some components
         {
-          this->BDnlt = (ui8)((bit_depth - 1) | (is_signed ? 0x80 : 0));
+          this->BDnlt = (ui8)((bit_depth - 1) | (is_signed ? 0x80 : (ui8)0));
           if (!all_same_bit_depth || !all_same_signedness)
           {
             // We cannot use the default for all undefined components, so we 
@@ -1298,7 +1298,7 @@ namespace ojph {
                 p = add_object(c);
                 p->enabled = true;
                 p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-                p->BDnlt |= (ui8)(siz.is_signed(c) ? 0x80 : 0);
+                p->BDnlt |= siz.is_signed(c) ? 0x80 : (ui8)0;
               }
             }
           }
@@ -1311,7 +1311,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::set_type3_transformation(ui16 comp_num, bool enable)
+    void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
     {
       param_nlt* p = get_comp_object(comp_num);
       if (p == NULL)
@@ -1320,14 +1320,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_nlt::get_type3_transformation(ui16 comp_num, ui8& bit_depth, 
+    bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
                                              bool& is_signed) const
     {
       const param_nlt* p = get_comp_object(comp_num);
       p = p ? p : this;
       if (p->enabled)
       {
-        bit_depth = (p->BDnlt & 0x7F) + 1;
+        bit_depth = (p->BDnlt & 0x7F) + (ui8)1;
         bit_depth = bit_depth <= 38 ? bit_depth : 38;
         is_signed = (p->BDnlt & 0x80) == 0x80;
       }

@@ -935,17 +935,16 @@ namespace ojph {
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       float bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
-      //we leave some leeway for numerical error by multiplying by 1.1f
-      ui32 X = (ui32) ceil(log(bibo_l * bibo_l * 1.1f) / M_LN2);
+      ui32 X = (ui32) ceil(log(bibo_l * bibo_l) / M_LN2);
       u8_SPqcd[s++] = (ui8)((B + X) << 3);
       for (ui32 d = num_decomps; d > 0; --d)
       {
         float bibo_l = bibo_gains::get_bibo_gain_l(d, true);
         float bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
-        X = (ui32) ceil(log(bibo_h * bibo_l * 1.1f) / M_LN2);
+        X = (ui32) ceil(log(bibo_h * bibo_l) / M_LN2);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
-        X = (ui32) ceil(log(bibo_h * bibo_h * 1.1f) / M_LN2);
+        X = (ui32) ceil(log(bibo_h * bibo_h) / M_LN2);
         u8_SPqcd[s++] = (ui8)((B + X) << 3);
       }
     }

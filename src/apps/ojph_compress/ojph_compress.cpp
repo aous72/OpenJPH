@@ -611,6 +611,7 @@ int main(int argc, char * argv[]) {
     ojph::codestream codestream;
 
     ojph::ppm_in ppm;
+    ojph::pfm_in pfm;
     ojph::yuv_in yuv;
     ojph::raw_in raw;
     ojph::dpx_in dpx;
@@ -735,6 +736,74 @@ int main(int argc, char * argv[]) {
             "-downsamp is not needed and was not used\n");
 
         base = &ppm;
+      }
+      else if (is_matching(".pfm", v))
+      {
+        pfm.open(input_filename);
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + pfm.get_width(),
+          image_offset.y + pfm.get_height()));
+        ojph::ui32 num_comps = pfm.get_num_components();
+        assert(num_comps == 1 || num_comps == 3);
+        siz.set_num_components(num_comps);
+
+        pfm.configure(bit_depth[0]);
+        for (ojph::ui32 c = 0; c < num_comps; ++c) {
+          ojph::ui32 bd = 32;
+          if (bit_depth[c] != 0)
+            bd = bit_depth[c];
+          bool is = false;
+          if (is_signed[c] != -1)
+            is = is_signed[c] != 0;
+          ojph::point ds(1, 1);
+          siz.set_component(c, ds, bd, is);
+        }
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1.0f)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+
+        ojph::param_nlt nlt = codestream.access_nlt();
+        if (reversible)
+          nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+        else
+          OJPH_ERROR(0x01000091, "The support for pfm image is not "
+            "complete; I need to figure how to modify the interface "
+            "to better support the exchange of floating point data. "
+            "Feeding float point data is not supported yet, unless it "
+            "is for lossless compression.");
+
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);          
+
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000092,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000093,
+            "-num_comps is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000094,
+            "-downsamp is not needed and was not used\n");
+
+        base = &pfm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
       else if (is_matching(".tif", v) || is_matching(".tiff", v))

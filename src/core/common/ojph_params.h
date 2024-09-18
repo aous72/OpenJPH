@@ -140,6 +140,8 @@ namespace ojph {
   class OJPH_EXPORT param_nlt
   {
   public:
+    enum special_comp_num : ui16 { ALL_COMPS = 65535 };
+  public:
     param_nlt(local::param_nlt* p) : state(p) {}
 
     /**
@@ -153,7 +155,7 @@ namespace ojph {
       * @param enable: true to enable nlt type 3 for this component or the 
                        default setting, false to disable nlt type 3.
       */
-    void set_type3_transformation(ui16 comp_num, bool enable);
+    void set_type3_transformation(ui32 comp_num, bool enable);
 
     /**
       * @brief get the state (enabled or disabled) of type 3 nonlinearity 
@@ -164,7 +166,7 @@ namespace ojph {
       * @param is_signed: returns true if the component/default is signed
       * @return true if enabled or false if not.
       */
-    bool get_type3_transformation(ui16 comp_num, ui8& bit_depth, 
+    bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
                                   bool& is_signed);
 
   private:

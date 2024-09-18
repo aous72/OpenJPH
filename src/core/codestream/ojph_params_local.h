@@ -167,12 +167,19 @@ namespace ojph {
       friend ::ojph::param_siz;
 
     public:
+      enum : ui16 {
+        RSIZ_NLT_FLAG  =  0x200,
+        RSIZ_HT_FLAG   = 0x4000,
+        RSIZ_EXT_FLAG  = 0x8000,
+      };
+
+    public:
       param_siz()
       {
         memset(this, 0, sizeof(param_siz));
         cptr = store;
         old_Csiz = 4;
-        Rsiz = 0x4000; //for jph, bit 14 of Rsiz is 1
+        Rsiz = RSIZ_HT_FLAG;
       }
 
       ~param_siz()
@@ -273,6 +280,11 @@ namespace ojph {
 
       bool is_ws_kern_support_needed() { return ws_kern_support_needed; }
       bool is_dfs_support_needed() { return dfs_support_needed; }
+
+      void set_Rsiz_flag(ui16 flag)
+      { Rsiz |= flag; }
+      void reset_Rsiz_flag(ui16 flag)
+      { Rsiz &= ~flag; }
 
     private:
       ui16 Lsiz;
@@ -670,10 +682,11 @@ namespace ojph {
     // data structures used by param_nlt
     struct param_nlt
     {
+      using special_comp_num = ojph::param_nlt::special_comp_num;
     public:
       param_nlt() { 
         Lnlt = 6;
-        Cnlt = 65535; // default
+        Cnlt = special_comp_num::ALL_COMPS; // default
         BDnlt = 0;
         Tnlt = 3;
         enabled = false; next = NULL; alloced_next = false;
@@ -686,7 +699,7 @@ namespace ojph {
         }
       }
 
-      void check_validity(const param_siz& siz);
+      void check_validity(param_siz& siz);
       void set_type3_transformation(ui32 comp_num, bool enable);
       bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
                                     bool& is_signed) const;

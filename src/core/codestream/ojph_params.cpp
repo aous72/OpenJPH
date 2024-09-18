@@ -373,13 +373,13 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////
-  void param_nlt::set_type3_transformation(ui16 comp_num, bool enable)
+  void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
   {
     state->set_type3_transformation(comp_num, enable);
   }
 
   //////////////////////////////////////////////////////////////////////////
-  bool param_nlt::get_type3_transformation(ui16 comp_num, ui8& bit_depth,
+  bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth,
                                            bool& is_signed)
   {
     return state->get_type3_transformation(comp_num, bit_depth, is_signed);
@@ -1243,7 +1243,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::check_validity(const param_siz& siz)
+    void param_nlt::check_validity(param_siz& siz)
     {
       if (is_any_enabled() == false)
         return;
@@ -1269,7 +1269,7 @@ namespace ojph {
             all_same_bit_depth =
               all_same_bit_depth && (bit_depth == siz.get_bit_depth(c));
             all_same_signedness =
-              all_same_signedness && (is_signed != siz.is_signed(c));
+              all_same_signedness && (is_signed == siz.is_signed(c));
           }
         }
         else
@@ -1308,6 +1308,10 @@ namespace ojph {
       }
 
       trim_non_existing_components(num_comps);
+
+      if (is_any_enabled() == false)
+        return;
+      siz.set_Rsiz_flag(param_siz::RSIZ_EXT_FLAG | param_siz::RSIZ_NLT_FLAG);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1376,7 +1380,7 @@ namespace ojph {
 
       ui16 comp = swap_byte(*(ui16*)(buf + 2));
       param_nlt* p = this;
-      if (comp != 65535)
+      if (comp != special_comp_num::ALL_COMPS)
       {
         p = get_comp_object(comp);
         if (p == NULL)

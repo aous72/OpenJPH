@@ -214,7 +214,7 @@ namespace ojph {
     {
       for (ui32 i = width; i > 0; --i) {
         const si32 v = *sp++;
-        *dp++ = v > 0 ? v : (- v - shift);
+        *dp++ = v >= 0 ? v : (- v - shift);
       }
     }
 

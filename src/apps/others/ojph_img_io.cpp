@@ -660,7 +660,7 @@ namespace ojph {
       if (shift)
         for (ui32 i = width; i > 0; --i, sp += num_comps) 
         {
-          ui32 v = *(ui32*)sp;
+          si32 v = *(si32*)sp;
           v >>= shift;
           *dp++ = *(float*)&v;
         }
@@ -675,8 +675,9 @@ namespace ojph {
       if (shift)
         for (ui32 i = width; i > 0; --i, sp += num_comps) {
           ui32 v = be2le(*(ui32*)sp);
-          v >>= shift;
-          *dp++ = *(float*)&v;
+          si32 u = *(si32*)&v;
+          u >>= shift;
+          *dp++ = *(float*)&u;
         }
       else
         for (ui32 i = width; i > 0; --i, sp += num_comps) {

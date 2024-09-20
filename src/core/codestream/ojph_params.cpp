@@ -1248,10 +1248,13 @@ namespace ojph {
       if (is_any_enabled() == false)
         return;
 
-      bool all_same_bit_depth = true;
-      bool all_same_signedness = true;
+      bool all_same = true;
       ui32 num_comps = siz.get_num_components();
 
+      // first stage; find out if all components captured by the default
+      // entry (ALL_COMPS) has the same bit_depth/signedness,
+      // while doing this, set the BDnlt for components not captured but the
+      // default entry (ALL_COMPS)
       ui32 bit_depth = 0;      // unknown yet
       bool is_signed = false;  // unknown yet
       for (ui32 c = 0; c < num_comps; ++c)
@@ -1266,10 +1269,8 @@ namespace ojph {
           }
           else
           { // we have seen an undefined component previously
-            all_same_bit_depth =
-              all_same_bit_depth && (bit_depth == siz.get_bit_depth(c));
-            all_same_signedness =
-              all_same_signedness && (is_signed == siz.is_signed(c));
+            all_same = all_same && (bit_depth == siz.get_bit_depth(c));
+            all_same = all_same && (is_signed == siz.is_signed(c));
           }
         }
         else
@@ -1279,26 +1280,41 @@ namespace ojph {
         }
       }
 
+      // If the default entry is enabled/used, then if the components captured
+      // by it are not the same, we need to create entries for these 
+      // components
       if (this->enabled)
       {
         if (bit_depth != 0) // default captures some components
         {
+          // captures at least one of the componets in the default entry
           this->BDnlt = (ui8)((bit_depth - 1) | (is_signed ? 0x80 : (ui8)0));
-          if (!all_same_bit_depth || !all_same_signedness)
+
+          if (!all_same)
           {
-            // We cannot use the default for all undefined components, so we 
-            // will keep it and set it to the values of the first undefined 
-            // component, but we will also define that component
+            // We cannot use the default for all components in it, so we 
+            // will keep the first one, and we will also define other
+            // components on their own.
 
             for (ui32 c = 0; c < num_comps; ++c)
             {
-              param_nlt* p = get_comp_object(c);
-              if (p == NULL) {
-                // values were defined previously for (p && enabled)
-                p = add_object(c);
-                p->enabled = true;
-                p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-                p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
+              ui16 bd = siz.get_bit_depth(c);
+              bool is = siz.is_signed(c);
+              if (bd != bit_depth || is != is_signed)
+              { 
+                // this component has different bit_depth/signedness than the
+                // default (ALL_COMPS) entry
+                param_nlt* p = get_comp_object(c);
+                if (p == NULL || !p->enabled)
+                {
+                  // this component is captured by the default (ALL_COMPS)
+                  // entry (because it is either not in the list, or 
+                  // not enabled
+                  if (p == NULL)
+                    p = add_object(c);
+                  p->enabled = true;
+                  p->BDnlt = (ui8)((bd - 1) | (is ? 0x80 : 0));
+                }
               }
             }
           }
@@ -1354,12 +1370,12 @@ namespace ojph {
           *(ui16*)buf = JP2K_MARKER::NLT;
           *(ui16*)buf = swap_byte(*(ui16*)buf);
           result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_byte(Lnlt);
+          *(ui16*)buf = swap_byte(p->Lnlt);
           result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_byte(Cnlt);
+          *(ui16*)buf = swap_byte(p->Cnlt);
           result &= file->write(&buf, 2) == 2;
-          result &= file->write(&BDnlt, 1) == 1;
-          result &= file->write(&Tnlt, 1) == 1;
+          result &= file->write(&p->BDnlt, 1) == 1;
+          result &= file->write(&p->Tnlt, 1) == 1;
         }
         p = p->next;
       }
@@ -1423,9 +1439,9 @@ namespace ojph {
         p = p->next;
       }
       p->next = new param_nlt;
+      p->alloced_next = true;
       p = p->next;
       p->Cnlt = (ui16)comp_num;
-      p->alloced_next = true;
       return p;
     }
 
@@ -1444,8 +1460,8 @@ namespace ojph {
     {
       param_nlt* p = this->next;
       while (p) {
-        if (p->enabled == true && p->Cnlt >= num_comps)
-          p->enabled = false;
+          if (p->enabled == true && p->Cnlt >= num_comps)
+            p->enabled = false;
         p = p->next;
       }
     }

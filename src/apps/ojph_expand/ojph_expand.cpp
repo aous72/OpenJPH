@@ -288,8 +288,11 @@ int main(int argc, char *argv[]) {
           OJPH_ERROR(0x0200000D,
             "To save an image to ppm, all the components must have the "
             "same downsampling ratio\n");
+        ojph::ui32 bit_depth[3];
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+          bit_depth[c] = siz.get_bit_depth(c);
         pfm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
-          siz.get_num_components(), -1.0f, siz.get_bit_depth(0));
+          siz.get_num_components(), -1.0f, bit_depth);
         pfm.open(output_filename);
         base = &pfm;
       }

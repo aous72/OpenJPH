@@ -463,7 +463,7 @@ namespace ojph {
       alloc_p = p;
       temp_buf = NULL;
       temp_buf_byte_size = 0;
-      bit_depth = 32;
+      bit_depth[0] = bit_depth[1] = bit_depth[2] = 32;
       scale = 0.0f;
       little_endian = true;
       width = height = num_comps = 0;
@@ -480,9 +480,10 @@ namespace ojph {
 
     void open(const char* filename);
     void finalize_alloc();
-    void configure(ui32 bit_depth) { 
-      assert(bit_depth > 0 && bit_depth <= 32);
-      this->bit_depth = bit_depth;
+    void configure(ui32* bit_depth) {
+      assert(num_comps != 0);
+      for (ui32 c = 0; c < num_comps; ++c)
+        this->bit_depth[c] = bit_depth[c];
     }
     virtual ui32 read(const line_buf* line, ui32 comp_num);
     void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
@@ -498,7 +499,7 @@ namespace ojph {
     mem_fixed_allocator *alloc_p;
     float *temp_buf;
     ui32 temp_buf_byte_size;
-    ui32 bit_depth; // this truncates data to bit_depth in the LSB
+    ui32 bit_depth[3];       // this truncates data to bit_depth in the LSB
     float scale;
     bool little_endian;
     ui32 width, height, num_comps;
@@ -783,7 +784,7 @@ namespace ojph {
       buffer_size = 0;
       width = height = num_components = 0;
       scale = -1.0f;
-      bit_depth = 32;
+      bit_depth[0] = bit_depth[1] = bit_depth[2] = 32;
       cur_line = 0;
       start_of_data = 0;
     }
@@ -796,7 +797,7 @@ namespace ojph {
 
     void open(char* filename);
     void configure(ui32 width, ui32 height, ui32 num_components, 
-                   float scale, ui32 bit_depth);
+                   float scale, ui32* bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
 
@@ -807,7 +808,7 @@ namespace ojph {
     ui32 buffer_size;
     ui32 width, height, num_components;
     float scale;
-    ui32 bit_depth;
+    ui32 bit_depth[3];
     ui32 cur_line;
     si64 start_of_data;
   };

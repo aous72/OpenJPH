@@ -695,6 +695,7 @@ namespace ojph {
       ~param_nlt() {
         if (next && alloced_next) {
           delete next;
+          alloced_next = false;
           next = NULL;
         }
       }

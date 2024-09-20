@@ -747,7 +747,28 @@ int main(int argc, char * argv[]) {
         assert(num_comps == 1 || num_comps == 3);
         siz.set_num_components(num_comps);
 
-        pfm.configure(bit_depth[0]);
+        if (bit_depth[0] != 0)             // one was set
+          if (num_bit_depths < num_comps)  // but if not enough, repeat
+            for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)
+              bit_depth[c] = bit_depth[num_bit_depths - 1];
+        if (is_signed[0] != -1)            // one was set
+          if (num_is_signed < num_comps)   // but if not enough, repeat
+            for (ojph::ui32 c = num_is_signed; c < num_comps; ++c)
+              is_signed[c] = is_signed[num_is_signed - 1];
+
+        bool all_the_same = true;
+        if (num_comps == 3)
+        {
+          all_the_same = all_the_same 
+            && bit_depth[0] == bit_depth[1] 
+            && bit_depth[1] == bit_depth[2];
+          all_the_same = all_the_same
+            && is_signed[0] == is_signed[1]
+            && is_signed[1] == is_signed[2];
+        }
+
+        pfm.configure(bit_depth);
+        ojph::point ds(1, 1);
         for (ojph::ui32 c = 0; c < num_comps; ++c) {
           ojph::ui32 bd = 32;
           if (bit_depth[c] != 0)
@@ -755,7 +776,6 @@ int main(int argc, char * argv[]) {
           bool is = false;
           if (is_signed[c] != -1)
             is = is_signed[c] != 0;
-          ojph::point ds(1, 1);
           siz.set_component(c, ds, bd, is);
         }
         siz.set_image_offset(image_offset);
@@ -777,8 +797,13 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
 
         ojph::param_nlt nlt = codestream.access_nlt();
-        if (reversible)
-          nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+        if (reversible) {
+          if (all_the_same)
+            nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+          else
+            for (ojph::ui32 c = 0; c < num_comps; ++c)
+              nlt.set_type3_transformation(c, true);
+        }
         else
           OJPH_ERROR(0x01000091, "The support for pfm image is not "
             "complete; I need to figure how to modify the interface "

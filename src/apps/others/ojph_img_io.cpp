@@ -654,7 +654,7 @@ namespace ojph {
 
     if (little_endian)
     {
-      ui32 shift = 32 - bit_depth;
+      ui32 shift = 32 - bit_depth[comp_num];
       const float* sp = temp_buf + comp_num;
       float* dp = line->f32;
       if (shift)
@@ -669,7 +669,7 @@ namespace ojph {
           *dp++ = *sp;
     }
     else {
-      ui32 shift = 32 - bit_depth;
+      ui32 shift = 32 - bit_depth[comp_num];
       const float* sp = temp_buf + comp_num;
       float* dp = line->f32;
       if (shift)
@@ -718,7 +718,7 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   void pfm_out::configure(ui32 width, ui32 height, ui32 num_components, 
-                          float scale, ui32 bit_depth)
+                          float scale, ui32* bit_depth)
   {
     assert(fh == NULL); //configure before opening
     if (num_components != 1 && num_components != 3)
@@ -728,7 +728,8 @@ namespace ojph {
     this->height = height;
     this->num_components = num_components;
     this->scale = scale < 0.0f ? scale : -scale;
-    this->bit_depth = bit_depth;
+    for (ui32 c = 0; c < num_components; ++c)
+      this->bit_depth[c] = bit_depth[c];
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -736,7 +737,7 @@ namespace ojph {
   {
     assert(fh);
 
-    ui32 shift = 32 - bit_depth;
+    ui32 shift = 32 - bit_depth[comp_num];
     float* dp = buffer + comp_num;
     const float* sp = line->f32;
 

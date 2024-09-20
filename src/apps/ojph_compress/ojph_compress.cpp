@@ -526,9 +526,9 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
+    " -i input file name (either pgm, ppm, pfm, tif(f), or raw(yuv))\n"
 #else
-    " -i input file name (either pgm, ppm, or raw(yuv))\n"
+    " -i input file name (either pgm, ppm, pfm, or raw(yuv))\n"
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     " -o output file name\n\n"
 
@@ -587,7 +587,28 @@ int main(int argc, char * argv[]) {
     "            component; for example: 12,10,10\n"
     " -downsamp  {x,y},{x,y},...,{x,y} a list of x,y points, one for each\n"
     "            component; for example {1,1},{2,2},{2,2}\n\n"
-    ;
+    "\n"
+
+    ".pfm files receive special treatment. Currently, lossy compression\n"
+    "with these files is not supported, only lossless. When these files are\n"
+    "used, the NLT segment marker is automatically inserted into the\n"
+    "codestream. For these files the following arguments can be useful\n"
+    " -signed    a comma - separated list of true or false parameters, one\n"
+    "            for each component; for example: true,false,false.\n"
+    "            The sign only affects how values are treated; for negative\n"
+    "            values the standard requires a special non-linear\n"
+    "            transformation.  When signed is false, no transformation\n"
+    "            is employed, as we assume all values are 0 or positive.\n"
+    "            When signed is true, the aforementioned transformation is\n"
+    "            employed on negative values only.\n"
+    " -bit_depth a comma-separated list of bit depth values, one per \n"
+    "            component; for example: 12,10,10.\n"
+    "            Floating value numbers are treated as integers, and they\n"
+    "            are shifted to the right, keeping only the specificed\n"
+    "            number of bits. Note that a bit depth of 28 upwards is not\n"
+    "            supported.\n"
+
+    "\n";
     return -1;
   }
   if (!get_arguments(argc, argv, input_filename, output_filename,
@@ -747,6 +768,10 @@ int main(int argc, char * argv[]) {
         assert(num_comps == 1 || num_comps == 3);
         siz.set_num_components(num_comps);
 
+        if (bit_depth[0] == 0)
+          OJPH_ERROR(0x01000091,
+            "-bit_depth must be specified (this is temporary only).\n");
+
         if (bit_depth[0] != 0)             // one was set
           if (num_bit_depths < num_comps)  // but if not enough, repeat
             for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)
@@ -791,7 +816,7 @@ int main(int argc, char * argv[]) {
         if (num_comps == 1)
         {
           if (employ_color_transform != -1)
-            OJPH_WARN(0x01000016,
+            OJPH_WARN(0x01000092,
               "-colour_trans option is not needed and was not used; "
               "this is because the image has one component only\n");
         }
@@ -815,7 +840,7 @@ int main(int argc, char * argv[]) {
               nlt.set_type3_transformation(c, true);
         }
         else
-          OJPH_ERROR(0x01000091, "The support for pfm image is not "
+          OJPH_ERROR(0x01000093, "The support for pfm image is not "
             "complete; I need to figure how to modify the interface "
             "to better support the exchange of floating point data. "
             "Feeding float point data is not supported yet, unless it "
@@ -829,13 +854,13 @@ int main(int argc, char * argv[]) {
         codestream.request_tlm_marker(tlm_marker);          
 
         if (dims.w != 0 || dims.h != 0)
-          OJPH_WARN(0x01000092,
+          OJPH_WARN(0x01000094,
             "-dims option is not needed and was not used\n");
         if (num_components != 0)
-          OJPH_WARN(0x01000093,
+          OJPH_WARN(0x01000095,
             "-num_comps is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-          OJPH_WARN(0x01000094,
+          OJPH_WARN(0x01000096,
             "-downsamp is not needed and was not used\n");
 
         base = &pfm;

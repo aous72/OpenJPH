@@ -788,10 +788,20 @@ int main(int argc, char * argv[]) {
         if (num_precincts != -1)
           cod.set_precinct_size(num_precincts, precinct_size);
         cod.set_progression_order(prog_order);
-        if (employ_color_transform == -1)
-          cod.set_color_transform(true);
+        if (num_comps == 1)
+        {
+          if (employ_color_transform != -1)
+            OJPH_WARN(0x01000016,
+              "-colour_trans option is not needed and was not used; "
+              "this is because the image has one component only\n");
+        }
         else
-          cod.set_color_transform(employ_color_transform == 1);
+        {
+          if (employ_color_transform == -1)
+            cod.set_color_transform(true);
+          else
+            cod.set_color_transform(employ_color_transform == 1);
+        }
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);

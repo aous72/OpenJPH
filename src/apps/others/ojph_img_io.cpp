@@ -636,7 +636,8 @@ namespace ojph {
     if (comp_num == 0)
     {
       si64 loc = start_of_data;
-      loc += (size_t)(height-1 - cur_line) * num_comps * width * sizeof(float);
+      loc += (size_t)(height-1 - cur_line) * (size_t)num_comps 
+           * (size_t)width * sizeof(float);
       if (ojph_fseek(fh, loc, SEEK_SET) != 0)
       {
         close();
@@ -644,7 +645,7 @@ namespace ojph {
       }
       size_t result = 
         fread(temp_buf, sizeof(float), (size_t)num_comps * (size_t)width, fh);
-      if (result != num_comps * width)
+      if (result != (size_t)num_comps * (size_t)width)
       {
         close();
         OJPH_ERROR(0x03000062, "Not enough data in file %s", fname);

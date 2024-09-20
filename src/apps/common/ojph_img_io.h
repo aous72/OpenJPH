@@ -805,7 +805,7 @@ namespace ojph {
     FILE *fh;
     const char *fname;
     float* buffer;
-    ui32 buffer_size;
+    size_t buffer_size;
     ui32 width, height, num_components;
     float scale;
     ui32 bit_depth[3];

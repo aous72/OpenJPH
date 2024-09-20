@@ -643,7 +643,7 @@ namespace ojph {
         OJPH_ERROR(0x03000061, "Error seeking in file %s", fname);
       }
       size_t result = 
-        fread(temp_buf, sizeof(float), num_comps * (size_t)width, fh);
+        fread(temp_buf, sizeof(float), (size_t)num_comps * (size_t)width, fh);
       if (result != num_comps * width)
       {
         close();

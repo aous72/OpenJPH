@@ -1033,14 +1033,14 @@ namespace ojph {
       {
         OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
                               "one coding pass, but zero length for "
-                              "2nd and potential 3rd pass");
+                              "2nd and potential 3rd pass.");
         num_passes = 1;
       }
 
       if (num_passes > 3)
       {
         OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
-                              "This codeblocks has %d passes",
+                              "This codeblocks has %d passes.",
                               num_passes);
         return false;
       }
@@ -1052,7 +1052,7 @@ namespace ojph {
           insufficient_precision = true;
           OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
                                 "codeblock. This message will not be "
-                                "displayed again");
+                                "displayed again.");
         }
         return false;
       }       
@@ -1063,7 +1063,7 @@ namespace ojph {
           OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
                                 "pass. The code can be modified to support "
                                 "this case. This message will not be "
-                                "displayed again");
+                                "displayed again.");
         }
          return false;         // 32 bits are not enough to decode this
        }
@@ -1076,7 +1076,7 @@ namespace ojph {
             OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
                                   "nor MagRef passes; both will be skipped. "
                                   "This message will not be displayed "
-                                  "again");
+                                  "again.");
           }
         }
       }
@@ -1086,7 +1086,7 @@ namespace ojph {
 
       if (lengths1 < 2)
       {
-        OJPH_WARN(0x00010006, "Wrong codeblock length");
+        OJPH_WARN(0x00010006, "Wrong codeblock length.");
         return false;
       }
 
@@ -1361,7 +1361,7 @@ namespace ojph {
             // quad 0 length
             len = uvlc_entry & 0x7; // quad 0 suffix length
             uvlc_entry >>= 3;
-            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFU << len))); //u_q
+            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
             sp[1] = u_q;
             u_q = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
             sp[3] = u_q;

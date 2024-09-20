@@ -593,11 +593,11 @@ namespace ojph {
     start_of_data = ojph_ftell(fh);
 
     // alloc. linebuffer to hold a line of image data, if more than 1 comp.
-    if (temp_buf_byte_size < num_comps * width * sizeof(float))
+    if (temp_buf_byte_size < num_comps * (size_t)width * sizeof(float))
     {
       if (alloc_p == NULL)
       {
-        temp_buf_byte_size = num_comps * width * sizeof(float);
+        temp_buf_byte_size = num_comps * (size_t)width * sizeof(float);
         void* t = temp_buf;
         if (temp_buf)
           temp_buf = (float*)realloc(temp_buf, temp_buf_byte_size);
@@ -611,7 +611,7 @@ namespace ojph {
       else
       {
         assert(temp_buf_byte_size == 0); //cannot reallocate the buffer
-        temp_buf_byte_size = num_comps * width * sizeof(float);
+        temp_buf_byte_size = num_comps * (size_t)width * sizeof(float);
         alloc_p->pre_alloc_data<float>(temp_buf_byte_size, 0);
       }
     }
@@ -623,7 +623,7 @@ namespace ojph {
   {
     if (alloc_p == NULL)
       return;
-    temp_buf = alloc_p->post_alloc_data<float>(num_comps * width, 0);
+    temp_buf = alloc_p->post_alloc_data<float>(num_comps * (size_t)width, 0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -636,13 +636,14 @@ namespace ojph {
     if (comp_num == 0)
     {
       si64 loc = start_of_data;
-      loc += (height - 1 - cur_line) * num_comps * width * sizeof(float);
+      loc += (size_t)(height-1 - cur_line) * num_comps * width * sizeof(float);
       if (ojph_fseek(fh, loc, SEEK_SET) != 0)
       {
         close();
         OJPH_ERROR(0x03000061, "Error seeking in file %s", fname);
       }
-      size_t result = fread(temp_buf, sizeof(float), num_comps * width, fh);
+      size_t result = 
+        fread(temp_buf, sizeof(float), num_comps * (size_t)width, fh);
       if (result != num_comps * width)
       {
         close();
@@ -652,38 +653,42 @@ namespace ojph {
         cur_line = 0;
     }
 
+    union {
+      si32* s;
+      ui32* u;
+      float* f;
+    } sp, dp;
+
     if (little_endian)
     {
       ui32 shift = 32 - bit_depth[comp_num];
-      const float* sp = temp_buf + comp_num;
-      float* dp = line->f32;
+      sp.f = temp_buf + comp_num;
+      dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp += num_comps) 
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps) 
         {
-          si32 v = *(si32*)sp;
-          v >>= shift;
-          *dp++ = *(float*)&v;
+          si32 s = *sp.s;
+          s >>= shift;
+          *dp.s++ = s;
         }
       else
-        for (ui32 i = width; i > 0; --i, sp += num_comps)
-          *dp++ = *sp;
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
+          *dp.f++ = *sp.f;
     }
     else {
       ui32 shift = 32 - bit_depth[comp_num];
-      const float* sp = temp_buf + comp_num;
-      float* dp = line->f32;
+      sp.f = temp_buf + comp_num;
+      dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp += num_comps) {
-          ui32 v = be2le(*(ui32*)sp);
-          si32 u = *(si32*)&v;
-          u >>= shift;
-          *dp++ = *(float*)&u;
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps) {
+          ui32 u = be2le(*sp.u);
+          si32 s = *(si32*)&u;
+          s >>= shift;
+          *dp.s++ = s;
         }
       else
-        for (ui32 i = width; i > 0; --i, sp += num_comps) {
-          ui32 v = be2le(*(ui32*)sp);
-          *dp++ = *(float*)&v;
-        }
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
+          *dp.u++ = be2le(*sp.u);
     }
 
     return width;
@@ -710,7 +715,7 @@ namespace ojph {
         num_components > 1 ? 'F' : 'f', width, height, scale);
     if (result == 0)
       OJPH_ERROR(0x03000072, "error writing to file %s", filename);
-    buffer_size = width * num_components * sizeof(float);
+    buffer_size = (size_t)width * num_components * sizeof(float);
     buffer = (float*)malloc(buffer_size);
     fname = filename;
     cur_line = 0;
@@ -739,23 +744,28 @@ namespace ojph {
     assert(fh);
 
     ui32 shift = 32 - bit_depth[comp_num];
-    float* dp = buffer + comp_num;
-    const float* sp = line->f32;
+    union {
+      ui32* u;
+      float* f;
+    } sp, dp;
+
+    dp.f = buffer + comp_num;
+    sp.f = line->f32;
 
     if (shift)
-      for (ui32 i = width; i > 0; --i, dp += num_components, ++sp)
+      for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
       {
-        ui32 v = *(ui32*)sp;
-        v <<= shift;
-        *dp = *(float*)&v;
+        ui32 u = *sp.u;
+        u <<= shift;
+        *dp.u = u;
       }
     else
-      for (ui32 i = width; i > 0; --i, dp += num_components)
-        *dp = *sp++;
+      for (ui32 i = width; i > 0; --i, dp.f += num_components)
+        *dp.f = *sp.f++;
 
     if (comp_num == num_components - 1)
     {
-      size_t samples_per_line = num_components * width;
+      size_t samples_per_line = num_components * (size_t)width;
       si64 loc = start_of_data;
       loc += (height - 1 - cur_line)* samples_per_line * sizeof(float);
       if (ojph_fseek(fh, loc, SEEK_SET) != 0)

@@ -133,8 +133,8 @@ namespace ojph {
         v128_t s = wasm_v128_load(sp);
         v128_t c = wasm_i32x4_lt(s, zero);     // 0xFFFFFFFF for -ve value
         v128_t v_m_sh = wasm_i32x4_sub(sh, s); // - shift - value 
-        v_m_sh = wasm_v128_and(v_m_sh, c);     // keep only - shift - value
-        s = wasm_v128_andnot(s, c);            // keep only +ve or 0
+        v_m_sh = wasm_v128_and(c, v_m_sh);     // keep only - shift - value
+        s = wasm_v128_andnot(c, s);            // keep only +ve or 0
         s = wasm_v128_or(s, v_m_sh);           // combine
         wasm_v128_store(dp, s);
       }

@@ -1298,7 +1298,7 @@ namespace ojph {
 
             for (ui32 c = 0; c < num_comps; ++c)
             {
-              ui16 bd = siz.get_bit_depth(c);
+              ui32 bd = siz.get_bit_depth(c);
               bool is = siz.is_signed(c);
               if (bd != bit_depth || is != is_signed)
               { 

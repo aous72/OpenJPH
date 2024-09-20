@@ -498,7 +498,7 @@ namespace ojph {
     const char *fname;
     mem_fixed_allocator *alloc_p;
     float *temp_buf;
-    ui32 temp_buf_byte_size;
+    size_t temp_buf_byte_size;
     ui32 bit_depth[3];       // this truncates data to bit_depth in the LSB
     float scale;
     bool little_endian;
@@ -621,7 +621,7 @@ namespace ojph {
     ui32 width, height, num_components;
     ui32 bit_depth, bytes_per_sample;
     ui8* buffer;
-    ui32 buffer_size;
+    size_t buffer_size;
     ui32 cur_line, samples_per_line, bytes_per_line;
     conversion_fun converter;
     const line_buf *lptr[3];

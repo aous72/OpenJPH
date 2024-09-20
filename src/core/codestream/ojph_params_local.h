@@ -284,7 +284,7 @@ namespace ojph {
       void set_Rsiz_flag(ui16 flag)
       { Rsiz |= flag; }
       void reset_Rsiz_flag(ui16 flag)
-      { Rsiz &= ~flag; }
+      { Rsiz = (ui16)(Rsiz & ~flag); }
 
     private:
       ui16 Lsiz;

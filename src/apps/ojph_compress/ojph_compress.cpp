@@ -798,7 +798,7 @@ int main(int argc, char * argv[]) {
           ojph::ui32 bd = 32;
           if (bit_depth[c] != 0)
             bd = bit_depth[c];
-          bool is = false;
+          bool is = true;
           if (is_signed[c] != -1)
             is = is_signed[c] != 0;
           siz.set_component(c, ds, bd, is);

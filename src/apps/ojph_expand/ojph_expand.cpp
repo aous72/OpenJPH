@@ -271,6 +271,8 @@ int main(int argc, char *argv[]) {
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
+        ojph::param_cod cod = codestream.access_cod();
+        ojph::param_nlt nlt = codestream.access_nlt();
 
         ojph::ui32 num_comps = siz.get_num_components();
         if (num_comps != 3 && num_comps != 1)
@@ -289,8 +291,30 @@ int main(int argc, char *argv[]) {
             "To save an image to ppm, all the components must have the "
             "same downsampling ratio\n");
         ojph::ui32 bit_depth[3];
-        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
-          bit_depth[c] = siz.get_bit_depth(c);
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c) {
+          ojph::ui8 bd = 0;
+          bool is = true;
+          bool result = nlt.get_type3_transformation(c, bd, is);
+          if (result == false)
+            OJPH_ERROR(0x0200000E,
+              "This codestream is not supported; it does not have an "
+              "NLT segment marker for this component (or no default NLT "
+              "settings) .\n");
+          if (bd != siz.get_bit_depth(c) || is != siz.is_signed(c))
+            OJPH_ERROR(0x0200000F,
+              "There is discrepancy in component %d configuration between "
+              "SIZ marker segment, which specifies bit_depth = %d and "
+              "signedness = %s, and NLT marker segment, which specifies "
+              "bit_depth = %d and signedness = %s.\n", c, 
+              siz.get_bit_depth(c), is != siz.is_signed(c) ? "True" : "False",
+              bd, is ? "True" : "False");
+          bit_depth[c] = bd;
+        }
+        if (!cod.is_reversible())
+          OJPH_ERROR(0x02000010,
+            "This codestream is lossy (not reversible), and we currently "
+            "only support reversible codestreams for .pfm target files. "
+            "This is only temporary and will be changed at some point.\n");
         pfm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
           siz.get_num_components(), -1.0f, bit_depth);
         pfm.open(output_filename);

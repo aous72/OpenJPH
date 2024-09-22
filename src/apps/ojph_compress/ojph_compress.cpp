@@ -526,9 +526,9 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
-    " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
+    " -i input file name (either pgm, ppm, pfm, tif(f), or raw(yuv))\n"
 #else
-    " -i input file name (either pgm, ppm, or raw(yuv))\n"
+    " -i input file name (either pgm, ppm, pfm, or raw(yuv))\n"
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     " -o output file name\n\n"
 
@@ -587,7 +587,28 @@ int main(int argc, char * argv[]) {
     "            component; for example: 12,10,10\n"
     " -downsamp  {x,y},{x,y},...,{x,y} a list of x,y points, one for each\n"
     "            component; for example {1,1},{2,2},{2,2}\n\n"
-    ;
+    "\n"
+
+    ".pfm files receive special treatment. Currently, lossy compression\n"
+    "with these files is not supported, only lossless. When these files are\n"
+    "used, the NLT segment marker is automatically inserted into the\n"
+    "codestream. For these files the following arguments can be useful\n"
+    " -signed    a comma - separated list of true or false parameters, one\n"
+    "            for each component; for example: true,false,false.\n"
+    "            The sign only affects how values are treated; for negative\n"
+    "            values the standard requires a special non-linear\n"
+    "            transformation.  When signed is false, no transformation\n"
+    "            is employed, as we assume all values are 0 or positive.\n"
+    "            When signed is true, the aforementioned transformation is\n"
+    "            employed on negative values only.\n"
+    " -bit_depth a comma-separated list of bit depth values, one per \n"
+    "            component; for example: 12,10,10.\n"
+    "            Floating value numbers are treated as integers, and they\n"
+    "            are shifted to the right, keeping only the specified\n"
+    "            number of bits. Note that a bit depth of 28 upwards is not\n"
+    "            supported.\n"
+
+    "\n";
     return -1;
   }
   if (!get_arguments(argc, argv, input_filename, output_filename,
@@ -611,6 +632,7 @@ int main(int argc, char * argv[]) {
     ojph::codestream codestream;
 
     ojph::ppm_in ppm;
+    ojph::pfm_in pfm;
     ojph::yuv_in yuv;
     ojph::raw_in raw;
     ojph::dpx_in dpx;
@@ -735,6 +757,113 @@ int main(int argc, char * argv[]) {
             "-downsamp is not needed and was not used\n");
 
         base = &ppm;
+      }
+      else if (is_matching(".pfm", v))
+      {
+        pfm.open(input_filename);
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + pfm.get_width(),
+          image_offset.y + pfm.get_height()));
+        ojph::ui32 num_comps = pfm.get_num_components();
+        assert(num_comps == 1 || num_comps == 3);
+        siz.set_num_components(num_comps);
+
+        if (bit_depth[0] == 0)
+          OJPH_ERROR(0x01000091,
+            "-bit_depth must be specified (this is temporary only).\n");
+
+        if (bit_depth[0] != 0)             // one was set
+          if (num_bit_depths < num_comps)  // but if not enough, repeat
+            for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)
+              bit_depth[c] = bit_depth[num_bit_depths - 1];
+        if (is_signed[0] != -1)            // one was set
+          if (num_is_signed < num_comps)   // but if not enough, repeat
+            for (ojph::ui32 c = num_is_signed; c < num_comps; ++c)
+              is_signed[c] = is_signed[num_is_signed - 1];
+
+        bool all_the_same = true;
+        if (num_comps == 3)
+        {
+          all_the_same = all_the_same 
+            && bit_depth[0] == bit_depth[1] 
+            && bit_depth[1] == bit_depth[2];
+          all_the_same = all_the_same
+            && is_signed[0] == is_signed[1]
+            && is_signed[1] == is_signed[2];
+        }
+
+        pfm.configure(bit_depth);
+        ojph::point ds(1, 1);
+        for (ojph::ui32 c = 0; c < num_comps; ++c) {
+          ojph::ui32 bd = 32;
+          if (bit_depth[c] != 0)
+            bd = bit_depth[c];
+          bool is = true;
+          if (is_signed[c] != -1)
+            is = is_signed[c] != 0;
+          siz.set_component(c, ds, bd, is);
+        }
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (num_comps == 1)
+        {
+          if (employ_color_transform != -1)
+            OJPH_WARN(0x01000092,
+              "-colour_trans option is not needed and was not used; "
+              "this is because the image has one component only\n");
+        }
+        else
+        {
+          if (employ_color_transform == -1)
+            cod.set_color_transform(true);
+          else
+            cod.set_color_transform(employ_color_transform == 1);
+        }
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1.0f)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+
+        ojph::param_nlt nlt = codestream.access_nlt();
+        if (reversible) {
+          if (all_the_same)
+            nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+          else
+            for (ojph::ui32 c = 0; c < num_comps; ++c)
+              nlt.set_type3_transformation(c, true);
+        }
+        else
+          OJPH_ERROR(0x01000093, "The support for pfm image is not "
+            "complete; I need to figure how to modify the interface "
+            "to better support the exchange of floating point data. "
+            "Feeding float point data is not supported yet, unless it "
+            "is for lossless compression.");
+
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+                                          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);          
+
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000094,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000095,
+            "-num_comps is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000096,
+            "-downsamp is not needed and was not used\n");
+
+        base = &pfm;
       }
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
       else if (is_matching(".tif", v) || is_matching(".tiff", v))

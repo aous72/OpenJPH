@@ -135,7 +135,7 @@ namespace ojph {
 
     ui32 cur_line;
     si64 start_of_data;
-    int planar;
+    bool planar;
     ui32 bit_depth[3];
     bool is_signed[3];
     point subsampling[3];
@@ -447,6 +447,68 @@ namespace ojph {
   };
 
   ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class pfm_in : public image_in_base
+  {
+  public:
+    pfm_in(mem_fixed_allocator *p = NULL)
+    {
+      fh = 0;
+      fname = NULL;
+      alloc_p = p;
+      temp_buf = NULL;
+      temp_buf_byte_size = 0;
+      bit_depth[0] = bit_depth[1] = bit_depth[2] = 32;
+      scale = 0.0f;
+      little_endian = true;
+      width = height = num_comps = 0;
+
+      cur_line = 0;
+      start_of_data = 0;
+    }
+    virtual ~pfm_in()
+    {
+      close();
+      if (alloc_p == NULL && temp_buf)
+        free(temp_buf);
+    }
+
+    void open(const char* filename);
+    void finalize_alloc();
+    void configure(ui32* bit_depth) {
+      assert(num_comps != 0);
+      for (ui32 c = 0; c < num_comps; ++c)
+        this->bit_depth[c] = bit_depth[c];
+    }
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
+
+    size get_size() { assert(fh); return size(width, height); }
+    ui32 get_width() { assert(fh); return width; }
+    ui32 get_height() { assert(fh); return height; }
+    ui32 get_num_components() { assert(fh); return num_comps; }
+
+  private:
+    FILE *fh;
+    const char *fname;
+    mem_fixed_allocator *alloc_p;
+    float *temp_buf;
+    size_t temp_buf_byte_size;
+    ui32 bit_depth[3];       // this truncates data to bit_depth in the LSB
+    float scale;
+    bool little_endian;
+    ui32 width, height, num_comps;
+    ui32 cur_line;
+    si64 start_of_data;
+  };
+
+
+  ////////////////////////////////////////////////////////////////////////////
   // Accelerators (defined in ojph_img_io_*)
   typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1, 
                                  const line_buf *ln2, void *dp, 
@@ -559,7 +621,7 @@ namespace ojph {
     ui32 width, height, num_components;
     ui32 bit_depth, bytes_per_sample;
     ui8* buffer;
-    ui32 buffer_size;
+    size_t buffer_size;
     ui32 cur_line, samples_per_line, bytes_per_line;
     conversion_fun converter;
     const line_buf *lptr[3];
@@ -703,6 +765,55 @@ namespace ojph {
     ui8* buffer;
     ui32 buffer_size;
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  class pfm_out : public image_out_base
+  {
+  public:
+    pfm_out()
+    {
+      fh = NULL;
+      fname = NULL;
+      buffer = NULL;
+      buffer_size = 0;
+      width = height = num_components = 0;
+      scale = -1.0f;
+      bit_depth[0] = bit_depth[1] = bit_depth[2] = 32;
+      cur_line = 0;
+      start_of_data = 0;
+    }
+    virtual ~pfm_out()
+    {
+      close();
+      if (buffer)
+        free(buffer);
+    }
+
+    void open(char* filename);
+    void configure(ui32 width, ui32 height, ui32 num_components, 
+                   float scale, ui32* bit_depth);
+    virtual ui32 write(const line_buf* line, ui32 comp_num);
+    virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
+
+  private:
+    FILE *fh;
+    const char *fname;
+    float* buffer;
+    size_t buffer_size;
+    ui32 width, height, num_components;
+    float scale;
+    ui32 bit_depth[3];
+    ui32 cur_line;
+    si64 start_of_data;
+  };
+
+
 }
 
 #endif // !OJPH_IMG_IO_H

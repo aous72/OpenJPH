@@ -69,6 +69,10 @@ namespace ojph {
                                       ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
+    void gen_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
+                                          int shift, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
     void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
                                        ui32 width);
 
@@ -161,6 +165,11 @@ namespace ojph {
                                        ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
+                                           int shift, ui32 width);
+
+
+    //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
                           si32 *y, si32 *cb, si32 *cr, ui32 repeat);
 
@@ -213,6 +222,10 @@ namespace ojph {
                                        ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
+    void avx2_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
+                                           int shift, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
                           si32 *y, si32 *cb, si32 *cr, ui32 repeat);
 
@@ -247,6 +260,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void wasm_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
                                        ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
+                                           int shift, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void wasm_rct_forward(const si32 *r, const si32 *g, const si32 *b,

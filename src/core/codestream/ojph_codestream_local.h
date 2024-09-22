@@ -96,6 +96,8 @@ namespace ojph {
       }
       const param_dfs* access_dfs()
       { if (dfs.exists()) return &dfs; else return NULL; }
+      const param_nlt* get_nlt()
+      { return &nlt; }
       mem_fixed_allocator* get_allocator() { return allocator; }
       mem_elastic_allocator* get_elastic_alloc() { return elastic_alloc; }
       outfile_base* get_file() { return outfile; }
@@ -161,6 +163,7 @@ namespace ojph {
       param_cap cap;         // extended capabilities
       param_qcd qcd;         // quantization default
       param_tlm tlm;         // tile-part lengths
+      param_nlt nlt;         // non-linearity point transformation
 
     private: // this is to handle qcc and coc
       int used_qcc_fields;

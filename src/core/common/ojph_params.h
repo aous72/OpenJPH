@@ -52,6 +52,7 @@ namespace ojph {
     struct param_qcd;
     struct param_qcc;
     struct param_cap;
+    struct param_nlt;
     class codestream;
   }
 
@@ -129,6 +130,47 @@ namespace ojph {
 
   private:
     local::param_qcd* state;
+  };
+
+  /**
+    * @brief non-linearity point transformation object
+    *        (implements NLT marker segment)
+    * 
+    */
+  class OJPH_EXPORT param_nlt
+  {
+  public:
+    enum special_comp_num : ui16 { ALL_COMPS = 65535 };
+  public:
+    param_nlt(local::param_nlt* p) : state(p) {}
+
+    /**
+      * @brief enables or disables type 3 nonlinearity for a component 
+      *        or the default setting
+      * 
+      * If you think that you need type 3 nonlinearity for all components,
+      * call this function with comp_num set to 65535 and enable to true.
+      * 
+      * @param comp_num: component number, or 65535 for the default setting
+      * @param enable: true to enable nlt type 3 for this component or the 
+                       default setting, false to disable nlt type 3.
+      */
+    void set_type3_transformation(ui32 comp_num, bool enable);
+
+    /**
+      * @brief get the state (enabled or disabled) of type 3 nonlinearity 
+      *        for a component or the default setting
+      *
+      * @param comp_num: component number, or 65535 for the default setting
+      * @param bit_depth: returns the bit depth of the component/default
+      * @param is_signed: returns true if the component/default is signed
+      * @return true if enabled or false if not.
+      */
+    bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
+                                  bool& is_signed);
+
+  private:
+    local::param_nlt* state;
   };
 
   ////////////////////////////////////////////////////////////////////////////

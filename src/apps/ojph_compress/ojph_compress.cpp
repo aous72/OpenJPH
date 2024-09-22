@@ -604,7 +604,7 @@ int main(int argc, char * argv[]) {
     " -bit_depth a comma-separated list of bit depth values, one per \n"
     "            component; for example: 12,10,10.\n"
     "            Floating value numbers are treated as integers, and they\n"
-    "            are shifted to the right, keeping only the specificed\n"
+    "            are shifted to the right, keeping only the specified\n"
     "            number of bits. Note that a bit depth of 28 upwards is not\n"
     "            supported.\n"
 

@@ -45,7 +45,9 @@
 #include "../codestream/ojph_params_local.h"
 
 namespace ojph {
-  struct line_buf;
+
+  // defined elsewhere
+  class line_buf;
 
   namespace local {
 

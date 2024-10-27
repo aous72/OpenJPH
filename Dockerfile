@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y install cmake
 RUN apt-get -y install g++
 RUN apt-get -y install libtiff-dev
-RUN apt-get -y install openexr
+RUN apt-get -y install libopenexr-dev
 
 # install development debugging tools
 RUN apt-get -y install valgrind

@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:noble
 
 RUN apt-get update
 
@@ -9,14 +9,16 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y install cmake
 RUN apt-get -y install g++
 RUN apt-get -y install libtiff-dev
+RUN apt-get -y install openexr
 
-# install developement debugging tools
+# install development debugging tools
 RUN apt-get -y install valgrind
 
 # OpenJPH
 WORKDIR /usr/src/openjph/
 COPY . .
 WORKDIR /usr/src/openjph/build
+RUN rm -R * || true
 RUN cmake -DCMAKE_BUILD_TYPE=Release ../
 RUN make
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/openjph/bin

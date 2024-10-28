@@ -56,9 +56,41 @@ else()
   add_executable(ojph_expand ${SOURCES})
 
   if( USE_TIFF )
-    target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
+    if( USE_OPENEXR )
+      target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES} 
+      	    # For OpenEXR/Imath 3.x:
+		        $<$<TARGET_EXISTS:OpenEXR::OpenEXR>:OpenEXR::OpenEXR>
+		        $<$<TARGET_EXISTS:Imath::Imath>:Imath::Imath>
+		        $<$<TARGET_EXISTS:Imath::Half>:Imath::Half>
+	          # For OpenEXR 2.4/2.5:
+		        $<$<TARGET_EXISTS:OpenEXR::IlmImf>:OpenEXR::IlmImf>
+		        $<$<TARGET_EXISTS:IlmBase::Imath>:IlmBase::Imath>
+		        $<$<TARGET_EXISTS:IlmBase::Half>:IlmBase::Half>
+		        $<$<TARGET_EXISTS:IlmBase::IlmThread>:IlmBase::IlmThread>
+		        $<$<TARGET_EXISTS:IlmBase::Iex>:IlmBase::Iex>
+	          # ZLIB for OpenEXR 2.x:
+	  	      $<$<TARGET_EXISTS:ZLIB::ZLIB>:ZLIB::ZLIB>)
+    else()
+      target_link_libraries(ojph_expand PUBLIC openjph ${TIFF_LIBRARIES})
+    endif()
   else()
-    target_link_libraries(ojph_expand PUBLIC openjph)
+    if( USE_OPENEXR )
+    target_link_libraries(ojph_expand PUBLIC openjph 
+          	    # For OpenEXR/Imath 3.x:
+                $<$<TARGET_EXISTS:OpenEXR::OpenEXR>:OpenEXR::OpenEXR>
+                $<$<TARGET_EXISTS:Imath::Imath>:Imath::Imath>
+                $<$<TARGET_EXISTS:Imath::Half>:Imath::Half>
+                # For OpenEXR 2.4/2.5:
+                $<$<TARGET_EXISTS:OpenEXR::IlmImf>:OpenEXR::IlmImf>
+                $<$<TARGET_EXISTS:IlmBase::Imath>:IlmBase::Imath>
+                $<$<TARGET_EXISTS:IlmBase::Half>:IlmBase::Half>
+                $<$<TARGET_EXISTS:IlmBase::IlmThread>:IlmBase::IlmThread>
+                $<$<TARGET_EXISTS:IlmBase::Iex>:IlmBase::Iex>
+                # ZLIB for OpenEXR 2.x:
+                $<$<TARGET_EXISTS:ZLIB::ZLIB>:ZLIB::ZLIB>)
+    else()
+      target_link_libraries(ojph_expand PUBLIC openjph)
+    endif()
   endif()
 
   install(TARGETS ojph_expand DESTINATION bin)

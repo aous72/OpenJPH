@@ -526,9 +526,17 @@ int main(int argc, char * argv[]) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
+  #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+    " -i input file name (either pgm, ppm, pfm, tif(f), exr, or raw(yuv))\n"
+  #else
     " -i input file name (either pgm, ppm, pfm, tif(f), or raw(yuv))\n"
+  #endif
 #else
-    " -i input file name (either pgm, ppm, pfm, or raw(yuv))\n"
+  #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+    " -i input file name (either pgm, ppm, pfm, exr, or raw(yuv))\n"
+  #else
+  " -i input file name (either pgm, ppm, pfm, or raw(yuv))\n"
+  #endif
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     " -o output file name\n\n"
 
@@ -638,6 +646,9 @@ int main(int argc, char * argv[]) {
     ojph::dpx_in dpx;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
     ojph::tif_in tif;
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+    ojph::exr_in exr;
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
 
     ojph::image_in_base *base = NULL;
@@ -1095,6 +1106,12 @@ int main(int argc, char * argv[]) {
 
         base = &dpx;
       }
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+      else if (is_matching(".exr", v))
+      {
+        exr.open(input_filename);
+      }
+#endif // !OJPH_ENABLE_OPENEXR_SUPPORT
       else
 #if defined( OJPH_ENABLE_TIFF_SUPPORT)
         OJPH_ERROR(0x01000041,

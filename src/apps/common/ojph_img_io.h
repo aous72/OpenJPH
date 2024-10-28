@@ -49,6 +49,14 @@
   #include "tiffio.h"
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+  #include <ImfRgbaFile.h>
+  #include <ImfInputFile.h>
+  #include <ImfChannelList.h>
+  #include <ImfArray.h>
+  #include <iostream>
+#endif
+
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
@@ -506,6 +514,89 @@ namespace ojph {
     ui32 cur_line;
     si64 start_of_data;
   };
+
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+  class exr_in : public image_in_base
+  {
+  public:
+    exr_in()
+    {
+      //tiff_handle = NULL;
+      fname = NULL;
+      line_buffer = NULL;
+      line_buffer_for_planar_support_uint8 = NULL;
+      line_buffer_for_planar_support_uint16 = NULL;
+
+      width = height = num_comps = 0;
+      bytes_per_sample = 0;
+
+      bytes_per_line = 0;
+      planar_configuration = 0;
+
+      cur_line = 0;
+
+      bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
+      is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
+      subsampling[3] = subsampling[2] = point(1, 1);
+      subsampling[1] = subsampling[0] = point(1, 1);
+    }
+    virtual ~exr_in()
+    {
+      close();
+      if (line_buffer)
+        free(line_buffer);
+      if (line_buffer_for_planar_support_uint8)
+        free(line_buffer_for_planar_support_uint8);
+      if (line_buffer_for_planar_support_uint16)
+        free(line_buffer_for_planar_support_uint16);
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    void close() {
+      //if (tiff_handle) {
+      //  TIFFClose(tiff_handle);
+      //  tiff_handle = NULL;
+      //}
+      fname = NULL;
+    }
+
+    size get_size() { //assert(tiff_handle); 
+      return size(width, height); }
+    ui32 get_num_components() { //assert(tiff_handle); 
+      return num_comps; }
+    void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
+    ui32 get_bit_depth(ui32 comp_num) {
+      //assert(tiff_handle && comp_num < num_comps);
+      return bit_depth[comp_num];
+    }
+    bool get_is_signed(ui32 comp_num) {
+      //assert(tiff_handle && comp_num < num_comps);
+      return is_signed[comp_num];
+    }
+    point get_comp_subsampling(ui32 comp_num) {
+      //assert(tiff_handle && comp_num < num_comps);
+      return subsampling[comp_num];
+    }
+
+  private:
+    //TIFF* tiff_handle;
+    size_t bytes_per_line;
+    ui16 planar_configuration;
+
+    const char* fname;
+    void* line_buffer;
+    ui8* line_buffer_for_planar_support_uint8;
+    ui16* line_buffer_for_planar_support_uint16;
+    ui32 width, height;
+    ui32 num_comps;
+    ui32 bytes_per_sample;
+    ui32 cur_line;
+    ui32 bit_depth[4];
+    bool is_signed[4];
+    point subsampling[4];
+  };
+#endif
 
 
   ////////////////////////////////////////////////////////////////////////////

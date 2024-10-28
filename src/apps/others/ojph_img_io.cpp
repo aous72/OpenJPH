@@ -2039,4 +2039,85 @@ namespace ojph {
     return width;
   }
 
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////
+  void exr_in::open(const char* filename)
+  {
+    try {
+      Imf::InputFile file(filename);
+      Imath::Box2i       dw = file.header().dataWindow();
+      int                width = dw.max.x - dw.min.x + 1;
+      int                height = dw.max.y - dw.min.y + 1;
+
+      bool has_alpha = file.header().channels().findChannel("A");
+
+      if (file.header().channels().begin().channel().type == Imf::HALF)
+        this->bit_depth[0] = 16;
+      else
+        this->bit_depth[0] = 32;
+
+      this->width = width;
+      this->height = height;
+
+      const Imf::ChannelList& channels = file.header().channels();
+      int channel_index = 0;
+      for (Imf::ChannelList::ConstIterator i = channels.begin(); i != channels.end(); ++i)
+      {
+          const Imf::Channel & channel = i.channel();
+          const char* name = i.name();
+          fprintf(stderr, "channel %d name = %s\n", channel_index, name);
+
+          switch (channel.type)
+          {
+          case Imf::PixelType::UINT:
+            fprintf(stderr, "channel %d type = UINT\n", channel_index);
+            break;
+          case Imf::PixelType::HALF:
+            fprintf(stderr, "channel %d type = HALF\n", channel_index);
+            break;
+          case Imf::PixelType::FLOAT:
+            fprintf(stderr, "channel %d type = FLOAT\n", channel_index);
+            break;
+          default:
+            fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel %d PixelType = %d, this should be UINT=0, HALF=1 or FLOAT=2\n",
+              __LINE__, __FILE__, __FUNCTION__, channel_index, channel.type);
+            break;
+          }
+
+          fprintf(stderr, "channel %d xSampling = %d\n", channel_index, channel.xSampling);
+          fprintf(stderr, "channel %d ySampling = %d\n", channel_index, channel.ySampling);
+
+          fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
+
+          channel_index++;
+      }
+
+      this->num_comps = 3;  // descriptor field can indicate 1, 3, or 4 comps
+
+      Imf::Array2D<Imf::Rgba> pixels(width, height);
+
+      //file.setFrameBuffer(&pixels[0][0], 1, width);
+      //file.readPixels(dw.min.y, dw.max.y);
+
+    }
+    catch (const std::exception& e) {
+      std::cerr << "error reading image file " << filename << ": " << e.what() << std::endl;
+      return;
+    }
+  }
+
+  ui32 exr_in::read(const line_buf* line, ui32 comp_num)
+  {
+
+    return 0;
+  }
+#endif
 } 

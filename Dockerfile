@@ -8,19 +8,44 @@ ENV DEBIAN_FRONTEND noninteractive
 # install developement tools
 RUN apt-get -y install cmake
 RUN apt-get -y install g++
+RUN apt-get -y install git
 RUN apt-get -y install libtiff-dev
-RUN apt-get -y install libopenexr-dev
+#RUN apt-get -y install libopenexr-dev
 
 # install development debugging tools
 RUN apt-get -y install valgrind
+
+######### build/install openexr from source
+# WORKDIR /usr/src/
+# RUN git clone https://github.com/madler/zlib.git
+# WORKDIR /usr/src/zlib/build
+# RUN cmake ..
+# RUN make
+# RUN make install
+
+WORKDIR /usr/src/
+RUN git clone https://github.com/AcademySoftwareFoundation/Imath.git
+WORKDIR /usr/src/Imath/build
+RUN cmake ..
+RUN make
+RUN make install
+
+WORKDIR /usr/src/
+RUN git clone https://github.com/AcademySoftwareFoundation/openexr.git
+WORKDIR /usr/src/openexr
+#RUN git checkout RB-3.1 
+WORKDIR /usr/src/openexr/build
+RUN cmake .. -DBUILD_TESTING=OFF -DOPENEXR_BUILD_TOOLS=OFF -DOPENEXR_INSTALL_EXAMPLES=OFF
+RUN make
+RUN make install
 
 # OpenJPH
 WORKDIR /usr/src/openjph/
 COPY . .
 WORKDIR /usr/src/openjph/build
 RUN rm -R * || true
-RUN cmake -DCMAKE_BUILD_TYPE=Release ../
-RUN make
+# RUN cmake -DCMAKE_BUILD_TYPE=Release ../ 
+# RUN make
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/openjph/bin
 ENV PATH=$PATH:/usr/src/openjph/bin
 

@@ -51,28 +51,32 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_si32_to_si32_shftd)
-      (const line_buf* src, line_buf* dst, int shift, ui32 width) = NULL;
+    void (*rev_convert)
+      (const line_buf *src_line, const ui32 src_line_offset, 
+       line_buf *dst_line, const ui32 dst_line_offset, 
+       si64 shift, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_si32_to_si32_nlt_type3)
-      (const line_buf* src, line_buf* dst, int shift, ui32 width) = NULL;
+    void (*rev_convert_nlt_type3)
+      (const line_buf *src_line, const ui32 src_line_offset, 
+       line_buf *dst_line, const ui32 dst_line_offset, 
+       si64 shift, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float_shftd)
-      (const line_buf* src, line_buf* dst, float mul, ui32 width) = NULL;
+      (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_si32_to_float)
-      (const line_buf* src, line_buf* dst, float mul, ui32 width) = NULL;
+      (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
       
     //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32_shftd)
-      (const line_buf* sp, line_buf* dp, float mul, ui32 width) = NULL;
+      (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void (*cnvrt_float_to_si32)
-      (const line_buf* sp, line_buf* dp, float mul, ui32 width) = NULL;
+      (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void (*rct_forward)
@@ -91,8 +95,8 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void (*ict_backward)
-      (const line_buf* y, const line_buf* cb, const line_buf* cr,
-       line_buf* r, line_buf* g, line_buf* b, ui32 repeat) = NULL;
+      (const float *y, const float *cb, const float *cr,
+       float *r, float *g, float *b, ui32 repeat) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     static bool colour_transform_functions_initialized = false;
@@ -105,8 +109,10 @@ namespace ojph {
 
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
-      cnvrt_si32_to_si32_shftd = gen_cnvrt_si32_to_si32_shftd;
-      cnvrt_si32_to_si32_nlt_type3 = gen_cnvrt_si32_to_si32_nlt_type3;
+      // cnvrt_si32_to_si32_shftd = gen_cnvrt_si32_to_si32_shftd;
+      // cnvrt_si32_to_si32_nlt_type3 = gen_cnvrt_si32_to_si32_nlt_type3;
+      rev_convert = gen_rev_convert;
+      rev_convert_nlt_type3 = gen_rev_convert_nlt_type3;
       cnvrt_si32_to_float_shftd = gen_cnvrt_si32_to_float_shftd;
       cnvrt_si32_to_float = gen_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = gen_cnvrt_float_to_si32_shftd;
@@ -137,10 +143,10 @@ namespace ojph {
         {
           cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
           cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
-          cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
-          cnvrt_si32_to_si32_nlt_type3 = sse2_cnvrt_si32_to_si32_nlt_type3;
-          rct_forward = sse2_rct_forward;
-          rct_backward = sse2_rct_backward;
+          // cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
+          // cnvrt_si32_to_si32_nlt_type3 = sse2_cnvrt_si32_to_si32_nlt_type3;
+          // rct_forward = sse2_rct_forward;
+          // rct_backward = sse2_rct_backward;
         }
       #endif // !OJPH_DISABLE_SSE2
 
@@ -159,10 +165,10 @@ namespace ojph {
       #ifndef OJPH_DISABLE_AVX2
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
         {
-          cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
-          cnvrt_si32_to_si32_nlt_type3 = avx2_cnvrt_si32_to_si32_nlt_type3;
-          rct_forward = avx2_rct_forward;
-          rct_backward = avx2_rct_backward;
+          // cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
+          // cnvrt_si32_to_si32_nlt_type3 = avx2_cnvrt_si32_to_si32_nlt_type3;
+          // rct_forward = avx2_rct_forward;
+          // rct_backward = avx2_rct_backward;
         }
       #endif // !OJPH_DISABLE_AVX2
 
@@ -206,20 +212,78 @@ namespace ojph {
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                      ui32 width)
+    void gen_rev_convert(
+      const line_buf *src_line, const ui32 src_line_offset, 
+      line_buf *dst_line, const ui32 dst_line_offset, 
+      si64 shift, ui32 width)
     {
-      for (ui32 i = width; i > 0; --i)
-        *dp++ = *sp++ + shift;
+      if (src_line->flags | line_buf::LFT_32BIT)
+      { 
+        if (dst_line->flags | line_buf::LFT_32BIT)
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si32 *dp = dst_line->i32 + dst_line_offset;
+          si32 s = (si32)shift;
+          for (ui32 i = width; i > 0; --i)
+            *dp++ = *sp++ + s;
+        }
+        else 
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si64 *dp = (si64*)dst_line->p + dst_line_offset;
+          for (ui32 i = width; i > 0; --i)
+            *dp++ = *sp++ + shift;
+        }
+      }
+      else 
+      {
+        assert(src_line->flags | line_buf::LFT_64BIT);
+        assert(dst_line->flags | line_buf::LFT_32BIT);
+        const si64 *sp = (si64*)src_line->p + src_line_offset;
+        si32 *dp = dst_line->i32 + dst_line_offset;
+        for (ui32 i = width; i > 0; --i)
+          *dp++ = (si32)(*sp++ + shift);
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
-                                          int shift, ui32 width)
+    void gen_rev_convert_nlt_type3(
+      const line_buf *src_line, const ui32 src_line_offset, 
+      line_buf *dst_line, const ui32 dst_line_offset, 
+      si64 shift, ui32 width)
     {
-      for (ui32 i = width; i > 0; --i) {
-        const si32 v = *sp++;
-        *dp++ = v >= 0 ? v : (- v - shift);
+      if (src_line->flags | line_buf::LFT_32BIT)
+      { 
+        if (dst_line->flags | line_buf::LFT_32BIT)
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si32 *dp = dst_line->i32 + dst_line_offset;
+          si32 s = (si32)shift;
+          for (ui32 i = width; i > 0; --i) {
+            const si32 v = *sp++;
+            *dp++ = v >= 0 ? v : (- v - s);
+          }
+        }
+        else 
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si64 *dp = (si64*)dst_line->p + dst_line_offset;
+          for (ui32 i = width; i > 0; --i) {
+            const si64 v = *sp++;
+            *dp++ = v >= 0 ? v : (- v - shift);
+          }
+        }
+      }
+      else 
+      {
+        assert(src_line->flags | line_buf::LFT_64BIT);
+        assert(dst_line->flags | line_buf::LFT_32BIT);
+        const si64 *sp = (si64*)src_line->p + src_line_offset;
+        si32 *dp = dst_line->i32 + dst_line_offset;
+        for (ui32 i = width; i > 0; --i) {
+          const si64 v = *sp++;
+          *dp++ = (si32)(v >= 0 ? v : (- v - shift));
+        }
       }
     }
 
@@ -256,26 +320,104 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                         si32 *y, si32 *cb, si32 *cr, ui32 repeat)
+    void gen_rct_forward(
+      const line_buf *r, const line_buf *g, const line_buf *b,
+      line_buf *y, line_buf *cb, line_buf *cr, ui32 repeat)
     {
-      for (ui32 i = repeat; i > 0; --i)
+      assert((y->flags  | line_buf::LFT_REVERSIBLE) &&
+             (cb->flags | line_buf::LFT_REVERSIBLE) && 
+             (cr->flags | line_buf::LFT_REVERSIBLE) &&
+             (r->flags  | line_buf::LFT_REVERSIBLE) &&
+             (g->flags  | line_buf::LFT_REVERSIBLE) && 
+             (b->flags  | line_buf::LFT_REVERSIBLE));
+      
+      if (y->flags | line_buf::LFT_32BIT)
       {
-        *y++ = (*r + (*g << 1) + *b) >> 2;
-        *cb++ = (*b++ - *g);
-        *cr++ = (*r++ - *g++);
+        assert((y->flags  | line_buf::LFT_32BIT) &&
+               (cb->flags | line_buf::LFT_32BIT) && 
+               (cr->flags | line_buf::LFT_32BIT) &&
+               (r->flags  | line_buf::LFT_32BIT) &&
+               (g->flags  | line_buf::LFT_32BIT) && 
+               (b->flags  | line_buf::LFT_32BIT));        
+        const si32 *rp = r->i32, * gp = g->i32, * bp = b->i32;
+        si32 *yp = y->i32, * cbp = cb->i32, * crp = cr->i32;
+        for (ui32 i = repeat; i > 0; --i)
+        {
+          si32 rr = *rp++, gg = *gp++, bb = *bp++;
+          *yp++ = (rr + (gg << 1) + bb) >> 2;
+          *cbp++ = (bb - gg);
+          *crp++ = (rr - gg);
+        }
+      }
+      else 
+      {
+        assert((y->flags  | line_buf::LFT_64BIT) &&
+               (cb->flags | line_buf::LFT_64BIT) && 
+               (cr->flags | line_buf::LFT_64BIT) &&
+               (r->flags  | line_buf::LFT_32BIT) &&
+               (g->flags  | line_buf::LFT_32BIT) && 
+               (b->flags  | line_buf::LFT_32BIT));
+        const si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
+        for (ui32 i = repeat; i > 0; --i)
+        {
+          si64 rr = *rp++, gg = *gp++, bb = *bp++;
+          *yp++ = (rr + (gg << 1) + bb) >> 2;
+          *cbp++ = (bb - gg);
+          *crp++ = (rr - gg);
+        }
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                          si32 *r, si32 *g, si32 *b, ui32 repeat)
+    void gen_rct_backward(
+      const line_buf *y, const line_buf *cb, const line_buf *cr,
+      line_buf *r, line_buf *g, line_buf *b, ui32 repeat)
     {
-      for (ui32 i = repeat; i > 0; --i)
+      assert((y->flags  | line_buf::LFT_REVERSIBLE) &&
+             (cb->flags | line_buf::LFT_REVERSIBLE) && 
+             (cr->flags | line_buf::LFT_REVERSIBLE) &&
+             (r->flags  | line_buf::LFT_REVERSIBLE) &&
+             (g->flags  | line_buf::LFT_REVERSIBLE) && 
+             (b->flags  | line_buf::LFT_REVERSIBLE));
+
+      if (y->flags | line_buf::LFT_32BIT)
       {
-        *g = *y++ - ((*cb + *cr)>>2);
-        *b++ = *cb++ + *g;
-        *r++ = *cr++ + *g++;
+        assert((y->flags  | line_buf::LFT_32BIT) &&
+               (cb->flags | line_buf::LFT_32BIT) && 
+               (cr->flags | line_buf::LFT_32BIT) &&
+               (r->flags  | line_buf::LFT_32BIT) &&
+               (g->flags  | line_buf::LFT_32BIT) && 
+               (b->flags  | line_buf::LFT_32BIT));
+        const si32 *yp = y->i32, *cbp = cb->i32, *crp = cr->i32;
+        si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        for (ui32 i = repeat; i > 0; --i)
+        {
+          si32 yy = *yp++, cbb = *cbp++, crr = *crp++;
+          si32 gg = yy - ((cbb + crr) >> 2);
+          *rp++ = crr + gg;
+          *gp++ = gg;
+          *bp++ = cbb + gg;
+        }
+      }
+      else
+      {
+        assert((y->flags  | line_buf::LFT_64BIT) &&
+               (cb->flags | line_buf::LFT_64BIT) && 
+               (cr->flags | line_buf::LFT_64BIT) &&
+               (r->flags  | line_buf::LFT_32BIT) &&
+               (g->flags  | line_buf::LFT_32BIT) && 
+               (b->flags  | line_buf::LFT_32BIT));   
+        const si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
+        si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        for (ui32 i = repeat; i > 0; --i)
+        {
+          si64 yy = *yp++, cbb = *cbp++, crr = *crp++;
+          si64 gg = yy - ((cbb + crr) >> 2);
+          *rp++ = (si32)(crr + gg);
+          *gp++ = (si32)gg;
+          *bp++ = (si32)(cbb + gg);
+        }
       }
     }
 

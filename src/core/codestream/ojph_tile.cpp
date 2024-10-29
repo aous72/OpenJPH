@@ -259,17 +259,15 @@ namespace ojph {
         line_buf *tc = comps[comp_num].get_line();
         if (reversible)
         {
-          int shift = 1 << (num_bits[comp_num] - 1);
-          const si32 *sp = line->i32 + line_offsets[comp_num];
-          si32* dp = tc->i32;
-          if (is_signed[comp_num]) {
-            if (nlt_type3[comp_num])
-              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
-            else
-              memcpy(dp, sp, comp_width * sizeof(si32));
+          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          if (is_signed[comp_num] && nlt_type3[comp_num])
+            rev_convert_nlt_type3(line, line_offsets[comp_num],
+              tc, 0, shift + 1, comp_width);
+          else {
+            shift = is_signed[comp_num] ? 0 : -shift;
+            rev_convert(line, line_offsets[comp_num], tc, 0, 
+              shift, comp_width);
           }
-          else
-              cnvrt_si32_to_si32_shftd(sp, dp, -shift, comp_width);
         }
         else
         {
@@ -285,26 +283,25 @@ namespace ojph {
       }
       else
       {
-        int shift = 1 << (num_bits[comp_num] - 1);
+        si64 shift = 1LL << (num_bits[comp_num] - 1);
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible)
         {
-          const si32 *sp = line->i32 + line_offsets[comp_num];
-          si32 *dp = lines[comp_num].i32;
-          if (is_signed[comp_num]) {
-            if (nlt_type3[comp_num])
-              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
-            else
-              memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num] && nlt_type3[comp_num])
+            rev_convert_nlt_type3(line, line_offsets[comp_num], 
+              lines + comp_num, 0, shift + 1, comp_width);            
+          else {
+            shift = is_signed[comp_num] ? 0 : -shift;
+            rev_convert(line, line_offsets[comp_num], lines + comp_num, 0, 
+              shift, comp_width);
           }
-          else
-            cnvrt_si32_to_si32_shftd(sp, dp, -shift, comp_width);
+
           if (comp_num == 2)
           { // reversible color transform
-            rct_forward(lines[0].i32, lines[1].i32, lines[2].i32,
-                        comps[0].get_line()->i32,
-                        comps[1].get_line()->i32,
-                        comps[2].get_line()->i32, comp_width);
+            rct_forward(lines + 0, lines + 1, lines + 2,
+                        comps[0].get_line(),
+                        comps[1].get_line(),
+                        comps[2].get_line(), comp_width);
                         comps[0].push_line();
                         comps[1].push_line();
                         comps[2].push_line();
@@ -350,17 +347,15 @@ namespace ojph {
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (reversible)
         {
-          int shift = 1 << (num_bits[comp_num] - 1);
-          const si32 *sp = src_line->i32;
-          si32* dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num]) {
-            if (nlt_type3[comp_num])
-              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
-            else
-              memcpy(dp, sp, comp_width * sizeof(si32));
+          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          if (is_signed[comp_num] && nlt_type3[comp_num])
+            rev_convert_nlt_type3(src_line, 0, tgt_line, 
+              line_offsets[comp_num], shift + 1, comp_width);
+          else {
+            shift = is_signed[comp_num] ? 0 : shift;
+            rev_convert(src_line, 0, tgt_line, 
+              line_offsets[comp_num], shift, comp_width);
           }
-          else
-            cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }
         else
         {
@@ -380,9 +375,9 @@ namespace ojph {
         if (comp_num == 0)
         {
           if (reversible)
-            rct_backward(comps[0].pull_line()->i32, comps[1].pull_line()->i32,
-              comps[2].pull_line()->i32, lines[0].i32, lines[1].i32,
-              lines[2].i32, comp_width);
+            rct_backward(comps[0].pull_line(), comps[1].pull_line(),
+              comps[2].pull_line(), lines + 0, lines + 1,
+              lines + 2, comp_width);
           else
             ict_backward(comps[0].pull_line()->f32, comps[1].pull_line()->f32,
               comps[2].pull_line()->f32, lines[0].f32, lines[1].f32,
@@ -390,21 +385,21 @@ namespace ojph {
         }
         if (reversible)
         {
-          int shift = 1 << (num_bits[comp_num] - 1);
-          const si32 *sp;
+          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          line_buf* src_line;
           if (comp_num < 3)
-            sp = lines[comp_num].i32;
+            src_line = lines + comp_num;
           else
-            sp = comps[comp_num].pull_line()->i32;
+            src_line = comps[comp_num].pull_line();
           si32* dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num]) {
-            if (nlt_type3[comp_num])
-              cnvrt_si32_to_si32_nlt_type3(sp, dp, shift + 1, comp_width);
-            else
-              memcpy(dp, sp, comp_width * sizeof(si32));
+          if (is_signed[comp_num] && nlt_type3[comp_num])
+            rev_convert_nlt_type3(src_line, 0, tgt_line, 
+              line_offsets[comp_num], shift + 1, comp_width);
+          else {
+            shift = is_signed[comp_num] ? 0 : shift;
+            rev_convert(src_line, 0, tgt_line, 
+              line_offsets[comp_num], shift, comp_width);
           }
-          else
-            cnvrt_si32_to_si32_shftd(sp, dp, +shift, comp_width);
         }
         else
         {

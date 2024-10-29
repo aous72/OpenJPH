@@ -391,7 +391,6 @@ namespace ojph {
             src_line = lines + comp_num;
           else
             src_line = comps[comp_num].pull_line();
-          si32* dp = tgt_line->i32 + line_offsets[comp_num];
           if (is_signed[comp_num] && nlt_type3[comp_num])
             rev_convert_nlt_type3(src_line, 0, tgt_line, 
               line_offsets[comp_num], shift + 1, comp_width);

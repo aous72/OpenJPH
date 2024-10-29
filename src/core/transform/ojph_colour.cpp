@@ -217,9 +217,9 @@ namespace ojph {
       line_buf *dst_line, const ui32 dst_line_offset, 
       si64 shift, ui32 width)
     {
-      if (src_line->flags | line_buf::LFT_32BIT)
+      if ((src_line->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
       { 
-        if (dst_line->flags | line_buf::LFT_32BIT)
+        if ((dst_line->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si32 *dp = dst_line->i32 + dst_line_offset;
@@ -252,9 +252,9 @@ namespace ojph {
       line_buf *dst_line, const ui32 dst_line_offset, 
       si64 shift, ui32 width)
     {
-      if (src_line->flags | line_buf::LFT_32BIT)
+      if ((src_line->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
       { 
-        if (dst_line->flags | line_buf::LFT_32BIT)
+        if ((dst_line->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si32 *dp = dst_line->i32 + dst_line_offset;
@@ -331,7 +331,7 @@ namespace ojph {
              (g->flags  | line_buf::LFT_REVERSIBLE) && 
              (b->flags  | line_buf::LFT_REVERSIBLE));
       
-      if (y->flags | line_buf::LFT_32BIT)
+      if  ((y->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
       {
         assert((y->flags  | line_buf::LFT_32BIT) &&
                (cb->flags | line_buf::LFT_32BIT) && 
@@ -381,7 +381,7 @@ namespace ojph {
              (g->flags  | line_buf::LFT_REVERSIBLE) && 
              (b->flags  | line_buf::LFT_REVERSIBLE));
 
-      if (y->flags | line_buf::LFT_32BIT)
+      if ((y->flags | line_buf::LFT_32BIT) == line_buf::LFT_32BIT)
       {
         assert((y->flags  | line_buf::LFT_32BIT) &&
                (cb->flags | line_buf::LFT_32BIT) && 

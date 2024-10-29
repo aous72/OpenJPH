@@ -135,7 +135,7 @@ namespace ojph {
   class line_buf
   {
   public:
-    enum line_buf_type {
+    enum : ui32 {
       LFT_UNDEFINED  = 0x00, // Type is undefined/uninitialized
                              // These flags reflects data size in bytes
       LFT_BYTE       = 0x01, // Set when data is 1 byte
@@ -167,7 +167,7 @@ namespace ojph {
 
     size_t size;
     ui32 pre_size;
-    line_buf_type flags;
+    ui32 flags;
     union {
       si32* i32;  // 32bit integer type, used for lossless compression
       float* f32; // float type, used for lossy compression

@@ -324,21 +324,21 @@ namespace ojph {
       const line_buf *r, const line_buf *g, const line_buf *b,
       line_buf *y, line_buf *cb, line_buf *cr, ui32 repeat)
     {
-      assert((y->flags  | line_buf::LFT_REVERSIBLE) &&
-             (cb->flags | line_buf::LFT_REVERSIBLE) && 
-             (cr->flags | line_buf::LFT_REVERSIBLE) &&
-             (r->flags  | line_buf::LFT_REVERSIBLE) &&
-             (g->flags  | line_buf::LFT_REVERSIBLE) && 
-             (b->flags  | line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
+             (cb->flags & line_buf::LFT_REVERSIBLE) && 
+             (cr->flags & line_buf::LFT_REVERSIBLE) &&
+             (r->flags  & line_buf::LFT_REVERSIBLE) &&
+             (g->flags  & line_buf::LFT_REVERSIBLE) && 
+             (b->flags  & line_buf::LFT_REVERSIBLE));
       
       if  (y->flags & line_buf::LFT_32BIT)
       {
-        assert((y->flags  | line_buf::LFT_32BIT) &&
-               (cb->flags | line_buf::LFT_32BIT) && 
-               (cr->flags | line_buf::LFT_32BIT) &&
-               (r->flags  | line_buf::LFT_32BIT) &&
-               (g->flags  | line_buf::LFT_32BIT) && 
-               (b->flags  | line_buf::LFT_32BIT));        
+        assert((y->flags  & line_buf::LFT_32BIT) &&
+               (cb->flags & line_buf::LFT_32BIT) && 
+               (cr->flags & line_buf::LFT_32BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));        
         const si32 *rp = r->i32, * gp = g->i32, * bp = b->i32;
         si32 *yp = y->i32, * cbp = cb->i32, * crp = cr->i32;
         for (ui32 i = repeat; i > 0; --i)
@@ -351,12 +351,12 @@ namespace ojph {
       }
       else 
       {
-        assert((y->flags  | line_buf::LFT_64BIT) &&
-               (cb->flags | line_buf::LFT_64BIT) && 
-               (cr->flags | line_buf::LFT_64BIT) &&
-               (r->flags  | line_buf::LFT_32BIT) &&
-               (g->flags  | line_buf::LFT_32BIT) && 
-               (b->flags  | line_buf::LFT_32BIT));
+        assert((y->flags  & line_buf::LFT_64BIT) &&
+               (cb->flags & line_buf::LFT_64BIT) && 
+               (cr->flags & line_buf::LFT_64BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));
         const si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
         for (ui32 i = repeat; i > 0; --i)
@@ -374,21 +374,21 @@ namespace ojph {
       const line_buf *y, const line_buf *cb, const line_buf *cr,
       line_buf *r, line_buf *g, line_buf *b, ui32 repeat)
     {
-      assert((y->flags  | line_buf::LFT_REVERSIBLE) &&
-             (cb->flags | line_buf::LFT_REVERSIBLE) && 
-             (cr->flags | line_buf::LFT_REVERSIBLE) &&
-             (r->flags  | line_buf::LFT_REVERSIBLE) &&
-             (g->flags  | line_buf::LFT_REVERSIBLE) && 
-             (b->flags  | line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
+             (cb->flags & line_buf::LFT_REVERSIBLE) && 
+             (cr->flags & line_buf::LFT_REVERSIBLE) &&
+             (r->flags  & line_buf::LFT_REVERSIBLE) &&
+             (g->flags  & line_buf::LFT_REVERSIBLE) && 
+             (b->flags  & line_buf::LFT_REVERSIBLE));
 
       if (y->flags & line_buf::LFT_32BIT)
       {
-        assert((y->flags  | line_buf::LFT_32BIT) &&
-               (cb->flags | line_buf::LFT_32BIT) && 
-               (cr->flags | line_buf::LFT_32BIT) &&
-               (r->flags  | line_buf::LFT_32BIT) &&
-               (g->flags  | line_buf::LFT_32BIT) && 
-               (b->flags  | line_buf::LFT_32BIT));
+        assert((y->flags  & line_buf::LFT_32BIT) &&
+               (cb->flags & line_buf::LFT_32BIT) && 
+               (cr->flags & line_buf::LFT_32BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));
         const si32 *yp = y->i32, *cbp = cb->i32, *crp = cr->i32;
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         for (ui32 i = repeat; i > 0; --i)
@@ -402,12 +402,12 @@ namespace ojph {
       }
       else
       {
-        assert((y->flags  | line_buf::LFT_64BIT) &&
-               (cb->flags | line_buf::LFT_64BIT) && 
-               (cr->flags | line_buf::LFT_64BIT) &&
-               (r->flags  | line_buf::LFT_32BIT) &&
-               (g->flags  | line_buf::LFT_32BIT) && 
-               (b->flags  | line_buf::LFT_32BIT));   
+        assert((y->flags  & line_buf::LFT_64BIT) &&
+               (cb->flags & line_buf::LFT_64BIT) && 
+               (cr->flags & line_buf::LFT_64BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));   
         const si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         for (ui32 i = repeat; i > 0; --i)

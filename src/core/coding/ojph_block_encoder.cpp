@@ -467,11 +467,11 @@ namespace ojph {
     //
     //
     //////////////////////////////////////////////////////////////////////////
-    void ojph_encode_codeblock(ui32* buf, ui32 missing_msbs, ui32 num_passes,
-                               ui32 width, ui32 height, ui32 stride,
-                               ui32* lengths,
-                               ojph::mem_elastic_allocator *elastic,
-                               ojph::coded_lists *& coded)
+    void ojph_encode_codeblock32(ui32* buf, ui32 missing_msbs, ui32 num_passes,
+                                 ui32 width, ui32 height, ui32 stride,
+                                 ui32* lengths,
+                                 ojph::mem_elastic_allocator *elastic,
+                                 ojph::coded_lists *& coded)
     {
       assert(num_passes == 1);
       (void)num_passes;                      //currently not used
@@ -942,6 +942,15 @@ namespace ojph {
         (ui8)(coded->buf[lengths[0]-2] | (num_bytes & 0xF));
 
       coded->avail_size -= lengths[0];
+    }
+
+    void ojph_encode_codeblock64(ui64* buf, ui32 missing_msbs, ui32 num_passes,
+                                ui32 width, ui32 height, ui32 stride,
+                                ui32* lengths,
+                                ojph::mem_elastic_allocator *elastic,
+                                ojph::coded_lists *& coded)
+    {
+    
     }
   }
 }

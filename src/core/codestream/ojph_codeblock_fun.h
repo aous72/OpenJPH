@@ -48,26 +48,44 @@ namespace ojph {
   namespace local {
 
     // define function signature simple memory clearing
-    typedef void (*mem_clear_fun)(void* addr, size_t count);
+    typedef void (*mem_clear_fun32)(si32* addr, size_t count);
+    typedef void (*mem_clear_fun64)(si64* addr, size_t count);
 
     // define function signature for max value finding
-    typedef ui32 (*find_max_val_fun)(ui32* addr);
+    typedef ui32 (*find_max_val_fun32)(ui32* addr);
+
+    typedef ui64 (*find_max_val_fun64)(ui64* addr);
 
     // define line transfer function signature from subbands to codeblocks
-    typedef void (*tx_to_cb_fun)(const void *sp, ui32 *dp, ui32 K_max,
+    typedef void (*tx_to_cb_fun32)(const void *sp, ui32 *dp, ui32 K_max,
                                    float delta_inv, ui32 count, ui32* max_val);
 
+    typedef void (*tx_to_cb_fun64)(const void *sp, ui64 *dp, ui32 K_max,
+                                   float delta_inv, ui32 count, ui64* max_val);
+
     // define line transfer function signature from codeblock to subband
-    typedef void (*tx_from_cb_fun)(const ui32 *sp, void *dp, ui32 K_max,
+    typedef void (*tx_from_cb_fun32)(const ui32 *sp, void *dp, ui32 K_max,
+                                     float delta, ui32 count);
+
+    typedef void (*tx_from_cb_fun64)(const ui64 *sp, void *dp, ui32 K_max,
                                      float delta, ui32 count);
 
     // define the block decoder function signature
-    typedef bool (*cb_decoder_fun)(ui8* coded_data, ui32* decoded_data,
+    typedef bool (*cb_decoder_fun32)(ui8* coded_data, ui32* decoded_data,
+      ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
+      ui32 width, ui32 height, ui32 stride, bool stripe_causal);
+
+    typedef bool (*cb_decoder_fun64)(ui8* coded_data, ui64* decoded_data,
       ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
       ui32 width, ui32 height, ui32 stride, bool stripe_causal);
 
     // define the block encoder function signature
-    typedef void (*cb_encoder_fun)(ui32* buf, ui32 missing_msbs, 
+    typedef void (*cb_encoder_fun32)(ui32* buf, ui32 missing_msbs, 
+      ui32 num_passes, ui32 width, ui32 height, ui32 stride,
+      ui32* lengths, ojph::mem_elastic_allocator* elastic,
+      ojph::coded_lists*& coded);
+
+    typedef void (*cb_encoder_fun64)(ui64* buf, ui32 missing_msbs, 
       ui32 num_passes, ui32 width, ui32 height, ui32 stride,
       ui32* lengths, ojph::mem_elastic_allocator* elastic,
       ojph::coded_lists*& coded);
@@ -78,22 +96,28 @@ namespace ojph {
       void init(bool reversible);
 
       // a pointer to the max value finding function
-      mem_clear_fun mem_clear;
+      mem_clear_fun32 mem_clear32;
+      mem_clear_fun64 mem_clear64;
      
       // a pointer to the max value finding function
-      find_max_val_fun find_max_val;
+      find_max_val_fun32 find_max_val32;
+      find_max_val_fun64 find_max_val64;
      
       // a pointer to function transferring samples from subbands to codeblocks
-      tx_to_cb_fun tx_to_cb;
+      tx_to_cb_fun32 tx_to_cb32;
+      tx_to_cb_fun64 tx_to_cb64;
      
       // a pointer to function transferring samples from codeblocks to subbands
-      tx_from_cb_fun tx_from_cb;
+      tx_from_cb_fun32 tx_from_cb32;
+      tx_from_cb_fun64 tx_from_cb64;
      
       // a pointer to the decoder function
-      cb_decoder_fun decode_cb;
+      cb_decoder_fun32 decode_cb32;
+      cb_decoder_fun64 decode_cb64;
 
       // a pointer to the encoder function
-      cb_encoder_fun encode_cb;
+      cb_encoder_fun32 encode_cb32;
+      cb_encoder_fun64 encode_cb64;
     };
     
   }

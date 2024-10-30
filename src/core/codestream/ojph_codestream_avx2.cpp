@@ -42,7 +42,7 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 avx2_find_max_val(ui32* address)
+    ui32 avx2_find_max_val32(ui32* address)
     {
       __m128i x0 = _mm_loadu_si128((__m128i*)address);
       __m128i x1 = _mm_loadu_si128((__m128i*)address + 1);
@@ -56,8 +56,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max, 
-                           float delta_inv, ui32 count, ui32* max_val)
+    void avx2_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max, 
+                             float delta_inv, ui32 count, ui32* max_val)
     {
       ojph_unused(delta_inv);
 
@@ -80,8 +80,8 @@ namespace ojph {
     }
                            
     //////////////////////////////////////////////////////////////////////////
-    void avx2_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val)
+    void avx2_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
+                             float delta_inv, ui32 count, ui32* max_val)
     {
       ojph_unused(K_max);
 
@@ -106,8 +106,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max, 
-                             float delta, ui32 count)
+    void avx2_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
@@ -124,8 +124,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max, 
-                             float delta, ui32 count)
+    void avx2_irv_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
     {
       ojph_unused(K_max);
       __m256i m1 = _mm256_set1_epi32(0x7FFFFFFF);

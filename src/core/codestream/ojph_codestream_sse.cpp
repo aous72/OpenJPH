@@ -42,7 +42,7 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void sse_mem_clear(void* addr, size_t count)
+    void sse_mem_clear32(si32* addr, size_t count)
     {
       float* p = (float*)addr;
       __m128 zero = _mm_setzero_ps();

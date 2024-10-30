@@ -777,6 +777,22 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    ui32 
+    param_cod::propose_implementation_precision(const param_siz* siz) const
+    {
+      bool employing_color_transform = is_employing_color_transform() ? 1 : 0;
+      bool reversible = atk->is_reversible();
+
+      ui32 bit_depth = 32; 
+      if (reversible) {
+        bit_depth = siz->get_bit_depth(comp_num);
+        bit_depth += employing_color_transform + get_num_decompositions();
+      }
+
+      return bit_depth;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
     {
       assert(type == COD_MAIN);

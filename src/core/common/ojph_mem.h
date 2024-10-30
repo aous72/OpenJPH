@@ -170,8 +170,9 @@ namespace ojph {
     ui32 flags;
     union {
       si32* i32;  // 32bit integer type, used for lossless compression
+      si64* i64;  // 64bit integer type, used for lossless compression
       float* f32; // float type, used for lossy compression
-      void* p;    // not type is associated with the pointer
+      void* p;    // no type is associated with the pointer
     };
   };
 

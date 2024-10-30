@@ -230,7 +230,7 @@ namespace ojph {
         else 
         {
           const si32 *sp = src_line->i32 + src_line_offset;
-          si64 *dp = (si64*)dst_line->p + dst_line_offset;
+          si64 *dp = dst_line->i64 + dst_line_offset;
           for (ui32 i = width; i > 0; --i)
             *dp++ = *sp++ + shift;
         }
@@ -239,7 +239,7 @@ namespace ojph {
       {
         assert(src_line->flags | line_buf::LFT_64BIT);
         assert(dst_line->flags | line_buf::LFT_32BIT);
-        const si64 *sp = (si64*)src_line->p + src_line_offset;
+        const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
         for (ui32 i = width; i > 0; --i)
           *dp++ = (si32)(*sp++ + shift);
@@ -267,7 +267,7 @@ namespace ojph {
         else 
         {
           const si32 *sp = src_line->i32 + src_line_offset;
-          si64 *dp = (si64*)dst_line->p + dst_line_offset;
+          si64 *dp = dst_line->i64 + dst_line_offset;
           for (ui32 i = width; i > 0; --i) {
             const si64 v = *sp++;
             *dp++ = v >= 0 ? v : (- v - shift);
@@ -278,7 +278,7 @@ namespace ojph {
       {
         assert(src_line->flags | line_buf::LFT_64BIT);
         assert(dst_line->flags | line_buf::LFT_32BIT);
-        const si64 *sp = (si64*)src_line->p + src_line_offset;
+        const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
         for (ui32 i = width; i > 0; --i) {
           const si64 v = *sp++;
@@ -358,7 +358,7 @@ namespace ojph {
                (g->flags  & line_buf::LFT_32BIT) && 
                (b->flags  & line_buf::LFT_32BIT));
         const si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
-        si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
+        si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;
         for (ui32 i = repeat; i > 0; --i)
         {
           si64 rr = *rp++, gg = *gp++, bb = *bp++;
@@ -408,7 +408,7 @@ namespace ojph {
                (r->flags  & line_buf::LFT_32BIT) &&
                (g->flags  & line_buf::LFT_32BIT) && 
                (b->flags  & line_buf::LFT_32BIT));   
-        const si64 *yp = (si64*)y->p, *cbp = (si64*)cb->p, *crp = (si64*)cr->p;
+        const si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         for (ui32 i = repeat; i > 0; --i)
         {

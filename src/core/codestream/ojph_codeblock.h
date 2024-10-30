@@ -65,8 +65,14 @@ namespace ojph {
     class codeblock
     {
       friend struct precinct;
+      enum : ui32 {
+        BUF32 = 4,
+        BUF64 = 8,
+      };
+
     public:
-      static void pre_alloc(codestream *codestream, const size& nominal);
+      static void pre_alloc(codestream *codestream, ui32 comp_num, 
+                            const size& nominal);
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
                           coded_cb_header* coded_cb,
@@ -79,7 +85,11 @@ namespace ojph {
       void pull_line(line_buf *line);
 
     private:
-      ui32* buf;
+      ui32 precision;
+      union {
+        ui32* buf32;
+        ui64* buf64;
+      };
       size nominal_size;
       size cb_size;
       ui32 stride;
@@ -93,7 +103,10 @@ namespace ojph {
       bool resilient;
       bool stripe_causal;
       bool zero_block; // true when the decoded block is all zero
-      ui32 max_val[8]; // supports up to 256 bits
+      union {
+        ui32 max_val32[8]; // supports up to 256 bits
+        ui64 max_val64[4]; // supports up to 256 bits
+      };
       coded_cb_header* coded_cb;
       codeblock_fun codeblock_functions;
     };

@@ -199,6 +199,9 @@ namespace ojph {
         allocator->pre_alloc_obj<precinct>((size_t)num_precincts.area());
       }
 
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+
       //allocate lines
       if (skipped_res_for_recon == false)
       {
@@ -207,10 +210,19 @@ namespace ojph {
         allocator->pre_alloc_obj<lifting_buf>(num_steps + 2);
 
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_steps; ++i)
+        if (precision <= 32) {
+          for (ui32 i = 0; i < num_steps; ++i)
+            allocator->pre_alloc_data<si32>(width, 1);
           allocator->pre_alloc_data<si32>(width, 1);
-        allocator->pre_alloc_data<si32>(width, 1);
-        allocator->pre_alloc_data<si32>(width, 1);
+          allocator->pre_alloc_data<si32>(width, 1);
+        }
+        else 
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            allocator->pre_alloc_data<si64>(width, 1);
+          allocator->pre_alloc_data<si64>(width, 1);
+          allocator->pre_alloc_data<si64>(width, 1);
+        }
       }
     }
 
@@ -436,6 +448,9 @@ namespace ojph {
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
 
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+
       //allocate lines
       if (skipped_res_for_recon == false)
       {
@@ -460,11 +475,22 @@ namespace ojph {
 
         // initiate storage of line_buf
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_steps; ++i)
-          ssp[i].line->wrap(
-            allocator->post_alloc_data<si32>(width, 1), width, 1);
-        sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
-        aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        if (precision <= 32)
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            ssp[i].line->wrap(
+              allocator->post_alloc_data<si32>(width, 1), width, 1);
+          sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+          aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        }
+        else
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            ssp[i].line->wrap(
+              allocator->post_alloc_data<si64>(width, 1), width, 1);
+          sig->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+          aug->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+        }
 
         cur_line = 0;
         rows_to_produce = res_rect.siz.h;

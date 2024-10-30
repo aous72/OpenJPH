@@ -263,6 +263,7 @@ namespace ojph {
         ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
         return t;
       }
+      
       ui32 get_height(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
@@ -515,6 +516,9 @@ namespace ojph {
         else
           return (Scod & 4) == 4;
       }
+
+      ////////////////////////////////////////
+      ui32 propose_implementation_precision(const param_siz* siz) const;
 
       ////////////////////////////////////////
       bool write(outfile_base *file);

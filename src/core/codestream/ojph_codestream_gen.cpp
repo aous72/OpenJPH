@@ -42,20 +42,29 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_mem_clear(void* addr, size_t count)
+    void gen_mem_clear32(si32* addr, size_t count)
     {
-      ui32* p = (ui32*)addr;
-      for (size_t i = 0; i < count; i += 4, p += 1)
-        *p = 0;
+      for (size_t i = 0; i < count; i += 4)
+        *addr++ = 0;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 gen_find_max_val(ui32* addr) { return addr[0]; }
+    void gen_mem_clear64(si64* addr, size_t count)
+    {
+      for (size_t i = 0; i < count; i += 8)
+        *addr++ = 0;
+    }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max, 
-                                     float delta_inv, ui32 count, 
-                                     ui32* max_val)
+    ui32 gen_find_max_val32(ui32* addr) { return addr[0]; }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui64 gen_find_max_val64(ui64* addr) { return addr[0]; }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max, 
+                            float delta_inv, ui32 count, 
+                            ui32* max_val)
     {
       ojph_unused(delta_inv);
       ui32 shift = 31 - K_max;
@@ -65,7 +74,7 @@ namespace ojph {
       for (ui32 i = count; i > 0; --i)
       {
         si32 v = *p++;
-        ui32 sign = v >= 0 ? 0 : 0x80000000;
+        ui32 sign = v >= 0 ? 0U : 0x80000000U;
         ui32 val = (ui32)(v >= 0 ? v : -v);
         val <<= shift;
         *dp++ = sign | val;
@@ -75,9 +84,31 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                                     float delta_inv, ui32 count, 
-                                     ui32* max_val)
+    void gen_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max, 
+                            float delta_inv, ui32 count, 
+                            ui64* max_val)
+    {
+      ojph_unused(delta_inv);
+      ui32 shift = 63 - K_max;
+      // convert to sign and magnitude and keep max_val
+      ui64 tmax = *max_val;
+      si64 *p = (si64*)sp;
+      for (ui32 i = count; i > 0; --i)
+      {
+        si64 v = *p++;
+        ui64 sign = v >= 0 ? 0ULL : 0x8000000000000000ULL;
+        ui64 val = (ui64)(v >= 0 ? v : -v);
+        val <<= shift;
+        *dp++ = sign | val;
+        tmax |= val; // it is more efficient to use or than max
+      }
+      *max_val = tmax;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
+                            float delta_inv, ui32 count, 
+                            ui32* max_val)
     {
       ojph_unused(K_max);
       //quantize and convert to sign and magnitude and keep max_val
@@ -87,7 +118,7 @@ namespace ojph {
       {
         float v = *p++;
         si32 t = ojph_trunc(v * delta_inv);
-        ui32 sign = t >= 0 ? 0 : 0x80000000;
+        ui32 sign = t >= 0 ? 0U : 0x80000000U;
         ui32 val = (ui32)(t >= 0 ? t : -t);
         *dp++ = sign | val;
         tmax |= val; // it is more efficient to use or than max
@@ -96,8 +127,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                       float delta, ui32 count)
+    void gen_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
+                              float delta, ui32 count)
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
@@ -106,14 +137,30 @@ namespace ojph {
       for (ui32 i = count; i > 0; --i)
       {
         ui32 v = *sp++;
-        si32 val = (v & 0x7FFFFFFF) >> shift;
-        *p++ = (v & 0x80000000) ? -val : val;
+        si32 val = (v & 0x7FFFFFFFU) >> shift;
+        *p++ = (v & 0x80000000U) ? -val : val;
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max,
-                                       float delta, ui32 count)
+    void gen_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
+                              float delta, ui32 count)
+    {
+      ojph_unused(delta);
+      ui32 shift = 63 - K_max;
+      //convert to sign and magnitude
+      si64 *p = (si64*)dp;
+      for (ui32 i = count; i > 0; --i)
+      {
+        ui64 v = *sp++;
+        si64 val = (v & 0x7FFFFFFFFFFFFFFFULL) >> shift;
+        *p++ = (v & 0x8000000000000000ULL) ? -val : val;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
+                              float delta, ui32 count)
     {
       ojph_unused(K_max);
       //convert to sign and magnitude
@@ -121,8 +168,8 @@ namespace ojph {
       for (ui32 i = count; i > 0; --i)
       {
         ui32 v = *sp++;
-        float val = (float)(v & 0x7FFFFFFF) * delta;
-        *p++ = (v & 0x80000000) ? -val : val;
+        float val = (float)(v & 0x7FFFFFFFU) * delta;
+        *p++ = (v & 0x80000000U) ? -val : val;
       }
     }
     

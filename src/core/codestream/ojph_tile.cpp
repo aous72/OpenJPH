@@ -231,8 +231,7 @@ namespace ojph {
         num_lines = 3;
         lines = allocator->post_alloc_obj<line_buf>(num_lines);
         for (int i = 0; i < 3; ++i)
-          lines[i].wrap(
-            allocator->post_alloc_data<si32>(width,0),width,0);
+          lines[i].wrap(allocator->post_alloc_data<si32>(width, 0), width, 0);
       }
       else
       {

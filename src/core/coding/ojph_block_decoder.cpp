@@ -739,11 +739,11 @@ namespace ojph {
      *  @param [in]   stride is the decoded codeblock buffer stride 
      *  @param [in]   stripe_causal is true for stripe causal mode
      */
-    bool ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-                               ui32 missing_msbs, ui32 num_passes,
-                               ui32 lengths1, ui32 lengths2,
-                               ui32 width, ui32 height, ui32 stride,
-                               bool stripe_causal)
+    bool ojph_decode_codeblock32(ui8* coded_data, ui32* decoded_data,
+                                 ui32 missing_msbs, ui32 num_passes,
+                                 ui32 lengths1, ui32 lengths2,
+                                 ui32 width, ui32 height, ui32 stride,
+                                 bool stripe_causal)
     {
       static bool insufficient_precision = false;
       static bool modify_code = false;
@@ -1610,6 +1610,15 @@ namespace ojph {
           }
         }
       }
+      return true;
+    }
+
+    bool ojph_decode_codeblock64(ui8* coded_data, ui64* decoded_data,
+                                ui32 missing_msbs, ui32 num_passes, 
+                                ui32 lengths1, ui32 lengths2, 
+                                ui32 width, ui32 height, 
+                                ui32 stride, bool stripe_causal)
+    {
       return true;
     }
   }

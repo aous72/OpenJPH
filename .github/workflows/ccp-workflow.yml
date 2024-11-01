@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include: [
           { system: MacOS,          runner: macos-latest },
@@ -29,6 +30,7 @@ jobs:
 
   build_windows:
     strategy:
+      fail-fast: false
       matrix:
         include: [
           { system: Windows,  runner: windows-latest },
@@ -47,6 +49,7 @@ jobs:
   test:
     strategy:
       matrix:
+        fail-fast: false
         include: [
           { system: MacOS,          runner: macos-latest },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
@@ -67,6 +70,7 @@ jobs:
       
   test_windows:
     strategy:
+      fail-fast: false
       matrix:
         include: [
           { system: Windows,  runner: windows-latest },

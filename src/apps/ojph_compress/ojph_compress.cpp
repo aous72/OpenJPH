@@ -768,10 +768,6 @@ int main(int argc, char * argv[]) {
         assert(num_comps == 1 || num_comps == 3);
         siz.set_num_components(num_comps);
 
-        if (bit_depth[0] == 0)
-          OJPH_ERROR(0x01000091,
-            "-bit_depth must be specified (this is temporary only).\n");
-
         if (bit_depth[0] != 0)             // one was set
           if (num_bit_depths < num_comps)  // but if not enough, repeat
             for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)

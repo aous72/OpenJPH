@@ -48,8 +48,8 @@ jobs:
 
   test:
     strategy:
+      fail-fast: false
       matrix:
-        fail-fast: false
         include: [
           { system: MacOS,          runner: macos-latest },
           { system: Ubuntu-latest,  runner: ubuntu-latest },

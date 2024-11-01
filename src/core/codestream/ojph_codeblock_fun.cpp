@@ -165,7 +165,7 @@ namespace ojph {
 
     #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-        // Accelerated functions for INTEL/AMD CPUs
+      // Accelerated functions for INTEL/AMD CPUs
       #ifndef OJPH_DISABLE_SSE
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
           mem_clear32 = sse_mem_clear32;

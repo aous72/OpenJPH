@@ -115,17 +115,17 @@ namespace ojph {
 
   #ifndef OJPH_DISABLE_SIMD
 
-    // #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+    #if (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
-    //   #ifndef OJPH_DISABLE_SSE
-    //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
-    //     {
-    //       irv_vert_step             = sse_irv_vert_step;
-    //       irv_vert_times_K          = sse_irv_vert_times_K;
-    //       irv_horz_ana              = sse_irv_horz_ana;
-    //       irv_horz_syn              = sse_irv_horz_syn;
-    //     }
-    //   #endif // !OJPH_DISABLE_SSE
+      #ifndef OJPH_DISABLE_SSE
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
+        {
+          irv_vert_step             = sse_irv_vert_step;
+          irv_vert_times_K          = sse_irv_vert_times_K;
+          irv_horz_ana              = sse_irv_horz_ana;
+          irv_horz_syn              = sse_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE
 
     //   #ifndef OJPH_DISABLE_SSE2
     //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
@@ -136,15 +136,15 @@ namespace ojph {
     //     }
     //   #endif // !OJPH_DISABLE_SSE2
 
-    //   #ifndef OJPH_DISABLE_AVX
-    //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
-    //     {
-    //       irv_vert_step             = avx_irv_vert_step;
-    //       irv_vert_times_K          = avx_irv_vert_times_K;
-    //       irv_horz_ana              = avx_irv_horz_ana;      
-    //       irv_horz_syn              = avx_irv_horz_syn;
-    //     }
-    //   #endif // !OJPH_DISABLE_AVX
+      #ifndef OJPH_DISABLE_AVX
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
+        {
+          irv_vert_step             = avx_irv_vert_step;
+          irv_vert_times_K          = avx_irv_vert_times_K;
+          irv_horz_ana              = avx_irv_horz_ana;      
+          irv_horz_syn              = avx_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX
 
     //   #ifndef OJPH_DISABLE_AVX2
     //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
@@ -155,23 +155,23 @@ namespace ojph {
     //     }
     //   #endif // !OJPH_DISABLE_AVX2
 
-    //   #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
-    //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
-    //     {
-    //       rev_vert_step             = avx512_rev_vert_step;
-    //       rev_horz_ana              = avx512_rev_horz_ana;
-    //       rev_horz_syn              = avx512_rev_horz_syn;
+      #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+        {
+          // rev_vert_step             = avx512_rev_vert_step;
+          // rev_horz_ana              = avx512_rev_horz_ana;
+          // rev_horz_syn              = avx512_rev_horz_syn;
 
-    //       irv_vert_step             = avx512_irv_vert_step;
-    //       irv_vert_times_K          = avx512_irv_vert_times_K;
-    //       irv_horz_ana              = avx512_irv_horz_ana;
-    //       irv_horz_syn              = avx512_irv_horz_syn;
-    //     }
-    //   #endif // !OJPH_DISABLE_AVX512
+          irv_vert_step             = avx512_irv_vert_step;
+          irv_vert_times_K          = avx512_irv_vert_times_K;
+          irv_horz_ana              = avx512_irv_horz_ana;
+          irv_horz_syn              = avx512_irv_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX512
     
-    // #elif defined(OJPH_ARCH_ARM)
+    #elif defined(OJPH_ARCH_ARM)
 
-    // #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+    #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
   #endif // !OJPH_DISABLE_SIMD
 

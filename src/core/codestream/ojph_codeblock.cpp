@@ -64,8 +64,8 @@ namespace ojph {
 
       const param_siz* sz = codestream->get_siz();
       const param_cod* cd = codestream->get_cod(comp_num);
-      ui32 bit_depth = cd->propose_implementation_precision(sz);
-      if (bit_depth <= 32)
+      ui32 precision = cd->propose_implementation_precision(sz);
+      if (precision <= 32)
         allocator->pre_alloc_data<ui32>(nominal.h * stride, 0);
       else
         allocator->pre_alloc_data<ui64>(nominal.h * stride, 0);

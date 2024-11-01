@@ -300,7 +300,7 @@ namespace ojph {
   size_t calc_aligned_size(size_t size) {
     size = size * sizeof(T) + N - 1;
     size &= ~((1ULL << (31 - count_leading_zeros(N))) - 1);
-    size >>= (63 - count_leading_zeros(sizeof(T)));
+    size >>= (63 - count_leading_zeros((ui64)sizeof(T)));
     return size;
   }
 

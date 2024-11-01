@@ -459,7 +459,7 @@ namespace ojph {
 
       // accumulate in tmp, and increment bits, check if unstuffing is needed
       ui8 t = (vlcp->unstuff && ((val & 0x7F) == 0x7F)) ? 1 : 0;
-      val = val & (0xFFU >> t); // protect against erroneous 1 in MSB
+      val = (ui8)(val & (0xFFU >> t)); // protect against erroneous 1 in MSB
       vlcp->tmp |= (ui64)val << vlcp->bits;
       vlcp->bits += 8 - t;
       vlcp->unstuff = val > 0x8F;
@@ -491,9 +491,9 @@ namespace ojph {
 
       // the first byte is treated different to other bytes, because only
       // the MSB nibble is part of the VLC code.
-      val = val >> 4;
+      val = (ui8)(val >> 4);
       ui8 t = ((val & 0x7) == 0x7) ? 1 : 0; // unstuffing is needed
-      val = val & (0xFU >> t); // protect against erroneous 1 in MSB
+      val = (ui8)(val & (0xFU >> t)); // protect against erroneous 1 in MSB
       vlcp->tmp = val;
       vlcp->bits = 4 - t;
       vlcp->unstuff = val > 0x8; //this is useful for the next byte
@@ -787,7 +787,7 @@ namespace ojph {
 
       // unstuff and accumulate
       ui8 t = msp->unstuff ? 1 : 0;
-      val = val & (0xFFU >> t);
+      val = (ui8)(val & (0xFFU >> t));
       msp->unstuff = (val == 0xFF);
       msp->tmp |= ((ui64)val) << msp->bits;  // move data to msp->tmp
       msp->bits += 8 - t;
@@ -2030,27 +2030,27 @@ namespace ojph {
           vlc_val = rev_advance64(&vlc, uvlc_entry & 0x7); 
           uvlc_entry >>= 3; 
           //extract suffixes for quad 0 and 1
-          ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
+          ui32 len = uvlc_entry & 0xF;             // suffix length for 2 quads
+          ui32 tmp = (ui32)(vlc_val&((1<<len)-1)); // suffix value for 2 quads
           vlc_val = rev_advance64(&vlc, len);
           uvlc_entry >>= 4;
           // quad 0 length
           len = uvlc_entry & 0x7; // quad 0 suffix length
           uvlc_entry >>= 3;
           ui16 u_q0 = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len)));//kap. 1
-          ui16 u_q1 = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
+          ui16 u_q1 = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa==1
 
           // decode u_q extensions, which is needed only when u_q > 32
-          ui32 u_ext; bool cond0, cond1;
+          ui16 u_ext; bool cond0, cond1;
           cond0 = u_q0 > 32;
-          u_ext = cond0 ? (uvlc_entry & 0xF) : 0;
+          u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
           u_q0 += u_ext << 2;
           sp[1] = u_q0;
           cond1 = u_q1 > 32;
-          u_ext = cond1 ? (uvlc_entry & 0xF) : 0;
+          u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
-          u_q0 += u_ext << 2;
+          u_q1 += u_ext << 2;
           sp[3] = u_q1;
         }
         sp[0] = sp[1] = 0;
@@ -2152,8 +2152,8 @@ namespace ojph {
             vlc_val = rev_advance64(&vlc, uvlc_entry & 0x7);
             uvlc_entry >>= 3;
             //extract suffixes for quad 0 and 1
-            ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-            ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
+            ui32 len = uvlc_entry & 0xF;             //suffix length for 2 quads
+            ui32 tmp = (ui32)(vlc_val&((1<<len)-1)); //suffix value for 2 quads
             vlc_val = rev_advance64(&vlc, len);
             uvlc_entry >>= 4;
             // quad 0 length
@@ -2163,16 +2163,16 @@ namespace ojph {
             ui16 u_q1 = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
 
             // decode u_q extensions, which is needed only when u_q > 32
-            ui32 u_ext; bool cond0, cond1;
+            ui16 u_ext; bool cond0, cond1;
             cond0 = u_q0 > 32;
-            u_ext = cond0 ? (uvlc_entry & 0xF) : 0;
+            u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
             u_q0 += u_ext << 2;
             sp[1] = u_q0;
             cond1 = u_q1 > 32;
-            u_ext = cond1 ? (uvlc_entry & 0xF) : 0;
+            u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
-            u_q0 += u_ext << 2;
+            u_q1 += u_ext << 2;
             sp[3] = u_q1;
           }
           sp[0] = sp[1] = 0;

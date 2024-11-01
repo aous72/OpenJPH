@@ -65,7 +65,7 @@ namespace ojph {
     static ui16 vlc_tbl1[2048] = { 0 };
 
     //UVLC encoding
-    const int num_uvlc_entries = 74;
+    const int num_uvlc_entries = 75;
     struct uvlc_tbl_struct {
       ui8 pre, pre_len, suf, suf_len, ext, ext_len;
     };
@@ -234,19 +234,19 @@ namespace ojph {
       {
         uvlc_tbl[i].pre = 0;
         uvlc_tbl[i].pre_len = 3;
-        uvlc_tbl[i].suf = i - 5;
+        uvlc_tbl[i].suf = (ui8)(i - 5);
         uvlc_tbl[i].suf_len = 5;
         uvlc_tbl[i].ext = 0;
         uvlc_tbl[i].ext_len = 0;
       }
 
-      for (int i = 33; i < 75; ++i)
+      for (int i = 33; i < num_uvlc_entries; ++i)
       {
         uvlc_tbl[i].pre = 0;
         uvlc_tbl[i].pre_len = 3;
-        uvlc_tbl[i].suf = 28 + (i - 33) % 4;
+        uvlc_tbl[i].suf = (ui8)(28 + (i - 33) % 4);
         uvlc_tbl[i].suf_len = 5;
-        uvlc_tbl[i].ext = (i - 33) / 4;
+        uvlc_tbl[i].ext = (ui8)((i - 33) / 4);
         uvlc_tbl[i].ext_len = 4;
       }
 
@@ -488,7 +488,7 @@ namespace ojph {
         if (msp->pos >= msp->buf_size)
           OJPH_ERROR(0x00020005, "magnitude sign encoder's buffer is full");
         int t = ojph_min(msp->max_bits - msp->used_bits, cwd_len);
-        msp->tmp |= (cwd & ((1ULL << t) - 1)) << msp->used_bits;
+        msp->tmp |= (ui32)((cwd & ((1ULL << t) - 1)) << msp->used_bits);
         msp->used_bits += t;
         cwd >>= t;
         cwd_len -= t;

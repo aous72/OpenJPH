@@ -1110,6 +1110,57 @@ int main(int argc, char * argv[]) {
       else if (is_matching(".exr", v))
       {
         exr.open(input_filename);
+
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + exr.get_size().w,
+          image_offset.y + exr.get_size().h));
+        ojph::ui32 num_comps = exr.get_num_components();
+        siz.set_num_components(num_comps);
+
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
+          siz.set_component(c, exr.get_comp_subsampling(c),
+            exr.get_bit_depth(c), exr.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1 && num_comps >= 3)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
+          tileparts_at_components);
+        codestream.request_tlm_marker(tlm_marker);
+
+        ojph::param_nlt nlt = codestream.access_nlt();
+        nlt.set_type3_transformation(65535, true);
+
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000071,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000072,
+            "-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          OJPH_WARN(0x01000073,
+            "-signed is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000075,
+            "-downsamp is not needed and was not used\n");
+
+        base = &exr;
       }
 #endif // !OJPH_ENABLE_OPENEXR_SUPPORT
       else

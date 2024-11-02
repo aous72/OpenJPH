@@ -2051,18 +2051,54 @@ namespace ojph {
 /////////////////////////////////////////////////////////////////////////////
   void exr_in::open(const char* filename)
   {
+    // check if this is a valid OpenEXR file 
+    bool is_tiled_openexr_file = false;
+    bool is_deep_openexr_file = false;
+    bool is_mulitpart_openexr_file = false;
+    bool is_valid_openexr_file = Imf::isOpenExrFile(filename, 
+      is_tiled_openexr_file, is_deep_openexr_file, is_mulitpart_openexr_file);
+
+    if (false == is_valid_openexr_file)
+    {
+      fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is not a valid OpenEXR file\n",
+        __LINE__, __FILE__, __FUNCTION__, filename);
+      return;
+    }
+
+    if (true == is_tiled_openexr_file || true == is_deep_openexr_file || true == is_mulitpart_openexr_file)
+    {
+      fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is a valid OpenEXR file but is not yet supported by this software.\n",
+        __LINE__, __FILE__, __FUNCTION__, filename);
+      if (true == is_tiled_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is tiled.\n", filename);
+      }
+      if (true == is_deep_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is deep.\n", filename);
+      }
+      if (true == is_mulitpart_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is multi-part.\n", filename);
+      }
+      return;
+    }
+
+    bool has_RGB = false;
+    bool has_alpha = false;
+
+    // first open with most generic interface to see if the file can be supported by the easier RGBA interface
     try {
       Imf::InputFile file(filename);
       Imath::Box2i       dw = file.header().dataWindow();
       int                width = dw.max.x - dw.min.x + 1;
       int                height = dw.max.y - dw.min.y + 1;
 
-      bool has_alpha = file.header().channels().findChannel("A");
-
-      if (file.header().channels().begin().channel().type == Imf::HALF)
-        this->bit_depth[0] = 16;
-      else
-        this->bit_depth[0] = 32;
+      has_alpha = file.header().channels().findChannel("A");
+      bool has_R = file.header().channels().findChannel("R");
+      bool has_G = file.header().channels().findChannel("G");
+      bool has_B = file.header().channels().findChannel("B");
+      has_RGB = has_R ? has_G ? has_B : false : false;
 
       this->width = width;
       this->height = height;
@@ -2079,45 +2115,127 @@ namespace ojph {
           {
           case Imf::PixelType::UINT:
             fprintf(stderr, "channel %d type = UINT\n", channel_index);
+            this->bit_depth[channel_index] = 32;
             break;
           case Imf::PixelType::HALF:
             fprintf(stderr, "channel %d type = HALF\n", channel_index);
+            this->bit_depth[channel_index] = 16;
             break;
           case Imf::PixelType::FLOAT:
             fprintf(stderr, "channel %d type = FLOAT\n", channel_index);
+            this->bit_depth[channel_index] = 32;
             break;
           default:
             fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel %d PixelType = %d, this should be UINT=0, HALF=1 or FLOAT=2\n",
               __LINE__, __FILE__, __FUNCTION__, channel_index, channel.type);
+            return;
             break;
           }
 
           fprintf(stderr, "channel %d xSampling = %d\n", channel_index, channel.xSampling);
           fprintf(stderr, "channel %d ySampling = %d\n", channel_index, channel.ySampling);
-
           fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
 
           channel_index++;
       }
 
-      this->num_comps = 3;  // descriptor field can indicate 1, 3, or 4 comps
+      this->num_comps = channel_index;
 
-      Imf::Array2D<Imf::Rgba> pixels(width, height);
-
-      //file.setFrameBuffer(&pixels[0][0], 1, width);
-      //file.readPixels(dw.min.y, dw.max.y);
-
+      // check if this is a complete OpenEXR file
+      if (false == file.isComplete())
+      {
+        fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is not complete and therefore not yet supported by this software.\n",
+          __LINE__, __FILE__, __FUNCTION__, filename);
+        return;
+      }
     }
     catch (const std::exception& e) {
       std::cerr << "error reading image file " << filename << ": " << e.what() << std::endl;
       return;
     }
+
+    // if the channels are RGB or RGBA then use the simple RGBA interface to read the pixel data
+    if ((3 == this->num_comps && true == has_RGB && false == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16) ||
+        (4 == this->num_comps && true == has_RGB &&  true == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16))
+    {
+      try {
+        //Imf::RgbaInputFile file(filename);
+        Imf::RgbaInputFile rgba_input_file(filename);
+        Imath::Box2i       dw = rgba_input_file.dataWindow();
+        int                width = dw.max.x - dw.min.x + 1;
+        int                height = dw.max.y - dw.min.y + 1;
+
+        pixels.resizeErase(height, width);
+        rgba_input_file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * width, 1, width);
+        rgba_input_file.readPixels(dw.min.y, dw.max.y);
+
+      }
+      catch (const std::exception& e) {
+        std::cerr << "error reading image file " << filename << ": " << e.what() << std::endl;
+        return;
+      }
+    }
+    else
+    {
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface because this->num_comps = %d and has_RGB = false\n",
+        __FILE__, __LINE__, __FUNCTION__, this->num_comps);
+    }
+
   }
 
   ui32 exr_in::read(const line_buf* line, ui32 comp_num)
   {
+    assert(comp_num < num_comps);
+    assert((ui32)line->size >= width);
 
-    return 0;
+    if (bit_depth[comp_num] != 16)
+    {
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n bit_depth[%d] = %d, this software currently only supports reading 16-bit files\n",
+        __FILE__, __LINE__, __FUNCTION__, comp_num, bit_depth[comp_num]);
+      return 0;
+    }
+
+    if(cur_line < height)
+    {
+      switch (comp_num)
+      {
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].r);
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].g);
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].b);
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].a);
+        }
+        break;
+      }
+
+    }
+
+    if (comp_num == 0)
+    {
+      cur_line++;
+    }
+
+      
+
+
+    return width;
   }
 #endif
 } 

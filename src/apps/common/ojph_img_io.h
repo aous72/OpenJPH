@@ -50,10 +50,12 @@
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
 #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+  #define IMATH_HALF_NO_LOOKUP_TABLE
   #include <ImfRgbaFile.h>
   #include <ImfInputFile.h>
   #include <ImfChannelList.h>
   #include <ImfArray.h>
+  #include <ImfTestFile.h>
   #include <iostream>
 #endif
 
@@ -521,7 +523,8 @@ namespace ojph {
   public:
     exr_in()
     {
-      //tiff_handle = NULL;
+      pixels.resizeErase(1, 1);
+
       fname = NULL;
       line_buffer = NULL;
       line_buffer_for_planar_support_uint8 = NULL;
@@ -543,6 +546,7 @@ namespace ojph {
     virtual ~exr_in()
     {
       close();
+
       if (line_buffer)
         free(line_buffer);
       if (line_buffer_for_planar_support_uint8)
@@ -580,7 +584,6 @@ namespace ojph {
     }
 
   private:
-    //TIFF* tiff_handle;
     size_t bytes_per_line;
     ui16 planar_configuration;
 
@@ -595,6 +598,8 @@ namespace ojph {
     ui32 bit_depth[4];
     bool is_signed[4];
     point subsampling[4];
+
+    Imf::Array2D<Imf::Rgba> pixels;
   };
 #endif
 

@@ -590,7 +590,7 @@ namespace ojph {
     {
       friend ::ojph::param_qcd;
     public:
-      param_qcd()
+      param_qcd() : reversible_SPqcd_shift(3)
       { 
         Lqcd = 0;
         Sqcd = 0;
@@ -646,6 +646,7 @@ namespace ojph {
     protected:
       ui16 Lqcd;
       ui8 Sqcd;
+      const ui8 reversible_SPqcd_shift;
       union
       {
         ui8 u8_SPqcd[97];

@@ -952,16 +952,16 @@ namespace ojph {
       int s = 0;
       double bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       ui32 X = (ui32) ceil(log(bibo_l * bibo_l) / M_LN2);
-      u8_SPqcd[s++] = (ui8)((B + X) << 3);
+      u8_SPqcd[s++] = (ui8)((B + X) << reversible_SPqcd_shift);
       for (ui32 d = num_decomps; d > 0; --d)
       {
         double bibo_l = bibo_gains::get_bibo_gain_l(d, true);
         double bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
         X = (ui32) ceil(log(bibo_h * bibo_l) / M_LN2);
-        u8_SPqcd[s++] = (ui8)((B + X) << 3);
-        u8_SPqcd[s++] = (ui8)((B + X) << 3);
+        u8_SPqcd[s++] = (ui8)((B + X) << reversible_SPqcd_shift);
+        u8_SPqcd[s++] = (ui8)((B + X) << reversible_SPqcd_shift);
         X = (ui32) ceil(log(bibo_h * bibo_h) / M_LN2);
-        u8_SPqcd[s++] = (ui8)((B + X) << 3);
+        u8_SPqcd[s++] = (ui8)((B + X) << reversible_SPqcd_shift);
       }
     }
 
@@ -1017,8 +1017,11 @@ namespace ojph {
       ui32 B = 0;
       int irrev = Sqcd & 0x1F;
       if (irrev == 0) //reversible
-        for (ui32 i = 0; i < num_subbands; ++i)
-          B = ojph_max(B, (u8_SPqcd[i] >> 3) + get_num_guard_bits() - 1u);
+        for (ui32 i = 0; i < num_subbands; ++i) {
+          ui32 t = (u8_SPqcd[i] >> reversible_SPqcd_shift);
+          t += get_num_guard_bits() - 1u;
+          B = ojph_max(B, t);
+        }
       else if (irrev == 2) //scalar expounded
         for (ui32 i = 0; i < num_subbands; ++i)
         {
@@ -1088,9 +1091,9 @@ namespace ojph {
       }
 
       int irrev = Sqcd & 0x1F;
-      if (irrev == 0) //reversible; this is (10.22) from the J2K book
+      if (irrev == 0) // reversible; this is (10.22) from the J2K book
       {
-        num_bits += u8_SPqcd[idx] >> 3;
+        num_bits += u8_SPqcd[idx] >> reversible_SPqcd_shift;
         num_bits = num_bits == 0 ? 0 : num_bits - 1;
       }
       else if (irrev == 1)

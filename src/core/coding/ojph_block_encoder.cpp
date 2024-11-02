@@ -1021,8 +1021,21 @@ namespace ojph {
     {
       assert(num_passes == 1);
       (void)num_passes;                      //currently not used
-      const int ms_size = (16384*16+14)/15;  //more than enough
+      // 38 bits/sample + 1 color + 4 wavelet = 43 bits per sample.
+      // * 4096 samples / 8 bits per byte = 22016; then rounded up to the 
+      // nearest 1 kB, givin 22528.  This expanded further to take into 
+      // consideration stuffing at a max rate of 16 bits per 15 bits 
+      // (1 bit for every 15 bits of data); in reality, it is much smaller
+      // than this.
+      const int ms_size = (22528 * 16 + 14) / 15;  //more than enough
       ui8 ms_buf[ms_size];
+      // For each quad, we need at most, 7 bits for VLC and 12 bits for UVLC.
+      // So we have 1024 quads * 19 / 8, which is 2432.  This must be 
+      // multiplied by 16 / 15 to accommodate stuffing.  
+      // The mel is at most around 1 bit/quad, giving around 128 byte -- in
+      // practice there was on case where it got to 132 bytes.  Even 
+      // accounting for stuffing, it is smaller than 192.  Therefore,
+      // 3072 is more than enough
       const int mel_vlc_size = 3072;         //more than enough
       ui8 mel_vlc_buf[mel_vlc_size];
       const int mel_size = 192;

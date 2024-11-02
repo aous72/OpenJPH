@@ -1814,9 +1814,9 @@ namespace ojph {
                                  ui32 width, ui32 height, ui32 stride,
                                  bool stripe_causal)
     {
-      static bool insufficient_precision = false;
-      static bool modify_code = false;
-      static bool truncate_spp_mrp = false;
+      // static bool insufficient_precision = false;
+      // static bool modify_code = false;
+      // static bool truncate_spp_mrp = false;
 
       if (num_passes > 1 && lengths2 == 0)
       {
@@ -2045,12 +2045,12 @@ namespace ojph {
           cond0 = u_q0 > 32;
           u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
-          u_q0 += u_ext << 2;
+          u_q0 = (ui16)(u_q0 + (u_ext << 2));
           sp[1] = u_q0;
           cond1 = u_q1 > 32;
           u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
-          u_q1 += u_ext << 2;
+          u_q1 = (ui16)(u_q1 + (u_ext << 2));
           sp[3] = u_q1;
         }
         sp[0] = sp[1] = 0;
@@ -2167,12 +2167,12 @@ namespace ojph {
             cond0 = u_q0 > 32;
             u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
-            u_q0 += u_ext << 2;
+            u_q0 = (ui16)(u_q0 + (u_ext << 2));
             sp[1] = u_q0;
             cond1 = u_q1 > 32;
             u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
-            u_q1 += u_ext << 2;
+            u_q1 = (ui16)(u_q1 + (u_ext << 2));
             sp[3] = u_q1;
           }
           sp[0] = sp[1] = 0;

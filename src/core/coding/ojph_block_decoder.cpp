@@ -2025,7 +2025,9 @@ namespace ojph {
           //  run = mel_get_run(&mel);  // get another run
 
           //decode uvlc_mode to get u for both quads
-          ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
+          ui32 idx = uvlc_mode + (ui32)(vlc_val & 0x3F);
+          ui32 uvlc_entry = uvlc_tbl0[idx];
+          ui16 u_bias = uvlc_bias[idx];          
           //remove total prefix length
           vlc_val = rev_advance64(&vlc, uvlc_entry & 0x7); 
           uvlc_entry >>= 3; 
@@ -2037,21 +2039,21 @@ namespace ojph {
           // quad 0 length
           len = uvlc_entry & 0x7; // quad 0 suffix length
           uvlc_entry >>= 3;
-          ui16 u_q0 = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len)));//kap. 1
-          ui16 u_q1 = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa==1
+          ui16 u_q0 = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
+          ui16 u_q1 = (ui16)((uvlc_entry >> 3) + (tmp >> len));
 
           // decode u_q extensions, which is needed only when u_q > 32
           ui16 u_ext; bool cond0, cond1;
-          cond0 = u_q0 > 32;
-          u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
+          cond0 = u_q0 - (u_bias & 0x3) > 32;
+          u_ext = (ui16)(cond0 ? (vlc_val & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
           u_q0 = (ui16)(u_q0 + (u_ext << 2));
-          sp[1] = u_q0;
-          cond1 = u_q1 > 32;
-          u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
+          sp[1] = u_q0 + 1; // kappa = 1
+          cond1 = u_q1 - (u_bias >> 2) > 32;
+          u_ext = (ui16)(cond1 ? (vlc_val & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
           u_q1 = (ui16)(u_q1 + (u_ext << 2));
-          sp[3] = u_q1;
+          sp[3] = u_q1 + 1; // kappa = 1
         }
         sp[0] = sp[1] = 0;
 
@@ -2165,12 +2167,12 @@ namespace ojph {
             // decode u_q extensions, which is needed only when u_q > 32
             ui16 u_ext; bool cond0, cond1;
             cond0 = u_q0 > 32;
-            u_ext = (ui16)(cond0 ? (uvlc_entry & 0xF) : 0);
+            u_ext = (ui16)(cond0 ? (vlc_val & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
             u_q0 = (ui16)(u_q0 + (u_ext << 2));
             sp[1] = u_q0;
             cond1 = u_q1 > 32;
-            u_ext = (ui16)(cond1 ? (uvlc_entry & 0xF) : 0);
+            u_ext = (ui16)(cond1 ? (vlc_val & 0xF) : 0);
             vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
             u_q1 = (ui16)(u_q1 + (u_ext << 2));
             sp[3] = u_q1;

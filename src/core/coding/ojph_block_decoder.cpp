@@ -2048,12 +2048,12 @@ namespace ojph {
           u_ext = (ui16)(cond0 ? (vlc_val & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
           u_q0 = (ui16)(u_q0 + (u_ext << 2));
-          sp[1] = u_q0 + (ui16)1; // kappa = 1
+          sp[1] = (ui16)(u_q0 + 1); // kappa = 1
           cond1 = u_q1 - (u_bias >> 2) > 32;
           u_ext = (ui16)(cond1 ? (vlc_val & 0xF) : 0);
           vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
           u_q1 = (ui16)(u_q1 + (u_ext << 2));
-          sp[3] = u_q1 + (ui16)1; // kappa = 1
+          sp[3] = (ui16)(u_q1 + 1); // kappa = 1
         }
         sp[0] = sp[1] = 0;
 

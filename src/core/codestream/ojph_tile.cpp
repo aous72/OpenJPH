@@ -258,7 +258,7 @@ namespace ojph {
         line_buf *tc = comps[comp_num].get_line();
         if (reversible)
         {
-          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           if (is_signed[comp_num] && nlt_type3[comp_num])
             rev_convert_nlt_type3(line, line_offsets[comp_num],
               tc, 0, shift + 1, comp_width);
@@ -282,7 +282,7 @@ namespace ojph {
       }
       else
       {
-        si64 shift = 1LL << (num_bits[comp_num] - 1);
+        si64 shift = (si64)1 << (num_bits[comp_num] - 1);
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible)
         {
@@ -346,7 +346,7 @@ namespace ojph {
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (reversible)
         {
-          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           if (is_signed[comp_num] && nlt_type3[comp_num])
             rev_convert_nlt_type3(src_line, 0, tgt_line, 
               line_offsets[comp_num], shift + 1, comp_width);
@@ -384,7 +384,7 @@ namespace ojph {
         }
         if (reversible)
         {
-          si64 shift = 1LL << (num_bits[comp_num] - 1);
+          si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           line_buf* src_line;
           if (comp_num < 3)
             src_line = lines + comp_num;

@@ -272,7 +272,7 @@ namespace ojph {
       const si32 b = s->rev.Batk;
       const ui8 e = s->rev.Eatk;
       __m256i vb = _mm256_set1_epi64x(b);
-      __m256i ve = _mm256_set1_epi64x(1ULL << (63 - e));      
+      __m256i ve = _mm256_set1_epi64x(1LL << (63 - e));      
 
       si64* dst = aug->i64;
       const si64* src1 = sig->i64, * src2 = other->i64;
@@ -621,7 +621,7 @@ namespace ojph {
           const si32 b = s->rev.Batk;
           const ui8 e  = s->rev.Eatk;
           __m256i vb = _mm256_set1_epi64x(b);
-          __m256i ve = _mm256_set1_epi64x(1ULL << (63 - e));
+          __m256i ve = _mm256_set1_epi64x(1LL << (63 - e));
 
           // extension
           lp[-1] = lp[0];
@@ -977,7 +977,7 @@ namespace ojph {
           const si32 b = s->rev.Batk;
           const ui8 e  = s->rev.Eatk;
           __m256i vb = _mm256_set1_epi64x(b);
-          __m256i ve = _mm256_set1_epi64x(1ULL << (63 - e));      
+          __m256i ve = _mm256_set1_epi64x(1LL << (63 - e));      
 
           // extension
           oth[-1] = oth[0];

@@ -138,7 +138,7 @@ namespace ojph {
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
-      __m128i m1 = _mm_set1_epi32(0x7FFFFFFF);
+      __m128i m1 = _mm_set1_epi32(INT_MAX);
       __m128i zero = _mm_setzero_si128();
       __m128i one = _mm_set1_epi32(1);
       si32 *p = (si32*)dp;
@@ -160,7 +160,7 @@ namespace ojph {
                                float delta, ui32 count)
     {
       ojph_unused(K_max);
-      __m128i m1 = _mm_set1_epi32(0x7FFFFFFF);
+      __m128i m1 = _mm_set1_epi32(INT_MAX);
       __m128 d = _mm_set1_ps(delta);
       float *p = (float*)dp;
       for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
@@ -183,7 +183,7 @@ namespace ojph {
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 63 - K_max;
-      __m128i m0 = _mm_set1_epi64x(0x8000000000000000LL);
+      __m128i m0 = _mm_set1_epi64x(LLONG_MIN);
       __m128i zero = _mm_setzero_si128();
       __m128i one = _mm_set1_epi64x(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
@@ -211,7 +211,7 @@ namespace ojph {
     {
       ojph_unused(delta);
       ui32 shift = 63 - K_max;
-      __m128i m1 = _mm_set1_epi64x(0x7FFFFFFFFFFFFFFFLL);
+      __m128i m1 = _mm_set1_epi64x(LLONG_MAX);
       __m128i zero = _mm_setzero_si128();
       __m128i one = _mm_set1_epi64x(1);
       si64 *p = (si64*)dp;

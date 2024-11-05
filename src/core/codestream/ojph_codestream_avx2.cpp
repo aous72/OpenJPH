@@ -75,7 +75,7 @@ namespace ojph {
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 31 - K_max;
-      __m256i m0 = _mm256_set1_epi32((int)0x80000000);
+      __m256i m0 = _mm256_set1_epi32(INT_MIN);
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
       __m256i *p = (__m256i*)sp;
       for (ui32 i = 0; i < count; i += 8, p += 1, dp += 8)
@@ -99,7 +99,7 @@ namespace ojph {
 
       //quantize and convert to sign and magnitude and keep max_val
       __m256 d = _mm256_set1_ps(delta_inv);
-      __m256i m0 = _mm256_set1_epi32((int)0x80000000);
+      __m256i m0 = _mm256_set1_epi32(INT_MIN);
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
       float *p = (float*)sp;
       
@@ -123,7 +123,7 @@ namespace ojph {
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
-      __m256i m1 = _mm256_set1_epi32(0x7FFFFFFF);
+      __m256i m1 = _mm256_set1_epi32(INT_MAX);
       si32 *p = (si32*)dp;
       for (ui32 i = 0; i < count; i += 8, sp += 8, p += 8)
       {
@@ -140,7 +140,7 @@ namespace ojph {
                                float delta, ui32 count)
     {
       ojph_unused(K_max);
-      __m256i m1 = _mm256_set1_epi32(0x7FFFFFFF);
+      __m256i m1 = _mm256_set1_epi32(INT_MAX);
       __m256 d = _mm256_set1_ps(delta);
       float *p = (float*)dp;
       for (ui32 i = 0; i < count; i += 8, sp += 8, p += 8)
@@ -163,7 +163,7 @@ namespace ojph {
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 63 - K_max;
-      __m256i m0 = _mm256_set1_epi64x(0x8000000000000000LL);
+      __m256i m0 = _mm256_set1_epi64x(LLONG_MIN);
       __m256i zero = _mm256_setzero_si256();
       __m256i one = _mm256_set1_epi64x(1);
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
@@ -191,7 +191,7 @@ namespace ojph {
       ojph_unused(delta);
       
       ui32 shift = 63 - K_max;
-      __m256i m1 = _mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL);
+      __m256i m1 = _mm256_set1_epi64x(LLONG_MAX);
       __m256i zero = _mm256_setzero_si256();
       __m256i one = _mm256_set1_epi64x(1);
       si64 *p = (si64*)dp;

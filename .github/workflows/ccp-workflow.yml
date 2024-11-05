@@ -51,7 +51,8 @@ jobs:
       fail-fast: false
       matrix:
         include: [
-          { system: MacOS,          runner: macos-13, macos-latest },
+          { system: MacOS-13,       runner: macos-13 },
+          { system: MacOS-latest,   runner: macos-latest },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
     name: ${{ matrix.system }} Test
@@ -59,7 +60,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: cmake
-      run: cmake -DOJPH_BUILD_TESTS=yes ..
+      run: cmake -DOJPH_BUILD_TESTS=yes -DOJPH_DISABLE_SIMD=yes ..
       working-directory: build
     - name: build
       run: make

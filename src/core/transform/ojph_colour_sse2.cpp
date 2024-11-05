@@ -39,12 +39,125 @@
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
+#include "ojph_mem.h"
 #include "ojph_colour.h"
 
 #include <emmintrin.h>
 
 namespace ojph {
   namespace local {
+
+    /////////////////////////////////////////////////////////////////////////
+    // https://github.com/seung-lab/dijkstra3d/blob/master/libdivide.h
+    static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
+    {
+      // note than m must be obtained using
+      // __m128i ve = _mm_set1_epi64x(1ULL << (63 - amt));
+      __m128i x = _mm_srli_epi64(a, amt);
+      x = _mm_xor_si128(x, m);
+      __m128i result = _mm_sub_epi64(x, m);
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline __m128i sse2_cvtlo_epi32_epi64(__m128i a, __m128i zero)
+    {
+      __m128i s, t;
+      s = _mm_unpacklo_epi32(a, zero);   // missing extended -ve
+      t = _mm_cmplt_epi32(a, zero);      // get -ve
+      t = _mm_unpacklo_epi32(zero, t);      
+      s = _mm_or_si128(t, s);            // put -ve
+      return s;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline __m128i sse2_cvthi_epi32_epi64(__m128i a, __m128i zero)
+    {
+      __m128i s, t;
+      s = _mm_unpackhi_epi32(a, zero);   // missing extended -ve
+      t = _mm_cmplt_epi32(a, zero);      // get -ve
+      t = _mm_unpackhi_epi32(zero, t);      
+      s = _mm_or_si128(t, s);            // put -ve
+      return s;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rev_convert(const line_buf *src_line, 
+                          const ui32 src_line_offset,
+                          line_buf *dst_line, 
+                          const ui32 dst_line_offset, 
+                          si64 shift, ui32 width)
+    {
+      if (src_line->flags & line_buf::LFT_32BIT)
+      { 
+        if (dst_line->flags & line_buf::LFT_32BIT)
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si32 *dp = dst_line->i32 + dst_line_offset;
+          si32 s = (si32)shift;
+          for (ui32 i = width; i > 0; --i)
+            *dp++ = *sp++ + s;
+        }
+        else 
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si64 *dp = dst_line->i64 + dst_line_offset;
+          for (ui32 i = width; i > 0; --i)
+            *dp++ = *sp++ + shift;
+        }
+      }
+      else 
+      {
+        assert(src_line->flags | line_buf::LFT_64BIT);
+        assert(dst_line->flags | line_buf::LFT_32BIT);
+        const si64 *sp = src_line->i64 + src_line_offset;
+        si32 *dp = dst_line->i32 + dst_line_offset;
+        for (ui32 i = width; i > 0; --i)
+          *dp++ = (si32)(*sp++ + shift);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rev_convert_nlt_type3(const line_buf *src_line, 
+                                    const ui32 src_line_offset, 
+                                    line_buf *dst_line, 
+                                    const ui32 dst_line_offset, 
+                                    si64 shift, ui32 width)
+    {
+      if (src_line->flags & line_buf::LFT_32BIT)
+      { 
+        if (dst_line->flags & line_buf::LFT_32BIT)
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si32 *dp = dst_line->i32 + dst_line_offset;
+          si32 s = (si32)shift;
+          for (ui32 i = width; i > 0; --i) {
+            const si32 v = *sp++;
+            *dp++ = v >= 0 ? v : (- v - s);
+          }
+        }
+        else 
+        {
+          const si32 *sp = src_line->i32 + src_line_offset;
+          si64 *dp = dst_line->i64 + dst_line_offset;
+          for (ui32 i = width; i > 0; --i) {
+            const si64 v = *sp++;
+            *dp++ = v >= 0 ? v : (- v - shift);
+          }
+        }
+      }
+      else 
+      {
+        assert(src_line->flags | line_buf::LFT_64BIT);
+        assert(dst_line->flags | line_buf::LFT_32BIT);
+        const si64 *sp = src_line->i64 + src_line_offset;
+        si32 *dp = dst_line->i32 + dst_line_offset;
+        for (ui32 i = width; i > 0; --i) {
+          const si64 v = *sp++;
+          *dp++ = (si32)(v >= 0 ? v : (- v - shift));
+        }
+      }
+    }
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
@@ -80,80 +193,199 @@ namespace ojph {
       _MM_SET_ROUNDING_MODE(rounding_mode);
     }
 
-
     //////////////////////////////////////////////////////////////////////////
-    void sse2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       ui32 width)
+    void sse2_rct_forward(const line_buf *r, 
+                          const line_buf *g, 
+                          const line_buf *b,
+                          line_buf *y, line_buf *cb, line_buf *cr, 
+                          ui32 repeat)
     {
-      __m128i sh = _mm_set1_epi32(shift);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
+             (cb->flags & line_buf::LFT_REVERSIBLE) && 
+             (cr->flags & line_buf::LFT_REVERSIBLE) &&
+             (r->flags  & line_buf::LFT_REVERSIBLE) &&
+             (g->flags  & line_buf::LFT_REVERSIBLE) && 
+             (b->flags  & line_buf::LFT_REVERSIBLE));
+      
+      if  (y->flags & line_buf::LFT_32BIT)
       {
-        __m128i s = _mm_loadu_si128((__m128i*)sp);
-        s = _mm_add_epi32(s, sh);
-        _mm_storeu_si128((__m128i*)dp, s);
+        assert((y->flags  & line_buf::LFT_32BIT) &&
+               (cb->flags & line_buf::LFT_32BIT) && 
+               (cr->flags & line_buf::LFT_32BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));        
+        const si32 *rp = r->i32, * gp = g->i32, * bp = b->i32;
+        si32 *yp = y->i32, * cbp = cb->i32, * crp = cr->i32;
+        for (int i = (repeat + 3) >> 2; i > 0; --i)
+        {
+          __m128i mr = _mm_load_si128((__m128i*)rp);
+          __m128i mg = _mm_load_si128((__m128i*)gp);
+          __m128i mb = _mm_load_si128((__m128i*)bp);
+          __m128i t = _mm_add_epi32(mr, mb);
+          t = _mm_add_epi32(t, _mm_slli_epi32(mg, 1));
+          _mm_store_si128((__m128i*)yp, _mm_srai_epi32(t, 2));
+          t = _mm_sub_epi32(mb, mg);
+          _mm_store_si128((__m128i*)cbp, t);
+          t = _mm_sub_epi32(mr, mg);
+          _mm_store_si128((__m128i*)crp, t);
+
+          rp += 4; gp += 4; bp += 4;
+          yp += 4; cbp += 4; crp += 4;
+        }
+      }
+      else 
+      {
+        assert((y->flags  & line_buf::LFT_64BIT) &&
+               (cb->flags & line_buf::LFT_64BIT) && 
+               (cr->flags & line_buf::LFT_64BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));
+        __m128i zero = _mm_setzero_si128();
+        __m128i v2 = _mm_set1_epi64x(1ULL << (63 - 2));
+        const si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;
+        for (int i = (repeat + 3) >> 2; i > 0; --i)
+        {
+          __m128i mr32 = _mm_load_si128((__m128i*)rp);
+          __m128i mg32 = _mm_load_si128((__m128i*)gp);
+          __m128i mb32 = _mm_load_si128((__m128i*)bp);
+          __m128i mr, mg, mb, t;
+          mr = sse2_cvtlo_epi32_epi64(mr32, zero);
+          mg = sse2_cvtlo_epi32_epi64(mg32, zero);
+          mb = sse2_cvtlo_epi32_epi64(mb32, zero);
+          
+          t = _mm_add_epi64(mr, mb);
+          t = _mm_add_epi64(t, _mm_slli_epi64(mg, 1));
+          _mm_store_si128((__m128i*)yp, sse2_mm_srai_epi64(t, 2, v2));
+          t = _mm_sub_epi64(mb, mg);
+          _mm_store_si128((__m128i*)cbp, t);
+          t = _mm_sub_epi64(mr, mg);
+          _mm_store_si128((__m128i*)crp, t);
+
+          yp += 2; cbp += 2; crp += 2;
+
+          mr = sse2_cvthi_epi32_epi64(mr32, zero);
+          mg = sse2_cvthi_epi32_epi64(mg32, zero);
+          mb = sse2_cvthi_epi32_epi64(mb32, zero);
+          
+          t = _mm_add_epi64(mr, mb);
+          t = _mm_add_epi64(t, _mm_slli_epi64(mg, 1));
+          _mm_store_si128((__m128i*)yp, sse2_mm_srai_epi64(t, 2, v2));
+          t = _mm_sub_epi64(mb, mg);
+          _mm_store_si128((__m128i*)cbp, t);
+          t = _mm_sub_epi64(mr, mg);
+          _mm_store_si128((__m128i*)crp, t);
+
+          rp += 4; gp += 4; bp += 4;
+          yp += 2; cbp += 2; crp += 2;
+        }
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_cnvrt_si32_to_si32_nlt_type3(const si32* sp, si32* dp,
-                                           int shift, ui32 width)
+    void sse2_rct_backward(const line_buf *y, 
+                           const line_buf *cb, 
+                           const line_buf *cr,
+                           line_buf *r, line_buf *g, line_buf *b, 
+                           ui32 repeat)
     {
-      __m128i sh = _mm_set1_epi32(-shift);
-      __m128i zero = _mm_setzero_si128();
-      for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
+      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
+             (cb->flags & line_buf::LFT_REVERSIBLE) && 
+             (cr->flags & line_buf::LFT_REVERSIBLE) &&
+             (r->flags  & line_buf::LFT_REVERSIBLE) &&
+             (g->flags  & line_buf::LFT_REVERSIBLE) && 
+             (b->flags  & line_buf::LFT_REVERSIBLE));
+
+      if (y->flags & line_buf::LFT_32BIT)
       {
-        __m128i s = _mm_loadu_si128((__m128i*)sp);
-        __m128i c = _mm_cmplt_epi32(s, zero);  // 0xFFFFFFFF for -ve value
-        __m128i v_m_sh = _mm_sub_epi32(sh, s); // - shift - value 
-        v_m_sh = _mm_and_si128(c, v_m_sh);     // keep only - shift - value
-        s = _mm_andnot_si128(c, s);            // keep only +ve or 0
-        s = _mm_or_si128(s, v_m_sh);           // combine
-        _mm_storeu_si128((__m128i*)dp, s);
+        assert((y->flags  & line_buf::LFT_32BIT) &&
+               (cb->flags & line_buf::LFT_32BIT) && 
+               (cr->flags & line_buf::LFT_32BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));
+        const si32 *yp = y->i32, *cbp = cb->i32, *crp = cr->i32;
+        si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        for (int i = (repeat + 3) >> 2; i > 0; --i)
+        {
+          __m128i my  = _mm_load_si128((__m128i*)yp);
+          __m128i mcb = _mm_load_si128((__m128i*)cbp);
+          __m128i mcr = _mm_load_si128((__m128i*)crp);
+
+          __m128i t = _mm_add_epi32(mcb, mcr);
+          t = _mm_sub_epi32(my, _mm_srai_epi32(t, 2));
+          _mm_store_si128((__m128i*)gp, t);
+          __m128i u = _mm_add_epi32(mcb, t);
+          _mm_store_si128((__m128i*)bp, u);
+          u = _mm_add_epi32(mcr, t);
+          _mm_store_si128((__m128i*)rp, u);
+
+          yp += 4; cbp += 4; crp += 4;
+          rp += 4; gp += 4; bp += 4;
+        }        
       }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rct_forward(const si32 *r, const si32 *g, const si32 *b,
-                          si32 *y, si32 *cb, si32 *cr, ui32 repeat)
-    {
-      for (int i = (repeat + 3) >> 2; i > 0; --i)
+      else
       {
-        __m128i mr = _mm_load_si128((__m128i*)r);
-        __m128i mg = _mm_load_si128((__m128i*)g);
-        __m128i mb = _mm_load_si128((__m128i*)b);
-        __m128i t = _mm_add_epi32(mr, mb);
-        t = _mm_add_epi32(t, _mm_slli_epi32(mg, 1));
-        _mm_store_si128((__m128i*)y, _mm_srai_epi32(t, 2));
-        t = _mm_sub_epi32(mb, mg);
-        _mm_store_si128((__m128i*)cb, t);
-        t = _mm_sub_epi32(mr, mg);
-        _mm_store_si128((__m128i*)cr, t);
+        assert((y->flags  & line_buf::LFT_64BIT) &&
+               (cb->flags & line_buf::LFT_64BIT) && 
+               (cr->flags & line_buf::LFT_64BIT) &&
+               (r->flags  & line_buf::LFT_32BIT) &&
+               (g->flags  & line_buf::LFT_32BIT) && 
+               (b->flags  & line_buf::LFT_32BIT));
+        __m128i v2 = _mm_set1_epi64x(1ULL << (63 - 2));
+        __m128i low_bits = _mm_set_epi64x(0, 0xFFFFFFFFFFFFFFFFLL);
+        const si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;
+        si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
+        for (int i = (repeat + 3) >> 2; i > 0; --i)
+        {
+          __m128i my, mcb, mcr, tr, tg, tb;          
+          my  = _mm_load_si128((__m128i*)yp);
+          mcb = _mm_load_si128((__m128i*)cbp);
+          mcr = _mm_load_si128((__m128i*)crp);
 
-        r += 4; g += 4; b += 4;
-        y += 4; cb += 4; cr += 4;
-      }
-    }
+          tg = _mm_add_epi64(mcb, mcr);
+          tg = _mm_sub_epi64(my, sse2_mm_srai_epi64(tg, 2, v2));
+          tb = _mm_add_epi64(mcb, tg);
+          tr = _mm_add_epi64(mcr, tg);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_rct_backward(const si32 *y, const si32 *cb, const si32 *cr,
-                           si32 *r, si32 *g, si32 *b, ui32 repeat)
-    {
-      for (int i = (repeat + 3) >> 2; i > 0; --i)
-      {
-        __m128i my  = _mm_load_si128((__m128i*)y);
-        __m128i mcb = _mm_load_si128((__m128i*)cb);
-        __m128i mcr = _mm_load_si128((__m128i*)cr);
+          __m128i mr, mg, mb;
+          mr = _mm_shuffle_epi32(tr, _MM_SHUFFLE(0, 0, 2, 0));
+          mr = _mm_and_si128(low_bits, mr);
+          mg = _mm_shuffle_epi32(tg, _MM_SHUFFLE(0, 0, 2, 0));
+          mg = _mm_and_si128(low_bits, mg);
+          mb = _mm_shuffle_epi32(tb, _MM_SHUFFLE(0, 0, 2, 0));
+          mb = _mm_and_si128(low_bits, mb);
 
-        __m128i t = _mm_add_epi32(mcb, mcr);
-        t = _mm_sub_epi32(my, _mm_srai_epi32(t, 2));
-        _mm_store_si128((__m128i*)g, t);
-        __m128i u = _mm_add_epi32(mcb, t);
-        _mm_store_si128((__m128i*)b, u);
-        u = _mm_add_epi32(mcr, t);
-        _mm_store_si128((__m128i*)r, u);
+          yp += 2; cbp += 2; crp += 2;
 
-        y += 4; cb += 4; cr += 4;
-        r += 4; g += 4; b += 4;
+          my  = _mm_load_si128((__m128i*)yp);
+          mcb = _mm_load_si128((__m128i*)cbp);
+          mcr = _mm_load_si128((__m128i*)crp);
+
+          tg = _mm_add_epi64(mcb, mcr);
+          tg = _mm_sub_epi64(my, sse2_mm_srai_epi64(tg, 2, v2));
+          tb = _mm_add_epi64(mcb, tg);
+          tr = _mm_add_epi64(mcr, tg);
+
+          tr = _mm_shuffle_epi32(tr, _MM_SHUFFLE(2, 0, 0, 0));
+          tr = _mm_andnot_si128(low_bits, tr);
+          mr = _mm_or_si128(mr, tr);
+          tg = _mm_shuffle_epi32(tg, _MM_SHUFFLE(2, 0, 0, 0));
+          tg = _mm_andnot_si128(low_bits, tg);
+          mg = _mm_or_si128(mg, tg);
+          tb = _mm_shuffle_epi32(tb, _MM_SHUFFLE(2, 0, 0, 0));
+          tb = _mm_andnot_si128(low_bits, tb);
+          mb = _mm_or_si128(mb, tb);
+
+          _mm_store_si128((__m128i*)rp, mr);
+          _mm_store_si128((__m128i*)gp, mg);
+          _mm_store_si128((__m128i*)bp, mb);
+
+          yp += 2; cbp += 2; crp += 2;
+          rp += 4; gp += 4; bp += 4;
+        }        
       }
     }
 

@@ -245,7 +245,7 @@ namespace ojph {
                                                  cb_size.w);
         }
         else
-          this->codeblock_functions.mem_clear32(dp, cb_size.w * sizeof(ui32));
+          this->codeblock_functions.mem_clear(dp, cb_size.w * sizeof(ui32));
       }
       else
       {
@@ -259,9 +259,7 @@ namespace ojph {
                                                  cb_size.w);
         }
         else
-          this->codeblock_functions.mem_clear64(dp, cb_size.w * sizeof(*dp));
-
-
+          this->codeblock_functions.mem_clear(dp, cb_size.w * sizeof(*dp));
       }
 
       ++cur_line;

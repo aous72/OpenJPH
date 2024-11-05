@@ -56,6 +56,18 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    ui64 avx2_find_max_val64(ui64* address)
+    {
+      __m128i x0 = _mm_loadu_si128((__m128i*)address);
+      __m128i x1 = _mm_loadu_si128((__m128i*)address + 1);
+      x0 = _mm_or_si128(x0, x1);
+      x1 = _mm_shuffle_epi32(x0, 0xEE);   // x1 = x0[2,3,2,3]
+      x0 = _mm_or_si128(x0, x1);
+      ui64 t = (ui64)_mm_extract_epi64(x0, 0);
+      return t;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max, 
                              float delta_inv, ui32 count, ui32* max_val)
     {
@@ -78,7 +90,7 @@ namespace ojph {
       }
       _mm256_storeu_si256((__m256i*)max_val, tmax);
     }
-                           
+
     //////////////////////////////////////////////////////////////////////////
     void avx2_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui32* max_val)
@@ -115,11 +127,11 @@ namespace ojph {
       si32 *p = (si32*)dp;
       for (ui32 i = 0; i < count; i += 8, sp += 8, p += 8)
       {
-          __m256i v = _mm256_load_si256((__m256i*)sp);
-          __m256i val = _mm256_and_si256(v, m1);
-          val = _mm256_srli_epi32(val, (int)shift);
-          val = _mm256_sign_epi32(val, v);
-          _mm256_storeu_si256((__m256i*)p, val);
+        __m256i v = _mm256_load_si256((__m256i*)sp);
+        __m256i val = _mm256_and_si256(v, m1);
+        val = _mm256_srli_epi32(val, (int)shift);
+        val = _mm256_sign_epi32(val, v);
+        _mm256_storeu_si256((__m256i*)p, val);
       }
     }
 
@@ -140,6 +152,59 @@ namespace ojph {
         __m256i sign = _mm256_andnot_si256(m1, v);
         valf = _mm256_or_ps(valf, _mm256_castsi256_ps(sign));
         _mm256_storeu_ps(p, valf);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max, 
+                             float delta_inv, ui32 count, ui64* max_val)
+    {
+      ojph_unused(delta_inv);
+
+      // convert to sign and magnitude and keep max_val      
+      ui32 shift = 63 - K_max;
+      __m256i m0 = _mm256_set1_epi64x(0x8000000000000000LL);
+      __m256i zero = _mm256_setzero_si256();
+      __m256i one = _mm256_set1_epi64x(1);
+      __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
+      __m256i *p = (__m256i*)sp;
+      for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
+      {
+        __m256i v = _mm256_loadu_si256(p);
+        __m256i sign = _mm256_cmpgt_epi64(zero, v);
+        __m256i val = _mm256_xor_si256(v, sign);  // negate 1's complement
+        __m256i ones = _mm256_and_si256(sign, one);
+        val = _mm256_add_epi64(val, ones);        // 2's complement
+        sign = _mm256_and_si256(sign, m0);
+        val = _mm256_slli_epi64(val, (int)shift);
+        tmax = _mm256_or_si256(tmax, val);
+        val = _mm256_or_si256(val, sign);
+        _mm256_storeu_si256((__m256i*)dp, val);
+      }
+      _mm256_storeu_si256((__m256i*)max_val, tmax);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
+    {
+      ojph_unused(delta);
+      
+      ui32 shift = 63 - K_max;
+      __m256i m1 = _mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL);
+      __m256i zero = _mm256_setzero_si256();
+      __m256i one = _mm256_set1_epi64x(1);
+      si64 *p = (si64*)dp;
+      for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
+      {
+        __m256i v = _mm256_load_si256((__m256i*)sp);
+        __m256i val = _mm256_and_si256(v, m1);
+        val = _mm256_srli_epi64(val, (int)shift);
+        __m256i sign = _mm256_cmpgt_epi64(zero, v);
+        val = _mm256_xor_si256(val, sign); // negate 1's complement
+        __m256i ones = _mm256_and_si256(sign, one);
+        val = _mm256_add_epi64(val, ones); // 2's complement
+        _mm256_storeu_si256((__m256i*)p, val);
       }
     }
   }

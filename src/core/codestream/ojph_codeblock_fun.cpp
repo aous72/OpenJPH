@@ -57,15 +57,10 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_mem_clear32(si32* addr, size_t count);
-    void sse_mem_clear32(si32* addr, size_t count);
-    void avx_mem_clear32(si32* addr, size_t count);
-    void wasm_mem_clear32(si32* addr, size_t count);
-
-    void gen_mem_clear64(si64* addr, size_t count);
-    void sse_mem_clear64(si64* addr, size_t count);
-    void avx_mem_clear64(si64* addr, size_t count);
-    void wasm_mem_clear64(si64* addr, size_t count);
+    void gen_mem_clear(void* addr, size_t count);
+    void sse_mem_clear(void* addr, size_t count);
+    void avx_mem_clear(void* addr, size_t count);
+    void wasm_mem_clear(void* addr, size_t count);
 
     //////////////////////////////////////////////////////////////////////////
     ui32  gen_find_max_val32(ui32* address);
@@ -135,7 +130,7 @@ namespace ojph {
       // Default path, no acceleration.  We may change this later
       decode_cb32 = ojph_decode_codeblock32;
       find_max_val32 = gen_find_max_val32;
-      mem_clear32 = gen_mem_clear32;
+      mem_clear = gen_mem_clear;
       if (reversible) {
         tx_to_cb32 = gen_rev_tx_to_cb32;
         tx_from_cb32 = gen_rev_tx_from_cb32;
@@ -149,7 +144,6 @@ namespace ojph {
 
       decode_cb64 = ojph_decode_codeblock64;
       find_max_val64 = gen_find_max_val64;
-      mem_clear64 = gen_mem_clear64;
       if (reversible) {
         tx_to_cb64 = gen_rev_tx_to_cb64;
         tx_from_cb64 = gen_rev_tx_from_cb64;
@@ -168,7 +162,7 @@ namespace ojph {
       // Accelerated functions for INTEL/AMD CPUs
       #ifndef OJPH_DISABLE_SSE
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
-          mem_clear32 = sse_mem_clear32;
+          mem_clear = sse_mem_clear;
       #endif // !OJPH_DISABLE_SSE
 
       #ifndef OJPH_DISABLE_SSE2
@@ -182,6 +176,16 @@ namespace ojph {
             tx_to_cb32 = sse2_irv_tx_to_cb32;
             tx_from_cb32 = sse2_irv_tx_from_cb32;
           }
+          find_max_val64 = sse2_find_max_val64;
+          if (reversible) {
+            tx_to_cb64 = sse2_rev_tx_to_cb64;
+            tx_from_cb64 = sse2_rev_tx_from_cb64;
+          }
+          else
+          {
+            tx_to_cb64 = NULL;
+            tx_from_cb64 = NULL;
+          }
         }
       #endif // !OJPH_DISABLE_SSE2
 
@@ -192,7 +196,7 @@ namespace ojph {
 
       #ifndef OJPH_DISABLE_AVX
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
-          mem_clear32 = avx_mem_clear32;
+          mem_clear = avx_mem_clear;
       #endif // !OJPH_DISABLE_AVX
 
       #ifndef OJPH_DISABLE_AVX2
@@ -208,6 +212,17 @@ namespace ojph {
           }
           encode_cb32 = ojph_encode_codeblock_avx2;
           decode_cb32 = ojph_decode_codeblock_avx2;
+
+          find_max_val64 = avx2_find_max_val64;
+          if (reversible) {
+            tx_to_cb64 = avx2_rev_tx_to_cb64;
+            tx_from_cb64 = avx2_rev_tx_from_cb64;
+          }
+          else
+          {
+            tx_to_cb64 = NULL;
+            tx_from_cb64 = NULL;
+          }
         }
       #endif // !OJPH_DISABLE_AVX2
 

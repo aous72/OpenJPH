@@ -127,14 +127,14 @@ namespace ojph {
         }
       #endif // !OJPH_DISABLE_SSE
 
-    //   #ifndef OJPH_DISABLE_SSE2
-    //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
-    //     {
-    //       rev_vert_step             = sse2_rev_vert_step;
-    //       rev_horz_ana              = sse2_rev_horz_ana;
-    //       rev_horz_syn              = sse2_rev_horz_syn;
-    //     }
-    //   #endif // !OJPH_DISABLE_SSE2
+      #ifndef OJPH_DISABLE_SSE2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
+        {
+          rev_vert_step             = sse2_rev_vert_step;
+          rev_horz_ana              = sse2_rev_horz_ana;
+          rev_horz_syn              = sse2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_SSE2
 
       #ifndef OJPH_DISABLE_AVX
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
@@ -146,14 +146,14 @@ namespace ojph {
         }
       #endif // !OJPH_DISABLE_AVX
 
-    //   #ifndef OJPH_DISABLE_AVX2
-    //     if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
-    //     {
-    //       rev_vert_step             = avx2_rev_vert_step;
-    //       rev_horz_ana              = avx2_rev_horz_ana;
-    //       rev_horz_syn              = avx2_rev_horz_syn;
-    //     }
-    //   #endif // !OJPH_DISABLE_AVX2
+      #ifndef OJPH_DISABLE_AVX2
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
+        {
+          rev_vert_step             = avx2_rev_vert_step;
+          rev_horz_ana              = avx2_rev_horz_ana;
+          rev_horz_syn              = avx2_rev_horz_syn;
+        }
+      #endif // !OJPH_DISABLE_AVX2
 
       #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
@@ -194,6 +194,7 @@ namespace ojph {
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     /////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_vert_step32(const lifting_step* s, const line_buf* sig, 
                              const line_buf* other, const line_buf* aug, 
                              ui32 repeat, bool synthesis)
@@ -245,6 +246,7 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_vert_step64(const lifting_step* s, const line_buf* sig, 
                              const line_buf* other, const line_buf* aug, 
                              ui32 repeat, bool synthesis)
@@ -319,6 +321,7 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_horz_ana32(const param_atk* atk, const line_buf* ldst, 
                             const line_buf* hdst, const line_buf* src, 
                             ui32 width, bool even)
@@ -397,6 +400,7 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_horz_ana64(const param_atk* atk, const line_buf* ldst, 
                             const line_buf* hdst, const line_buf* src, 
                             ui32 width, bool even)
@@ -495,6 +499,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_horz_syn32(const param_atk* atk, const line_buf* dst, 
                             const line_buf* lsrc, const line_buf* hsrc, 
                             ui32 width, bool even)
@@ -573,6 +578,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    static
     void gen_rev_horz_syn64(const param_atk* atk, const line_buf* dst, 
                             const line_buf* lsrc, const line_buf* hsrc, 
                             ui32 width, bool even)

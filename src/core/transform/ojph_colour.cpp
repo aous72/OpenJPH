@@ -109,8 +109,6 @@ namespace ojph {
 
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
-      // cnvrt_si32_to_si32_shftd = gen_cnvrt_si32_to_si32_shftd;
-      // cnvrt_si32_to_si32_nlt_type3 = gen_cnvrt_si32_to_si32_nlt_type3;
       rev_convert = gen_rev_convert;
       rev_convert_nlt_type3 = gen_rev_convert_nlt_type3;
       cnvrt_si32_to_float_shftd = gen_cnvrt_si32_to_float_shftd;
@@ -141,12 +139,12 @@ namespace ojph {
       #ifndef OJPH_DISABLE_SSE2
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE2)
         {
+          rev_convert = sse2_rev_convert;
+          rev_convert_nlt_type3 = sse2_rev_convert_nlt_type3;
           cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
           cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
-          // cnvrt_si32_to_si32_shftd = sse2_cnvrt_si32_to_si32_shftd;
-          // cnvrt_si32_to_si32_nlt_type3 = sse2_cnvrt_si32_to_si32_nlt_type3;
-          // rct_forward = sse2_rct_forward;
-          // rct_backward = sse2_rct_backward;
+          rct_forward = sse2_rct_forward;
+          rct_backward = sse2_rct_backward;
         }
       #endif // !OJPH_DISABLE_SSE2
 

@@ -708,8 +708,8 @@ namespace ojph {
                     rev_horz_syn(atk, aug->line, child_res->pull_line(), 
                       bands[1].pull_line(), width, horz_even);
                   else
-                    memcpy(aug->line->i32, child_res->pull_line()->i32,
-                      width * sizeof(si32));
+                    memcpy(aug->line->p, child_res->pull_line()->p,
+                      width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
                   aug->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -720,8 +720,8 @@ namespace ojph {
                     rev_horz_syn(atk, sig->line, bands[2].pull_line(), 
                       bands[3].pull_line(), width, horz_even);
                   else
-                    memcpy(sig->line->i32, bands[2].pull_line()->i32,
-                      width * sizeof(si32));
+                    memcpy(sig->line->p, bands[2].pull_line()->p,
+                      width * (sig->line->flags & line_buf::LFT_SIZE_MASK));
                   sig->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -759,8 +759,8 @@ namespace ojph {
                 rev_horz_syn(atk, aug->line, child_res->pull_line(),
                   bands[1].pull_line(), width, horz_even);
               else
-                memcpy(aug->line->i32, child_res->pull_line()->i32,
-                  width * sizeof(si32));
+                memcpy(aug->line->p, child_res->pull_line()->p,
+                  width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
             }
             else
             {
@@ -768,11 +768,21 @@ namespace ojph {
                 rev_horz_syn(atk, aug->line, bands[2].pull_line(),
                   bands[3].pull_line(), width, horz_even);
               else
-                memcpy(aug->line->i32, bands[2].pull_line()->i32,
-                  width * sizeof(si32));
-              si32* sp = aug->line->i32;
-              for (ui32 i = width; i > 0; --i)
-                *sp++ >>= 1;
+                memcpy(aug->line->p, bands[2].pull_line()->p,
+                  width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+              if (aug->line->flags & line_buf::LFT_32BIT)
+              {
+                si32* sp = aug->line->i32;                
+                for (ui32 i = width; i > 0; --i)
+                  *sp++ >>= 1;
+              }
+              else
+              {
+                assert(aug->line->flags & line_buf::LFT_64BIT);
+                si64* sp = aug->line->i64;
+                for (ui32 i = width; i > 0; --i)
+                  *sp++ >>= 1;
+              }
             }
             return aug->line;
           }
@@ -880,8 +890,8 @@ namespace ojph {
             rev_horz_syn(atk, aug->line, child_res->pull_line(),
               bands[1].pull_line(), width, horz_even);
           else
-            memcpy(aug->line->i32, child_res->pull_line()->i32,
-              width * sizeof(si32));
+            memcpy(aug->line->p, child_res->pull_line()->p,
+              width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
           return aug->line;
         }
         else

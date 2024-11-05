@@ -42,17 +42,11 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_mem_clear32(si32* addr, size_t count)
+    void gen_mem_clear(void* addr, size_t count)
     {
-      for (size_t i = 0; i < count; i += 4)
-        *addr++ = 0;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_mem_clear64(si64* addr, size_t count)
-    {
+      si64* p = (si64*)addr;
       for (size_t i = 0; i < count; i += 8)
-        *addr++ = 0;
+        *p++ = 0;
     }
 
     //////////////////////////////////////////////////////////////////////////

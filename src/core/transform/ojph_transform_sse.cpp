@@ -104,7 +104,7 @@ namespace ojph {
           float* dph = hdst->f32;
           float* sp = src->f32;
           int w = (int)width;
-          SSE_DEINTERLEAVE(dpl, dph, sp, w, even);
+          SSE_DEINTERLEAVE32(dpl, dph, sp, w, even);
         }
 
         // the actual horizontal transform
@@ -238,7 +238,7 @@ namespace ojph {
           float* spl = lsrc->f32;
           float* sph = hsrc->f32;
           int w = (int)width;
-          SSE_INTERLEAVE(dp, spl, sph, w, even);
+          SSE_INTERLEAVE32(dp, spl, sph, w, even);
         }
       }
       else {

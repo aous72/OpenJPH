@@ -62,6 +62,76 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    static inline
+    void avx_deinterleave32(float* dpl, float* dph, float* sp, 
+                            int width, bool even)
+    {
+      if (even)
+      {
+        for (; width > 0; width -= 16, sp += 16, dpl += 8, dph += 8)
+        {
+          __m256 a = _mm256_load_ps(sp);
+          __m256 b = _mm256_load_ps(sp + 8);
+          __m256 c = _mm256_permute2f128_ps(a, b, (2 << 4) | (0));
+          __m256 d = _mm256_permute2f128_ps(a, b, (3 << 4) | (1));
+          __m256 e = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(2, 0, 2, 0));
+          __m256 f = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(3, 1, 3, 1));
+          _mm256_store_ps(dpl, e);
+          _mm256_store_ps(dph, f);
+        }
+      }
+      else
+      {
+        for (; width > 0; width -= 16, sp += 16, dpl += 8, dph += 8)
+        {
+          __m256 a = _mm256_load_ps(sp);
+          __m256 b = _mm256_load_ps(sp + 8);
+          __m256 c = _mm256_permute2f128_ps(a, b, (2 << 4) | (0));
+          __m256 d = _mm256_permute2f128_ps(a, b, (3 << 4) | (1));
+          __m256 e = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(2, 0, 2, 0));
+          __m256 f = _mm256_shuffle_ps(c, d, _MM_SHUFFLE(3, 1, 3, 1));
+          _mm256_store_ps(dpl, f);
+          _mm256_store_ps(dph, e);
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline 
+    void avx_interleave32(float* dp, float* spl, float* sph,
+                          int width, bool even)    
+    {
+      if (even)
+      {
+        for (; width > 0; width -= 16, dp += 16, spl += 8, sph += 8)
+        {
+          __m256 a = _mm256_load_ps(spl);
+          __m256 b = _mm256_load_ps(sph);
+          __m256 c = _mm256_unpacklo_ps(a, b);
+          __m256 d = _mm256_unpackhi_ps(a, b);
+          __m256 e = _mm256_permute2f128_ps(c, d, (2 << 4) | (0));
+          __m256 f = _mm256_permute2f128_ps(c, d, (3 << 4) | (1));
+          _mm256_store_ps(dp, e);
+          _mm256_store_ps(dp + 8, f);
+        }
+      }
+      else
+      {
+        for (; width > 0; width -= 16, dp += 16, spl += 8, sph += 8)
+        {
+          __m256 a = _mm256_load_ps(spl);
+          __m256 b = _mm256_load_ps(sph);
+          __m256 c = _mm256_unpacklo_ps(b, a);
+          __m256 d = _mm256_unpackhi_ps(b, a);
+          __m256 e = _mm256_permute2f128_ps(c, d, (2 << 4) | (0));
+          __m256 f = _mm256_permute2f128_ps(c, d, (3 << 4) | (1));
+          _mm256_store_ps(dp, e);
+          _mm256_store_ps(dp + 8, f);
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void avx_irv_vert_step(const lifting_step* s, const line_buf* sig, 
                            const line_buf* other, const line_buf* aug, 
                            ui32 repeat, bool synthesis)
@@ -104,7 +174,7 @@ namespace ojph {
           float* dph = hdst->f32;
           float* sp = src->f32;
           int w = (int)width;
-          AVX_DEINTERLEAVE(dpl, dph, sp, w, even);
+          avx_deinterleave32(dpl, dph, sp, w, even);
         }
 
         // the actual horizontal transform
@@ -238,7 +308,7 @@ namespace ojph {
           float* spl = lsrc->f32;
           float* sph = hsrc->f32;
           int w = (int)width;
-          AVX_INTERLEAVE(dp, spl, sph, w, even);
+          avx_interleave32(dp, spl, sph, w, even);
         }
       }
       else {

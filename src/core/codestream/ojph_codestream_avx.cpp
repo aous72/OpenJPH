@@ -42,7 +42,7 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void avx_mem_clear32(si32* addr, size_t count)
+    void avx_mem_clear(void* addr, size_t count)
     {
       float* p = (float*)addr;
       __m256 zero = _mm256_setzero_ps();

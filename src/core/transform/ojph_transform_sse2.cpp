@@ -52,13 +52,80 @@ namespace ojph {
   namespace local {
 
     /////////////////////////////////////////////////////////////////////////
-    void sse2_rev_vert_step(const lifting_step* s, const line_buf* sig, 
-                            const line_buf* other, const line_buf* aug, 
-                            ui32 repeat, bool synthesis)
+    // https://github.com/seung-lab/dijkstra3d/blob/master/libdivide.h
+    static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
+    {
+      // note than m must be obtained using
+      // __m128i ve = _mm_set1_epi64x(1ULL << (63 - amt));
+      __m128i x = _mm_srli_epi64(a, amt);
+      x = _mm_xor_si128(x, m);
+      __m128i result = _mm_sub_epi64(x, m);
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline 
+    void sse2_deinterleave64(double* dpl, double* dph, double* sp, 
+                             int width, bool even)
+    {
+      if (even)
+        for (; width > 0; width -= 4, sp += 4, dpl += 2, dph += 2)
+        {
+          __m128d a = _mm_load_pd(sp);
+          __m128d b = _mm_load_pd(sp + 2);
+          __m128d c = _mm_shuffle_pd(a, b, 0);
+          __m128d d = _mm_shuffle_pd(a, b, 3);
+          _mm_store_pd(dpl, c);
+          _mm_store_pd(dph, d);
+        }
+      else
+        for (; width > 0; width -= 4, sp += 4, dpl += 2, dph += 2)
+        {
+          __m128d a = _mm_load_pd(sp);
+          __m128d b = _mm_load_pd(sp + 2);
+          __m128d c = _mm_shuffle_pd(a, b, 0);
+          __m128d d = _mm_shuffle_pd(a, b, 3);
+          _mm_store_pd(dpl, d);
+          _mm_store_pd(dph, c);
+        }
+    }    
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline 
+    void sse2_interleave64(double* dp, double* spl, double* sph,
+                           int width, bool even)
+    {
+      if (even)
+        for (; width > 0; width -= 4, dp += 4, spl += 2, sph += 2)
+        {
+          __m128d a = _mm_load_pd(spl);
+          __m128d b = _mm_load_pd(sph);
+          __m128d c = _mm_unpacklo_pd(a, b);
+          __m128d d = _mm_unpackhi_pd(a, b);
+          _mm_store_pd(dp, c);
+          _mm_store_pd(dp + 2, d);
+        }
+      else
+        for (; width > 0; width -= 4, dp += 4, spl += 2, sph += 2)
+        {
+          __m128d a = _mm_load_pd(spl);
+          __m128d b = _mm_load_pd(sph);
+          __m128d c = _mm_unpacklo_pd(b, a);
+          __m128d d = _mm_unpackhi_pd(b, a);
+          _mm_store_pd(dp, c);
+          _mm_store_pd(dp + 2, d);
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    static
+    void sse2_rev_vert_step32(const lifting_step* s, const line_buf* sig, 
+                              const line_buf* other, const line_buf* aug, 
+                              ui32 repeat, bool synthesis)
     {
       const si32 a = s->rev.Aatk;
       const si32 b = s->rev.Batk;
-      const si32 e = s->rev.Eatk;
+      const ui8 e = s->rev.Eatk;
       __m128i vb = _mm_set1_epi32(b);
 
       si32* dst = aug->i32;
@@ -162,9 +229,143 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_ana(const param_atk* atk, const line_buf* ldst, 
-                           const line_buf* hdst, const line_buf* src, 
-                           ui32 width, bool even)
+    static
+    void sse2_rev_vert_step64(const lifting_step* s, const line_buf* sig, 
+                              const line_buf* other, const line_buf* aug, 
+                              ui32 repeat, bool synthesis)
+    {
+      const si64 a = s->rev.Aatk;
+      const si64 b = s->rev.Batk;
+      const ui8 e = s->rev.Eatk;
+      __m128i vb = _mm_set1_epi64x(b);
+      __m128i ve = _mm_set1_epi64x(1ULL << (63 - e));
+
+      si64* dst = aug->i64;
+      const si64* src1 = sig->i64, * src2 = other->i64;
+      // The general definition of the wavelet in Part 2 is slightly 
+      // different to part 2, although they are mathematically equivalent
+      // here, we identify the simpler form from Part 1 and employ them
+      if (a == 1)
+      { // 5/3 update and any case with a == 1
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i v = _mm_add_epi64(vb, t);
+            __m128i w = sse2_mm_srai_epi64(v, e, ve);
+            d = _mm_sub_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i v = _mm_add_epi64(vb, t);
+            __m128i w = sse2_mm_srai_epi64(v, e, ve);
+            d = _mm_add_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else if (a == -1 && b == 1 && e == 1)
+      { // 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i w = sse2_mm_srai_epi64(t, e, ve);
+            d = _mm_add_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i w = sse2_mm_srai_epi64(t, e, ve);
+            d = _mm_sub_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else if (a == -1)
+      { // any case with a == -1, which is not 5/3 predict
+        int i = (int)repeat;
+        if (synthesis)
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i v = _mm_sub_epi64(vb, t);
+            __m128i w = sse2_mm_srai_epi64(v, e, ve);
+            d = _mm_sub_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+        else
+          for (; i > 0; i -= 2, dst += 2, src1 += 2, src2 += 2)
+          {
+            __m128i s1 = _mm_load_si128((__m128i*)src1);
+            __m128i s2 = _mm_load_si128((__m128i*)src2);
+            __m128i d = _mm_load_si128((__m128i*)dst);
+            __m128i t = _mm_add_epi64(s1, s2);
+            __m128i v = _mm_sub_epi64(vb, t);
+            __m128i w = sse2_mm_srai_epi64(v, e, ve);
+            d = _mm_add_epi64(d, w);
+            _mm_store_si128((__m128i*)dst, d);
+          }
+      }
+      else { // general case
+        // 64bit multiplication is not supported in sse2
+        if (synthesis)
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
+        else
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b + a * (*src1++ + *src2++)) >> e;
+      }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_vert_step(const lifting_step* s, const line_buf* sig, 
+                            const line_buf* other, const line_buf* aug, 
+                            ui32 repeat, bool synthesis)
+    {
+      if (((sig != NULL) && (sig->flags & line_buf::LFT_32BIT)) || 
+          ((aug != NULL) && (aug->flags & line_buf::LFT_32BIT)) ||
+          ((other != NULL) && (other->flags & line_buf::LFT_32BIT))) 
+      {
+        assert((sig == NULL || sig->flags & line_buf::LFT_32BIT) &&
+               (other == NULL || other->flags & line_buf::LFT_32BIT) && 
+               (aug == NULL || aug->flags & line_buf::LFT_32BIT));
+        sse2_rev_vert_step32(s, sig, other, aug, repeat, synthesis);
+      }
+      else 
+      {
+        assert((sig == NULL || sig->flags & line_buf::LFT_64BIT) &&
+               (other == NULL || other->flags & line_buf::LFT_64BIT) && 
+               (aug == NULL || aug->flags & line_buf::LFT_64BIT));
+        sse2_rev_vert_step64(s, sig, other, aug, repeat, synthesis);
+      }
+    }    
+
+    /////////////////////////////////////////////////////////////////////////
+    static
+    void sse2_rev_horz_ana32(const param_atk* atk, const line_buf* ldst, 
+                             const line_buf* hdst, const line_buf* src, 
+                             ui32 width, bool even)
     {
       if (width > 1)
       {
@@ -174,7 +375,7 @@ namespace ojph {
           float* dph = hdst->f32;
           float* sp = src->f32;
           int w = (int)width;
-          SSE_DEINTERLEAVE(dpl, dph, sp, w, even);
+          SSE_DEINTERLEAVE32(dpl, dph, sp, w, even);
         }
 
         si32* hp = hdst->i32, * lp = ldst->i32;
@@ -187,7 +388,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j - 1);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const si32 e = s->rev.Eatk;
+          const ui8 e = s->rev.Eatk;
           __m128i vb = _mm_set1_epi32(b);
 
           // extension
@@ -284,9 +485,7 @@ namespace ojph {
           }
           else {
             // general case
-            // 32bit multiplication is not supported in sse2; we need sse4.1,
-            // where we can use _mm_mullo_epi32, which multiplies
-            // 32bit x 32bit, keeping the LSBs
+            // 64bit multiplication is not supported in sse2.
             if (even)
               for (ui32 i = h_width; i > 0; --i, sp++, dp++)
                 *dp += (b + a * (sp[0] + sp[1])) >> e;
@@ -308,11 +507,181 @@ namespace ojph {
           hdst->i32[0] = src->i32[0] << 1;
       }
     }
+
+    /////////////////////////////////////////////////////////////////////////
+    static
+    void sse2_rev_horz_ana64(const param_atk* atk, const line_buf* ldst, 
+                             const line_buf* hdst, const line_buf* src, 
+                             ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        // combine both lsrc and hsrc into dst
+        {
+          double* dpl = (double*)ldst->p;
+          double* dph = (double*)hdst->p;
+          double* sp  = (double*)src->p;
+          int w = (int)width;
+          sse2_deinterleave64(dpl, dph, sp, w, even);
+        }
+
+        si64* hp = hdst->i64, * lp = ldst->i64;
+        ui32 l_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 h_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = num_steps; j > 0; --j)
+        {
+          // first lifting step
+          const lifting_step* s = atk->get_step(j - 1);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui8 e = s->rev.Eatk;
+          __m128i vb = _mm_set1_epi64x(b);
+          __m128i ve = _mm_set1_epi64x(1ULL << (63 - e));
+
+          // extension
+          lp[-1] = lp[0];
+          lp[l_width] = lp[l_width - 1];
+          // lifting step
+          const si64* sp = lp;
+          si64* dp = hp;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)h_width;
+            if (even)
+            {
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_add_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_add_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i w = sse2_mm_srai_epi64(t, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i w = sse2_mm_srai_epi64(t, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)h_width;
+            if (even)
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_sub_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_sub_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else {
+            // general case
+            // 32bit multiplication is not supported in sse2; we need sse4.1,
+            // where we can use _mm_mullo_epi32, which multiplies
+            // 32bit x 32bit, keeping the LSBs
+            if (even)
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[0] + sp[1])) >> e;
+            else
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[-1] + sp[0])) >> e;
+          }
+
+          // swap buffers
+          si64* t = lp; lp = hp; hp = t;
+          even = !even;
+          ui32 w = l_width; l_width = h_width; h_width = w;
+        }
+      }
+      else {
+        if (even)
+          ldst->i64[0] = src->i64[0];
+        else
+          hdst->i64[0] = src->i64[0] << 1;
+      }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_ana(const param_atk* atk, const line_buf* ldst, 
+                           const line_buf* hdst, const line_buf* src, 
+                           ui32 width, bool even)
+    {
+      if (src->flags & line_buf::LFT_32BIT) 
+      {
+        assert((ldst == NULL || ldst->flags & line_buf::LFT_32BIT) &&
+               (hdst == NULL || hdst->flags & line_buf::LFT_32BIT));
+        sse2_rev_horz_ana32(atk, ldst, hdst, src, width, even);
+      }
+      else 
+      {
+        assert((ldst == NULL || ldst->flags & line_buf::LFT_64BIT) &&
+               (hdst == NULL || hdst->flags & line_buf::LFT_64BIT) && 
+               (src == NULL || src->flags & line_buf::LFT_64BIT));
+        sse2_rev_horz_ana64(atk, ldst, hdst, src, width, even);
+      }
+    }    
     
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_horz_syn(const param_atk* atk, const line_buf* dst, 
-                           const line_buf* lsrc, const line_buf* hsrc, 
-                           ui32 width, bool even)
+    void sse2_rev_horz_syn32(const param_atk* atk, const line_buf* dst, 
+                             const line_buf* lsrc, const line_buf* hsrc, 
+                             ui32 width, bool even)
     {
       if (width > 1)
       {
@@ -326,7 +695,7 @@ namespace ojph {
           const lifting_step* s = atk->get_step(j);
           const si32 a = s->rev.Aatk;
           const si32 b = s->rev.Batk;
-          const si32 e = s->rev.Eatk;
+          const ui8 e = s->rev.Eatk;
           __m128i vb = _mm_set1_epi32(b);
 
           // extension
@@ -446,7 +815,7 @@ namespace ojph {
           float* spl = lsrc->f32;
           float* sph = hsrc->f32;
           int w = (int)width;
-          SSE_INTERLEAVE(dp, spl, sph, w, even);
+          SSE_INTERLEAVE32(dp, spl, sph, w, even);
         }
       }
       else {
@@ -456,6 +825,175 @@ namespace ojph {
           dst->i32[0] = hsrc->i32[0] >> 1;
       }
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_syn64(const param_atk* atk, const line_buf* dst, 
+                             const line_buf* lsrc, const line_buf* hsrc, 
+                             ui32 width, bool even)
+    {
+      if (width > 1)
+      {
+        bool ev = even;
+        si64* oth = hsrc->i64, * aug = lsrc->i64;
+        ui32 aug_width = (width + (even ? 1 : 0)) >> 1;  // low pass
+        ui32 oth_width = (width + (even ? 0 : 1)) >> 1;  // high pass
+        ui32 num_steps = atk->get_num_steps();
+        for (ui32 j = 0; j < num_steps; ++j)
+        {
+          const lifting_step* s = atk->get_step(j);
+          const si32 a = s->rev.Aatk;
+          const si32 b = s->rev.Batk;
+          const ui8 e = s->rev.Eatk;
+          __m128i vb = _mm_set1_epi64x(b);
+          __m128i ve = _mm_set1_epi64x(1ULL << (63 - e));
+
+          // extension
+          oth[-1] = oth[0];
+          oth[oth_width] = oth[oth_width - 1];
+          // lifting step
+          const si64* sp = oth;
+          si64* dp = aug;
+          if (a == 1)
+          { // 5/3 update and any case with a == 1
+            int i = (int)aug_width;
+            if (ev)
+            {
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_add_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+            else
+            {
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_add_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            }
+          }
+          else if (a == -1 && b == 1 && e == 1)
+          {  // 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i w = sse2_mm_srai_epi64(t, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i w = sse2_mm_srai_epi64(t, e, ve);
+                d = _mm_add_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else if (a == -1)
+          { // any case with a == -1, which is not 5/3 predict
+            int i = (int)aug_width;
+            if (ev)
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp - 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_sub_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+            else
+              for (; i > 0; i -= 2, sp += 2, dp += 2)
+              {
+                __m128i s1 = _mm_load_si128((__m128i*)sp);
+                __m128i s2 = _mm_loadu_si128((__m128i*)(sp + 1));
+                __m128i d = _mm_load_si128((__m128i*)dp);
+                __m128i t = _mm_add_epi64(s1, s2);
+                __m128i v = _mm_sub_epi64(vb, t);
+                __m128i w = sse2_mm_srai_epi64(v, e, ve);
+                d = _mm_sub_epi64(d, w);
+                _mm_store_si128((__m128i*)dp, d);
+              }
+          }
+          else {
+            // general case
+            // 32bit multiplication is not supported in sse2; we need sse4.1,
+            // where we can use _mm_mullo_epi32, which multiplies
+            // 32bit x 32bit, keeping the LSBs
+            if (ev)
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[-1] + sp[0])) >> e;
+            else
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[0] + sp[1])) >> e;
+          }
+
+          // swap buffers
+          si64* t = aug; aug = oth; oth = t;
+          ev = !ev;
+          ui32 w = aug_width; aug_width = oth_width; oth_width = w;
+        }
+
+        // combine both lsrc and hsrc into dst
+        {
+          double* dp  = (double*)dst->p;
+          double* spl = (double*)lsrc->p;
+          double* sph = (double*)hsrc->p;
+          int w = (int)width;
+          sse2_interleave64(dp, spl, sph, w, even);
+        }
+      }
+      else {
+        if (even)
+          dst->i64[0] = lsrc->i64[0];
+        else
+          dst->i64[0] = hsrc->i64[0] >> 1;
+      }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    void sse2_rev_horz_syn(const param_atk* atk, const line_buf* dst, 
+                           const line_buf* lsrc, const line_buf* hsrc, 
+                           ui32 width, bool even)
+    {
+      if (dst->flags & line_buf::LFT_32BIT) 
+      {
+        assert((lsrc == NULL || lsrc->flags & line_buf::LFT_32BIT) && 
+               (hsrc == NULL || hsrc->flags & line_buf::LFT_32BIT));
+        sse2_rev_horz_syn32(atk, dst, lsrc, hsrc, width, even);
+      }
+      else 
+      {
+        assert((dst == NULL || dst->flags & line_buf::LFT_64BIT) &&
+               (lsrc == NULL || lsrc->flags & line_buf::LFT_64BIT) && 
+               (hsrc == NULL || hsrc->flags & line_buf::LFT_64BIT));
+        sse2_rev_horz_syn64(atk, dst, lsrc, hsrc, width, even);
+      }
+    }    
 
   } // !local
 } // !ojph

@@ -48,8 +48,7 @@ namespace ojph {
   namespace local {
 
     // define function signature simple memory clearing
-    typedef void (*mem_clear_fun32)(si32* addr, size_t count);
-    typedef void (*mem_clear_fun64)(si64* addr, size_t count);
+    typedef void (*mem_clear_fun)(void* addr, size_t count);
 
     // define function signature for max value finding
     typedef ui32 (*find_max_val_fun32)(ui32* addr);
@@ -96,8 +95,7 @@ namespace ojph {
       void init(bool reversible);
 
       // a pointer to the max value finding function
-      mem_clear_fun32 mem_clear32;
-      mem_clear_fun64 mem_clear64;
+      mem_clear_fun mem_clear;
      
       // a pointer to the max value finding function
       find_max_val_fun32 find_max_val32;

@@ -60,7 +60,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: cmake
-      run: cmake -DOJPH_BUILD_TESTS=yes -DOJPH_DISABLE_SIMD=yes ..
+      run: cmake -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
     - name: build
       run: make

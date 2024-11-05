@@ -363,33 +363,42 @@ namespace ojph {
           }
       }
       else { // general case
-        int i = (int)repeat;
+        // 64bit multiplication is not supported in avx2;
+        // in particular, _mm256_mullo_epi64.
         if (synthesis)
-          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
-          {
-            __m256i s1 = _mm256_load_si256((__m256i*)src1);
-            __m256i s2 = _mm256_load_si256((__m256i*)src2);
-            __m256i d = _mm256_load_si256((__m256i*)dst);
-            __m256i t = _mm256_add_epi64(s1, s2);
-            __m256i u = _mm256_mullo_epi64(va, t);
-            __m256i v = _mm256_add_epi64(vb, u);
-            __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            d = _mm256_sub_epi64(d, w);
-            _mm256_store_si256((__m256i*)dst, d);
-          }
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ -= (b + a * (*src1++ + *src2++)) >> e;
         else
-          for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
-          {
-            __m256i s1 = _mm256_load_si256((__m256i*)src1);
-            __m256i s2 = _mm256_load_si256((__m256i*)src2);
-            __m256i d = _mm256_load_si256((__m256i*)dst);
-            __m256i t = _mm256_add_epi64(s1, s2);
-            __m256i u = _mm256_mullo_epi64(va, t);
-            __m256i v = _mm256_add_epi64(vb, u);
-            __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            d = _mm256_add_epi64(d, w);
-            _mm256_store_si256((__m256i*)dst, d);
-          }
+          for (ui32 i = repeat; i > 0; --i)
+            *dst++ += (b + a * (*src1++ + *src2++)) >> e;
+
+        // int i = (int)repeat;
+        // if (synthesis)
+        //   for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+        //   {
+        //     __m256i s1 = _mm256_load_si256((__m256i*)src1);
+        //     __m256i s2 = _mm256_load_si256((__m256i*)src2);
+        //     __m256i d = _mm256_load_si256((__m256i*)dst);
+        //     __m256i t = _mm256_add_epi64(s1, s2);
+        //     __m256i u = _mm256_mullo_epi64(va, t);
+        //     __m256i v = _mm256_add_epi64(vb, u);
+        //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+        //     d = _mm256_sub_epi64(d, w);
+        //     _mm256_store_si256((__m256i*)dst, d);
+        //   }
+        // else
+        //   for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
+        //   {
+        //     __m256i s1 = _mm256_load_si256((__m256i*)src1);
+        //     __m256i s2 = _mm256_load_si256((__m256i*)src2);
+        //     __m256i d = _mm256_load_si256((__m256i*)dst);
+        //     __m256i t = _mm256_add_epi64(s1, s2);
+        //     __m256i u = _mm256_mullo_epi64(va, t);
+        //     __m256i v = _mm256_add_epi64(vb, u);
+        //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+        //     d = _mm256_add_epi64(d, w);
+        //     _mm256_store_si256((__m256i*)dst, d);
+        //   }
       }
     }
 
@@ -710,33 +719,42 @@ namespace ojph {
           }
           else {
             // general case
-            int i = (int)h_width;
+            // 64bit multiplication is not supported in avx2;
+            // in particular, _mm256_mullo_epi64.
             if (even)
-              for (; i > 0; i -= 4, sp += 4, dp += 4)
-              {
-                __m256i s1 = _mm256_load_si256((__m256i*)sp);
-                __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
-                __m256i d = _mm256_load_si256((__m256i*)dp);
-                __m256i t = _mm256_add_epi64(s1, s2);
-                __m256i u = _mm256_mullo_epi64(va, t);
-                __m256i v = _mm256_add_epi64(vb, u);
-                __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-                d = _mm256_add_epi64(d, w);
-                _mm256_store_si256((__m256i*)dp, d);
-              }
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[0] + sp[1])) >> e;
             else
-              for (; i > 0; i -= 4, sp += 4, dp += 4)
-              {
-                __m256i s1 = _mm256_load_si256((__m256i*)sp);
-                __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
-                __m256i d = _mm256_load_si256((__m256i*)dp);
-                __m256i t = _mm256_add_epi64(s1, s2);
-                __m256i u = _mm256_mullo_epi64(va, t);
-                __m256i v = _mm256_add_epi64(vb, u);
-                __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-                d = _mm256_add_epi64(d, w);
-                _mm256_store_si256((__m256i*)dp, d);
-              }
+              for (ui32 i = h_width; i > 0; --i, sp++, dp++)
+                *dp += (b + a * (sp[-1] + sp[0])) >> e;
+
+            // int i = (int)h_width;
+            // if (even)
+            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
+            //   {
+            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
+            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
+            //     __m256i d = _mm256_load_si256((__m256i*)dp);
+            //     __m256i t = _mm256_add_epi64(s1, s2);
+            //     __m256i u = _mm256_mullo_epi64(va, t);
+            //     __m256i v = _mm256_add_epi64(vb, u);
+            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+            //     d = _mm256_add_epi64(d, w);
+            //     _mm256_store_si256((__m256i*)dp, d);
+            //   }
+            // else
+            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
+            //   {
+            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
+            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
+            //     __m256i d = _mm256_load_si256((__m256i*)dp);
+            //     __m256i t = _mm256_add_epi64(s1, s2);
+            //     __m256i u = _mm256_mullo_epi64(va, t);
+            //     __m256i v = _mm256_add_epi64(vb, u);
+            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+            //     d = _mm256_add_epi64(d, w);
+            //     _mm256_store_si256((__m256i*)dp, d);
+            //   }
           }
 
           // swap buffers
@@ -1058,33 +1076,42 @@ namespace ojph {
           }
           else {
             // general case
-            int i = (int)aug_width;
+            // 64bit multiplication is not supported in avx2;
+            // in particular, _mm_mullo_epi64.
             if (ev)
-              for (; i > 0; i -= 4, sp += 4, dp += 4)
-              {
-                __m256i s1 = _mm256_load_si256((__m256i*)sp);
-                __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
-                __m256i d = _mm256_load_si256((__m256i*)dp);
-                __m256i t = _mm256_add_epi64(s1, s2);
-                __m256i u = _mm256_mullo_epi64(va, t);
-                __m256i v = _mm256_add_epi64(vb, u);
-                __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-                d = _mm256_sub_epi64(d, w);
-                _mm256_store_si256((__m256i*)dp, d);
-              }
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[-1] + sp[0])) >> e;
             else
-              for (; i > 0; i -= 4, sp += 4, dp += 4)
-              {
-                __m256i s1 = _mm256_load_si256((__m256i*)sp);
-                __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
-                __m256i d = _mm256_load_si256((__m256i*)dp);
-                __m256i t = _mm256_add_epi64(s1, s2);
-                __m256i u = _mm256_mullo_epi64(va, t);
-                __m256i v = _mm256_add_epi64(vb, u);
-                __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-                d = _mm256_sub_epi64(d, w);
-                _mm256_store_si256((__m256i*)dp, d);
-              }
+              for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
+                *dp -= (b + a * (sp[0] + sp[1])) >> e;
+
+            // int i = (int)aug_width;
+            // if (ev)
+            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
+            //   {
+            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
+            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
+            //     __m256i d = _mm256_load_si256((__m256i*)dp);
+            //     __m256i t = _mm256_add_epi64(s1, s2);
+            //     __m256i u = _mm256_mullo_epi64(va, t);
+            //     __m256i v = _mm256_add_epi64(vb, u);
+            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+            //     d = _mm256_sub_epi64(d, w);
+            //     _mm256_store_si256((__m256i*)dp, d);
+            //   }
+            // else
+            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
+            //   {
+            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
+            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
+            //     __m256i d = _mm256_load_si256((__m256i*)dp);
+            //     __m256i t = _mm256_add_epi64(s1, s2);
+            //     __m256i u = _mm256_mullo_epi64(va, t);
+            //     __m256i v = _mm256_add_epi64(vb, u);
+            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
+            //     d = _mm256_sub_epi64(d, w);
+            //     _mm256_store_si256((__m256i*)dp, d);
+            //   }
           }
 
           // swap buffers

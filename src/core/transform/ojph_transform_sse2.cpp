@@ -485,7 +485,7 @@ namespace ojph {
           }
           else {
             // general case
-            // 64bit multiplication is not supported in sse2.
+            // 64bit multiplication is not supported in sse2
             if (even)
               for (ui32 i = h_width; i > 0; --i, sp++, dp++)
                 *dp += (b + a * (sp[0] + sp[1])) >> e;
@@ -633,9 +633,7 @@ namespace ojph {
           }
           else {
             // general case
-            // 32bit multiplication is not supported in sse2; we need sse4.1,
-            // where we can use _mm_mullo_epi32, which multiplies
-            // 32bit x 32bit, keeping the LSBs
+            // 64bit multiplication is not supported in sse2
             if (even)
               for (ui32 i = h_width; i > 0; --i, sp++, dp++)
                 *dp += (b + a * (sp[0] + sp[1])) >> e;
@@ -941,9 +939,7 @@ namespace ojph {
           }
           else {
             // general case
-            // 32bit multiplication is not supported in sse2; we need sse4.1,
-            // where we can use _mm_mullo_epi32, which multiplies
-            // 32bit x 32bit, keeping the LSBs
+            // 64bit multiplication is not supported in sse2
             if (ev)
               for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
                 *dp -= (b + a * (sp[-1] + sp[0])) >> e;

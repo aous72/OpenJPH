@@ -35,6 +35,7 @@
 // Date: 28 August 2019
 //***************************************************************************/
 
+#include <climits>
 #include <cstdio>
 
 #include "ojph_defs.h"

@@ -35,6 +35,7 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include <climits>
 #include <immintrin.h>
 #include "ojph_defs.h"
 

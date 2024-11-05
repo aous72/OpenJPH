@@ -35,6 +35,7 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include <climits>
 #include <immintrin.h>
 #include "ojph_defs.h"
 
@@ -81,7 +82,7 @@ namespace ojph {
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 31 - K_max;
-      __m128i m0 = _mm_set1_epi32((int)0x80000000);
+      __m128i m0 = _mm_set1_epi32(INT_MIN);
       __m128i zero = _mm_setzero_si128();
       __m128i one = _mm_set1_epi32(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);

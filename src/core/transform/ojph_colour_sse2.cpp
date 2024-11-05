@@ -336,7 +336,7 @@ namespace ojph {
                (g->flags  & line_buf::LFT_32BIT) && 
                (b->flags  & line_buf::LFT_32BIT));
         __m128i v2 = _mm_set1_epi64x(1ULL << (63 - 2));
-        __m128i low_bits = _mm_set_epi64x(0, ULLONG_MAX);
+        __m128i low_bits = _mm_set_epi64x(0, (si64)ULLONG_MAX);
         const si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         for (int i = (repeat + 3) >> 2; i > 0; --i)

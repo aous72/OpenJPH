@@ -163,10 +163,10 @@ namespace ojph {
       #ifndef OJPH_DISABLE_AVX2
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2)
         {
-          // cnvrt_si32_to_si32_shftd = avx2_cnvrt_si32_to_si32_shftd;
-          // cnvrt_si32_to_si32_nlt_type3 = avx2_cnvrt_si32_to_si32_nlt_type3;
+          //rev_convert = avx2_rev_convert;
+          //rev_convert_nlt_type3 = avx2_rev_convert_nlt_type3;
           // rct_forward = avx2_rct_forward;
-          // rct_backward = avx2_rct_backward;
+          rct_backward = avx2_rct_backward;
         }
       #endif // !OJPH_DISABLE_AVX2
 

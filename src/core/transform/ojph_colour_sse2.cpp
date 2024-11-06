@@ -53,7 +53,7 @@ namespace ojph {
     static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
     {
       // note than m must be obtained using
-      // __m128i ve = _mm_set1_epi64x(1ULL << (63 - amt));
+      // __m128i m = _mm_set1_epi64x(1ULL << (63 - amt));
       __m128i x = _mm_srli_epi64(a, amt);
       x = _mm_xor_si128(x, m);
       __m128i result = _mm_sub_epi64(x, m);
@@ -63,23 +63,19 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     static inline __m128i sse2_cvtlo_epi32_epi64(__m128i a, __m128i zero)
     {
-      __m128i s, t;
-      s = _mm_unpacklo_epi32(a, zero);   // missing extended -ve
+      __m128i t;
       t = _mm_cmplt_epi32(a, zero);      // get -ve
-      t = _mm_unpacklo_epi32(zero, t);      
-      s = _mm_or_si128(t, s);            // put -ve
-      return s;
+      t = _mm_unpacklo_epi32(a, t);
+      return t;
     }
 
     //////////////////////////////////////////////////////////////////////////
     static inline __m128i sse2_cvthi_epi32_epi64(__m128i a, __m128i zero)
     {
-      __m128i s, t;
-      s = _mm_unpackhi_epi32(a, zero);   // missing extended -ve
+      __m128i t;
       t = _mm_cmplt_epi32(a, zero);      // get -ve
-      t = _mm_unpackhi_epi32(zero, t);      
-      s = _mm_or_si128(t, s);            // put -ve
-      return s;
+      t = _mm_unpackhi_epi32(a, t);
+      return t;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -95,16 +91,33 @@ namespace ojph {
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si32 *dp = dst_line->i32 + dst_line_offset;
-          si32 s = (si32)shift;
-          for (ui32 i = width; i > 0; --i)
-            *dp++ = *sp++ + s;
+          __m128i sh = _mm_set1_epi32((si32)shift);
+          for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+          {
+            __m128i s = _mm_loadu_si128((__m128i*)sp);
+            s = _mm_add_epi32(s, sh);
+            _mm_storeu_si128((__m128i*)dp, s);
+          }            
         }
         else 
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si64 *dp = dst_line->i64 + dst_line_offset;
-          for (ui32 i = width; i > 0; --i)
-            *dp++ = *sp++ + shift;
+          __m128i zero = _mm_setzero_si128();
+          __m128i sh = _mm_set1_epi64x(shift);
+          for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+          {
+            __m128i s, t;
+            s = _mm_loadu_si128((__m128i*)sp);
+            
+            t = sse2_cvtlo_epi32_epi64(s, zero);
+            t = _mm_add_epi64(t, sh);
+            _mm_storeu_si128((__m128i*)dp, t);
+            
+            t = sse2_cvthi_epi32_epi64(s, zero);
+            t = _mm_add_epi64(t, sh);
+            _mm_storeu_si128((__m128i*)dp + 1, t);
+          }            
         }
       }
       else 
@@ -113,8 +126,26 @@ namespace ojph {
         assert(dst_line->flags | line_buf::LFT_32BIT);
         const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
-        for (ui32 i = width; i > 0; --i)
-          *dp++ = (si32)(*sp++ + shift);
+        __m128i low_bits = _mm_set_epi64x(0, (si64)ULLONG_MAX);
+        __m128i sh = _mm_set1_epi64x(shift);
+        for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+        {
+          __m128i s, t;
+          s = _mm_loadu_si128((__m128i*)sp);
+          s = _mm_add_epi64(s, sh);
+
+          t = _mm_shuffle_epi32(s, _MM_SHUFFLE(0, 0, 2, 0));
+          t = _mm_and_si128(low_bits, t);
+
+          s = _mm_loadu_si128((__m128i*)sp + 1);
+          s = _mm_add_epi64(s, sh);
+
+          s = _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 0, 0, 0));
+          s = _mm_andnot_si128(low_bits, s);
+          
+          t = _mm_or_si128(s, t);
+          _mm_storeu_si128((__m128i*)dp, t);
+        }            
       }
     }
 
@@ -131,19 +162,49 @@ namespace ojph {
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si32 *dp = dst_line->i32 + dst_line_offset;
-          si32 s = (si32)shift;
-          for (ui32 i = width; i > 0; --i) {
-            const si32 v = *sp++;
-            *dp++ = v >= 0 ? v : (- v - s);
+          __m128i sh = _mm_set1_epi32((si32)(-shift));
+          __m128i zero = _mm_setzero_si128();
+          for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
+          {
+            __m128i s = _mm_loadu_si128((__m128i*)sp);
+            __m128i c = _mm_cmplt_epi32(s, zero);  // 0xFFFFFFFF for -ve value
+            __m128i v_m_sh = _mm_sub_epi32(sh, s); // - shift - value 
+            v_m_sh = _mm_and_si128(c, v_m_sh);     // keep only - shift - value
+            s = _mm_andnot_si128(c, s);            // keep only +ve or 0
+            s = _mm_or_si128(s, v_m_sh);           // combine
+            _mm_storeu_si128((__m128i*)dp, s);
           }
         }
         else 
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si64 *dp = dst_line->i64 + dst_line_offset;
-          for (ui32 i = width; i > 0; --i) {
-            const si64 v = *sp++;
-            *dp++ = v >= 0 ? v : (- v - shift);
+          __m128i sh = _mm_set1_epi64x(-shift);
+          __m128i zero = _mm_setzero_si128();
+          for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
+          {
+            __m128i s, t, u, c, v_m_sh;
+            s = _mm_loadu_si128((__m128i*)sp);
+
+            t = _mm_cmplt_epi32(s, zero);      // find -ve 32bit -1
+            u = _mm_unpacklo_epi32(s, t);      // correct 64bit data
+            c = _mm_unpacklo_epi32(t, t);      // 64bit -1 for -ve value
+
+            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value 
+            v_m_sh = _mm_and_si128(c, v_m_sh); // keep only - shift - value
+            u = _mm_andnot_si128(c, u);        // keep only +ve or 0
+            u = _mm_or_si128(u, v_m_sh);       // combine
+
+            _mm_storeu_si128((__m128i*)dp, u);
+            u = _mm_unpackhi_epi32(s, t);      // correct 64bit data
+            c = _mm_unpackhi_epi32(t, t);      // 64bit -1 for -ve value
+
+            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value 
+            v_m_sh = _mm_and_si128(c, v_m_sh); // keep only - shift - value
+            u = _mm_andnot_si128(c, u);        // keep only +ve or 0
+            u = _mm_or_si128(u, v_m_sh);       // combine
+
+            _mm_storeu_si128((__m128i*)dp + 1, u);
           }
         }
       }
@@ -153,9 +214,37 @@ namespace ojph {
         assert(dst_line->flags | line_buf::LFT_32BIT);
         const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
-        for (ui32 i = width; i > 0; --i) {
-          const si64 v = *sp++;
-          *dp++ = (si32)(v >= 0 ? v : (- v - shift));
+        __m128i sh = _mm_set1_epi64x(-shift);
+        __m128i zero = _mm_setzero_si128();
+        __m128i half_mask = _mm_set_epi64x(0, (si64)ULLONG_MAX);
+        for (int i = (width + 3) >> 2; i > 0; --i, sp += 4, dp += 4)
+        {
+          // s for source, t for target, p for positive, n for negative,
+          // m for mask, and tm for temp
+          __m128i s, t, p, n, m, tm;
+          s = _mm_loadu_si128((__m128i*)sp);
+          
+          tm = _mm_cmplt_epi32(s, zero);   // 32b -1 for -ve value
+          m = _mm_shuffle_epi32(tm, _MM_SHUFFLE(3, 3, 1, 1)); // expand to 64b
+          tm = _mm_sub_epi64(sh, s);       // - shift - value
+          n = _mm_and_si128(m, tm);        // -ve
+          p = _mm_andnot_si128(m, s);      // +ve
+          tm = _mm_or_si128(n, p);
+          tm = _mm_shuffle_epi32(tm, _MM_SHUFFLE(0, 0, 2, 0));
+          t = _mm_and_si128(half_mask, tm);
+
+          s = _mm_loadu_si128((__m128i*)sp + 1);
+          tm = _mm_cmplt_epi32(s, zero);   // 32b -1 for -ve value
+          m = _mm_shuffle_epi32(tm, _MM_SHUFFLE(3, 3, 1, 1)); // expand to 64b
+          tm = _mm_sub_epi64(sh, s);       // - shift - value
+          n = _mm_and_si128(m, tm);        // -ve
+          p = _mm_andnot_si128(m, s);      // +ve
+          tm = _mm_or_si128(n, p);
+          tm = _mm_shuffle_epi32(tm, _MM_SHUFFLE(2, 0, 0, 0));
+          tm = _mm_andnot_si128(half_mask, tm);
+
+          t = _mm_or_si128(t, tm);
+           _mm_storeu_si128((__m128i*)dp, t);
         }
       }
     }

@@ -58,7 +58,7 @@ namespace ojph {
     __m256i avx2_mm256_srai_epi64(__m256i a, int amt, __m256i m) 
     {
       // note than m must be obtained using
-      // __m256i ve = _mm256_set1_epi64x(1ULL << (63 - amt));
+      // __m256i m = _mm256_set1_epi64x(1ULL << (63 - amt));
       __m256i x = _mm256_srli_epi64(a, amt);
       x = _mm256_xor_si256(x, m);
       __m256i result = _mm256_sub_epi64(x, m);

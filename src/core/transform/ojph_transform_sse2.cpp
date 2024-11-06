@@ -57,7 +57,7 @@ namespace ojph {
     static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
     {
       // note than m must be obtained using
-      // __m128i ve = _mm_set1_epi64x(1ULL << (63 - amt));
+      // __m128i m = _mm_set1_epi64x(1ULL << (63 - amt));
       __m128i x = _mm_srli_epi64(a, amt);
       x = _mm_xor_si128(x, m);
       __m128i result = _mm_sub_epi64(x, m);

@@ -229,12 +229,16 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_cnvrt_si32_to_si32_shftd(const si32 *sp, si32 *dp, int shift,
-                                       ui32 width);
+    void avx2_rev_convert(
+      const line_buf *src_line, const ui32 src_line_offset, 
+      line_buf *dst_line, const ui32 dst_line_offset, 
+      si64 shift, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_cnvrt_si32_to_si32_nlt_type3(const si32 *sp, si32 *dp, 
-                                           int shift, ui32 width);
+    void avx2_rev_convert_nlt_type3(
+      const line_buf *src_line, const ui32 src_line_offset, 
+      line_buf *dst_line, const ui32 dst_line_offset, 
+      si64 shift, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(

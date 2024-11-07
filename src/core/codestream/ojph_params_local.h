@@ -646,12 +646,15 @@ namespace ojph {
       ui8 decode_SPqcd(ui8 v) const
       {
         if (old_SPqcd) return (ui8)(v >> reversible_SPqcd_shift); // old
-        else return (ui8)((v << 6) | (v >> 3)); // new
+        else {
+          v = v & 0b11111011; 
+          return (ui8)((v << 5) | (v >> 3)); // new
+        }
       }
       ui8 encode_SPqcd(ui8 v) const
       {
         if (old_SPqcd) return (ui8)(v << reversible_SPqcd_shift); // old
-        else return (ui8)((v >> 6) | (v << 3)); // new
+        else return (ui8)((v >> 5) | (v << 3)); // new
       }
    protected:
       ui16 Lqcd;

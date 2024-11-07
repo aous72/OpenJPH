@@ -86,7 +86,6 @@ namespace ojph {
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si64 *dp = dst_line->i64 + dst_line_offset;
-          __m256i zero = _mm256_setzero_si256();
           __m256i sh = _mm256_set1_epi64x(shift);
           for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
           {
@@ -286,7 +285,6 @@ namespace ojph {
                (r->flags  & line_buf::LFT_32BIT) &&
                (g->flags  & line_buf::LFT_32BIT) && 
                (b->flags  & line_buf::LFT_32BIT));
-        __m256i zero = _mm256_setzero_si256();
         __m256i v2 = _mm256_set1_epi64x(1ULL << (63 - 2));
         const si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         si64 *yp = y->i64, *cbp = cb->i64, *crp = cr->i64;

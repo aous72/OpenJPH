@@ -590,7 +590,7 @@ namespace ojph {
     {
       friend ::ojph::param_qcd;
     public:
-      param_qcd() : reversible_SPqcd_shift(3)
+      param_qcd() : reversible_SPqcd_shift(3), old_SPqcd(false)
       { 
         Lqcd = 0;
         Sqcd = 0;
@@ -643,10 +643,21 @@ namespace ojph {
                          bool is_employing_color_transform);
       void set_irrev_quant(ui32 num_decomps);
 
-    protected:
+      ui8 decode_SPqcd(ui8 v) const
+      {
+        if (old_SPqcd) return (ui8)(v >> reversible_SPqcd_shift); // old
+        else return (ui8)((v << 6) | (v >> 3)); // new
+      }
+      ui8 encode_SPqcd(ui8 v) const
+      {
+        if (old_SPqcd) return (ui8)(v << reversible_SPqcd_shift); // old
+        else return (ui8)((v >> 6) | (v << 3)); // new
+      }
+   protected:
       ui16 Lqcd;
       ui8 Sqcd;
       const ui8 reversible_SPqcd_shift;
+      const bool old_SPqcd;
       union
       {
         ui8 u8_SPqcd[97];

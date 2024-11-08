@@ -371,34 +371,6 @@ namespace ojph {
         else
           for (ui32 i = repeat; i > 0; --i)
             *dst++ += (b + a * (*src1++ + *src2++)) >> e;
-
-        // int i = (int)repeat;
-        // if (synthesis)
-        //   for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
-        //   {
-        //     __m256i s1 = _mm256_load_si256((__m256i*)src1);
-        //     __m256i s2 = _mm256_load_si256((__m256i*)src2);
-        //     __m256i d = _mm256_load_si256((__m256i*)dst);
-        //     __m256i t = _mm256_add_epi64(s1, s2);
-        //     __m256i u = _mm256_mullo_epi64(va, t);
-        //     __m256i v = _mm256_add_epi64(vb, u);
-        //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-        //     d = _mm256_sub_epi64(d, w);
-        //     _mm256_store_si256((__m256i*)dst, d);
-        //   }
-        // else
-        //   for (; i > 0; i -= 4, dst += 4, src1 += 4, src2 += 4)
-        //   {
-        //     __m256i s1 = _mm256_load_si256((__m256i*)src1);
-        //     __m256i s2 = _mm256_load_si256((__m256i*)src2);
-        //     __m256i d = _mm256_load_si256((__m256i*)dst);
-        //     __m256i t = _mm256_add_epi64(s1, s2);
-        //     __m256i u = _mm256_mullo_epi64(va, t);
-        //     __m256i v = _mm256_add_epi64(vb, u);
-        //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-        //     d = _mm256_add_epi64(d, w);
-        //     _mm256_store_si256((__m256i*)dst, d);
-        //   }
       }
     }
 
@@ -433,7 +405,7 @@ namespace ojph {
     {
       if (width > 1)
       {
-        // combine both lsrc and hsrc into dst
+        // split src into ldst and hdst
         {
           float* dpl = even ? ldst->f32 : hdst->f32;
           float* dph = even ? hdst->f32 : ldst->f32;
@@ -601,7 +573,7 @@ namespace ojph {
     {
       if (width > 1)
       {
-        // combine both lsrc and hsrc into dst
+        // split src into ldst and hdst
         {
           double* dpl = (double*)(even ? ldst->p : hdst->p);
           double* dph = (double*)(even ? hdst->p : ldst->p);
@@ -726,34 +698,6 @@ namespace ojph {
             else
               for (ui32 i = h_width; i > 0; --i, sp++, dp++)
                 *dp += (b + a * (sp[-1] + sp[0])) >> e;
-
-            // int i = (int)h_width;
-            // if (even)
-            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
-            //   {
-            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
-            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
-            //     __m256i d = _mm256_load_si256((__m256i*)dp);
-            //     __m256i t = _mm256_add_epi64(s1, s2);
-            //     __m256i u = _mm256_mullo_epi64(va, t);
-            //     __m256i v = _mm256_add_epi64(vb, u);
-            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            //     d = _mm256_add_epi64(d, w);
-            //     _mm256_store_si256((__m256i*)dp, d);
-            //   }
-            // else
-            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
-            //   {
-            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
-            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
-            //     __m256i d = _mm256_load_si256((__m256i*)dp);
-            //     __m256i t = _mm256_add_epi64(s1, s2);
-            //     __m256i u = _mm256_mullo_epi64(va, t);
-            //     __m256i v = _mm256_add_epi64(vb, u);
-            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            //     d = _mm256_add_epi64(d, w);
-            //     _mm256_store_si256((__m256i*)dp, d);
-            //   }
           }
 
           // swap buffers
@@ -1082,34 +1026,6 @@ namespace ojph {
             else
               for (ui32 i = aug_width; i > 0; --i, sp++, dp++)
                 *dp -= (b + a * (sp[0] + sp[1])) >> e;
-
-            // int i = (int)aug_width;
-            // if (ev)
-            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
-            //   {
-            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
-            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp - 1));
-            //     __m256i d = _mm256_load_si256((__m256i*)dp);
-            //     __m256i t = _mm256_add_epi64(s1, s2);
-            //     __m256i u = _mm256_mullo_epi64(va, t);
-            //     __m256i v = _mm256_add_epi64(vb, u);
-            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            //     d = _mm256_sub_epi64(d, w);
-            //     _mm256_store_si256((__m256i*)dp, d);
-            //   }
-            // else
-            //   for (; i > 0; i -= 4, sp += 4, dp += 4)
-            //   {
-            //     __m256i s1 = _mm256_load_si256((__m256i*)sp);
-            //     __m256i s2 = _mm256_loadu_si256((__m256i*)(sp + 1));
-            //     __m256i d = _mm256_load_si256((__m256i*)dp);
-            //     __m256i t = _mm256_add_epi64(s1, s2);
-            //     __m256i u = _mm256_mullo_epi64(va, t);
-            //     __m256i v = _mm256_add_epi64(vb, u);
-            //     __m256i w = avx2_mm256_srai_epi64(v, e, ve);
-            //     d = _mm256_sub_epi64(d, w);
-            //     _mm256_store_si256((__m256i*)dp, d);
-            //   }
           }
 
           // swap buffers

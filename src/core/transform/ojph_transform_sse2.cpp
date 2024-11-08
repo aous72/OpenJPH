@@ -376,7 +376,7 @@ namespace ojph {
     {
       if (width > 1)
       {
-        // combine both lsrc and hsrc into dst
+        // split src into ldst and hdst
         {
           float* dpl = even ? ldst->f32 : hdst->f32;
           float* dph = even ? hdst->f32 : ldst->f32;
@@ -523,7 +523,7 @@ namespace ojph {
     {
       if (width > 1)
       {
-        // combine both lsrc and hsrc into dst
+        // split src into ldst and hdst
         {
           double* dpl = (double*)(even ? ldst->p : hdst->p);
           double* dph = (double*)(even ? hdst->p : ldst->p);

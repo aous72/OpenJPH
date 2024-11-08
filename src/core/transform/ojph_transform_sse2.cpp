@@ -65,57 +65,63 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    static inline 
-    void sse2_deinterleave64(double* dpl, double* dph, double* sp, 
-                             int width, bool even)
+    static inline
+    void sse2_deinterleave32(float* dpl, float* dph, float* sp, int width)
     {
-      if (even)
-        for (; width > 0; width -= 4, sp += 4, dpl += 2, dph += 2)
-        {
-          __m128d a = _mm_load_pd(sp);
-          __m128d b = _mm_load_pd(sp + 2);
-          __m128d c = _mm_shuffle_pd(a, b, 0);
-          __m128d d = _mm_shuffle_pd(a, b, 3);
-          _mm_store_pd(dpl, c);
-          _mm_store_pd(dph, d);
-        }
-      else
-        for (; width > 0; width -= 4, sp += 4, dpl += 2, dph += 2)
-        {
-          __m128d a = _mm_load_pd(sp);
-          __m128d b = _mm_load_pd(sp + 2);
-          __m128d c = _mm_shuffle_pd(a, b, 0);
-          __m128d d = _mm_shuffle_pd(a, b, 3);
-          _mm_store_pd(dpl, d);
-          _mm_store_pd(dph, c);
-        }
+      for (; width > 0; width -= 8, sp += 8, dpl += 4, dph += 4)
+      {
+        __m128 a = _mm_load_ps(sp);
+        __m128 b = _mm_load_ps(sp + 4);
+        __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));
+        __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));
+        _mm_store_ps(dpl, c);
+        _mm_store_ps(dph, d);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    void sse2_interleave32(float* dp, float* spl, float* sph, int width)                      \
+    {
+      for (; width > 0; width -= 8, dp += 8, spl += 4, sph += 4)
+      {
+        __m128 a = _mm_load_ps(spl);
+        __m128 b = _mm_load_ps(sph);
+        __m128 c = _mm_unpacklo_ps(a, b);
+        __m128 d = _mm_unpackhi_ps(a, b);
+        _mm_store_ps(dp, c);
+        _mm_store_ps(dp + 4, d);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline 
+    void sse2_deinterleave64(double* dpl, double* dph, double* sp, int width)
+    {
+      for (; width > 0; width -= 4, sp += 4, dpl += 2, dph += 2)
+      {
+        __m128d a = _mm_load_pd(sp);
+        __m128d b = _mm_load_pd(sp + 2);
+        __m128d c = _mm_shuffle_pd(a, b, 0);
+        __m128d d = _mm_shuffle_pd(a, b, 3);
+        _mm_store_pd(dpl, c);
+        _mm_store_pd(dph, d);
+      }
     }    
 
     //////////////////////////////////////////////////////////////////////////
     static inline 
-    void sse2_interleave64(double* dp, double* spl, double* sph,
-                           int width, bool even)
+    void sse2_interleave64(double* dp, double* spl, double* sph, int width)
     {
-      if (even)
-        for (; width > 0; width -= 4, dp += 4, spl += 2, sph += 2)
-        {
-          __m128d a = _mm_load_pd(spl);
-          __m128d b = _mm_load_pd(sph);
-          __m128d c = _mm_unpacklo_pd(a, b);
-          __m128d d = _mm_unpackhi_pd(a, b);
-          _mm_store_pd(dp, c);
-          _mm_store_pd(dp + 2, d);
-        }
-      else
-        for (; width > 0; width -= 4, dp += 4, spl += 2, sph += 2)
-        {
-          __m128d a = _mm_load_pd(spl);
-          __m128d b = _mm_load_pd(sph);
-          __m128d c = _mm_unpacklo_pd(b, a);
-          __m128d d = _mm_unpackhi_pd(b, a);
-          _mm_store_pd(dp, c);
-          _mm_store_pd(dp + 2, d);
-        }
+      for (; width > 0; width -= 4, dp += 4, spl += 2, sph += 2)
+      {
+        __m128d a = _mm_load_pd(spl);
+        __m128d b = _mm_load_pd(sph);
+        __m128d c = _mm_unpacklo_pd(a, b);
+        __m128d d = _mm_unpackhi_pd(a, b);
+        _mm_store_pd(dp, c);
+        _mm_store_pd(dp + 2, d);
+      }
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -360,7 +366,7 @@ namespace ojph {
                (aug == NULL || aug->flags & line_buf::LFT_64BIT));
         sse2_rev_vert_step64(s, sig, other, aug, repeat, synthesis);
       }
-    }    
+    }
 
     /////////////////////////////////////////////////////////////////////////
     static
@@ -372,11 +378,11 @@ namespace ojph {
       {
         // combine both lsrc and hsrc into dst
         {
-          float* dpl = ldst->f32;
-          float* dph = hdst->f32;
+          float* dpl = even ? ldst->f32 : hdst->f32;
+          float* dph = even ? hdst->f32 : ldst->f32;
           float* sp = src->f32;
           int w = (int)width;
-          SSE_DEINTERLEAVE32(dpl, dph, sp, w, even);
+          sse2_deinterleave32(dpl, dph, sp, w);
         }
 
         si32* hp = hdst->i32, * lp = ldst->i32;
@@ -519,11 +525,11 @@ namespace ojph {
       {
         // combine both lsrc and hsrc into dst
         {
-          double* dpl = (double*)ldst->p;
-          double* dph = (double*)hdst->p;
+          double* dpl = (double*)(even ? ldst->p : hdst->p);
+          double* dph = (double*)(even ? hdst->p : ldst->p);
           double* sp  = (double*)src->p;
           int w = (int)width;
-          sse2_deinterleave64(dpl, dph, sp, w, even);
+          sse2_deinterleave64(dpl, dph, sp, w);
         }
 
         si64* hp = hdst->i64, * lp = ldst->i64;
@@ -811,10 +817,10 @@ namespace ojph {
         // combine both lsrc and hsrc into dst
         {
           float* dp = dst->f32;
-          float* spl = lsrc->f32;
-          float* sph = hsrc->f32;
+          float* spl = even ? lsrc->f32 : hsrc->f32;
+          float* sph = even ? hsrc->f32 : lsrc->f32;
           int w = (int)width;
-          SSE_INTERLEAVE32(dp, spl, sph, w, even);
+          sse2_interleave32(dp, spl, sph, w);
         }
       }
       else {
@@ -958,10 +964,10 @@ namespace ojph {
         // combine both lsrc and hsrc into dst
         {
           double* dp  = (double*)dst->p;
-          double* spl = (double*)lsrc->p;
-          double* sph = (double*)hsrc->p;
+          double* spl = (double*)(even ? lsrc->p : hsrc->p);
+          double* sph = (double*)(even ? hsrc->p : lsrc->p);
           int w = (int)width;
-          sse2_interleave64(dp, spl, sph, w, even);
+          sse2_interleave64(dp, spl, sph, w);
         }
       }
       else {

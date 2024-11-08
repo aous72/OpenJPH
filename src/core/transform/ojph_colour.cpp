@@ -177,8 +177,9 @@ namespace ojph {
   #endif // !OJPH_DISABLE_SIMD
 
 #else // OJPH_ENABLE_WASM_SIMD
-      cnvrt_si32_to_si32_shftd = wasm_cnvrt_si32_to_si32_shftd;
-      cnvrt_si32_to_si32_nlt_type3 = wasm_cnvrt_si32_to_si32_nlt_type3;
+
+      rev_convert = wasm_rev_convert;
+      rev_convert_nlt_type3 = wasm_rev_convert_nlt_type3;
       cnvrt_si32_to_float_shftd = wasm_cnvrt_si32_to_float_shftd;
       cnvrt_si32_to_float = wasm_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = wasm_cnvrt_float_to_si32_shftd;
@@ -187,6 +188,7 @@ namespace ojph {
       rct_backward = wasm_rct_backward;
       ict_forward = wasm_ict_forward;
       ict_backward = wasm_ict_backward;
+
 #endif // !OJPH_ENABLE_WASM_SIMD
 
       colour_transform_functions_initialized = true;

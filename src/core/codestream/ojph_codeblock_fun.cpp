@@ -97,6 +97,8 @@ namespace ojph {
                              float delta_inv, ui32 count, ui64* max_val);
     void avx2_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui64* max_val);
+    void wasm_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max,
+                             float delta_inv, ui32 count, ui64* max_val);
 
     //////////////////////////////////////////////////////////////////////////
     void  gen_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
@@ -122,6 +124,8 @@ namespace ojph {
                                float delta, ui32 count);
     void avx2_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
+    void wasm_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
+                               float delta, ui32 count);                               
 
     void codeblock_fun::init(bool reversible) {
 
@@ -240,18 +244,31 @@ namespace ojph {
 #else // OJPH_ENABLE_WASM_SIMD
 
       // Accelerated functions for WASM SIMD.
-      decode_cb = ojph_decode_codeblock_wasm;
-      find_max_val = wasm_find_max_val;
+      decode_cb32 = ojph_decode_codeblock_wasm;
+      find_max_val32 = wasm_find_max_val32;
       mem_clear = wasm_mem_clear;
       if (reversible) {
-        tx_to_cb = wasm_rev_tx_to_cb;
-        tx_from_cb = wasm_rev_tx_from_cb;
+        tx_to_cb32 = wasm_rev_tx_to_cb32;
+        tx_from_cb32 = wasm_rev_tx_from_cb32;
       }
       else {
-        tx_to_cb = wasm_irv_tx_to_cb;
-        tx_from_cb = wasm_irv_tx_from_cb;
+        tx_to_cb32 = wasm_irv_tx_to_cb32;
+        tx_from_cb32 = wasm_irv_tx_from_cb32;
       }
-      encode_cb = ojph_encode_codeblock;
+      encode_cb32 = ojph_encode_codeblock32;
+
+      decode_cb64 = ojph_decode_codeblock64;
+      find_max_val64 = wasm_find_max_val64;
+      if (reversible) {
+        tx_to_cb64 = wasm_rev_tx_to_cb64;
+        tx_from_cb64 = wasm_rev_tx_from_cb64;
+      }
+      else
+      {
+        tx_to_cb64 = NULL;
+        tx_from_cb64 = NULL;
+      }
+      encode_cb64 = ojph_encode_codeblock64;
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 

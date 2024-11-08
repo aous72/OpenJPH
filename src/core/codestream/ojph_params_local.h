@@ -176,10 +176,16 @@ namespace ojph {
     public:
       param_siz()
       {
-        memset(this, 0, sizeof(param_siz));
+        Lsiz = Csiz = 0;        
+        Xsiz = Ysiz = XOsiz = YOsiz = XTsiz = YTsiz = XTOsiz = YTOsiz = 0;
+        skipped_resolutions = 0;
+        memset(store, 0, sizeof(store));
+        ws_kern_support_needed = dfs_support_needed = false;
+        cod = NULL;
+        dfs = NULL;
+        Rsiz = RSIZ_HT_FLAG;
         cptr = store;
         old_Csiz = 4;
-        Rsiz = RSIZ_HT_FLAG;
       }
 
       ~param_siz()
@@ -882,9 +888,10 @@ namespace ojph {
       };
 
     public: // member functions
-      param_dfs() { memset(this, 0, sizeof(param_dfs)); }
+      param_dfs() { init(); }
       ~param_dfs() { if (next) delete next; }
-      void init() { memset(this, 0, sizeof(param_dfs)); }
+      void init() 
+      { Ldfs = Sdfs = Ids = 0; memset(Ddfs, 0, sizeof(Ddfs)); next = NULL; }
       bool read(infile_base *file);
       bool exists() const { return Ldfs != 0; }
 
@@ -959,8 +966,17 @@ namespace ojph {
       bool read_coefficient(infile_base *file, float &K);
       bool read_coefficient(infile_base *file, si16 &K);
       void init(bool clear_all = true) { 
-        if (clear_all)
-          memset(this, 0, sizeof(param_atk));
+        if (clear_all) 
+        {
+          Latk = Satk = 0;
+          Katk = 0.0f;
+          Natk = 0;
+          d = NULL;
+          max_steps = 0;
+          memset(d_store, 0, sizeof(d_store));
+          next = NULL;
+          alloced_next = false;
+        }
         d = d_store; max_steps = sizeof(d_store) / sizeof(lifting_step);
       }
       void init_irv97();

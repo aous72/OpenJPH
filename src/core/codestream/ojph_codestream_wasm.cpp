@@ -35,6 +35,7 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include <climits>
 #include <cstddef> 
 #include <wasm_simd128.h>
 
@@ -44,19 +45,16 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-  #define REPEAT(a) a,a,a,a
-
-    //////////////////////////////////////////////////////////////////////////
     void wasm_mem_clear(void* addr, size_t count)
     {
       float* p = (float*)addr;
-      v128_t zero = wasm_i32x4_const(REPEAT(0));
+      v128_t zero = wasm_i32x4_splat(0);
       for (size_t i = 0; i < count; i += 16, p += 4)
         wasm_v128_store(p, zero);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 wasm_find_max_val(ui32* address)
+    ui32 wasm_find_max_val32(ui32* address)
     {
       v128_t x1, x0 = wasm_v128_load(address);
       x1 = wasm_i32x4_shuffle(x0, x0, 2, 3, 2, 3);   // x1 = x0[2,3,2,3]
@@ -68,16 +66,26 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max, 
-                           float delta_inv, ui32 count, ui32* max_val)
+    ui64 wasm_find_max_val64(ui64* address)
+    {
+      v128_t x1, x0 = wasm_v128_load(address);
+      x1 = wasm_i64x2_shuffle(x0, x0, 1, 1);   // x1 = x0[2,3,2,3]
+      x0 = wasm_v128_or(x0, x1);
+      ui64 t = (ui64)wasm_i64x2_extract_lane(x0, 0);
+      return t;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max, 
+                             float delta_inv, ui32 count, ui32* max_val)
     {
       ojph_unused(delta_inv);
 
       // convert to sign and magnitude and keep max_val      
       ui32 shift = 31 - K_max;
-      v128_t m0 = wasm_i32x4_const(REPEAT((int)0x80000000));
-      v128_t zero = wasm_i32x4_const(REPEAT(0));
-      v128_t one = wasm_i32x4_const(REPEAT(1));
+      v128_t m0 = wasm_i32x4_splat(INT_MIN);
+      v128_t zero = wasm_i32x4_splat(0);
+      v128_t one = wasm_i32x4_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
       v128_t *p = (v128_t*)sp;
       for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
@@ -97,16 +105,16 @@ namespace ojph {
     }
                            
     //////////////////////////////////////////////////////////////////////////
-    void wasm_irv_tx_to_cb(const void *sp, ui32 *dp, ui32 K_max,
-                           float delta_inv, ui32 count, ui32* max_val)
+    void wasm_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
+                             float delta_inv, ui32 count, ui32* max_val)
     {
       ojph_unused(K_max);
 
       //quantize and convert to sign and magnitude and keep max_val
 
       v128_t d = wasm_f32x4_splat(delta_inv);
-      v128_t zero = wasm_i32x4_const(REPEAT(0));
-      v128_t one = wasm_i32x4_const(REPEAT(1));
+      v128_t zero = wasm_i32x4_splat(0);
+      v128_t one = wasm_i32x4_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
       float *p = (float*)sp;
       for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
@@ -127,14 +135,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_rev_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max, 
-                             float delta, ui32 count)
+    void wasm_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
     {
       ojph_unused(delta);
       ui32 shift = 31 - K_max;
-      v128_t m1 = wasm_i32x4_const(REPEAT(0x7FFFFFFF));
-      v128_t zero = wasm_i32x4_const(REPEAT(0));
-      v128_t one = wasm_i32x4_const(REPEAT(1));
+      v128_t m1 = wasm_i32x4_splat(INT_MAX);
+      v128_t zero = wasm_i32x4_splat(0);
+      v128_t one = wasm_i32x4_splat(1);
       si32 *p = (si32*)dp;
       for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
       {
@@ -150,11 +158,11 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_irv_tx_from_cb(const ui32 *sp, void *dp, ui32 K_max, 
-                             float delta, ui32 count)
+    void wasm_irv_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
     {
       ojph_unused(K_max);
-      v128_t m1 = wasm_i32x4_const(REPEAT(0x7FFFFFFF));
+      v128_t m1 = wasm_i32x4_splat(INT_MAX);
       v128_t d = wasm_f32x4_splat(delta);
       float *p = (float*)dp;
       for (ui32 i = 0; i < count; i += 4, sp += 4, p += 4)
@@ -167,6 +175,58 @@ namespace ojph {
         valf = wasm_v128_or(valf, sign);
         wasm_v128_store(p, valf);
       }
-    }  
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max, 
+                             float delta_inv, ui32 count, ui64* max_val)
+    {
+      ojph_unused(delta_inv);
+
+      // convert to sign and magnitude and keep max_val      
+      ui32 shift = 63 - K_max;
+      v128_t m0 = wasm_i64x2_splat(LLONG_MIN);
+      v128_t zero = wasm_i64x2_splat(0);
+      v128_t one = wasm_i64x2_splat(1);
+      v128_t tmax = wasm_v128_load(max_val);
+      si64 *p = (si64*)sp;
+      for (ui32 i = 0; i < count; i += 2, p += 2, dp += 2)
+      {
+        v128_t v = wasm_v128_load((v128_t*)sp);
+        v128_t sign = wasm_i64x2_lt(v, zero);
+        v128_t val = wasm_v128_xor(v, sign); // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i64x2_add(val, ones);     // 2's complement
+        sign = wasm_v128_and(sign, m0);
+        val = wasm_i64x2_shl(val, shift);
+        tmax = wasm_v128_or(tmax, val);
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
+      }
+      wasm_v128_store(max_val, tmax);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max, 
+                               float delta, ui32 count)
+    {
+      ojph_unused(delta);
+      ui32 shift = 63 - K_max;
+      v128_t m1 = wasm_i64x2_splat(LLONG_MAX);
+      v128_t zero = wasm_i64x2_splat(0);
+      v128_t one = wasm_i64x2_splat(1);
+      si64 *p = (si64*)dp;
+      for (ui32 i = 0; i < count; i += 2, sp += 2, p += 2)
+      {
+          v128_t v = wasm_v128_load((v128_t*)sp);
+          v128_t val = wasm_v128_and(v, m1);
+          val = wasm_i64x2_shr(val, shift);
+          v128_t sign = wasm_i64x2_lt(v, zero);
+          val = wasm_v128_xor(val, sign); // negate 1's complement
+          v128_t ones = wasm_v128_and(sign, one);
+          val = wasm_i64x2_add(val, ones); // 2's complement
+          wasm_v128_store(p, val);
+      }
+    }
   }
 }

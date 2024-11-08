@@ -108,60 +108,6 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    // Supporting macros
-    //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    #define SSE_DEINTERLEAVE32(dpl, dph, sp, width, even)                    \
-    {                                                                        \
-      if (even)                                                              \
-        for (; width > 0; width -= 8, sp += 8, dpl += 4, dph += 4)           \
-        {                                                                    \
-          __m128 a = _mm_load_ps(sp);                                        \
-          __m128 b = _mm_load_ps(sp + 4);                                    \
-          __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));          \
-          __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));          \
-          _mm_store_ps(dpl, c);                                              \
-          _mm_store_ps(dph, d);                                              \
-        }                                                                    \
-      else                                                                   \
-        for (; width > 0; width -= 8, sp += 8, dpl += 4, dph += 4)           \
-        {                                                                    \
-          __m128 a = _mm_load_ps(sp);                                        \
-          __m128 b = _mm_load_ps(sp + 4);                                    \
-          __m128 c = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2, 0, 2, 0));          \
-          __m128 d = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3, 1, 3, 1));          \
-          _mm_store_ps(dpl, d);                                              \
-          _mm_store_ps(dph, c);                                              \
-        }                                                                    \
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    #define SSE_INTERLEAVE32(dp, spl, sph, width, even)                      \
-    {                                                                        \
-      if (even)                                                              \
-        for (; width > 0; width -= 8, dp += 8, spl += 4, sph += 4)           \
-        {                                                                    \
-          __m128 a = _mm_load_ps(spl);                                       \
-          __m128 b = _mm_load_ps(sph);                                       \
-          __m128 c = _mm_unpacklo_ps(a, b);                                  \
-          __m128 d = _mm_unpackhi_ps(a, b);                                  \
-          _mm_store_ps(dp, c);                                               \
-          _mm_store_ps(dp + 4, d);                                           \
-        }                                                                    \
-      else                                                                   \
-        for (; width > 0; width -= 8, dp += 8, spl += 4, sph += 4)           \
-        {                                                                    \
-          __m128 a = _mm_load_ps(spl);                                       \
-          __m128 b = _mm_load_ps(sph);                                       \
-          __m128 c = _mm_unpacklo_ps(b, a);                                  \
-          __m128 d = _mm_unpackhi_ps(b, a);                                  \
-          _mm_store_ps(dp, c);                                               \
-          _mm_store_ps(dp + 4, d);                                           \
-        }                                                                    \
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     // Irreversible functions
     //////////////////////////////////////////////////////////////////////////
 

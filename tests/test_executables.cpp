@@ -107,6 +107,19 @@ int execute(const std::string& cmd, std::string& result)
 #define REF_FILE_DIR "./jp2k_test_codestreams/openjph/references/"
 #define MSE_PAE_PATH  "./mse_pae"
 #define COMPARE_FILES_PATH  "./compare_files"
+
+// This is a comment to me, to help with emscripten testing.
+// This is written after the completion of the tests.
+// 1. Compile for the target platform (Linux), selecting from the following
+//    code the version that suits you; in particular it should be the one
+//    the uses node.  Ideally create two versions of test_executables, one
+//    for WASM SIMD, and for WASM without SIMD -- use linux cp command to
+//    create test_executables_simd and test_executables_no_simd
+// 2. Compile again, without deleting what compiled; this time compile using
+//    emscripten, targeting WASM.  The compilation is very finicky, do
+//    'make clean && make' after every change in code.
+// 3. cd to tests, and run test_executables_simd or test_executables_no_simd.
+
 #define EXPAND_EXECUTABLE "./ojph_expand"
 #define COMPRESS_EXECUTABLE "./ojph_compress"
 //#define EXPAND_EXECUTABLE "20.18.0_64bit/bin/node ./ojph_expand.js"

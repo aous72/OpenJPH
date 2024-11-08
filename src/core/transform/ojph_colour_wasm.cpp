@@ -83,7 +83,7 @@ namespace ojph {
             
             t = wasm_i64x2_extend_high_i32x4(s);
             t = wasm_i64x2_add(t, sh);
-            wasm_v128_store(dp + 1, t);
+            wasm_v128_store(dp + 2, t);
           }            
         }
       }
@@ -99,7 +99,7 @@ namespace ojph {
           v128_t s0, s1;
           s0 = wasm_v128_load(sp);
           s0 = wasm_i64x2_add(s0, sh);
-          s1 = wasm_v128_load(sp + 1);
+          s1 = wasm_v128_load(sp + 2);
           s1 = wasm_i64x2_add(s1, sh);
           s0 = wasm_i32x4_shuffle(s0, s1, 0, 2, 4 + 0, 4 + 2);
           wasm_v128_store(dp, s0);
@@ -160,7 +160,7 @@ namespace ojph {
             u = wasm_v128_andnot(c, u);        // keep only +ve or 0
             u = wasm_v128_or(u, v_m_sh);       // combine
 
-            wasm_v128_store(dp + 1, u);
+            wasm_v128_store(dp + 2, u);
           }
         }
       }
@@ -184,7 +184,7 @@ namespace ojph {
           p = wasm_v128_andnot(m, s);   // +ve
           t0 = wasm_v128_or(n, p);
 
-          s = wasm_v128_load(sp + 1);
+          s = wasm_v128_load(sp + 2);
           m = wasm_i64x2_lt(s, zero);   // 64b -1 for -ve value
           tm = wasm_i64x2_sub(sh, s);   // - shift - value
           n = wasm_v128_and(m, tm);     // -ve

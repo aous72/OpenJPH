@@ -87,8 +87,8 @@ namespace ojph {
       v128_t zero = wasm_i32x4_splat(0);
       v128_t one = wasm_i32x4_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
-      v128_t *p = (v128_t*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
+      si32 *p = (si32*)sp;
+      for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
       {
         v128_t v = wasm_v128_load(p);
         v128_t sign = wasm_i32x4_lt(v, zero);
@@ -192,7 +192,7 @@ namespace ojph {
       si64 *p = (si64*)sp;
       for (ui32 i = 0; i < count; i += 2, p += 2, dp += 2)
       {
-        v128_t v = wasm_v128_load((v128_t*)sp);
+        v128_t v = wasm_v128_load(p);
         v128_t sign = wasm_i64x2_lt(v, zero);
         v128_t val = wasm_v128_xor(v, sign); // negate 1's complement
         v128_t ones = wasm_v128_and(sign, one);
@@ -204,7 +204,7 @@ namespace ojph {
         wasm_v128_store(dp, val);
       }
       wasm_v128_store(max_val, tmax);
-    }
+    }   
 
     //////////////////////////////////////////////////////////////////////////
     void wasm_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max, 

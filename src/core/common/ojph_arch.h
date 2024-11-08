@@ -286,9 +286,15 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // constants
   ////////////////////////////////////////////////////////////////////////////
-  const ui32 byte_alignment = 64; // 64 bytes == 512 bits
-  const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
-  const ui32 object_alignment = 8;
+  #ifndef OJPH_EMSCRIPTEN
+    const ui32 byte_alignment = 64; // 64 bytes == 512 bits
+    const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+    const ui32 object_alignment = 8;
+  #else
+    const ui32 byte_alignment = 16; // 16 bytes == 128 bits
+    const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+    const ui32 object_alignment = 8;
+    #endif
 
   ////////////////////////////////////////////////////////////////////////////
   // templates for alignment

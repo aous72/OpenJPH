@@ -108,7 +108,7 @@ namespace ojph {
         v128_t a = wasm_v128_load(spl);
         v128_t b = wasm_v128_load(sph);
         v128_t c = wasm_i64x2_shuffle(a, b, 0, 2 + 0);
-        v128_t d = wasm_i64x2_shuffle(a, b, 2, 2 + 2);
+        v128_t d = wasm_i64x2_shuffle(a, b, 1, 2 + 1);
         wasm_v128_store(dp, c);
         wasm_v128_store(dp + 2, d);
       }

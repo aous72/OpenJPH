@@ -109,6 +109,12 @@ int execute(const std::string& cmd, std::string& result)
 #define COMPARE_FILES_PATH  "./compare_files"
 #define EXPAND_EXECUTABLE "./ojph_expand"
 #define COMPRESS_EXECUTABLE "./ojph_compress"
+//#define EXPAND_EXECUTABLE "20.18.0_64bit/bin/node ./ojph_expand.js"
+//#define COMPRESS_EXECUTABLE "20.18.0_64bit/bin/node ./ojph_compress.js"
+//#define EXPAND_EXECUTABLE "node-v18.7.0-linux-x64/bin/node ./ojph_expand_simd.js"
+//#define COMPRESS_EXECUTABLE "node-v18.7.0-linux-x64/bin/node ./ojph_compress_simd.js"
+//#define EXPAND_EXECUTABLE "./../../../sde/sde64 -skx -- ./ojph_expand"
+//#define COMPRESS_EXECUTABLE "./../../../sde/sde64 -skx -- ./ojph_compress"
 #endif
 #define TOL_DOUBLE 0.01
 #define TOL_INTEGER 1

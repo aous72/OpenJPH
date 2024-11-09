@@ -1618,11 +1618,11 @@ namespace ojph {
     this->width = width;
 
     if (is_signed) { 
-      upper_val = (1 << (bit_depth - 1));
-      lower_val = -(1 << (bit_depth - 1));
+      upper_val = (1LL << (bit_depth - 1));
+      lower_val = -(1LL << (bit_depth - 1));
     } else {
-      upper_val = 1 << bit_depth;
-      lower_val = 0;
+      upper_val = 1LL << bit_depth;
+      lower_val = 0LL;
     }
 
     bytes_per_sample = (bit_depth + 7) >> 3;
@@ -1637,63 +1637,127 @@ namespace ojph {
     assert(fh);
     assert(comp_num == 0);
 
-    if (bytes_per_sample > 3)
+    if (is_signed) 
     {
-      const si32* sp = line->i32;
-      ui32* dp = (ui32*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      if (bytes_per_sample > 3)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui32)val;
+        const si32* sp = line->i32;
+        si32* dp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si32)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
+      else if (bytes_per_sample > 2)
+      {
+        const si32* sp = line->i32;
+        si32* dp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp = (si32)val;
+          // this only works for little endian architecture
+          dp = (si32*)((ui8*)dp + 3);
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000152, "unable to write to file %s", fname);
+      }
+      else if (bytes_per_sample > 1)
+      {
+        const si32* sp = line->i32;
+        si16* dp = (si16*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si16)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
+      }
+      else
+      {
+        const si32* sp = line->i32;
+        si8* dp = (si8*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si8)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000154, "unable to write to file %s", fname);
+      }
     }
-    else if (bytes_per_sample > 2)
+    else 
     {
-      const si32* sp = line->i32;
-      ui32* dp = (ui32*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      if (bytes_per_sample > 3)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp = (ui32)val;
-        // this only works for little endian architecture
-        dp = (ui32*)((ui8*)dp + 3);
+        const ui32* sp = (ui32*)line->i32;
+        ui32* dp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui32)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000155, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000152, "unable to write to file %s", fname);
-    }
-    else if (bytes_per_sample > 1)
-    {
-      const si32* sp = line->i32;
-      ui16* dp = (ui16*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      else if (bytes_per_sample > 2)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui16)val;
+        const ui32* sp = (ui32*)line->i32;
+        ui32* dp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp = (ui32)val;
+          // this only works for little endian architecture
+          dp = (ui32*)((ui8*)dp + 3);
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000156, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
-    }
-    else
-    {
-      const si32* sp = line->i32;
-      ui8* dp = (ui8*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      else if (bytes_per_sample > 1)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui8)val;
+        const ui32* sp = (ui32*)line->i32;
+        ui16* dp = (ui16*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui16)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000157, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000154, "unable to write to file %s", fname);
+      else
+      {
+        const ui32* sp = (ui32*)line->i32;
+        ui8* dp = (ui8*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui8)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000158, "unable to write to file %s", fname);
+      }
     }
 
     return width;

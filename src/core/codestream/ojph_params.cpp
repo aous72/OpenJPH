@@ -786,7 +786,10 @@ namespace ojph {
       ui32 bit_depth = 32; 
       if (reversible) {
         bit_depth = siz->get_bit_depth(comp_num);
-        bit_depth += employing_color_transform + get_num_decompositions();
+        bit_depth += comp_num < 3 ? employing_color_transform : 0;
+        // 3 or 4 is how many extra bits are needed for the HH band at the 
+        // bottom most level of decomposition. 
+        bit_depth += get_num_decompositions() > 5 ? 4 : 3; 
       }
 
       return bit_depth;
@@ -945,23 +948,46 @@ namespace ojph {
     void param_qcd::set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
-      int guard_bits = 1;
-      Sqcd = (ui8)(guard_bits << 5); //one guard bit, and no quantization
       ui32 B = bit_depth;
       B += is_employing_color_transform ? 1 : 0; //1 bit for RCT
       int s = 0;
       double bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       ui32 X = (ui32) ceil(log(bibo_l * bibo_l) / M_LN2);
-      u8_SPqcd[s++] = encode_SPqcd((ui8)(B + X));
+      u8_SPqcd[s++] = (ui8)(B + X);
+      ui32 max_B_plus_X = (ui32)(B + X);
       for (ui32 d = num_decomps; d > 0; --d)
       {
         double bibo_l = bibo_gains::get_bibo_gain_l(d, true);
         double bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
         X = (ui32) ceil(log(bibo_h * bibo_l) / M_LN2);
-        u8_SPqcd[s++] = encode_SPqcd((ui8)(B + X));
-        u8_SPqcd[s++] = encode_SPqcd((ui8)(B + X));
+        u8_SPqcd[s++] = (ui8)(B + X);
+        max_B_plus_X = ojph_max(max_B_plus_X, B + X);
+        u8_SPqcd[s++] = (ui8)(B + X);
+        max_B_plus_X = ojph_max(max_B_plus_X, B + X);
         X = (ui32) ceil(log(bibo_h * bibo_h) / M_LN2);
-        u8_SPqcd[s++] = encode_SPqcd((ui8)(B + X));
+        u8_SPqcd[s++] = (ui8)(B + X);
+        max_B_plus_X = ojph_max(max_B_plus_X, B + X);
+      }
+
+      if (max_B_plus_X > 38)
+        OJPH_ERROR(0x00050151, "The specified combination of bit_depth, "
+         "colour transform, and type of wavelet transform requires more than "
+         "38 bits; it requires %d bits. This is beyond what is allowed in "
+         "the JPEG2000 image coding format.", max_B_plus_X);
+
+      int guard_bits = ojph_max(1, (si32)max_B_plus_X - 31);
+      Sqcd = (ui8)(guard_bits << 5);
+      s = 0;
+      u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+      s++;
+      for (ui32 d = num_decomps; d > 0; --d)
+      {
+        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        s++;
+        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        s++;
+        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        s++;
       }
     }
 

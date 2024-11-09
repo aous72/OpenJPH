@@ -218,21 +218,18 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    bool initialize_tables_avx2() {
-      if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
-        memset(vlc_tbl0, 0, 2048 * sizeof(ui32));
-        memset(vlc_tbl1, 0, 2048 * sizeof(ui32));
-
-        bool result;
-        result = vlc_init_tables();
-        result = result && uvlc_init_tables();
-        return result;
-      }
-      return false;
-    }
+    static bool tables_initialized = false;
 
     /////////////////////////////////////////////////////////////////////////
-    static bool tables_initialized = initialize_tables_avx2();
+    bool initialize_block_encoder_tables_avx2() {
+      if (!tables_initialized) {
+        memset(vlc_tbl0, 0, 2048 * sizeof(ui32));
+        memset(vlc_tbl1, 0, 2048 * sizeof(ui32));
+        tables_initialized = vlc_init_tables();
+        tables_initialized = tables_initialized && uvlc_init_tables();
+      }
+      return tables_initialized;
+    }
 
     /////////////////////////////////////////////////////////////////////////
     //

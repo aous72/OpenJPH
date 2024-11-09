@@ -217,7 +217,7 @@ namespace ojph {
           }
           encode_cb32 = ojph_encode_codeblock_avx2;
           bool result = initialize_block_encoder_tables_avx2();
-          assert(result);
+          assert(result); ojph_unused(result);
 
           find_max_val64 = avx2_find_max_val64;
           if (reversible) {
@@ -236,7 +236,7 @@ namespace ojph {
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512) {
           encode_cb32 = ojph_encode_codeblock_avx512;
           bool result = initialize_block_encoder_tables_avx512();
-          assert(result);
+          assert(result); ojph_unused(result);
         }
       #endif // !OJPH_DISABLE_AVX512
 

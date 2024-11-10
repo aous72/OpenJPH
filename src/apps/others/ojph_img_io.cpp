@@ -1618,11 +1618,11 @@ namespace ojph {
     this->width = width;
 
     if (is_signed) { 
-      upper_val = (1LL << (bit_depth - 1));
-      lower_val = -(1LL << (bit_depth - 1));
+      upper_val = ((si64)1 << (bit_depth - 1));
+      lower_val = -((si64)1 << (bit_depth - 1));
     } else {
-      upper_val = 1LL << bit_depth;
-      lower_val = 0LL;
+      upper_val = (si64)1 << bit_depth;
+      lower_val = (si64)0;
     }
 
     bytes_per_sample = (bit_depth + 7) >> 3;

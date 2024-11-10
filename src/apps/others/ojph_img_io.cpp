@@ -1070,7 +1070,7 @@ namespace ojph {
       OJPH_ERROR(0x030000B3, "unable to open file %s for writing", filename);
     }
 
-    buffer_size = (size_t)width * num_components * (size_t)bytes_per_sample;
+    buffer_size = width * (size_t)num_components * (size_t)bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
     fname = filename;
     cur_line = 0;
@@ -1626,7 +1626,7 @@ namespace ojph {
     }
 
     bytes_per_sample = (bit_depth + 7) >> 3;
-    buffer_size = (size_t)width * bytes_per_sample;
+    buffer_size = width * bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
   }
 

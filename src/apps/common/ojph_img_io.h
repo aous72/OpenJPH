@@ -683,7 +683,7 @@ namespace ojph {
     ui32 bit_depth_of_data[4]; 
     ui32 bytes_per_sample;
     ui8* buffer;
-    ui32 buffer_size;
+    size_t buffer_size;
     ui32 cur_line, samples_per_line;
   };
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */

@@ -167,6 +167,32 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+  static inline ui32 population_count64(ui64 val)
+  {
+  #if defined(OJPH_COMPILER_MSVC)  \
+    && (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
+    return (ui32)__popcnt64(val);
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (ui32)__builtin_popcountll(val);
+  #else
+    const ui64 k1 = 0x5555555555555555ull;
+    const ui64 k2 = 0x3333333333333333ull;
+    const ui64 k4 = 0x0F0F0F0F0F0F0F0Full;
+    const ui64 kf = 0x0101010101010101ull;
+
+    // put count of each 2 bits into those 2 bits
+    val =  val       - ((val >> 1)  & k1); 
+    // put count of each 4 bits into those 4 bits
+    val = (val & k2) + ((val >> 2)  & k2);
+    // put count of each 8 bits into those 8 bits
+    val = (val       +  (val >> 4)) & k4 ; 
+    // returns 8 most significant bits of x + (x<<8) + (x<<16) + (x<<24) + ...
+    val = (val * kf) >> 56; 
+    return (ui32) val;
+  #endif
+  }  
+
+  /////////////////////////////////////////////////////////////////////////////
 #ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanReverse)
 #endif
@@ -187,6 +213,29 @@ namespace ojph {
     return 32 - population_count(val);
   #endif
   }
+
+  /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
+  #pragma intrinsic(_BitScanReverse64)
+#endif
+  static inline ui32 count_leading_zeros(ui64 val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    unsigned long result = 0;
+    _BitScanReverse64(&result, val);
+    return 63 ^ (ui32)result;
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (ui32)__builtin_clzll(val);
+  #else
+    val |= (val >> 1);
+    val |= (val >> 2);
+    val |= (val >> 4);
+    val |= (val >> 8);
+    val |= (val >> 16);
+    val |= (val >> 32);
+    return 64 - population_count64(val);
+  #endif
+  }  
 
   /////////////////////////////////////////////////////////////////////////////
 #ifdef OJPH_COMPILER_MSVC
@@ -237,9 +286,15 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // constants
   ////////////////////////////////////////////////////////////////////////////
-  const ui32 byte_alignment = 64; // 64 bytes == 512 bits
-  const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
-  const ui32 object_alignment = 8;
+  #ifndef OJPH_EMSCRIPTEN
+    const ui32 byte_alignment = 64; // 64 bytes == 512 bits
+    const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+    const ui32 object_alignment = 8;
+  #else
+    const ui32 byte_alignment = 16; // 16 bytes == 128 bits
+    const ui32 log_byte_alignment = 31 - count_leading_zeros(byte_alignment);
+    const ui32 object_alignment = 8;
+    #endif
 
   ////////////////////////////////////////////////////////////////////////////
   // templates for alignment
@@ -247,17 +302,17 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   // finds the size such that it is a multiple of byte_alignment
-  template <typename T, int N>
+  template <typename T, ui32 N>
   size_t calc_aligned_size(size_t size) {
     size = size * sizeof(T) + N - 1;
     size &= ~((1ULL << (31 - count_leading_zeros(N))) - 1);
-    size >>= (31 - count_leading_zeros(sizeof(T)));
+    size >>= (63 - count_leading_zeros((ui64)sizeof(T)));
     return size;
   }
 
   ////////////////////////////////////////////////////////////////////////////
   // moves the pointer to first address that is a multiple of byte_alignment
-  template <typename T, int N>
+  template <typename T, ui32 N>
   inline T *align_ptr(T *ptr) {
     intptr_t p = reinterpret_cast<intptr_t>(ptr);
     p += N - 1;

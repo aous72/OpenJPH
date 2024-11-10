@@ -221,7 +221,9 @@ namespace ojph {
               {
                 int num_zeros = *mmsb_tag.get(x>>levm1, y>>levm1, levm1);
                 num_zeros -= *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev);
-                bb_put_bits(&bb, 1, num_zeros + 1,
+                bb_put_zeros(&bb, num_zeros,
+                  elastic, cur_coded_list, ph_bytes);
+                bb_put_bits(&bb, 1, 1,
                   elastic, cur_coded_list, ph_bytes);
                 *mmsb_tag_flags.get(x>>levm1, y>>levm1, levm1) = 1;
               }

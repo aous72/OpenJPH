@@ -199,6 +199,9 @@ namespace ojph {
         allocator->pre_alloc_obj<precinct>((size_t)num_precincts.area());
       }
 
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+
       //allocate lines
       if (skipped_res_for_recon == false)
       {
@@ -207,10 +210,19 @@ namespace ojph {
         allocator->pre_alloc_obj<lifting_buf>(num_steps + 2);
 
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_steps; ++i)
+        if (precision <= 32) {
+          for (ui32 i = 0; i < num_steps; ++i)
+            allocator->pre_alloc_data<si32>(width, 1);
           allocator->pre_alloc_data<si32>(width, 1);
-        allocator->pre_alloc_data<si32>(width, 1);
-        allocator->pre_alloc_data<si32>(width, 1);
+          allocator->pre_alloc_data<si32>(width, 1);
+        }
+        else 
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            allocator->pre_alloc_data<si64>(width, 1);
+          allocator->pre_alloc_data<si64>(width, 1);
+          allocator->pre_alloc_data<si64>(width, 1);
+        }
       }
     }
 
@@ -436,6 +448,9 @@ namespace ojph {
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
 
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+
       //allocate lines
       if (skipped_res_for_recon == false)
       {
@@ -460,11 +475,22 @@ namespace ojph {
 
         // initiate storage of line_buf
         ui32 width = res_rect.siz.w + 1;
-        for (ui32 i = 0; i < num_steps; ++i)
-          ssp[i].line->wrap(
-            allocator->post_alloc_data<si32>(width, 1), width, 1);
-        sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
-        aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        if (precision <= 32)
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            ssp[i].line->wrap(
+              allocator->post_alloc_data<si32>(width, 1), width, 1);
+          sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+          aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        }
+        else
+        {
+          for (ui32 i = 0; i < num_steps; ++i)
+            ssp[i].line->wrap(
+              allocator->post_alloc_data<si64>(width, 1), width, 1);
+          sig->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+          aug->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+        }
 
         cur_line = 0;
         rows_to_produce = res_rect.siz.h;
@@ -682,8 +708,9 @@ namespace ojph {
                     rev_horz_syn(atk, aug->line, child_res->pull_line(), 
                       bands[1].pull_line(), width, horz_even);
                   else
-                    memcpy(aug->line->i32, child_res->pull_line()->i32,
-                      width * sizeof(si32));
+                    memcpy(aug->line->p, child_res->pull_line()->p,
+                      (size_t)width 
+                      * (aug->line->flags & line_buf::LFT_SIZE_MASK));
                   aug->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -694,8 +721,9 @@ namespace ojph {
                     rev_horz_syn(atk, sig->line, bands[2].pull_line(), 
                       bands[3].pull_line(), width, horz_even);
                   else
-                    memcpy(sig->line->i32, bands[2].pull_line()->i32,
-                      width * sizeof(si32));
+                    memcpy(sig->line->p, bands[2].pull_line()->p,
+                      (size_t)width 
+                      * (sig->line->flags & line_buf::LFT_SIZE_MASK));
                   sig->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -733,8 +761,9 @@ namespace ojph {
                 rev_horz_syn(atk, aug->line, child_res->pull_line(),
                   bands[1].pull_line(), width, horz_even);
               else
-                memcpy(aug->line->i32, child_res->pull_line()->i32,
-                  width * sizeof(si32));
+                memcpy(aug->line->p, child_res->pull_line()->p,
+                  (size_t)width 
+                  * (aug->line->flags & line_buf::LFT_SIZE_MASK));
             }
             else
             {
@@ -742,11 +771,22 @@ namespace ojph {
                 rev_horz_syn(atk, aug->line, bands[2].pull_line(),
                   bands[3].pull_line(), width, horz_even);
               else
-                memcpy(aug->line->i32, bands[2].pull_line()->i32,
-                  width * sizeof(si32));
-              si32* sp = aug->line->i32;
-              for (ui32 i = width; i > 0; --i)
-                *sp++ >>= 1;
+                memcpy(aug->line->p, bands[2].pull_line()->p,
+                  (size_t)width 
+                  * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+              if (aug->line->flags & line_buf::LFT_32BIT)
+              {
+                si32* sp = aug->line->i32;                
+                for (ui32 i = width; i > 0; --i)
+                  *sp++ >>= 1;
+              }
+              else
+              {
+                assert(aug->line->flags & line_buf::LFT_64BIT);
+                si64* sp = aug->line->i64;
+                for (ui32 i = width; i > 0; --i)
+                  *sp++ >>= 1;
+              }
             }
             return aug->line;
           }
@@ -854,8 +894,8 @@ namespace ojph {
             rev_horz_syn(atk, aug->line, child_res->pull_line(),
               bands[1].pull_line(), width, horz_even);
           else
-            memcpy(aug->line->i32, child_res->pull_line()->i32,
-              width * sizeof(si32));
+            memcpy(aug->line->p, child_res->pull_line()->p,
+              (size_t)width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
           return aug->line;
         }
         else

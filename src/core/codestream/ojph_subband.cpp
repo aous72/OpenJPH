@@ -91,13 +91,18 @@ namespace ojph {
       allocator->pre_alloc_obj<coded_cb_header>((size_t)num_blocks.area());
 
       for (ui32 i = 0; i < num_blocks.w; ++i)
-        codeblock::pre_alloc(codestream, nominal);
+        codeblock::pre_alloc(codestream, comp_num, nominal);
 
       //allocate lines
       allocator->pre_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      allocator->pre_alloc_data<si32>(width, 1);
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+      if (precision <= 32)      
+        allocator->pre_alloc_data<si32>(width, 1);
+      else
+        allocator->pre_alloc_data<si64>(width, 1);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -192,7 +197,12 @@ namespace ojph {
       lines = allocator->post_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      lines->wrap(allocator->post_alloc_data<si32>(width,1),width,1);
+      const param_siz* szp = codestream->get_siz();
+      ui32 precision = cdp->propose_implementation_precision(szp);
+      if (precision <= 32)      
+        lines->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+      else
+        lines->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -256,10 +266,11 @@ namespace ojph {
       if (empty)
         return;
 
-      assert(l->pre_size == lines[0].pre_size && l->size == lines[0].size);
-      si32* t = lines[0].i32;
-      lines[0].i32 = l->i32;
-      l->i32 = t;
+      assert(l->pre_size == lines[0].pre_size && l->size == lines[0].size &&
+             l->flags == lines[0].flags);
+      void* p = lines[0].p;
+      lines[0].p = l->p;
+      l->p = p;
     }
 
     //////////////////////////////////////////////////////////////////////////

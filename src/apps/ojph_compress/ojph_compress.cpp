@@ -592,20 +592,25 @@ int main(int argc, char * argv[]) {
     ".pfm files receive special treatment. Currently, lossy compression\n"
     "with these files is not supported, only lossless. When these files are\n"
     "used, the NLT segment marker is automatically inserted into the\n"
-    "codestream. For these files the following arguments can be useful\n"
-    " -signed    a comma - separated list of true or false parameters, one\n"
+    "codestream when needed, as explained shortly. The following arguments\n"
+    "can be useful for this file type.\n"
+    " -signed    a comma-separated list of true or false parameters, one\n"
     "            for each component; for example: true,false,false.\n"
-    "            The sign only affects how values are treated; for negative\n"
-    "            values the standard requires a special non-linear\n"
-    "            transformation.  When signed is false, no transformation\n"
-    "            is employed, as we assume all values are 0 or positive.\n"
-    "            When signed is true, the aforementioned transformation is\n"
-    "            employed on negative values only.\n"
+    "            If you are sure that all sample values are positive or 0,\n"
+    "            set the corresponding entry to false; otherwise set it to\n"
+    "            true.\n"
+    "            When a component entry is set to true, an NLT segment\n"
+    "            marker segment is inserted into the codestream.\n"
+    "            The NLT segment specifies a non-linear transform that\n"
+    "            changes only negative values, producing better coding\n"
+    "            efficiency.\n"
+    "            The NLT segment marker might be less supported in other\n"
+    "            encoders.\n"
     " -bit_depth a comma-separated list of bit depth values, one per \n"
     "            component; for example: 12,10,10.\n"
     "            Floating value numbers are treated as integers, and they\n"
     "            are shifted to the right, keeping only the specified\n"
-    "            number of bits. Note that a bit depth of 28 upwards is not\n"
+    "            number of bits. Up to 32 bits (which is the default) are\n"
     "            supported.\n"
 
     "\n";
@@ -768,10 +773,6 @@ int main(int argc, char * argv[]) {
         assert(num_comps == 1 || num_comps == 3);
         siz.set_num_components(num_comps);
 
-        if (bit_depth[0] == 0)
-          OJPH_ERROR(0x01000091,
-            "-bit_depth must be specified (this is temporary only).\n");
-
         if (bit_depth[0] != 0)             // one was set
           if (num_bit_depths < num_comps)  // but if not enough, repeat
             for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)
@@ -840,11 +841,8 @@ int main(int argc, char * argv[]) {
               nlt.set_type3_transformation(c, true);
         }
         else
-          OJPH_ERROR(0x01000093, "The support for pfm image is not "
-            "complete; I need to figure how to modify the interface "
-            "to better support the exchange of floating point data. "
-            "Feeding float point data is not supported yet, unless it "
-            "is for lossless compression.");
+          OJPH_ERROR(0x01000093, "We currently support lossless only for "
+            "pfm images; this may change in the future.");
 
         codestream.set_planar(false);
         if (profile_string[0] != '\0')

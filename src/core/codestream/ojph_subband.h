@@ -45,7 +45,7 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  struct line_buf;
+  class line_buf;
   class mem_elastic_allocator;
   class codestream;
 
@@ -94,6 +94,8 @@ namespace ojph {
       bool exists() { return !empty; }
 
       line_buf* pull_line();
+      resolution* get_parent() { return parent; }
+      const resolution* get_parent() const { return parent; }
 
     private:
       bool empty;                  // true if the subband has no pixels or

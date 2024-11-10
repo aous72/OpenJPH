@@ -54,7 +54,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // defined elsewhere
   class mem_fixed_allocator;
-  struct line_buf;
+  class line_buf;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -760,7 +760,7 @@ namespace ojph {
     const char* fname;
     bool is_signed;
     ui32 bit_depth, bytes_per_sample;
-    si32 lower_val, upper_val;
+    si64 lower_val, upper_val;
     ui32 width;
     ui8* buffer;
     ui32 buffer_size;

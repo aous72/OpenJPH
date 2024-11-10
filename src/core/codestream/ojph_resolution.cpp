@@ -709,7 +709,8 @@ namespace ojph {
                       bands[1].pull_line(), width, horz_even);
                   else
                     memcpy(aug->line->p, child_res->pull_line()->p,
-                      width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+                      (size_t)width 
+                      * (aug->line->flags & line_buf::LFT_SIZE_MASK));
                   aug->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -721,7 +722,8 @@ namespace ojph {
                       bands[3].pull_line(), width, horz_even);
                   else
                     memcpy(sig->line->p, bands[2].pull_line()->p,
-                      width * (sig->line->flags & line_buf::LFT_SIZE_MASK));
+                      (size_t)width 
+                      * (sig->line->flags & line_buf::LFT_SIZE_MASK));
                   sig->active = true;
                   vert_even = !vert_even;
                   ++cur_line;
@@ -760,7 +762,8 @@ namespace ojph {
                   bands[1].pull_line(), width, horz_even);
               else
                 memcpy(aug->line->p, child_res->pull_line()->p,
-                  width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+                  (size_t)width 
+                  * (aug->line->flags & line_buf::LFT_SIZE_MASK));
             }
             else
             {
@@ -769,7 +772,8 @@ namespace ojph {
                   bands[3].pull_line(), width, horz_even);
               else
                 memcpy(aug->line->p, bands[2].pull_line()->p,
-                  width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+                  (size_t)width 
+                  * (aug->line->flags & line_buf::LFT_SIZE_MASK));
               if (aug->line->flags & line_buf::LFT_32BIT)
               {
                 si32* sp = aug->line->i32;                
@@ -891,7 +895,7 @@ namespace ojph {
               bands[1].pull_line(), width, horz_even);
           else
             memcpy(aug->line->p, child_res->pull_line()->p,
-              width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
+              (size_t)width * (aug->line->flags & line_buf::LFT_SIZE_MASK));
           return aug->line;
         }
         else

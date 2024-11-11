@@ -2111,19 +2111,29 @@ namespace ojph {
           const char* name = i.name();
           fprintf(stderr, "channel %d name = %s\n", channel_index, name);
 
+          if (channel_index >= MAXIMUM_COMPONENTS_EXR_IN)
+          {
+            fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel_index = %d, this software currently supports %d channels\n",
+              __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_COMPONENTS_EXR_IN);
+            return;
+          }
+
           switch (channel.type)
           {
           case Imf::PixelType::UINT:
             fprintf(stderr, "channel %d type = UINT\n", channel_index);
             this->bit_depth[channel_index] = 32;
+            this->is_signed[channel_index] = false;
             break;
           case Imf::PixelType::HALF:
             fprintf(stderr, "channel %d type = HALF\n", channel_index);
             this->bit_depth[channel_index] = 16;
+            this->is_signed[channel_index] = true;
             break;
           case Imf::PixelType::FLOAT:
             fprintf(stderr, "channel %d type = FLOAT\n", channel_index);
             this->bit_depth[channel_index] = 32;
+            this->is_signed[channel_index] = true;
             break;
           default:
             fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel %d PixelType = %d, this should be UINT=0, HALF=1 or FLOAT=2\n",
@@ -2134,6 +2144,7 @@ namespace ojph {
 
           fprintf(stderr, "channel %d xSampling = %d\n", channel_index, channel.xSampling);
           fprintf(stderr, "channel %d ySampling = %d\n", channel_index, channel.ySampling);
+          this->subsampling[channel_index] = point(channel.xSampling, channel.ySampling);
           fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
 
           channel_index++;
@@ -2195,6 +2206,7 @@ namespace ojph {
       return 0;
     }
 
+#if 0
     if(cur_line < height)
     {
       switch (comp_num)
@@ -2225,6 +2237,46 @@ namespace ojph {
         break;
       }
 
+    }
+    else
+    {
+      printf("cur_line = %d is greater than height = %d\n", cur_line, height);
+    }
+#endif
+    if (cur_line < height)
+    {
+      switch (comp_num)
+      {
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].r.bits());
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].g.bits());
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].b.bits());
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si32)(pixels[cur_line][i].a.bits());
+        }
+        break;
+      }
+
+    }
+    else
+    {
+      printf("cur_line = %d is greater than height = %d\n", cur_line, height);
     }
 
     if (comp_num == 0)

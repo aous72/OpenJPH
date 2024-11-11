@@ -518,86 +518,66 @@ namespace ojph {
   };
 
 #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+#define MAXIMUM_COMPONENTS_EXR_IN 4
   class exr_in : public image_in_base
   {
   public:
     exr_in()
     {
-      pixels.resizeErase(1, 1);
+      pixels.resizeErase(0, 0);
 
       fname = NULL;
-      line_buffer = NULL;
-      line_buffer_for_planar_support_uint8 = NULL;
-      line_buffer_for_planar_support_uint16 = NULL;
 
       width = height = num_comps = 0;
-      bytes_per_sample = 0;
-
-      bytes_per_line = 0;
-      planar_configuration = 0;
 
       cur_line = 0;
 
-      bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
-      is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
-      subsampling[3] = subsampling[2] = point(1, 1);
-      subsampling[1] = subsampling[0] = point(1, 1);
+      for (int i = 0; i < MAXIMUM_COMPONENTS_EXR_IN; i++)
+      {
+        bit_depth[i] = 0;
+        is_signed[i] = false;
+        subsampling[i] = point(1, 1);
+      }
     }
     virtual ~exr_in()
     {
+      pixels.resizeErase(0, 0);
       close();
-
-      if (line_buffer)
-        free(line_buffer);
-      if (line_buffer_for_planar_support_uint8)
-        free(line_buffer_for_planar_support_uint8);
-      if (line_buffer_for_planar_support_uint16)
-        free(line_buffer_for_planar_support_uint16);
     }
 
     void open(const char* filename);
     virtual ui32 read(const line_buf* line, ui32 comp_num);
     void close() {
-      //if (tiff_handle) {
-      //  TIFFClose(tiff_handle);
-      //  tiff_handle = NULL;
-      //}
       fname = NULL;
     }
 
-    size get_size() { //assert(tiff_handle); 
+    size get_size() { 
       return size(width, height); }
-    ui32 get_num_components() { //assert(tiff_handle); 
+    ui32 get_num_components() {; 
       return num_comps; }
-    void set_bit_depth(ui32 num_bit_depths, ui32* bit_depth);
     ui32 get_bit_depth(ui32 comp_num) {
-      //assert(tiff_handle && comp_num < num_comps);
+      assert(comp_num < num_comps);
       return bit_depth[comp_num];
     }
     bool get_is_signed(ui32 comp_num) {
-      //assert(tiff_handle && comp_num < num_comps);
+      assert(comp_num < num_comps);
       return is_signed[comp_num];
     }
     point get_comp_subsampling(ui32 comp_num) {
-      //assert(tiff_handle && comp_num < num_comps);
+      assert(comp_num < num_comps);
       return subsampling[comp_num];
     }
 
   private:
-    size_t bytes_per_line;
-    ui16 planar_configuration;
 
     const char* fname;
-    void* line_buffer;
-    ui8* line_buffer_for_planar_support_uint8;
-    ui16* line_buffer_for_planar_support_uint16;
     ui32 width, height;
     ui32 num_comps;
-    ui32 bytes_per_sample;
     ui32 cur_line;
-    ui32 bit_depth[4];
-    bool is_signed[4];
-    point subsampling[4];
+
+    ui32 bit_depth[MAXIMUM_COMPONENTS_EXR_IN];
+    bool is_signed[MAXIMUM_COMPONENTS_EXR_IN];
+    point subsampling[MAXIMUM_COMPONENTS_EXR_IN];
 
     Imf::Array2D<Imf::Rgba> pixels;
   };

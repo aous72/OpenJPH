@@ -67,20 +67,40 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   template<>
+  void line_buf::finalize_alloc<si64>(mem_fixed_allocator *p)
+  {
+    assert(p != 0 && size != 0);
+    i64 = p->post_alloc_data<si64>(size, pre_size);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  template<>
   void line_buf::wrap(si32 *buffer, size_t num_ele, ui32 pre_size)
   {
-    i32 = buffer;
+    this->i32 = buffer;
     this->size = num_ele;
     this->pre_size = pre_size;
+    this->flags = LFT_32BIT | LFT_REVERSIBLE;
   }
 
   ////////////////////////////////////////////////////////////////////////////
   template<>
   void line_buf::wrap(float *buffer, size_t num_ele, ui32 pre_size)
   {
-    f32 = buffer;
+    this->f32 = buffer;
     this->size = num_ele;
     this->pre_size = pre_size;
+    this->flags = LFT_32BIT;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  template<>
+  void line_buf::wrap(si64 *buffer, size_t num_ele, ui32 pre_size)
+  {
+    this->i64 = buffer;
+    this->size = num_ele;
+    this->pre_size = pre_size;
+    this->flags = LFT_64BIT | LFT_REVERSIBLE;
   }
 
   ////////////////////////////////////////////////////////////////////////////

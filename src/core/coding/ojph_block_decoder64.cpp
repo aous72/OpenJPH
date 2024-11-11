@@ -287,16 +287,13 @@ namespace ojph {
     //************************************************************************/
     /** @brief Read and unstuff data from a backwardly-growing segment
      *
-     *  This reader can read up to 8 bytes from before the VLC segment.
-     *  Care must be taken not read from unreadable memory, causing a 
-     *  segmentation fault.
-     * 
-     *  Note that there is another subroutine rev_read_mrp that is slightly
-     *  different.  The other one fills zeros when the buffer is exhausted.
-     *  This one basically does not care if the bytes are consumed, because
-     *  any extra data should not be used in the actual decoding.
+     *  This reader reads 8 bits from the VLC segment. It fills zeros when 
+     *  the buffer is exhausted; we basically do not care about these zeros 
+     *  because we should not need them -- any extra data should not be used 
+     *  in the actual decoding. If these bytes are needed, then there is a 
+     *  problem in the bitstream, but we do not flag this error.
      *
-     *  Unstuffing is needed to prevent sequences more than 0xFF8F from 
+     *  Unstuffing is needed to prevent sequences larger than 0xFF8F from 
      *  appearing in the bits stream; since we are reading backward, we keep
      *  watch when a value larger than 0x8F appears in the bitstream. 
      *  If the byte following this is 0x7F, we unstuff this byte (ignore the 
@@ -305,65 +302,37 @@ namespace ojph {
      *  @param [in]  vlcp is a pointer to rev_struct structure
      */
     static inline 
-    void rev_read(rev_struct *vlcp)
+    void rev_read8(rev_struct *vlcp)
     {
-      //process 4 bytes at a time
-      if (vlcp->bits > 32)  // if there are more than 32 bits in tmp, then 
-        return;             // reading 32 bits can overflow vlcp->tmp
-      ui32 val = 0;
-      //the next line (the if statement) needs to be tested first
-      if (vlcp->size > 3)  // if there are more than 3 bytes left in VLC
+      // process 1 bytes
+      ui8 val = 0; // insert 0s at the end -- the standard says that the
+                   // bitstream must contain all needed bits. Therefore
+                   // if the whole bitstream is consumed and bits are still
+                   // needed, then this is an error condition, but we are
+                   // lenient -- it is also possible that we are decoding
+                   // more bits than what we are actually need.
+      if (vlcp->size > 0)  // if there are more than 3 bytes left in VLC
       {
-        // (vlcp->data - 3) move pointer back to read 32 bits at once
-        val = *(ui32*)(vlcp->data - 3); // then read 32 bits
-        vlcp->data -= 4;          // move data pointer back by 4
-        vlcp->size -= 4;          // reduce available byte by 4
-      }
-      else if (vlcp->size > 0)
-      { // 4 or less
-        int i = 24;
-        while (vlcp->size > 0) {   
-          ui32 v = *vlcp->data--; // read one byte at a time
-          val |= (v << i);        // put byte in its correct location
-          --vlcp->size;
-          i -= 8;
-        }
+        val = *vlcp->data; // then read 8 bits
+        --vlcp->data;      // increment data pointer
+        --vlcp->size;      // decrement number of bytes in the buffer
       }
 
-      //accumulate in tmp, number of bits in tmp are stored in bits
-      ui32 tmp = val >> 24;  //start with the MSB byte
-      ui32 bits;
-
-      // test unstuff (previous byte is >0x8F), and this byte is 0x7F
-      bits = 8 - ((vlcp->unstuff && (((val >> 24) & 0x7F) == 0x7F)) ? 1 : 0);
-      bool unstuff = (val >> 24) > 0x8F; //this is for the next byte
-
-      tmp |= ((val >> 16) & 0xFF) << bits; //process the next byte
-      bits += 8 - ((unstuff && (((val >> 16) & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = ((val >> 16) & 0xFF) > 0x8F;
-
-      tmp |= ((val >> 8) & 0xFF) << bits;
-      bits += 8 - ((unstuff && (((val >> 8) & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = ((val >> 8) & 0xFF) > 0x8F;
-
-      tmp |= (val & 0xFF) << bits;
-      bits += 8 - ((unstuff && ((val & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = (val & 0xFF) > 0x8F;
-
-      // now move the read and unstuffed bits into vlcp->tmp
-      vlcp->tmp |= (ui64)tmp << vlcp->bits;
-      vlcp->bits += bits;
-      vlcp->unstuff = unstuff; // this for the next read
+      // accumulate in tmp, and increment bits, check if unstuffing is needed
+      ui8 t = (vlcp->unstuff && ((val & 0x7F) == 0x7F)) ? 1 : 0;
+      val = (ui8)(val & (0xFFU >> t)); // protect against erroneous 1 in MSB
+      vlcp->tmp |= (ui64)val << vlcp->bits;
+      vlcp->bits += 8 - t;
+      vlcp->unstuff = val > 0x8F;
     }
 
     //************************************************************************/
-    /** @brief Initiates the rev_struct structure and reads a few bytes to 
-     *         move the read address to multiple of 4
+    /** @brief Initiates the rev_struct structure and reads the first byte
      *
-     *  There is another similar rev_init_mrp subroutine.  The difference is
-     *  that this one, rev_init, discards the first 12 bits (they have the
-     *  sum of the lengths of VLC and MEL segments), and first unstuff depends
-     *  on first 4 bits.
+     *  This subroutine initializes the VLC decoder.  It discards the first 
+     *  12 bits (they have the sum of the lengths of VLC and MEL segments), 
+     *  and depending on unstuffing, stores 3 or 4 bits in the unstuffed
+     *  decoded buffer.
      *
      *  @param [in]  vlcp is a pointer to rev_struct structure
      *  @param [in]  data is a pointer to byte at the start of the cleanup pass
@@ -371,7 +340,7 @@ namespace ojph {
      *  @param [in]  scup is the length of MEL+VLC segments
      */
     static inline 
-    void rev_init(rev_struct *vlcp, ui8* data, int lcup, int scup)
+    void rev_init8(rev_struct *vlcp, ui8* data, int lcup, int scup)
     {
       //first byte has only the upper 4 bits
       vlcp->data = data + lcup - 2;
@@ -379,49 +348,32 @@ namespace ojph {
       //size can not be larger than this, in fact it should be smaller
       vlcp->size = scup - 2;
 
-      ui32 d = *vlcp->data--; // read one byte (this is a half byte)
-      vlcp->tmp = d >> 4;    // both initialize and set
-      vlcp->bits = 4 - ((vlcp->tmp & 7) == 7); //check standard
-      vlcp->unstuff = (d | 0xF) > 0x8F; //this is useful for the next byte
+      ui8 val = *vlcp->data--; // read one byte (this is a half byte)
 
-      //This code is designed for an architecture that read address should
-      // align to the read size (address multiple of 4 if read size is 4)
-      //These few lines take care of the case where data is not at a multiple
-      // of 4 boundary. It reads 1,2,3 up to 4 bytes from the VLC bitstream.
-      // To read 32 bits, read from (vlcp->data - 3)
-      int num = 1 + (int)(intptr_t(vlcp->data) & 0x3);
-      int tnum = num < vlcp->size ? num : vlcp->size;
-      for (int i = 0; i < tnum; ++i) {
-        ui64 d;
-        d = *vlcp->data--;  // read one byte and move read pointer
-        //check if the last byte was >0x8F (unstuff == true) and this is 0x7F
-        ui32 d_bits = 8 - ((vlcp->unstuff && ((d & 0x7F) == 0x7F)) ? 1 : 0);
-        vlcp->tmp |= d << vlcp->bits; // move data to vlcp->tmp
-        vlcp->bits += d_bits;
-        vlcp->unstuff = d > 0x8F; // for next byte
-      }
-      vlcp->size -= tnum;
-      rev_read(vlcp);  // read another 32 buts
+      // the first byte is treated different to other bytes, because only
+      // the MSB nibble is part of the VLC code.
+      val = (ui8)(val >> 4);
+      ui8 t = ((val & 0x7) == 0x7) ? 1 : 0; // unstuffing is needed
+      val = (ui8)(val & (0xFU >> t)); // protect against erroneous 1 in MSB
+      vlcp->tmp = val;
+      vlcp->bits = 4 - t;
+      vlcp->unstuff = val > 0x8; //this is useful for the next byte
     }
 
     //************************************************************************/
-    /** @brief Retrieves 32 bits from the head of a rev_struct structure 
+    /** @brief Fills the temporary variable (vlcp->tmp) by up to 64 bits
      *
-     *  By the end of this call, vlcp->tmp must have no less than 33 bits
+     *  By the end of this call, vlcp->tmp must have no less than 56 bits
      *
      *  @param [in]  vlcp is a pointer to rev_struct structure
      */
     static inline 
-    ui32 rev_fetch(rev_struct *vlcp)
+    ui64 rev_fetch64(rev_struct *vlcp)
     {
-      if (vlcp->bits < 32)  // if there are less then 32 bits, read more
-      {
-        rev_read(vlcp);     // read 32 bits, but unstuffing might reduce this
-        if (vlcp->bits < 32)// if there is still space in vlcp->tmp for 32 bits
-          rev_read(vlcp);   // read another 32
-      }
-      return (ui32)vlcp->tmp; // return the head (bottom-most) of vlcp->tmp
-    }
+      while (vlcp->bits <= 56)
+        rev_read8(vlcp); // read 8 bits, but unstuffing might reduce this
+      return vlcp->tmp;  // return unstuff decoded bits
+    }    
 
     //************************************************************************/
     /** @brief Consumes num_bits from a rev_struct structure
@@ -430,13 +382,13 @@ namespace ojph {
      *  @param [in]  num_bits is the number of bits to be removed
      */
     static inline 
-    ui32 rev_advance(rev_struct *vlcp, ui32 num_bits)
+    ui64 rev_advance64(rev_struct *vlcp, ui32 num_bits)
     {
       assert(num_bits <= vlcp->bits); // vlcp->tmp must have more than num_bits
       vlcp->tmp >>= num_bits;         // remove bits
       vlcp->bits -= num_bits;         // decrement the number of bits
-      return (ui32)vlcp->tmp;
-    }
+      return vlcp->tmp;
+    }    
 
     //************************************************************************/
     /** @brief Reads and unstuffs from rev_struct
@@ -653,6 +605,41 @@ namespace ojph {
     }
 
     //************************************************************************/
+    /** @brief Read and unstuffs 8 bits from forward-growing bitstream
+     *  
+     *  A template is used to accommodate a different requirement for
+     *  MagSgn and SPP bitstreams; in particular, when MagSgn bitstream is
+     *  consumed, 0xFF's are fed, while when SPP is exhausted 0's are fed in.
+     *  X controls this value.
+     *
+     *  Unstuffing prevent sequences that are more than 0xFF7F from appearing
+     *  in the conpressed sequence.  So whenever a value of 0xFF is coded, the
+     *  MSB of the next byte is set 0 and must be ignored during decoding.
+     *
+     *  @tparam       X is the value fed in when the bitstream is exhausted
+     *  @param  [in]  msp is a pointer to frwd_struct structure
+     *
+     */ 
+    template<ui8 X>
+    static inline 
+    void frwd_read8(frwd_struct *msp)
+    {
+      ui8 val = X;
+      if (msp->size > 0) {
+        val = *msp->data;  // read 8 bits
+        ++msp->data;      // increment pointer
+        --msp->size;      // reduce size
+      }
+
+      // unstuff and accumulate
+      ui8 t = msp->unstuff ? 1 : 0;
+      val = (ui8)(val & (0xFFU >> t));
+      msp->unstuff = (val == 0xFF);
+      msp->tmp |= ((ui64)val) << msp->bits;  // move data to msp->tmp
+      msp->bits += 8 - t;
+    }
+
+    //************************************************************************/
     /** @brief Initialize frwd_struct struct and reads some bytes
      *  
      *  @tparam      X is the value fed in when the bitstream is exhausted.
@@ -686,6 +673,27 @@ namespace ojph {
         msp->unstuff = ((d & 0xFF) == 0xFF); // unstuffing for next byte
       }
       frwd_read<X>(msp); // read 32 bits more
+    }
+
+    //************************************************************************/
+    /** @brief Initialize frwd_struct struct and reads some bytes
+     *  
+     *  @tparam      X is the value fed in when the bitstream is exhausted.
+     *               See frwd_read regarding the template
+     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  data is a pointer to the start of data
+     *  @param [in]  size is the number of byte in the bitstream
+     */
+    template<ui8 X>
+    static inline
+    void frwd_init8(frwd_struct *msp, const ui8* data, int size)
+    {
+      msp->data = data;
+      msp->tmp = 0;
+      msp->bits = 0;
+      msp->unstuff = 0;
+      msp->size = size;
+      frwd_read8<X>(msp); // read 8 bits
     }
 
     //************************************************************************/
@@ -723,6 +731,22 @@ namespace ojph {
     }
 
     //************************************************************************/
+    /** @brief Fetches up to 64 bits from the frwd_struct bitstream
+     *
+     *  @tparam      X is the value fed in when the bitstream is exhausted.
+     *               See frwd_read regarding the template
+     *  @param [in]  msp is a pointer to frwd_struct
+     */
+    template<ui8 X>
+    static inline 
+    ui64 frwd_fetch64(frwd_struct *msp)
+    {
+      while (msp->bits <= 56)
+        frwd_read8<X>(msp);
+      return msp->tmp;
+    }    
+
+    //************************************************************************/
     /** @brief Decodes one codeblock, processing the cleanup, siginificance
      *         propagation, and magnitude refinement pass
      *
@@ -739,15 +763,15 @@ namespace ojph {
      *  @param [in]   stride is the decoded codeblock buffer stride 
      *  @param [in]   stripe_causal is true for stripe causal mode
      */
-    bool ojph_decode_codeblock(ui8* coded_data, ui32* decoded_data,
-                               ui32 missing_msbs, ui32 num_passes,
-                               ui32 lengths1, ui32 lengths2,
-                               ui32 width, ui32 height, ui32 stride,
-                               bool stripe_causal)
+    bool ojph_decode_codeblock64(ui8* coded_data, ui64* decoded_data,
+                                 ui32 missing_msbs, ui32 num_passes,
+                                 ui32 lengths1, ui32 lengths2,
+                                 ui32 width, ui32 height, ui32 stride,
+                                 bool stripe_causal)
     {
-      static bool insufficient_precision = false;
-      static bool modify_code = false;
-      static bool truncate_spp_mrp = false;
+      // static bool insufficient_precision = false;
+      // static bool modify_code = false;
+      // static bool truncate_spp_mrp = false;
 
       if (num_passes > 1 && lengths2 == 0)
       {
@@ -765,42 +789,42 @@ namespace ojph {
         return false;
       }
 
-      if (missing_msbs > 30) // p < 0
-      {
-        if (insufficient_precision == false) 
-        {
-          insufficient_precision = true;
-          OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
-                                "codeblock. This message will not be "
-                                "displayed again.");
-        }
-        return false;
-      }       
-      else if (missing_msbs == 30) // p == 0
-      { // not enough precision to decode and set the bin center to 1
-        if (modify_code == false) {
-          modify_code = true;
-          OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
-                                "pass. The code can be modified to support "
-                                "this case. This message will not be "
-                                "displayed again.");
-        }
-         return false;         // 32 bits are not enough to decode this
-       }
-      else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
-      {
-        if (num_passes > 1) {
-          num_passes = 1;
-          if (truncate_spp_mrp == false) {
-            truncate_spp_mrp = true;
-            OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
-                                  "nor MagRef passes; both will be skipped. "
-                                  "This message will not be displayed "
-                                  "again.");
-          }
-        }
-      }
-      ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
+      // if (missing_msbs > 30) // p < 0
+      // {
+      //   if (insufficient_precision == false) 
+      //   {
+      //     insufficient_precision = true;
+      //     OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
+      //                           "codeblock. This message will not be "
+      //                           "displayed again.");
+      //   }
+      //   return false;
+      // }       
+      // else if (missing_msbs == 30) // p == 0
+      // { // not enough precision to decode and set the bin center to 1
+      //   if (modify_code == false) {
+      //     modify_code = true;
+      //     OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
+      //                           "pass. The code can be modified to support "
+      //                           "this case. This message will not be "
+      //                           "displayed again.");
+      //   }
+      //    return false;         // 32 bits are not enough to decode this
+      //  }
+      // else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
+      // {
+      //   if (num_passes > 1) {
+      //     num_passes = 1;
+      //     if (truncate_spp_mrp == false) {
+      //       truncate_spp_mrp = true;
+      //       OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
+      //                             "nor MagRef passes; both will be skipped. "
+      //                             "This message will not be displayed "
+      //                             "again.");
+      //     }
+      //   }
+      // }
+      ui32 p = 62 - missing_msbs; // The least significant bitplane for CUP
       // There is a way to handle the case of p == 0, but a different path
       // is required
 
@@ -857,13 +881,13 @@ namespace ojph {
         dec_mel_st mel;
         mel_init(&mel, coded_data, lcup, scup);
         rev_struct vlc;
-        rev_init(&vlc, coded_data, lcup, scup);
+        rev_init8(&vlc, coded_data, lcup, scup);
 
         int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
                                      // data represented as runs of 0 events
                                      // See mel_decode description
 
-        ui32 vlc_val;
+        ui64 vlc_val;
         ui32 c_q = 0;
         ui16 *sp = scratch;
         //initial quad row
@@ -873,7 +897,7 @@ namespace ojph {
           /////////////
 
           // first quad
-          vlc_val = rev_fetch(&vlc);
+          vlc_val = rev_fetch64(&vlc);
 
           //decode VLC using the context c_q and the head of VLC bitstream
           ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
@@ -903,7 +927,7 @@ namespace ojph {
           c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
 
           //remove data from vlc stream (0 bits are removed if vlc is not used)
-          vlc_val = rev_advance(&vlc, t0 & 0x7);
+          vlc_val = rev_advance64(&vlc, t0 & 0x7);
 
           //second quad
           ui16 t1 = 0;
@@ -934,7 +958,7 @@ namespace ojph {
           c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
 
           //remove data from vlc stream, if qinf is not used, cwdlen is 0
-          vlc_val = rev_advance(&vlc, t1 & 0x7);
+          vlc_val = rev_advance64(&vlc, t1 & 0x7);
           
           // decode u
           /////////////
@@ -956,22 +980,35 @@ namespace ojph {
           //  run = mel_get_run(&mel);  // get another run
 
           //decode uvlc_mode to get u for both quads
-          ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
+          ui32 idx = uvlc_mode + (ui32)(vlc_val & 0x3F);
+          ui32 uvlc_entry = uvlc_tbl0[idx];
+          ui16 u_bias = uvlc_bias[idx];          
           //remove total prefix length
-          vlc_val = rev_advance(&vlc, uvlc_entry & 0x7); 
+          vlc_val = rev_advance64(&vlc, uvlc_entry & 0x7); 
           uvlc_entry >>= 3; 
           //extract suffixes for quad 0 and 1
-          ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
-          vlc_val = rev_advance(&vlc, len);
+          ui32 len = uvlc_entry & 0xF;             // suffix length for 2 quads
+          ui32 tmp = (ui32)(vlc_val&((1<<len)-1)); // suffix value for 2 quads
+          vlc_val = rev_advance64(&vlc, len);
           uvlc_entry >>= 4;
           // quad 0 length
           len = uvlc_entry & 0x7; // quad 0 suffix length
           uvlc_entry >>= 3;
-          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len)));//kap. 1
-          sp[1] = u_q;
-          u_q = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
-          sp[3]= u_q;
+          ui16 u_q0 = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
+          ui16 u_q1 = (ui16)((uvlc_entry >> 3) + (tmp >> len));
+
+          // decode u_q extensions, which is needed only when u_q > 32
+          ui16 u_ext; bool cond0, cond1;
+          cond0 = u_q0 - (u_bias & 0x3) > 32;
+          u_ext = (ui16)(cond0 ? (vlc_val & 0xF) : 0);
+          vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
+          u_q0 = (ui16)(u_q0 + (u_ext << 2));
+          sp[1] = (ui16)(u_q0 + 1); // kappa = 1
+          cond1 = u_q1 - (u_bias >> 2) > 32;
+          u_ext = (ui16)(cond1 ? (vlc_val & 0xF) : 0);
+          vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
+          u_q1 = (ui16)(u_q1 + (u_ext << 2));
+          sp[3] = (ui16)(u_q1 + 1); // kappa = 1
         }
         sp[0] = sp[1] = 0;
 
@@ -991,7 +1028,7 @@ namespace ojph {
             c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
 
             // first quad
-            vlc_val = rev_fetch(&vlc);
+            vlc_val = rev_fetch64(&vlc);
 
             //decode VLC using the context c_q and the head of VLC bitstream
             ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];
@@ -1027,7 +1064,7 @@ namespace ojph {
             c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
 
             //remove data from vlc stream (0 bits are removed if vlc is unused)
-            vlc_val = rev_advance(&vlc, t0 & 0x7);
+            vlc_val = rev_advance64(&vlc, t0 & 0x7);
 
             //second quad
             ui16 t1 = 0;
@@ -1061,7 +1098,7 @@ namespace ojph {
             c_q |= sp[2 - (si32)sstr] & 0x80;
 
             //remove data from vlc stream, if qinf is not used, cwdlen is 0
-            vlc_val = rev_advance(&vlc, t1 & 0x7);
+            vlc_val = rev_advance64(&vlc, t1 & 0x7);
           
             // decode u
             /////////////
@@ -1069,20 +1106,31 @@ namespace ojph {
             ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
             ui32 uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
             //remove total prefix length
-            vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+            vlc_val = rev_advance64(&vlc, uvlc_entry & 0x7);
             uvlc_entry >>= 3;
             //extract suffixes for quad 0 and 1
-            ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-            ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
-            vlc_val = rev_advance(&vlc, len);
+            ui32 len = uvlc_entry & 0xF;             //suffix length for 2 quads
+            ui32 tmp = (ui32)(vlc_val&((1<<len)-1)); //suffix value for 2 quads
+            vlc_val = rev_advance64(&vlc, len);
             uvlc_entry >>= 4;
             // quad 0 length
             len = uvlc_entry & 0x7; // quad 0 suffix length
             uvlc_entry >>= 3;
-            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
-            sp[1] = u_q;
-            u_q = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
-            sp[3] = u_q;
+            ui16 u_q0 = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
+            ui16 u_q1 = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
+
+            // decode u_q extensions, which is needed only when u_q > 32
+            ui16 u_ext; bool cond0, cond1;
+            cond0 = u_q0 > 32;
+            u_ext = (ui16)(cond0 ? (vlc_val & 0xF) : 0);
+            vlc_val = rev_advance64(&vlc, cond0 ? 4 : 0);
+            u_q0 = (ui16)(u_q0 + (u_ext << 2));
+            sp[1] = u_q0;
+            cond1 = u_q1 > 32;
+            u_ext = (ui16)(cond1 ? (vlc_val & 0xF) : 0);
+            vlc_val = rev_advance64(&vlc, cond1 ? 4 : 0);
+            u_q1 = (ui16)(u_q1 + (u_ext << 2));
+            sp[3] = u_q1;
           }
           sp[0] = sp[1] = 0;
         }
@@ -1097,16 +1145,16 @@ namespace ojph {
         // Here, we allocate 4 instead of 1 to make the buffer size
         // a multipled of 16 bytes.
         const int v_n_size = 512 + 4;
-        ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
+        ui64 v_n_scratch[v_n_size] = {0};  // 4+ kB
 
         frwd_struct magsgn;
-        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
+        frwd_init8<0xFF>(&magsgn, coded_data, lcup - scup);
 
-        ui16 *sp = scratch;
-        ui32 *vp = v_n_scratch;
-        ui32 *dp = decoded_data;
+        const ui16 *sp = scratch;
+        ui64 *vp = v_n_scratch;
+        ui64 *dp = decoded_data;
 
-        ui32 prev_v_n = 0;
+        ui64 prev_v_n = 0;
         for (ui32 x = 0; x < width; sp += 2, ++vp)
         {
           ui32 inf = sp[0];
@@ -1114,20 +1162,20 @@ namespace ojph {
           if (U_q > mmsbp2)
             return false;
 
-          ui32 v_n;
-          ui32 val = 0;
+          ui64 v_n;
+          ui64 val = 0;
           ui32 bit = 0;
           if (inf & (1 << (4 + bit)))
           {
             //get 32 bits of magsgn data
-            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                     // get sign bit
-            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-            v_n |= 1;                               // add center of bin    
+            val = ms_val << 63;                           // get sign bit
+            v_n = ms_val & ((1ULL << m_n) - 1);           // keep only m_n bits
+            v_n |= (ui64)((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                                     // add center of bin    
             //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
             //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
             val |= (v_n + 2) << (p - 1);
@@ -1140,14 +1188,14 @@ namespace ojph {
           if (inf & (1 << (4 + bit)))
           {
             //get 32 bits of magsgn data
-            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                      // get sign bit
-            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-            v_n |= 1;                               // add center of bin    
+            val = ms_val << 63;                           // get sign bit
+            v_n = ms_val & ((1ULL << m_n) - 1);           // keep only m_n bits
+            v_n |= (ui64)((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                                     // add center of bin    
             //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
             //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
             val |= (v_n + 2) << (p - 1);
@@ -1164,14 +1212,14 @@ namespace ojph {
           if (inf & (1 << (4 + bit)))
           {
             //get 32 bits of magsgn data
-            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                     // get sign bit
-            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-            v_n |= 1;                               // add center of bin    
+            val = ms_val << 63;                           // get sign bit
+            v_n = ms_val & ((1ULL << m_n) - 1);           // keep only m_n bits
+            v_n |= (ui64)((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                                     // add center of bin    
             //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
             //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
             val |= (v_n + 2) << (p - 1);
@@ -1184,14 +1232,14 @@ namespace ojph {
           if (inf & (1 << (4 + bit)))
           {
             //get 32 bits of magsgn data
-            ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+            ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
             ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
             frwd_advance(&magsgn, m_n);                 //consume m_n
 
-            val = ms_val << 31;                     // get sign bit
-            v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-            v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-            v_n |= 1;                               // add center of bin    
+            val = ms_val << 63;                           // get sign bit
+            v_n = ms_val & ((1ULL << m_n) - 1);           // keep only m_n bits
+            v_n |= (ui64)((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
+            v_n |= 1;                                     // add center of bin    
             //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
             //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
             val |= (v_n + 2) << (p - 1);
@@ -1205,9 +1253,9 @@ namespace ojph {
 
         for (ui32 y = 2; y < height; y += 2)
         {
-          ui16 *sp = scratch + (y >> 1) * sstr;
-          ui32 *vp = v_n_scratch;
-          ui32 *dp = decoded_data + y * stride;
+          const ui16 *sp = scratch + (y >> 1) * sstr;
+          ui64 *vp = v_n_scratch;
+          ui64 *dp = decoded_data + y * stride;
 
           prev_v_n = 0;
           for (ui32 x = 0; x < width; sp += 2, ++vp)
@@ -1216,28 +1264,27 @@ namespace ojph {
             ui32 u_q = sp[1];
 
             ui32 gamma = inf & 0xF0; gamma &= gamma - 0x10; //is gamma_q 1?
-            ui32 emax = vp[0] | vp[1];
-            emax = 31 - count_leading_zeros(emax | 2); // emax - 1            
+            ui32 emax = 63 - count_leading_zeros(2 | vp[0] | vp[1]); // emax-1
             ui32 kappa = gamma ? emax : 1;
 
             ui32 U_q = u_q + kappa;
             if (U_q > mmsbp2)
               return false;
 
-            ui32 v_n;
-            ui32 val = 0;
+            ui64 v_n;
+            ui64 val = 0;
             ui32 bit = 0;
             if (inf & (1 << (4 + bit)))
             {
               //get 32 bits of magsgn data
-              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
               frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                     // get sign bit
-              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-              v_n |= 1;                               // add center of bin    
+              val = ms_val << 63;                         // get sign bit
+              v_n = ms_val & ((1ULL << m_n) - 1);         // keep only m_n bits
+              v_n |= (ui64)((inf >> (8+bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                                   // add center of bin    
               //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
               //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
               val |= (v_n + 2) << (p - 1);
@@ -1250,14 +1297,14 @@ namespace ojph {
             if (inf & (1 << (4 + bit)))
             {
               //get 32 bits of magsgn data
-              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
               frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                     // get sign bit
-              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-              v_n |= 1;                               // add center of bin    
+              val = ms_val << 63;                         // get sign bit
+              v_n = ms_val & ((1ULL << m_n) - 1);         // keep only m_n bits
+              v_n |= (ui64)((inf >> (8+bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                                   // add center of bin    
               //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
               //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
               val |= (v_n + 2) << (p - 1);
@@ -1274,14 +1321,14 @@ namespace ojph {
             if (inf & (1 << (4 + bit)))
             {
               //get 32 bits of magsgn data
-              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
               frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                     // get sign bit
-              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-              v_n |= 1;                               // add center of bin    
+              val = ms_val << 63;                         // get sign bit
+              v_n = ms_val & ((1ULL << m_n) - 1);         // keep only m_n bits
+              v_n |= (ui64)((inf >> (8+bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                                   // add center of bin    
               //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
               //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
               val |= (v_n + 2) << (p - 1);
@@ -1294,14 +1341,14 @@ namespace ojph {
             if (inf & (1 << (4 + bit)))
             {
               //get 32 bits of magsgn data
-              ui32 ms_val = frwd_fetch<0xFF>(&magsgn); 
+              ui64 ms_val = frwd_fetch64<0xFF>(&magsgn); 
               ui32 m_n = U_q - ((inf >> (12 + bit)) & 1); // remove e_k
               frwd_advance(&magsgn, m_n);                 //consume m_n
 
-              val = ms_val << 31;                     // get sign bit
-              v_n = ms_val & ((1 << m_n) - 1);        // keep only m_n bits
-              v_n |= ((inf >> (8 + bit)) & 1) << m_n; // add EMB e_1 as MSB
-              v_n |= 1;                               // add center of bin    
+              val = ms_val << 63;                         // get sign bit
+              v_n = ms_val & ((1ULL << m_n) - 1);         // keep only m_n bits
+              v_n |= (ui64)((inf >> (8+bit)) & 1) << m_n; // add EMB e_1 as MSB
+              v_n |= 1;                                   // add center of bin    
               //v_n now has 2 * (\mu - 1) + 0.5 with correct sign bit
               //add 2 to make it 2*\mu+0.5, shift it up to missing MSBs
               val |= (v_n + 2) << (p - 1);
@@ -1388,7 +1435,7 @@ namespace ojph {
             ui32 prev = 0;
             ui16 *prev_sig = prev_row_sig;
             ui16 *cur_sig = sigma + (y >> 2) * mstr;
-            ui32 *dpp = decoded_data + y * stride;
+            ui64 *dpp = decoded_data + y * stride;
             for (ui32 x = 0; x < width; x += 4, ++cur_sig, ++prev_sig)
             {
               // only rows and columns inside the stripe are included
@@ -1434,7 +1481,7 @@ namespace ojph {
               ui32 new_sig = mbr;
               if (new_sig)
               {
-                ui32 cwd = frwd_fetch<0>(&sigprop);
+                ui64 cwd = frwd_fetch<0>(&sigprop);
 
                 ui32 cnt = 0;
                 ui32 col_mask = 0xFu;
@@ -1498,8 +1545,8 @@ namespace ojph {
                 {
                   // new_sig has newly-discovered sig. samples during SPP
                   // find the signs and update decoded_data
-                  ui32 *dp = dpp + x;
-                  ui32 val = 3u << (p - 2);
+                  ui64 *dp = dpp + x;
+                  ui64 val = 3u << (p - 2);
                   col_mask = 0xFu;
                   for (int i = 0; i < 4; ++i, ++dp, col_mask <<= 4)
                   {
@@ -1511,7 +1558,7 @@ namespace ojph {
                     if (new_sig & sample_mask)
                     {
                       assert(dp[0] == 0);
-                      dp[0] = (cwd << 31) | val;
+                      dp[0] = (cwd << 63) | val;
                       cwd >>= 1; ++cnt;
                     }
 
@@ -1519,7 +1566,7 @@ namespace ojph {
                     if (new_sig & sample_mask)
                     {
                       assert(dp[stride] == 0);
-                      dp[stride] = (cwd << 31) | val;
+                      dp[stride] = (cwd << 63) | val;
                       cwd >>= 1; ++cnt;
                     }
 
@@ -1527,7 +1574,7 @@ namespace ojph {
                     if (new_sig & sample_mask)
                     {
                       assert(dp[2 * stride] == 0);
-                      dp[2 * stride] = (cwd << 31) | val;
+                      dp[2 * stride] = (cwd << 63) | val;
                       cwd >>= 1; ++cnt;
                     }
 
@@ -1535,7 +1582,7 @@ namespace ojph {
                     if (new_sig & sample_mask)
                     {
                       assert(dp[3 * stride] == 0);
-                      dp[3 * stride] = (cwd << 31) | val;
+                      dp[3 * stride] = (cwd << 63) | val;
                       cwd >>= 1; ++cnt;
                     }
                   }
@@ -1567,8 +1614,8 @@ namespace ojph {
           for (ui32 y = 0; y < height; y += 4)
           {
             ui32 *cur_sig = (ui32*)(sigma + (y >> 2) * mstr);
-            ui32 *dpp = decoded_data + y * stride;
-            ui32 half = 1 << (p - 2);
+            ui64 *dpp = decoded_data + y * stride;
+            ui64 half = 1ULL << (p - 2);
             for (ui32 i = 0; i < width; i += 8)
             {
               //Process one entry from sigma array at a time
@@ -1583,7 +1630,7 @@ namespace ojph {
                 {
                   if (sig & col_mask) // lowest nibble
                   {
-                    ui32 *dp = dpp + i + j; // next column in decoded samples
+                    ui64 *dp = dpp + i + j; // next column in decoded samples
                     ui32 sample_mask = 0x11111111u & col_mask; //LSB
 
                     for (int k = 0; k < 4; ++k) {
@@ -1591,7 +1638,7 @@ namespace ojph {
                       {
                         assert(dp[0] != 0); // decoded value cannot be zero
                         assert((dp[0] & half) == 0); // no half
-                        ui32 sym = cwd & 1;          // get it value
+                        ui64 sym = cwd & 1;          // get it value
                         sym = (1 - sym) << (p - 1); // previous center of bin
                         sym |= half;            // put half the center of bin
                         dp[0] ^= sym;    // remove old bin center and put new

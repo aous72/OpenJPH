@@ -84,11 +84,20 @@ namespace ojph {
      *  + 4 * mel event for initial row of quads when needed                 \n
      *                                                                       \n
      *  Each entry contains, starting from the LSB                           \n
-     *  \li \c total prefix length for quads 0 and 1 (3 bits)                \n
-     *  \li \c total suffix length for quads 0 and 1 (4 bits)                \n
+     *  \li \c total total prefix length for quads 0 and 1 (3 bits)          \n
+     *  \li \c total total suffix length for quads 0 and 1 (4 bits)          \n
      *  \li \c suffix length for quad 0 (3 bits)                             \n
      *  \li \c prefix for quad 0 (3 bits)                                    \n
      *  \li \c prefix for quad 1 (3 bits)                                    \n
+     *                                                                       \n
+     *  Another table is uvlc_bias, which is needed to correctly decode the 
+     *  extension u_ext for initial row of quads. Under certain condition,
+     *  we deduct 1 or 2 from u_q0 and u_q1 before encoding them; so for us 
+     *  to know that decoding u_ext is needed, we recreate the u_q0 and u_q1
+     *  that we actually encoded.                                            \n
+     *  For simplicity, we use the same index as before                      \n
+     *  \li \c u_q0 bias is 2 bits                                           \n
+     *  \li \c u_q1 bias is 2 bits                                           \n
      */
 
     /// @brief uvlc_tbl0 contains decoding information for initial row of quads
@@ -96,6 +105,8 @@ namespace ojph {
     /// @brief uvlc_tbl1 contains decoding information for non-initial row of 
     ///        quads
     ui16 uvlc_tbl1[256] = { 0 };
+    /// @brief uvlc_bias contains decoding info. for initial row of quads
+    ui8 uvlc_bias[256+64] = { 0 };
     /// @}
 
     //************************************************************************/
@@ -199,8 +210,10 @@ namespace ojph {
         ui32 mode = i >> 6;
         ui32 vlc = i & 0x3F;
 
-        if (mode == 0)      // both u_off are 0
+        if (mode == 0) {      // both u_off are 0
           uvlc_tbl0[i] = 0;
+          uvlc_bias[i] = 0;
+        }
         else if (mode <= 2) // u_off are either 01 or 10
         {
           ui32 d = dec[vlc & 0x7];   //look at the least significant 3 bits
@@ -232,6 +245,7 @@ namespace ojph {
             total_suffix = u0_suffix_len;
             u0 = d0 >> 5;
             u1 = (vlc & 1) + 1;
+            uvlc_bias[i] = 4; // 0b00 for u0 and 0b01 for u1
           }
           else
           {
@@ -240,6 +254,7 @@ namespace ojph {
             total_suffix = u0_suffix_len + ((d1 >> 2) & 0x7);
             u0 = d0 >> 5;
             u1 = d1 >> 5;
+            uvlc_bias[i] = 0;
           }
 
           uvlc_tbl0[i] = (ui16)(total_prefix | 
@@ -265,6 +280,7 @@ namespace ojph {
                                (u0_suffix_len << 7) |
                                (u0 << 10) |
                                (u1 << 13));
+          uvlc_bias[i] = 10; // 0b10 for u0 and 0b10 for u1
         }
       }
 

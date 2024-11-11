@@ -49,6 +49,5 @@ namespace ojph {
       for (size_t i = 0; i < count; i += 16, p += 4)
         _mm_storeu_ps(p, zero);
     }
-
   }
 }

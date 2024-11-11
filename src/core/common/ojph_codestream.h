@@ -61,7 +61,7 @@ namespace ojph {
   class comment_exchange;
   class mem_fixed_allocator;
   struct point;
-  struct line_buf;
+  class line_buf;
   class outfile_base;
   class infile_base;
 

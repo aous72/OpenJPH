@@ -40,18 +40,26 @@
 #define OJPH_COLOR_H
 
 namespace ojph {
+
+  // defined elsewhere
+  class line_buf;
+
   namespace local {
 
   ////////////////////////////////////////////////////////////////////////////
   void init_colour_transform_functions();
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_si32_to_si32_shftd)
-    (const si32 *sp, si32 *dp, int shift, ui32 width);
+  extern void (*rev_convert)
+    (const line_buf *src_line, const ui32 src_line_offset, 
+     line_buf *dst_line, const ui32 dst_line_offset, 
+     si64 shift, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_si32_to_si32_nlt_type3)
-    (const si32 *sp, si32 *dp, int shift, ui32 width);
+  extern void (*rev_convert_nlt_type3)
+    (const line_buf *src_line, const ui32 src_line_offset, 
+     line_buf *dst_line, const ui32 dst_line_offset, 
+     si64 shift, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*cnvrt_si32_to_float_shftd)
@@ -71,13 +79,13 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*rct_forward)
-    (const si32 *r, const si32 *g, const si32 *b,
-     si32 *y, si32 *cb, si32 *cr, ui32 repeat);
+    (const line_buf *r, const line_buf *g, const line_buf *b,
+     line_buf *y, line_buf *cb, line_buf *cr, ui32 repeat);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*rct_backward)
-    (const si32 *y, const si32 *cb, const si32 *cr,
-     si32 *r, si32 *g, si32 *b, ui32 repeat);
+    (const line_buf *y, const line_buf *cb, const line_buf *cr,
+     line_buf *r, line_buf *g, line_buf *b, ui32 repeat);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*ict_forward)

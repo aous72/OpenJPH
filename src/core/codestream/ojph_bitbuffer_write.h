@@ -111,31 +111,23 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline
+    void bb_put_zeros(bit_write_buf *bbp, int num_zeros,
+                      mem_elastic_allocator *elastic,
+                      coded_lists*& cur_coded_list, ui32& ph_bytes)
+    {
+      for (int i = num_zeros; i > 0; --i)
+        bb_put_bit(bbp, 0, elastic, cur_coded_list, ph_bytes);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
     void bb_put_bits(bit_write_buf *bbp, ui32 data, int num_bits,
                      mem_elastic_allocator *elastic,
                      coded_lists*& cur_coded_list, ui32& ph_bytes)
     {
-//      assert(num_bits <= 32);
-      for (int i = num_bits - 1; i >= 0; --i)
+      assert(num_bits <= 32);
+      for (int i = num_bits - 1; i >= 0; --i) 
         bb_put_bit(bbp, data >> i, elastic, cur_coded_list, ph_bytes);
-//      while (num_bits) {
-//        int tx_bits = num_bits < bbp->avail_bits ? num_bits : bbp->avail_bits;
-//        bbp->tmp |= (data >> (num_bits - tx_bits)) & ((1 << tx_bits) - 1);
-//        bbp->avail_bits -= tx_bits;
-//        if (bbp->avail_bits <= 0)
-//        {
-//          bbp->avail_bits = 8 - (bbp->tmp != 0xFF ? 0 : 1);
-//          bbp->buf[bbp->buf_size - bbp->avail_size] = (ui8)(bbp->tmp & 0xFF);
-//          bbp->tmp = 0;
-//          --bbp->avail_size;
-//          if (bbp->avail_size == 0)
-//          {
-//            bb_expand_buf(bbp, elastic, cur_coded_list->next_list);
-//            cur_coded_list = cur_coded_list->next_list;
-//            ph_bytes += bit_buffer::needed;
-//          }
-//        }
-//      }
     }
 
     //////////////////////////////////////////////////////////////////////////

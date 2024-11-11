@@ -329,9 +329,9 @@ namespace ojph {
       return;
       
     if (bytes_per_sample == 1)
-      temp_buf = alloc_p->post_alloc_data<ui8>(num_comps * width, 0);
+      temp_buf = alloc_p->post_alloc_data<ui8>(num_comps * (size_t)width, 0);
     else
-      temp_buf = alloc_p->post_alloc_data<ui16>(num_comps * width, 0);
+      temp_buf = alloc_p->post_alloc_data<ui16>(num_comps * (size_t)width, 0);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -408,7 +408,7 @@ namespace ojph {
           "unable to open file %s for writing", filename);
 
       fprintf(fh, "P5\n%d %d\n%d\n", width, height, (1 << bit_depth) - 1);
-      buffer_size = width * bytes_per_sample;
+      buffer_size = (size_t)width * bytes_per_sample;
       buffer = (ui8*)malloc(buffer_size);
     }
     else
@@ -435,7 +435,7 @@ namespace ojph {
         fprintf(fh, "P6\n%d %d\n%d\n", width, height, (1 << bit_depth) - 1);
       if (result == 0)
         OJPH_ERROR(0x03000027, "error writing to file %s", filename);
-      buffer_size = width * num_components * bytes_per_sample;
+      buffer_size = (size_t)width * num_components * (size_t)bytes_per_sample;
       buffer = (ui8*)malloc(buffer_size);
     }
     fname = filename;
@@ -935,12 +935,12 @@ namespace ojph {
     // the first time trying to access this line
     if (PLANARCONFIG_SEPARATE == planar_configuration && 0 == comp_num )
     {
-      for (unsigned short color = 0; color < num_comps; color++)
+      for (ui32 color = 0; color < num_comps; color++)
       {
         if (bytes_per_sample == 1)
         {
           TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8, 
-            cur_line, color);
+            cur_line, (ui16)color);
           ui32 x = color;
           uint8_t* line_buffer_of_interleaved_components = 
             (uint8_t*)line_buffer;
@@ -953,7 +953,7 @@ namespace ojph {
         else if (bytes_per_sample == 2)
         {
           TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16, 
-            cur_line, color);
+            cur_line, (ui16)color);
           ui32 x = color;
           ui16* line_buffer_of_interleaved_components = (ui16*)line_buffer;
           for (ui32 i = 0; i < width; i++, x += num_comps)
@@ -1070,7 +1070,7 @@ namespace ojph {
       OJPH_ERROR(0x030000B3, "unable to open file %s for writing", filename);
     }
 
-    buffer_size = width * num_components * bytes_per_sample;
+    buffer_size = width * (size_t)num_components * (size_t)bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
     fname = filename;
     cur_line = 0;
@@ -1146,7 +1146,7 @@ namespace ojph {
       bytes_per_sample = 2;
     }
     samples_per_line = num_components * width;
-    bytes_per_line = bytes_per_sample * samples_per_line;
+    bytes_per_line = bytes_per_sample * (size_t)samples_per_line;
 
   }
 
@@ -1482,7 +1482,7 @@ namespace ojph {
 
     cur_line = 0;
     bytes_per_sample = (bit_depth + 7) >> 3;
-    buffer_size = width * bytes_per_sample;
+    buffer_size = (size_t)width * bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
     fname = filename;
   }
@@ -1618,11 +1618,11 @@ namespace ojph {
     this->width = width;
 
     if (is_signed) { 
-      upper_val = (1 << (bit_depth - 1));
-      lower_val = -(1 << (bit_depth - 1));
+      upper_val = ((si64)1 << (bit_depth - 1));
+      lower_val = -((si64)1 << (bit_depth - 1));
     } else {
-      upper_val = 1 << bit_depth;
-      lower_val = 0;
+      upper_val = (si64)1 << bit_depth;
+      lower_val = (si64)0;
     }
 
     bytes_per_sample = (bit_depth + 7) >> 3;
@@ -1637,63 +1637,127 @@ namespace ojph {
     assert(fh);
     assert(comp_num == 0);
 
-    if (bytes_per_sample > 3)
+    if (is_signed) 
     {
-      const si32* sp = line->i32;
-      ui32* dp = (ui32*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      if (bytes_per_sample > 3)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui32)val;
+        const si32* sp = line->i32;
+        si32* dp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si32)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
+      else if (bytes_per_sample > 2)
+      {
+        const si32* sp = line->i32;
+        si32* dp = (si32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp = (si32)val;
+          // this only works for little endian architecture
+          dp = (si32*)((ui8*)dp + 3);
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000152, "unable to write to file %s", fname);
+      }
+      else if (bytes_per_sample > 1)
+      {
+        const si32* sp = line->i32;
+        si16* dp = (si16*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si16)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
+      }
+      else
+      {
+        const si32* sp = line->i32;
+        si8* dp = (si8*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (si8)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000154, "unable to write to file %s", fname);
+      }
     }
-    else if (bytes_per_sample > 2)
+    else 
     {
-      const si32* sp = line->i32;
-      ui32* dp = (ui32*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      if (bytes_per_sample > 3)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp = (ui32)val;
-        // this only works for little endian architecture
-        dp = (ui32*)((ui8*)dp + 3);
+        const ui32* sp = (ui32*)line->i32;
+        ui32* dp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui32)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000155, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000152, "unable to write to file %s", fname);
-    }
-    else if (bytes_per_sample > 1)
-    {
-      const si32* sp = line->i32;
-      ui16* dp = (ui16*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      else if (bytes_per_sample > 2)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui16)val;
+        const ui32* sp = (ui32*)line->i32;
+        ui32* dp = (ui32*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp = (ui32)val;
+          // this only works for little endian architecture
+          dp = (ui32*)((ui8*)dp + 3);
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000156, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
-    }
-    else
-    {
-      const si32* sp = line->i32;
-      ui8* dp = (ui8*)buffer;
-      for (ui32 i = width; i > 0; --i)
+      else if (bytes_per_sample > 1)
       {
-        int val = *sp++;
-        val = val < upper_val ? val : upper_val;
-        val = val >= lower_val ? val : lower_val;
-        *dp++ = (ui8)val;
+        const ui32* sp = (ui32*)line->i32;
+        ui16* dp = (ui16*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui16)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000157, "unable to write to file %s", fname);
       }
-      if (fwrite(buffer, bytes_per_sample, width, fh) != width)
-        OJPH_ERROR(0x03000154, "unable to write to file %s", fname);
+      else
+      {
+        const ui32* sp = (ui32*)line->i32;
+        ui8* dp = (ui8*)buffer;
+        for (ui32 i = width; i > 0; --i)
+        {
+          si64 val = *sp++;
+          val = val < upper_val ? val : upper_val;
+          val = val >= lower_val ? val : lower_val;
+          *dp++ = (ui8)val;
+        }
+        if (fwrite(buffer, bytes_per_sample, width, fh) != width)
+          OJPH_ERROR(0x03000158, "unable to write to file %s", fname);
+      }
     }
 
     return width;
@@ -1940,11 +2004,11 @@ namespace ojph {
 
     // allocate line_buffer_16bit_samples to hold a line of image data in memory
     line_buffer_16bit_samples = 
-      (ui16*) malloc(width * num_comps * sizeof(ui16));
+      (ui16*) malloc((size_t)width * num_comps * sizeof(ui16));
     if (NULL == line_buffer_16bit_samples)
       OJPH_ERROR(0x03000179, "Unable to allocate %d bytes for "
         "line_buffer_16bit_samples[] for file %s", 
-        width * num_comps * sizeof(ui16), filename);
+        (size_t)width * num_comps * sizeof(ui16), filename);
 
     cur_line = 0;
 

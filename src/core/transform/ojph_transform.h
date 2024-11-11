@@ -42,7 +42,10 @@
 #include "ojph_defs.h"
 
 namespace ojph {
-  struct line_buf;
+
+  // defined elsewhere
+  class line_buf;
+
   namespace local {
     union lifting_step;
     struct param_atk;

@@ -46,7 +46,7 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  struct line_buf;
+  class line_buf;
   class mem_fixed_allocator;
   class mem_elastic_allocator;
   class codestream;

@@ -44,6 +44,6 @@ namespace ojph{
     extern ui16 vlc_tbl1[1024];
     extern ui16 uvlc_tbl0[256+64];
     extern ui16 uvlc_tbl1[256];
-
+    extern ui8 uvlc_bias[256+64];
   } // !namespace local
 } // !namespace ojph

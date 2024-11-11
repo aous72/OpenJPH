@@ -47,7 +47,7 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   //defined elsewhere
-  struct line_buf;
+  class line_buf;
   class codestream;
 
   namespace local {

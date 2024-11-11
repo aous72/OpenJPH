@@ -64,7 +64,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // defined elsewhere
   class mem_fixed_allocator;
-  struct line_buf;
+  class line_buf;
 
   ////////////////////////////////////////////////////////////////////////////
   //
@@ -779,7 +779,7 @@ namespace ojph {
     ui32 bit_depth_of_data[4]; 
     ui32 bytes_per_sample;
     ui8* buffer;
-    ui32 buffer_size;
+    size_t buffer_size;
     ui32 cur_line, samples_per_line;
   };
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
@@ -856,7 +856,7 @@ namespace ojph {
     const char* fname;
     bool is_signed;
     ui32 bit_depth, bytes_per_sample;
-    si32 lower_val, upper_val;
+    si64 lower_val, upper_val;
     ui32 width;
     ui8* buffer;
     ui32 buffer_size;

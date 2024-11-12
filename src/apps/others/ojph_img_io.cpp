@@ -2270,80 +2270,40 @@ namespace ojph {
       return 0;
     }
 
-#if 0
-    if(cur_line < height)
+    switch (comp_num)
     {
-      switch (comp_num)
+    case 0:
+      for (ui32 i = 0; i < width; i++)
       {
-      case 0:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].r);
-        }
-        break;
-      case 1:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].g);
-        }
-        break;
-      case 2:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].b);
-        }
-        break;
-      case 3:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].a);
-        }
-        break;
+        line->i32[i] = (si16)pixels[cur_line][i].r.bits();
       }
-
-    }
-    else
-    {
-      printf("cur_line = %d is greater than height = %d\n", cur_line, height);
-    }
-#endif
-    if (cur_line < height)
-    {
-      switch (comp_num)
+      break;
+    case 1:
+      for (ui32 i = 0; i < width; i++)
       {
-      case 0:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].r.bits());
-        }
-        break;
-      case 1:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].g.bits());
-        }
-        break;
-      case 2:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].b.bits());
-        }
-        break;
-      case 3:
-        for (ui32 i = 0; i < width; i++)
-        {
-          line->i32[i] = (si32)(pixels[cur_line][i].a.bits());
-        }
-        break;
+        line->i32[i] = (si16)pixels[cur_line][i].g.bits();
       }
-
+      break;
+    case 2:
+      for (ui32 i = 0; i < width; i++)
+      {
+        line->i32[i] = (si16)pixels[cur_line][i].b.bits();
+      }
+      break;
+    case 3:
+      for (ui32 i = 0; i < width; i++)
+      {
+        line->i32[i] = (si16)pixels[cur_line][i].a.bits();
+      }
+      break;
+    default:
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+        __FILE__, __LINE__, __FUNCTION__, comp_num);
+      return 0;
+      break;
     }
-    else
-    {
-      printf("cur_line = %d is greater than height = %d\n", cur_line, height);
-    }
 
-    if (comp_num == 0)
+    if (comp_num == (num_comps-1))
     {
       cur_line++;
     }

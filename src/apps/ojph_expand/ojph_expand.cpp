@@ -219,6 +219,9 @@ int main(int argc, char *argv[]) {
     #endif /* OJPH_ENABLE_TIFF_SUPPORT */
     ojph::yuv_out yuv;
     ojph::raw_out raw;
+    #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+    ojph::exr_out exr;
+    #endif /* OJPH_ENABLE_OPENEXR_SUPPORT */
     ojph::image_out_base *base = NULL;
     const char *v = get_file_extension(output_filename);
     if (v)
@@ -392,6 +395,26 @@ int main(int argc, char *argv[]) {
         raw.open(output_filename);
         base = &raw;
       }
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+      else if (is_matching(".exr", v))
+      {
+        ojph::param_siz siz = codestream.access_siz();
+
+        if (siz.get_num_components() != 3 && siz.get_num_components() != 4)
+          OJPH_ERROR(0x0200000C,
+            "The file has %d color components; this cannot be saved to"
+            " .exr file (currently only 3 and 4 components are supported).\n",
+            siz.get_num_components());
+        bool is_signed = siz.is_signed(0);
+        ojph::ui32 width = siz.get_recon_width(0);
+        ojph::ui32 height = siz.get_recon_height(0);
+        ojph::ui32 bit_depth = siz.get_bit_depth(0);
+        ojph::ui32 num_components = siz.get_num_components();
+        exr.configure(width, height, num_components, bit_depth);
+        exr.open(output_filename);
+        base = &exr;
+      }
+#endif /* OJPH_ENABLE_EXR_SUPPORT */
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
         OJPH_ERROR(0x02000009,

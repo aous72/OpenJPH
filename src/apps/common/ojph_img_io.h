@@ -518,7 +518,7 @@ namespace ojph {
   };
 
 #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
-#define MAXIMUM_COMPONENTS_EXR_IN 4
+#define MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN 4
   class exr_in : public image_in_base
   {
   public:
@@ -532,7 +532,7 @@ namespace ojph {
 
       cur_line = 0;
 
-      for (int i = 0; i < MAXIMUM_COMPONENTS_EXR_IN; i++)
+      for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN; i++)
       {
         bit_depth[i] = 0;
         is_signed[i] = false;
@@ -575,9 +575,9 @@ namespace ojph {
     ui32 num_comps;
     ui32 cur_line;
 
-    ui32 bit_depth[MAXIMUM_COMPONENTS_EXR_IN];
-    bool is_signed[MAXIMUM_COMPONENTS_EXR_IN];
-    point subsampling[MAXIMUM_COMPONENTS_EXR_IN];
+    ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
+    bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
+    point subsampling[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
 
     Imf::Array2D<Imf::Rgba> pixels;
   };
@@ -888,6 +888,44 @@ namespace ojph {
     ui32 cur_line;
     si64 start_of_data;
   };
+
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+#define MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT 4
+  class exr_out : public image_out_base
+  {
+  public:
+    exr_out()
+    {
+      pixels.resizeErase(0, 0);
+      cur_line = 0;
+      width = 0; 
+      height = 0; 
+      num_components = 0;
+      for( int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+        bit_depth[i] = 0;
+      is_open = false;
+    }
+    virtual ~exr_out()
+    {
+      close();
+      pixels.resizeErase(0, 0);
+    }
+
+    void open(const char* filename);
+    void configure(ui32 width, ui32 height, ui32 num_components, ui32 bit_depth);
+    virtual ui32 write(const line_buf* line, ui32 comp_num);
+    virtual void close();
+
+  private:
+
+    const char* fname;
+    bool is_open;
+    ui32 width, height, num_components;
+    ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+    Imf::Array2D<Imf::Rgba> pixels;
+    ui32 cur_line;
+  };
+#endif /* OJPH_ENABLE_OPENEXR_SUPPORT */
 
 
 }

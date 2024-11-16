@@ -2175,10 +2175,10 @@ namespace ojph {
           const char* name = i.name();
           fprintf(stderr, "channel %d name = %s\n", channel_index, name);
 
-          if (channel_index >= MAXIMUM_COMPONENTS_EXR_IN)
+          if (channel_index >= MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
           {
             fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel_index = %d, this software currently supports %d channels\n",
-              __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_COMPONENTS_EXR_IN);
+              __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN);
             return;
           }
 
@@ -2308,10 +2308,94 @@ namespace ojph {
       cur_line++;
     }
 
-      
-
-
     return width;
   }
+
+  void exr_out::open(const char* filename)
+  {
+    fname = filename;
+    cur_line = 0;
+    // allocate a framebuffer to hold decoded data
+    pixels.resizeErase(height, width);
+    is_open = true;
+    return;
+  }
+
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, ui32 bit_depth)
+  {
+    this->num_components = num_components;
+    this->width = width;
+    this->height = height;
+    for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+    {
+      this->bit_depth[i] = bit_depth;
+    }
+    return;
+  }
+
+  ui32 exr_out::write(const line_buf* line, ui32 comp_num)
+  {
+    switch (comp_num)
+    {
+    case 0:
+      for (ui32 i = 0; i < width; i++)
+      {
+        pixels[cur_line][i].r.setBits(line->i32[i]);
+      }
+      break;
+    case 1:
+      for (ui32 i = 0; i < width; i++)
+      {
+        pixels[cur_line][i].g.setBits(line->i32[i]);
+      }
+      break;
+    case 2:
+      for (ui32 i = 0; i < width; i++)
+      {
+        pixels[cur_line][i].b.setBits(line->i32[i]);
+      }
+      break;
+    case 3:
+      for (ui32 i = 0; i < width; i++)
+      {
+        pixels[cur_line][i].a.setBits(line->i32[i]);
+      }
+      break;
+    default:
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+        __FILE__, __LINE__, __FUNCTION__, comp_num);
+      return 0;
+      break;
+    }
+
+    if( comp_num == num_components - 1)
+      cur_line++;
+    
+    return 0;
+  }
+
+  void exr_out::close()
+  {
+    if (true == is_open)
+    {
+      Imf::RgbaOutputFile* file;
+      if (num_components == 4)
+        file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGBA);
+      else if (num_components == 3)
+        file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGB);
+      else
+      {
+        fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
+      }
+      file->setFrameBuffer(&pixels[0][0], 1, width);
+      file->writePixels(height);
+
+      delete file;
+    }
+                                     
+    fname = NULL;
+    is_open = false;
+  }
+
 #endif
 } 

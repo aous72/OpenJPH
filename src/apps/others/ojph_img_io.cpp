@@ -2340,25 +2340,25 @@ namespace ojph {
     case 0:
       for (ui32 i = 0; i < width; i++)
       {
-        pixels[cur_line][i].r.setBits(line->i32[i]);
+        pixels[cur_line][i].r.setBits((si16)line->i32[i]);
       }
       break;
     case 1:
       for (ui32 i = 0; i < width; i++)
       {
-        pixels[cur_line][i].g.setBits(line->i32[i]);
+        pixels[cur_line][i].g.setBits((si16)line->i32[i]);
       }
       break;
     case 2:
       for (ui32 i = 0; i < width; i++)
       {
-        pixels[cur_line][i].b.setBits(line->i32[i]);
+        pixels[cur_line][i].b.setBits((si16)line->i32[i]);
       }
       break;
     case 3:
       for (ui32 i = 0; i < width; i++)
       {
-        pixels[cur_line][i].a.setBits(line->i32[i]);
+        pixels[cur_line][i].a.setBits((si16)line->i32[i]);
       }
       break;
     default:
@@ -2378,7 +2378,7 @@ namespace ojph {
   {
     if (true == is_open)
     {
-      Imf::RgbaOutputFile* file;
+      Imf::RgbaOutputFile* file = NULL;
       if (num_components == 4)
         file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGBA);
       else if (num_components == 3)
@@ -2390,7 +2390,8 @@ namespace ojph {
       file->setFrameBuffer(&pixels[0][0], 1, width);
       file->writePixels(height);
 
-      delete file;
+      if( NULL != file )
+        delete file;
     }
                                      
     fname = NULL;

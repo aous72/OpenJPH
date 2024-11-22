@@ -405,7 +405,6 @@ int main(int argc, char *argv[]) {
             "The file has %d color components; this cannot be saved to"
             " .exr file (currently only 3 and 4 components are supported).\n",
             siz.get_num_components());
-        bool is_signed = siz.is_signed(0);
         ojph::ui32 width = siz.get_recon_width(0);
         ojph::ui32 height = siz.get_recon_height(0);
         ojph::ui32 bit_depth = siz.get_bit_depth(0);

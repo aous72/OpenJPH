@@ -9,13 +9,13 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
     set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
     include_directories( ${TIFF_INCLUDE_DIR} ) 
     add_definitions(-DOJPH_ENABLE_TIFF_SUPPORT)
-  elseif(MSVC)
+  elseif(TIFF_FOUND)
     message(STATUS "TIFF support has been enabled but no path to the TIFF library "
     "has been specified; please configure with -DCMAKE_PREFIX_PATH=<TIFF library directory>, "
     "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
   endif( TIFF_FOUND )
 
-endif() 
+endif(OJPH_ENABLE_TIFF_SUPPORT) 
 ############################################################
 
 # Add OPENEXR library 
@@ -57,7 +57,7 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
     message(STATUS "Found OpenEXR ${OpenEXR_VERSION}")
     set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
     add_definitions(-DOJPH_ENABLE_OPENEXR_SUPPORT)
-  else()
+  else(OpenEXR_FOUND)
     find_package(IlmBase)
     if(IlmBase_FOUND)
       message(STATUS "Found IlmBase ${IlmBase_VERSION}")
@@ -67,13 +67,13 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
         message(STATUS "Found OpenEXR ${OpenEXR_VERSION}")
         set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
         add_definitions(-DOJPH_ENABLE_OPENEXR_SUPPORT)
-      endif()
+      endif(OpenEXR_FOUND)
 
-    endif()
+    endif(IlmBase_FOUND)
     
-  endif()
+  endif(OpenEXR_FOUND)
 
-endif() 
+endif(OJPH_ENABLE_OPENEXR_SUPPORT) 
 ############################################################
 
 ## Build executables

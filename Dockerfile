@@ -1,4 +1,7 @@
-FROM ubuntu:noble
+#in noble, apt-get installs OpenEXR v3
+FROM ubuntu:noble 
+#in jammy, apt-get installs OpenEXR v2
+#FROM ubuntu:jammy 
 
 RUN apt-get update
 
@@ -13,7 +16,8 @@ RUN apt-get -y install valgrind
 
 # install optional openjph dependencies
 RUN apt-get -y install libtiff-dev
-#RUN apt-get -y install libilmbase-dev
+#libilmbase-dev is needed or OpenEXR v2 but not OpenEXR v3
+#RUN apt-get -y install libilmbase-dev 
 RUN apt-get -y install libopenexr-dev
 
 

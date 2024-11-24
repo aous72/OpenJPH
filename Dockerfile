@@ -16,10 +16,9 @@ RUN apt-get -y install valgrind
 
 # install optional openjph dependencies
 RUN apt-get -y install libtiff-dev
-#libilmbase-dev is needed or OpenEXR v2 but not OpenEXR v3
+#libilmbase-dev is needed for OpenEXR v2 but not for OpenEXR v3
 #RUN apt-get -y install libilmbase-dev 
 RUN apt-get -y install libopenexr-dev
-
 
 ######### build/install openexr from source
 # WORKDIR /usr/src/

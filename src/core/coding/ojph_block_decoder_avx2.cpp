@@ -582,7 +582,7 @@ namespace ojph {
     /** @brief State structure for reading and unstuffing of forward-growing
      *         bitstreams; these are: MagSgn and SPP bitstreams
      */
-    struct frwd_struct {
+    struct frwd_struct_avx2 {
       const ui8* data;  //!<pointer to bitstream
       ui8 tmp[48];      //!<temporary buffer of read data + 16 extra
       ui32 bits;        //!<number of bits stored in tmp
@@ -605,12 +605,12 @@ namespace ojph {
      *  Reading can go beyond the end of buffer by up to 16 bytes.
      *
      *  @tparam       X is the value fed in when the bitstream is exhausted
-     *  @param  [in]  msp is a pointer to frwd_struct structure
+     *  @param  [in]  msp is a pointer to frwd_struct_avx2 structure
      *
      */
     template<int X>
     static inline
-    void frwd_read(frwd_struct *msp)
+    void frwd_read(frwd_struct_avx2 *msp)
     {
       assert(msp->bits <= 128);
 
@@ -689,17 +689,17 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Initialize frwd_struct struct and reads some bytes
+    /** @brief Initialize frwd_struct_avx2 struct and reads some bytes
      *
      *  @tparam      X is the value fed in when the bitstream is exhausted.
      *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct_avx2
      *  @param [in]  data is a pointer to the start of data
      *  @param [in]  size is the number of byte in the bitstream
      */
     template<int X>
     static inline
-    void frwd_init(frwd_struct *msp, const ui8* data, int size)
+    void frwd_init(frwd_struct_avx2 *msp, const ui8* data, int size)
     {
       msp->data = data;
       _mm_storeu_si128((__m128i *)msp->tmp, _mm_setzero_si128());
@@ -714,13 +714,13 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Consume num_bits bits from the bitstream of frwd_struct
+    /** @brief Consume num_bits bits from the bitstream of frwd_struct_avx2
      *
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct_avx2
      *  @param [in]  num_bits is the number of bit to consume
      */
     static inline
-    void frwd_advance(frwd_struct *msp, ui32 num_bits)
+    void frwd_advance(frwd_struct_avx2 *msp, ui32 num_bits)
     {
       assert(num_bits > 0 && num_bits <= msp->bits && num_bits < 128);
       msp->bits -= num_bits;
@@ -752,15 +752,15 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Fetches 32 bits from the frwd_struct bitstream
+    /** @brief Fetches 32 bits from the frwd_struct_avx2 bitstream
      *
      *  @tparam      X is the value fed in when the bitstream is exhausted.
      *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct_avx2
      */
     template<int X>
     static inline
-    __m128i frwd_fetch(frwd_struct *msp)
+    __m128i frwd_fetch(frwd_struct_avx2 *msp)
     {
       if (msp->bits <= 128)
       {
@@ -782,7 +782,7 @@ namespace ojph {
      *  @param vn       used for handling E values (stores v_n values)
      *  @return __m256i decoded two quads
      */
-    static inline __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q, frwd_struct* magsgn, ui32 p, __m128i& vn) {
+    static inline __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
         __m256i row = _mm256_setzero_si256();
 
         // we keeps e_k, e_1, and rho in w2
@@ -896,7 +896,7 @@ namespace ojph {
      *  @return __m128i decoded quad
      */
 
-    static inline __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q, frwd_struct* magsgn, ui32 p, __m128i& vn) {
+    static inline __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
 
         __m256i w0;     // workers
         __m256i insig;  // lanes hold FF's if samples are insignificant
@@ -1435,7 +1435,7 @@ namespace ojph {
         const int v_n_size = 512 + 16;
         ui32 v_n_scratch[2 * v_n_size] = {0}; // 4+ kB
 
-        frwd_struct magsgn;
+        frwd_struct_avx2 magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
 
         const __m256i avx_mmsbp2 = _mm256_set1_epi32((int)mmsbp2);
@@ -1551,7 +1551,7 @@ namespace ojph {
         ui16 v_n_scratch[v_n_size] = {0}; // 1+ kB
         ui32 v_n_scratch_32[v_n_size] = {0}; // 2+ kB
 
-        frwd_struct magsgn;
+        frwd_struct_avx2 magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
 
         {
@@ -1728,7 +1728,7 @@ namespace ojph {
           // We add an extra 8 entries, just in case we need more
           ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
 
-          frwd_struct sigprop;
+          frwd_struct_avx2 sigprop;
           frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
 
           for (ui32 y = 0; y < height; y += 4)

@@ -79,6 +79,7 @@ namespace ojph {
                                    ojph::mem_elastic_allocator *elastic,
                                    ojph::coded_lists *& coded);
 
+    bool initialize_block_encoder_tables();
     bool initialize_block_encoder_tables_avx2();
     bool initialize_block_encoder_tables_avx512();
   }

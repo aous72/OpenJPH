@@ -17,9 +17,8 @@ FetchContent_Declare(
   jp2k_test_codestreams
   URL               https://github.com/aous72/jp2k_test_codestreams/archive/refs/heads/main.zip
   SOURCE_DIR        jp2k_test_codestreams/
-  CONFIGURE_COMMAND ""
 )
-FetchContent_Populate(jp2k_test_codestreams)
+FetchContent_MakeAvailable(jp2k_test_codestreams)
 
 # create the mse_pae executable
 include(mse_pae.cmake)

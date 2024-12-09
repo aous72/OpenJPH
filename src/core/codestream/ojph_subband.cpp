@@ -98,7 +98,7 @@ namespace ojph {
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
       const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_implementation_precision(szp);
+      ui32 precision = cdp->propose_precision(szp, comp_num);
       if (precision <= 32)      
         allocator->pre_alloc_data<si32>(width, 1);
       else
@@ -141,7 +141,8 @@ namespace ojph {
         if (dfs != NULL)
           dfs = dfs->get_dfs(cdp->get_dfs_index());
       }
-      param_qcd* qcd = codestream->access_qcd(parent->get_comp_num());
+      ui32 comp_num = parent->get_comp_num();
+      param_qcd* qcd = codestream->access_qcd(comp_num);
       ui32 num_decomps = cdp->get_num_decompositions();
       this->K_max = qcd->get_Kmax(dfs, num_decomps, this->res_num, band_num);
       if (!reversible)
@@ -198,7 +199,7 @@ namespace ojph {
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
       const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_implementation_precision(szp);
+      ui32 precision = cdp->propose_precision(szp, comp_num);
       if (precision <= 32)      
         lines->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
       else

@@ -524,7 +524,7 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
-      ui32 propose_implementation_precision(const param_siz* siz) const;
+      ui32 propose_precision(const param_siz* siz, ui32 comp_num) const;
 
       ////////////////////////////////////////
       bool write(outfile_base *file);
@@ -578,11 +578,11 @@ namespace ojph {
       cod_SGcod SGCod;      // Used in COD and copied to COC
       cod_SPcod SPcod;      // serves as SPcod and SPcoc
       const param_cod* next;// to chain coc parameters to cod
+      const param_atk* atk; // used to read transform information
 
     private: // COC only variables
       param_cod* parent;    // parent COD structure
       ui16 comp_num;        // component index of this COC structure
-      const param_atk* atk; // useful when SPcod.wavelet_trans > 1
     };
 
     ///////////////////////////////////////////////////////////////////////////

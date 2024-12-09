@@ -254,8 +254,18 @@ namespace ojph {
     }
 
     /////////////////////////////////////////////////////////////////////////
-    static bool vlc_tables_initialized = vlc_init_tables();
-    static bool uvlc_tables_initialized = uvlc_init_tables();
+    static bool tables_initialized = false;
+
+    /////////////////////////////////////////////////////////////////////////
+    bool initialize_block_encoder_tables() {
+      if (!tables_initialized) {
+        memset(vlc_tbl0, 0, 2048 * sizeof(ui16));
+        memset(vlc_tbl1, 0, 2048 * sizeof(ui16));
+        tables_initialized = vlc_init_tables();
+        tables_initialized = tables_initialized && uvlc_init_tables();
+      }
+      return tables_initialized;
+    }
 
     /////////////////////////////////////////////////////////////////////////
     //

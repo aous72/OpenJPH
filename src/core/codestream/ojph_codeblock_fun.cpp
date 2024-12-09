@@ -158,6 +158,8 @@ namespace ojph {
         tx_from_cb64 = NULL;
       }
       encode_cb64 = ojph_encode_codeblock64;
+      bool result = initialize_block_encoder_tables();
+      assert(result); ojph_unused(result);      
 
   #ifndef OJPH_DISABLE_SIMD
 

@@ -1,6 +1,6 @@
-#in noble, apt-get installs OpenEXR v3
+#in ubuntu:noble, apt-get installs OpenEXR v3
 FROM ubuntu:noble 
-#in jammy, apt-get installs OpenEXR v2
+#in ubuntu:jammy, apt-get installs OpenEXR v2
 #FROM ubuntu:jammy 
 
 RUN apt-get update

@@ -9,7 +9,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
     set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
     include_directories( ${TIFF_INCLUDE_DIR} ) 
     add_definitions(-DOJPH_ENABLE_TIFF_SUPPORT)
-  elseif(TIFF_FOUND)
+  elseif( TIFF_FOUND )
     message(STATUS "TIFF support has been enabled but no path to the TIFF library "
     "has been specified; please configure with -DCMAKE_PREFIX_PATH=<TIFF library directory>, "
     "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
@@ -58,17 +58,29 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
     set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
     add_definitions(-DOJPH_ENABLE_OPENEXR_SUPPORT)
   else(OpenEXR_FOUND)
+    message(STATUS "OpenEXR v3 not found, looking for OpenEXR v2")
     find_package(IlmBase)
     if(IlmBase_FOUND)
       message(STATUS "Found IlmBase ${IlmBase_VERSION}")
-
       find_package(OpenEXR 2)
       if(OpenEXR_FOUND)
         message(STATUS "Found OpenEXR ${OpenEXR_VERSION}")
         set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
         add_definitions(-DOJPH_ENABLE_OPENEXR_SUPPORT)
+        # if (MSVC)
+        #   # Suffix for debug configuration libraries
+        #   # (if you should choose to install those)
+        #   set(CMAKE_DEBUG_POSTFIX "_d" CACHE STRING "Suffix for debug builds")
+        # endif (MSVC)
+      else(OpenEXR_FOUND)
+        message(STATUS "OpenEXR support has been enabled but no path to the OpenEXR library "
+        "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
+        "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
       endif(OpenEXR_FOUND)
-
+    else(IlmBase_FOUND)
+      message(STATUS "OpenEXR support has been enabled but no path to the OpenEXR or IlmBase library "
+      "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
+      "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
     endif(IlmBase_FOUND)
     
   endif(OpenEXR_FOUND)

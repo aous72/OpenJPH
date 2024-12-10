@@ -901,18 +901,25 @@ namespace ojph {
       width = 0; 
       height = 0; 
       num_components = 0;
-      for( int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+      for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+      {
+        has_nlt[i] = false;
         bit_depth[i] = 0;
+        is_signed[i] = false;
+      }
+      is_use_Rgba_interface = false;
+        
       is_open = false;
     }
     virtual ~exr_out()
     {
       close();
-      pixels.resizeErase(0, 0);
+      if(true == is_use_Rgba_interface )
+        pixels.resizeErase(0, 0);
     }
 
     void open(const char* filename);
-    void configure(ui32 width, ui32 height, ui32 num_components, ui32 bit_depth);
+    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui8* bitdepths, bool* is_signed);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close();
 
@@ -920,9 +927,16 @@ namespace ojph {
 
     const char* fname;
     bool is_open;
+
     ui32 width, height, num_components;
+
+    bool has_nlt[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
     ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+    bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+
     Imf::Array2D<Imf::Rgba> pixels;
+    bool is_use_Rgba_interface;
+
     ui32 cur_line;
   };
 #endif /* OJPH_ENABLE_OPENEXR_SUPPORT */

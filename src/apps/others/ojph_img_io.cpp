@@ -2154,22 +2154,23 @@ namespace ojph {
     // first open with most generic interface to see if the file can be supported by the easier RGBA interface
     try {
       Imf::InputFile file(filename);
-      Imath::Box2i       dw = file.header().dataWindow();
+      const Imf::Header header = file.header();
+      Imath::Box2i       dw = header.dataWindow();
       int                width = dw.max.x - dw.min.x + 1;
       int                height = dw.max.y - dw.min.y + 1;
 
-      has_alpha = file.header().channels().findChannel("A");
-      bool has_R = file.header().channels().findChannel("R");
-      bool has_G = file.header().channels().findChannel("G");
-      bool has_B = file.header().channels().findChannel("B");
+      const Imf::ChannelList& channelList = file.header().channels();
+      has_alpha = channelList.findChannel("A");
+      bool has_R = channelList.findChannel("R");
+      bool has_G = channelList.findChannel("G");
+      bool has_B = channelList.findChannel("B");
       has_RGB = has_R ? has_G ? has_B : false : false;
 
       this->width = width;
-      this->height = height;
-
-      const Imf::ChannelList& channels = file.header().channels();
+      this->height = height;     
+      
       int channel_index = 0;
-      for (Imf::ChannelList::ConstIterator i = channels.begin(); i != channels.end(); ++i)
+      for (Imf::ChannelList::ConstIterator i = channelList.begin(); i != channelList.end(); ++i)
       {
           const Imf::Channel & channel = i.channel();
           const char* name = i.name();
@@ -2211,6 +2212,7 @@ namespace ojph {
           this->subsampling[channel_index] = point(channel.xSampling, channel.ySampling);
           fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
 
+          // increment channel index at the end of the loop
           channel_index++;
       }
 
@@ -2231,10 +2233,9 @@ namespace ojph {
 
     // if the channels are RGB or RGBA then use the simple RGBA interface to read the pixel data
     if ((3 == this->num_comps && true == has_RGB && false == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16) ||
-        (4 == this->num_comps && true == has_RGB &&  true == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16))
+        (4 == this->num_comps && true == has_RGB &&  true == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16 && bit_depth[3] == 16))
     {
       try {
-        //Imf::RgbaInputFile file(filename);
         Imf::RgbaInputFile rgba_input_file(filename);
         Imath::Box2i       dw = rgba_input_file.dataWindow();
         int                width = dw.max.x - dw.min.x + 1;
@@ -2321,51 +2322,84 @@ namespace ojph {
     return;
   }
 
-  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, ui32 bit_depth)
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui8 *bitdepths, bool* is_signed)
   {
     this->num_components = num_components;
     this->width = width;
     this->height = height;
-    for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+    for (ui32 i = 0; i < num_components; i++)
     {
-      this->bit_depth[i] = bit_depth;
+      this->has_nlt[i] = has_nlt[i];
+      this->bit_depth[i] = bitdepths[i];
+      this->is_signed[i] = is_signed[i];
     }
+
+    this->is_use_Rgba_interface = false;
+    if (num_components == 3 || num_components == 4)
+    {
+      for (ui32 i = 0; i < num_components; i++)
+      {
+        if (true == has_nlt[i] && bit_depth[i] == 16 && true == is_signed[i])
+        {
+          this->is_use_Rgba_interface = true;
+        }
+        else
+        {
+          this->is_use_Rgba_interface = false;
+          fprintf(stderr, "not using RGBA interface\n");
+          break;
+        }
+      }
+    }
+    else
+    {
+      this->is_use_Rgba_interface = false;
+      fprintf(stderr, "not using RGBA interface\n");
+    }
+
     return;
   }
 
   ui32 exr_out::write(const line_buf* line, ui32 comp_num)
   {
-    switch (comp_num)
+    if (true == this->is_use_Rgba_interface)
     {
-    case 0:
-      for (ui32 i = 0; i < width; i++)
+      switch (comp_num)
       {
-        pixels[cur_line][i].r.setBits((si16)line->i32[i]);
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[cur_line][i].r.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[cur_line][i].g.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[cur_line][i].b.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[cur_line][i].a.setBits((si16)line->i32[i]);
+        }
+        break;
+      default:
+        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+          __FILE__, __LINE__, __FUNCTION__, comp_num);
+        return 0;
+        break;
       }
-      break;
-    case 1:
-      for (ui32 i = 0; i < width; i++)
-      {
-        pixels[cur_line][i].g.setBits((si16)line->i32[i]);
-      }
-      break;
-    case 2:
-      for (ui32 i = 0; i < width; i++)
-      {
-        pixels[cur_line][i].b.setBits((si16)line->i32[i]);
-      }
-      break;
-    case 3:
-      for (ui32 i = 0; i < width; i++)
-      {
-        pixels[cur_line][i].a.setBits((si16)line->i32[i]);
-      }
-      break;
-    default:
-      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
-        __FILE__, __LINE__, __FUNCTION__, comp_num);
-      return 0;
-      break;
+    }
+    else
+    {
+      fprintf(stderr, "not using RGBA interface is not currently supported\n");
     }
 
     if( comp_num == num_components - 1)
@@ -2378,24 +2412,33 @@ namespace ojph {
   {
     if (true == is_open)
     {
-      Imf::RgbaOutputFile* file = NULL;
-      if (num_components == 4)
-        file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGBA);
-      else if (num_components == 3)
-        file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGB);
+      if (true == is_use_Rgba_interface)
+      {
+        Imf::RgbaOutputFile* file = NULL;
+        if (num_components == 4)
+          file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGBA);
+        else if (num_components == 3)
+          file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGB);
+        else
+        {
+          fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
+          exit(-1);
+        }
+        file->setFrameBuffer(&pixels[0][0], 1, width);
+        file->writePixels(height);
+
+        if (NULL != file)
+          delete file;
+      }
       else
       {
-        fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
+        fprintf(stderr, "this software does not yet support writing files without the RGBA interface");
+        exit(-1);
       }
-      file->setFrameBuffer(&pixels[0][0], 1, width);
-      file->writePixels(height);
 
-      if( NULL != file )
-        delete file;
+      fname = NULL;
+      is_open = false;
     }
-                                     
-    fname = NULL;
-    is_open = false;
   }
 
 #endif

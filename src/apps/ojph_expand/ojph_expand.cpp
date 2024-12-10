@@ -399,30 +399,99 @@ int main(int argc, char *argv[]) {
       else if (is_matching(".exr", v))
       {
         ojph::param_siz siz = codestream.access_siz();
+        ojph::param_nlt nlt = codestream.access_nlt();
+        ojph::ui32 num_components = siz.get_num_components();
 
-        if (siz.get_num_components() != 3 && siz.get_num_components() != 4)
+        ojph::ui8 *bitdepths = (ojph::ui8*)calloc(num_components, sizeof(ojph::ui8));
+        if (NULL == bitdepths) {
+          fprintf(stderr, "Unable to allocate %zd bytes for bitdepths", num_components * sizeof(ojph::ui8));
+          exit(-1);
+        }
+
+        bool *is_signed = (bool*)calloc(num_components, sizeof(bool));
+        if (NULL == is_signed) {
+          fprintf(stderr, "Unable to allocate %zd bytes for is_signed", num_components * sizeof(bool));
+          exit(-1);
+        }
+        bool *has_nlt = (bool*)calloc(num_components, sizeof(bool));
+        if (NULL == has_nlt) {
+          fprintf(stderr, "Unable to allocate %zd bytes for has_nlt", num_components * sizeof(bool));
+          exit(-1);
+        }
+
+        // check properties for all components
+        for (ojph::ui32 c = 0; c < num_components; c++)
+        {
+          bool nlt_is_signed;
+          ojph::ui8 nlt_bit_depth;
+          has_nlt[c] = nlt.get_type3_transformation(c, nlt_bit_depth, nlt_is_signed);
+
+          fprintf(stderr, "comp = %d has_nlt = %s ",
+            c, has_nlt[c] ? "true" : "false");
+          if (true == has_nlt[c])
+          {
+            fprintf(stderr, "nlt_bit_depth = %d nlt_is_signed = % s\n",
+              nlt_bit_depth,
+              nlt_is_signed ? "true" : "false");
+          }
+          else
+          {
+            fprintf(stderr, "\n");
+          }
+          
+          if (true == has_nlt[c] && (nlt_bit_depth != siz.get_bit_depth(c) || nlt_is_signed != siz.is_signed(c)))
+          {
+            OJPH_ERROR(0x0200000F,
+              "There is discrepancy in component %d configuration between "
+              "SIZ marker segment, which specifies bit_depth = %d and "
+              "signedness = %s, and NLT marker segment, which specifies "
+              "bit_depth = %d and signedness = %s.\n", c,
+              siz.get_bit_depth(c), siz.is_signed(c) ? "True" : "False",
+              nlt_bit_depth, nlt_is_signed ? "True" : "False");
+          }
+
+          bitdepths[c] = siz.get_bit_depth(c);
+          is_signed[c] = siz.is_signed(c);
+        }
+
+        if (num_components != 3 && num_components != 4)
           OJPH_ERROR(0x0200000C,
             "The file has %d color components; this cannot be saved to"
             " .exr file (currently only 3 and 4 components are supported).\n",
-            siz.get_num_components());
+            num_components);
         ojph::ui32 width = siz.get_recon_width(0);
         ojph::ui32 height = siz.get_recon_height(0);
-        ojph::ui32 bit_depth = siz.get_bit_depth(0);
-        ojph::ui32 num_components = siz.get_num_components();
-        exr.configure(width, height, num_components, bit_depth);
+        
+        exr.configure(width, height, num_components, has_nlt, bitdepths, is_signed);
         exr.open(output_filename);
         base = &exr;
+
+        free(bitdepths);
+        free(is_signed);
+        free(has_nlt);
       }
 #endif /* OJPH_ENABLE_EXR_SUPPORT */
       else
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
+  #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
         OJPH_ERROR(0x02000009,
-          "unknown output file extension; only pgm, ppm, tif(f) and raw(yuv))"
+          "unknown output file extension; only pgm, ppm, tif(f), exr and raw(yuv))"
           " are supported\n");
+  #else
+      OJPH_ERROR(0x02000009,
+      "unknown output file extension; only pgm, ppm, tif(f) and raw(yuv))"
+      " are supported\n");
+  #endif
 #else
+  #ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+      OJPH_ERROR(0x02000009,
+      "unknown output file extension; only pgm, ppm, exr and raw(yuv))"
+      " are supported\n");
+  #else
         OJPH_ERROR(0x0200000A,
           "unknown output file extension; only pgm, ppm, and raw(yuv) are"
           " supported\n");
+  #endif
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
     }
     else

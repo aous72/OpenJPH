@@ -64,7 +64,7 @@ namespace ojph {
 
       const param_siz* sz = codestream->get_siz();
       const param_cod* cd = codestream->get_cod(comp_num);
-      ui32 precision = cd->propose_implementation_precision(sz);
+      ui32 precision = cd->propose_precision(sz, comp_num);
       if (precision <= 32)
         allocator->pre_alloc_data<ui32>(nominal.h * (size_t)stride, 0);
       else
@@ -87,7 +87,7 @@ namespace ojph {
       ui32 comp_num = parent->get_parent()->get_comp_num();
       const param_siz* sz = codestream->get_siz();
       const param_cod* cd = codestream->get_cod(comp_num);
-      ui32 bit_depth = cd->propose_implementation_precision(sz);
+      ui32 bit_depth = cd->propose_precision(sz, comp_num);
       if (bit_depth <= 32) {
         precision = BUF32;
         this->buf32 = allocator->post_alloc_data<ui32>(this->buf_size, 0);

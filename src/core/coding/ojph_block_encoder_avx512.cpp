@@ -305,7 +305,7 @@ namespace ojph {
     /////////////////////////////////////////////////////////////////////////
     //
     /////////////////////////////////////////////////////////////////////////
-    struct vlc_struct {
+    struct vlc_struct_avx512 {
       //storage
       ui8* buf;      //pointer to data buffer
       ui32 pos;      //position of next writing within buf
@@ -318,7 +318,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline void
-    vlc_init(vlc_struct* vlcp, ui32 buffer_size, ui8* data)
+    vlc_init(vlc_struct_avx512* vlcp, ui32 buffer_size, ui8* data)
     {
       vlcp->buf = data + buffer_size - 1; //points to last byte
       vlcp->pos = 1;                      //locations will be all -pos
@@ -332,7 +332,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     static inline void
-    vlc_encode(vlc_struct* vlcp, ui32 cwd, int cwd_len)
+    vlc_encode(vlc_struct_avx512* vlcp, ui32 cwd, int cwd_len)
     {
       vlcp->tmp |= (ui64)cwd << vlcp->used_bits;
       vlcp->used_bits += cwd_len;
@@ -372,7 +372,7 @@ namespace ojph {
     //
     //////////////////////////////////////////////////////////////////////////
     static inline void
-    terminate_mel_vlc(mel_struct* melp, vlc_struct* vlcp)
+    terminate_mel_vlc(mel_struct* melp, vlc_struct_avx512* vlcp)
     {
       if (melp->run > 0)
         mel_emit_bit(melp, 1);
@@ -898,7 +898,7 @@ static void proc_mel_encode2(mel_struct *melp, __m512i &cq_vec,
 using fn_proc_mel_encode = void (*)(mel_struct *, __m512i &, __m512i &, 
                                     __m512i, ui32, const __m512i);
 
-static void proc_vlc_encode1(vlc_struct *vlcp, ui32 *tuple,
+static void proc_vlc_encode1(vlc_struct_avx512 *vlcp, ui32 *tuple,
                              ui32 *u_q, ui32 ignore)
 {
     ui32 i_max = 16 - (ignore / 2);
@@ -966,7 +966,7 @@ static void proc_vlc_encode1(vlc_struct *vlcp, ui32 *tuple,
     }
 }
 
-static void proc_vlc_encode2(vlc_struct *vlcp, ui32 *tuple,
+static void proc_vlc_encode2(vlc_struct_avx512 *vlcp, ui32 *tuple,
                              ui32 *u_q, ui32 ignore)
 {
     ui32 i_max = 16 - (ignore / 2);
@@ -1002,7 +1002,7 @@ static void proc_vlc_encode2(vlc_struct *vlcp, ui32 *tuple,
     }
 }
 
-using fn_proc_vlc_encode = void (*)(vlc_struct *, ui32 *, ui32 *, ui32);
+using fn_proc_vlc_encode = void (*)(vlc_struct_avx512 *, ui32 *, ui32 *, ui32);
 
 void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs, 
                                   ui32 num_passes, ui32 _width, ui32 height, 
@@ -1026,7 +1026,7 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
 
     mel_struct mel;
     mel_init(&mel, mel_size, mel_buf);
-    vlc_struct vlc;
+    vlc_struct_avx512 vlc;
     vlc_init(&vlc, vlc_size, vlc_buf);
     ms_struct ms;
     ms_init(&ms, ms_size, ms_buf);

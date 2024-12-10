@@ -578,7 +578,7 @@ namespace ojph {
     /** @brief State structure for reading and unstuffing of forward-growing 
      *         bitstreams; these are: MagSgn and SPP bitstreams
      */
-    struct frwd_struct {
+    struct frwd_struct32 {
       const ui8* data;  //!<pointer to bitstream
       ui64 tmp;         //!<temporary buffer of read data
       ui32 bits;        //!<number of bits stored in tmp
@@ -601,12 +601,12 @@ namespace ojph {
      *  Reading can go beyond the end of buffer by up to 3 bytes.
      *
      *  @tparam       X is the value fed in when the bitstream is exhausted
-     *  @param  [in]  msp is a pointer to frwd_struct structure
+     *  @param  [in]  msp is a pointer to frwd_struct32 structure
      *
      */ 
     template<int X>
     static inline 
-    void frwd_read(frwd_struct *msp)
+    void frwd_read(frwd_struct32 *msp)
     {
       assert(msp->bits <= 32); // assert that there is a space for 32 bits
 
@@ -653,17 +653,17 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Initialize frwd_struct struct and reads some bytes
+    /** @brief Initialize frwd_struct32 struct and reads some bytes
      *  
      *  @tparam      X is the value fed in when the bitstream is exhausted.
      *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct32
      *  @param [in]  data is a pointer to the start of data
      *  @param [in]  size is the number of byte in the bitstream
      */
     template<int X>
     static inline
-    void frwd_init(frwd_struct *msp, const ui8* data, int size)
+    void frwd_init(frwd_struct32 *msp, const ui8* data, int size)
     {
       msp->data = data;
       msp->tmp = 0;
@@ -689,13 +689,13 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Consume num_bits bits from the bitstream of frwd_struct
+    /** @brief Consume num_bits bits from the bitstream of frwd_struct32
      *
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct32
      *  @param [in]  num_bits is the number of bit to consume
      */
     static inline 
-    void frwd_advance(frwd_struct *msp, ui32 num_bits)
+    void frwd_advance(frwd_struct32 *msp, ui32 num_bits)
     {
       assert(num_bits <= msp->bits);
       msp->tmp >>= num_bits;  // consume num_bits
@@ -703,15 +703,15 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief Fetches 32 bits from the frwd_struct bitstream
+    /** @brief Fetches 32 bits from the frwd_struct32 bitstream
      *
      *  @tparam      X is the value fed in when the bitstream is exhausted.
      *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct
+     *  @param [in]  msp is a pointer to frwd_struct32
      */
     template<int X>
     static inline 
-    ui32 frwd_fetch(frwd_struct *msp)
+    ui32 frwd_fetch(frwd_struct32 *msp)
     {
       if (msp->bits < 32)
       {
@@ -1099,7 +1099,7 @@ namespace ojph {
         const int v_n_size = 512 + 4;
         ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
 
-        frwd_struct magsgn;
+        frwd_struct32 magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
 
         ui16 *sp = scratch;
@@ -1368,7 +1368,7 @@ namespace ojph {
           // We add an extra 8 entries, just in case we need more
           ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
 
-          frwd_struct sigprop;
+          frwd_struct32 sigprop;
           frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
 
           for (ui32 y = 0; y < height; y += 4)

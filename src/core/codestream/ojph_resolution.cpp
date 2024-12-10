@@ -200,7 +200,7 @@ namespace ojph {
       }
 
       const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_implementation_precision(szp);
+      ui32 precision = cdp->propose_precision(szp, comp_num);
 
       //allocate lines
       if (skipped_res_for_recon == false)
@@ -449,7 +449,7 @@ namespace ojph {
       cur_precinct_loc = point(0, 0);
 
       const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_implementation_precision(szp);
+      ui32 precision = cdp->propose_precision(szp, comp_num);
 
       //allocate lines
       if (skipped_res_for_recon == false)

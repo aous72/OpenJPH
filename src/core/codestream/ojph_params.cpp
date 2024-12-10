@@ -778,7 +778,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     ui32 
-    param_cod::propose_implementation_precision(const param_siz* siz) const
+    param_cod::propose_precision(const param_siz* siz, ui32 comp_num) const
     {
       bool employing_color_transform = is_employing_color_transform() ? 1 : 0;
       bool reversible = atk->is_reversible();

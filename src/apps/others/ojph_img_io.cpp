@@ -2308,13 +2308,6 @@ namespace ojph {
         }
       }
 
-      if (bit_depth[comp_num] != 16)
-      {
-        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n bit_depth[%d] = %d, this software currently only supports reading 16-bit files\n",
-          __FILE__, __LINE__, __FUNCTION__, comp_num, bit_depth[comp_num]);
-        return 0;
-      }
-
       switch (comp_num)
       {
       case 0:
@@ -2362,8 +2355,31 @@ namespace ojph {
   {
     fname = filename;
     cur_line = 0;
-    // allocate a framebuffer to hold decoded data
-    pixels.resizeErase(height, width);
+    if (true == is_use_Rgba_interface)
+    {
+      // allocate a scanline to hold a line of decoded data
+      pixels.resizeErase(1, width);
+
+      Imath::Box2i          display_window(Imath::V2i(0, 0), Imath::V2i(width - 1, height - 1));
+      data_window.min.x = 0;
+      data_window.min.y = 0;
+      data_window.max.x = width - 1;
+      data_window.max.y = height - 1;
+      if (num_components == 4)
+      {
+        rgba_output_file = new Imf::RgbaOutputFile(fname, display_window, data_window, Imf::WRITE_RGBA);
+      }
+      else if (num_components == 3)
+      {
+        rgba_output_file = new Imf::RgbaOutputFile(fname, display_window, data_window, Imf::WRITE_RGB);
+      }
+      else
+      {
+        fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
+        exit(-1);
+      }
+    } 
+
     is_open = true;
     return;
   }
@@ -2403,6 +2419,8 @@ namespace ojph {
       fprintf(stderr, "not using RGBA interface\n");
     }
 
+    
+
     return;
   }
 
@@ -2410,30 +2428,36 @@ namespace ojph {
   {
     if (true == this->is_use_Rgba_interface)
     {
+      // set framebuffer for first component
+      if (0 == comp_num)
+      {
+        rgba_output_file->setFrameBuffer(&pixels[0][0] - data_window.min.x - data_window.min.y * width, 1, width);
+      }
+
       switch (comp_num)
       {
       case 0:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[cur_line][i].r.setBits((si16)line->i32[i]);
+          pixels[0][i].r.setBits((si16)line->i32[i]);
         }
         break;
       case 1:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[cur_line][i].g.setBits((si16)line->i32[i]);
+          pixels[0][i].g.setBits((si16)line->i32[i]);
         }
         break;
       case 2:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[cur_line][i].b.setBits((si16)line->i32[i]);
+          pixels[0][i].b.setBits((si16)line->i32[i]);
         }
         break;
       case 3:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[cur_line][i].a.setBits((si16)line->i32[i]);
+          pixels[0][i].a.setBits((si16)line->i32[i]);
         }
         break;
       default:
@@ -2442,6 +2466,14 @@ namespace ojph {
         return 0;
         break;
       }
+
+      // write to file after last component has been populated in this line
+      if (comp_num == num_components - 1)
+      {
+        rgba_output_file->writePixels(1);
+        data_window.min.y++;
+      }
+        
     }
     else
     {
@@ -2460,21 +2492,10 @@ namespace ojph {
     {
       if (true == is_use_Rgba_interface)
       {
-        Imf::RgbaOutputFile* file = NULL;
-        if (num_components == 4)
-          file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGBA);
-        else if (num_components == 3)
-          file = new Imf::RgbaOutputFile(fname, width, height, Imf::WRITE_RGB);
-        else
-        {
-          fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
-          exit(-1);
-        }
-        file->setFrameBuffer(&pixels[0][0], 1, width);
-        file->writePixels(height);
+        pixels.resizeErase(0, 0);
 
-        if (NULL != file)
-          delete file;
+        if (NULL != rgba_output_file)
+          delete rgba_output_file;
       }
       else
       {

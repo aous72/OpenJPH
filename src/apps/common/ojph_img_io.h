@@ -919,15 +919,16 @@ namespace ojph {
         bit_depth[i] = 0;
         is_signed[i] = false;
       }
+      rgba_output_file = NULL;
       is_use_Rgba_interface = false;
+
+      this->data_window.makeEmpty();
         
       is_open = false;
     }
     virtual ~exr_out()
     {
       close();
-      if(true == is_use_Rgba_interface )
-        pixels.resizeErase(0, 0);
     }
 
     void open(const char* filename);
@@ -946,8 +947,11 @@ namespace ojph {
     ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
     bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
 
+    Imf::RgbaOutputFile* rgba_output_file;
     Imf::Array2D<Imf::Rgba> pixels;
     bool is_use_Rgba_interface;
+
+    Imath::Box2i         data_window;
 
     ui32 cur_line;
   };

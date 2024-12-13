@@ -787,7 +787,7 @@ namespace ojph {
         ui32 bit_depth = 0;
         if (comp_num < 3 && is_employing_color_transform())
         {
-          for (int c = 0; c < 3; ++c)
+          for (ui32 c = 0; c < 3; ++c)
             bit_depth = ojph_max(bit_depth, siz->get_bit_depth(c));
           ++bit_depth; // colour transform needs one extra bit
         }

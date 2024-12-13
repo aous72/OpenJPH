@@ -2115,6 +2115,8 @@ namespace ojph {
 /////////////////////////////////////////////////////////////////////////////
   void exr_in::open(const char* filename)
   {
+    fname = filename;
+
     // check if this is a valid OpenEXR file 
     bool is_tiled_openexr_file = false;
     bool is_deep_openexr_file = false;
@@ -2176,29 +2178,32 @@ namespace ojph {
           const char* name = i.name();
           fprintf(stderr, "channel %d name = %s\n", channel_index, name);
 
-          if (channel_index >= MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
-          {
-            fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel_index = %d, this software currently supports %d channels\n",
-              __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN);
-            return;
-          }
-
           switch (channel.type)
           {
           case Imf::PixelType::UINT:
             fprintf(stderr, "channel %d type = UINT\n", channel_index);
-            this->bit_depth[channel_index] = 32;
-            this->is_signed[channel_index] = false;
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 32;
+              this->is_signed[channel_index] = false;
+            }
+            
             break;
           case Imf::PixelType::HALF:
             fprintf(stderr, "channel %d type = HALF\n", channel_index);
-            this->bit_depth[channel_index] = 16;
-            this->is_signed[channel_index] = true;
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 16;
+              this->is_signed[channel_index] = true;
+            }
             break;
           case Imf::PixelType::FLOAT:
             fprintf(stderr, "channel %d type = FLOAT\n", channel_index);
-            this->bit_depth[channel_index] = 32;
-            this->is_signed[channel_index] = true;
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 32;
+              this->is_signed[channel_index] = true;
+            }
             break;
           default:
             fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel %d PixelType = %d, this should be UINT=0, HALF=1 or FLOAT=2\n",
@@ -2209,7 +2214,10 @@ namespace ojph {
 
           fprintf(stderr, "channel %d xSampling = %d\n", channel_index, channel.xSampling);
           fprintf(stderr, "channel %d ySampling = %d\n", channel_index, channel.ySampling);
-          this->subsampling[channel_index] = point(channel.xSampling, channel.ySampling);
+          if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+          {
+            this->subsampling[channel_index] = point(channel.xSampling, channel.ySampling);
+          }
           fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
 
           // increment channel index at the end of the loop
@@ -2217,6 +2225,13 @@ namespace ojph {
       }
 
       this->num_comps = channel_index;
+
+      if (channel_index > MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+      {
+        fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel_index = %d, this software currently supports %d channels\n",
+          __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN);
+        return;
+      }
 
       // check if this is a complete OpenEXR file
       if (false == file.isComplete())
@@ -2235,15 +2250,28 @@ namespace ojph {
     if ((3 == this->num_comps && true == has_RGB && false == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16) ||
         (4 == this->num_comps && true == has_RGB &&  true == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16 && bit_depth[3] == 16))
     {
-      try {
-        Imf::RgbaInputFile rgba_input_file(filename);
-        Imath::Box2i       dw = rgba_input_file.dataWindow();
-        int                width = dw.max.x - dw.min.x + 1;
-        int                height = dw.max.y - dw.min.y + 1;
+      this->use_Rgba_interface = true;
+    }
+    else
+    {
+      this->use_Rgba_interface = false;
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface because this->num_comps = %d and has_RGB = false\n",
+        __FILE__, __LINE__, __FUNCTION__, this->num_comps);
+      exit(-1);
+    }
 
-        pixels.resizeErase(height, width);
-        rgba_input_file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * width, 1, width);
-        rgba_input_file.readPixels(dw.min.y, dw.max.y);
+    if (true == this->use_Rgba_interface)
+    {
+      try {
+        rgba_input_file = new Imf::RgbaInputFile(filename);
+        data_window = rgba_input_file->dataWindow();
+        int  width = data_window.max.x - data_window.min.x + 1;
+        int height = data_window.max.y - data_window.min.y + 1;
+
+        // reserve memory for 1 scanline
+        pixels.resizeErase(1, width);
+        // reserve memory for the whole image
+        //pixels.resizeErase(height, width);
 
       }
       catch (const std::exception& e) {
@@ -2253,8 +2281,9 @@ namespace ojph {
     }
     else
     {
-      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface because this->num_comps = %d and has_RGB = false\n",
-        __FILE__, __LINE__, __FUNCTION__, this->num_comps);
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface this->use_Rgba_interface = %s\n",
+        __FILE__, __LINE__, __FUNCTION__, this->use_Rgba_interface ? "true" : "false" );
+      exit(-1);
     }
 
   }
@@ -2264,48 +2293,65 @@ namespace ojph {
     assert(comp_num < num_comps);
     assert((ui32)line->size >= width);
 
-    if (bit_depth[comp_num] != 16)
+    if (true == this->use_Rgba_interface)
     {
-      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n bit_depth[%d] = %d, this software currently only supports reading 16-bit files\n",
-        __FILE__, __LINE__, __FUNCTION__, comp_num, bit_depth[comp_num]);
-      return 0;
-    }
+      // if this is the first component then read a new line
+      if (0 == comp_num)
+      {
+        try {         
+          rgba_input_file->setFrameBuffer(&pixels[0][0] - data_window.min.x - data_window.min.y * width, 1, width);
+          rgba_input_file->readPixels(data_window.min.y);
+        }
+        catch (const std::exception& e) {
+          std::cerr << "error reading image file " << e.what() << std::endl;
+          return 0;
+        }
+      }
 
-    switch (comp_num)
-    {
-    case 0:
-      for (ui32 i = 0; i < width; i++)
+      if (bit_depth[comp_num] != 16)
       {
-        line->i32[i] = (si16)pixels[cur_line][i].r.bits();
+        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n bit_depth[%d] = %d, this software currently only supports reading 16-bit files\n",
+          __FILE__, __LINE__, __FUNCTION__, comp_num, bit_depth[comp_num]);
+        return 0;
       }
-      break;
-    case 1:
-      for (ui32 i = 0; i < width; i++)
+
+      switch (comp_num)
       {
-        line->i32[i] = (si16)pixels[cur_line][i].g.bits();
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].r.bits();
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].g.bits();
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].b.bits();
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].a.bits();
+        }
+        break;
+      default:
+        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+          __FILE__, __LINE__, __FUNCTION__, comp_num);
+        return 0;
+        break;
       }
-      break;
-    case 2:
-      for (ui32 i = 0; i < width; i++)
-      {
-        line->i32[i] = (si16)pixels[cur_line][i].b.bits();
-      }
-      break;
-    case 3:
-      for (ui32 i = 0; i < width; i++)
-      {
-        line->i32[i] = (si16)pixels[cur_line][i].a.bits();
-      }
-      break;
-    default:
-      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
-        __FILE__, __LINE__, __FUNCTION__, comp_num);
-      return 0;
-      break;
     }
 
     if (comp_num == (num_comps-1))
     {
+      data_window.min.y += 1;
       cur_line++;
     }
 

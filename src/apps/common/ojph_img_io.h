@@ -524,11 +524,13 @@ namespace ojph {
   public:
     exr_in()
     {
-      pixels.resizeErase(0, 0);
-
       fname = NULL;
 
       width = height = num_comps = 0;
+      use_Rgba_interface = false;
+      this->rgba_input_file = NULL;
+      this->data_window.makeEmpty();
+      pixels.resizeErase(0, 0);
 
       cur_line = 0;
 
@@ -541,7 +543,12 @@ namespace ojph {
     }
     virtual ~exr_in()
     {
-      pixels.resizeErase(0, 0);
+      if (true == this->use_Rgba_interface)
+      {
+        delete rgba_input_file;
+        pixels.resizeErase(0, 0);
+      }
+      
       close();
     }
 
@@ -572,6 +579,11 @@ namespace ojph {
 
     const char* fname;
     ui32 width, height;
+
+    bool use_Rgba_interface;
+    Imf::RgbaInputFile *rgba_input_file;
+    Imath::Box2i         data_window;
+
     ui32 num_comps;
     ui32 cur_line;
 

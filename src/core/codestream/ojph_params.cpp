@@ -780,19 +780,26 @@ namespace ojph {
     ui32 
     param_cod::propose_precision(const param_siz* siz, ui32 comp_num) const
     {
-      bool employing_color_transform = is_employing_color_transform() ? 1 : 0;
-      bool reversible = atk->is_reversible();
+      if (atk->is_reversible() == false)
+        return 32;
+      else
+      {
+        ui32 bit_depth = 0;
+        if (comp_num < 3 && is_employing_color_transform())
+        {
+          for (ui32 c = 0; c < 3; ++c)
+            bit_depth = ojph_max(bit_depth, siz->get_bit_depth(c));
+          ++bit_depth; // colour transform needs one extra bit
+        }
+        else
+          bit_depth = siz->get_bit_depth(comp_num);
 
-      ui32 bit_depth = 32; 
-      if (reversible) {
-        bit_depth = siz->get_bit_depth(comp_num);
-        bit_depth += comp_num < 3 ? employing_color_transform : 0;
         // 3 or 4 is how many extra bits are needed for the HH band at the 
         // bottom most level of decomposition. 
         bit_depth += get_num_decompositions() > 5 ? 4 : 3; 
-      }
 
-      return bit_depth;
+        return bit_depth;
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////

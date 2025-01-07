@@ -149,9 +149,15 @@ endif()
 
 include(GNUInstallDirs)
 install(TARGETS openjph
+  EXPORT openjph_targets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(EXPORT openjph_targets
+  FILE openjph_targets.cmake
+  DESTINATION lib/cmake/openjph
+)
 
 install(DIRECTORY src/core/common/
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openjph

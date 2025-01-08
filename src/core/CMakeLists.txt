@@ -38,8 +38,8 @@ if(EMSCRIPTEN)
   add_library(openjph ${SOURCES})
   add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
 
-  target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}common> $<INSTALL_INTERFACE:include>)
-  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}common> $<INSTALL_INTERFACE:include>)
+  target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
+  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
 
   target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
 

@@ -673,12 +673,13 @@ namespace ojph {
     struct param_nlt
     {
       using special_comp_num = ojph::param_nlt::special_comp_num;
+      using nonlinearity = ojph::param_nlt::nonlinearity;
     public:
       param_nlt() { 
         Lnlt = 6;
         Cnlt = special_comp_num::ALL_COMPS; // default
         BDnlt = 0;
-        Tnlt = 3;
+        Tnlt = nonlinearity::OJPH_NLT_NO_NLT;
         enabled = false; next = NULL; alloced_next = false;
       }
 
@@ -691,9 +692,9 @@ namespace ojph {
       }
 
       void check_validity(param_siz& siz);
-      void set_type3_transformation(ui32 comp_num, bool enable);
-      bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
-                                    bool& is_signed) const;
+      void set_nonlinearity(ui32 comp_num, nonlinearity type);
+      bool get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
+                            bool& is_signed, nonlinearity& type) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);
 

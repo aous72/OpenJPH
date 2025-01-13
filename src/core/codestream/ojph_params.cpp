@@ -372,17 +372,17 @@ namespace ojph {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  //////////////////////////////////////////////////////////////////////////
-  void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
+  ////////////////////////////////////////////////////////////////////////////
+  void param_nlt::set_nonlinearity(ui32 comp_num, nonlinearity type)
   {
-    state->set_type3_transformation(comp_num, enable);
+    state->set_nonlinearity(comp_num, type);
   }
 
-  //////////////////////////////////////////////////////////////////////////
-  bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth,
-                                           bool& is_signed)
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_nlt::get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
+                                   bool& is_signed, nonlinearity& type) const
   {
-    return state->get_type3_transformation(comp_num, bit_depth, is_signed);
+    return state->get_nonlinearity(comp_num, bit_depth, is_signed, type);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1333,7 +1333,7 @@ namespace ojph {
 
       // first stage; find out if all components captured by the default
       // entry (ALL_COMPS) has the same bit_depth/signedness,
-      // while doing this, set the BDnlt for components not captured but the
+      // while doing this, set the BDnlt for components not captured by the
       // default entry (ALL_COMPS)
       ui32 bit_depth = 0;      // unknown yet
       bool is_signed = false;  // unknown yet
@@ -1405,23 +1405,29 @@ namespace ojph {
 
       trim_non_existing_components(num_comps);
 
-      if (is_any_enabled() == false)
-        return;
-      siz.set_Rsiz_flag(param_siz::RSIZ_EXT_FLAG | param_siz::RSIZ_NLT_FLAG);
+      if (is_any_enabled() == true)
+        siz.set_Rsiz_flag(param_siz::RSIZ_EXT_FLAG | param_siz::RSIZ_NLT_FLAG);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
+    void param_nlt::set_nonlinearity(ui32 comp_num, nonlinearity type)
     {
+      if (type != ojph::param_nlt::OJPH_NLT_NO_NLT && 
+          type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
+      OJPH_ERROR(0x00050171, "Nonliearity other than types 0 "
+        "(No Nonlinearity) and 3 (Binary Binary Complement to Sign Magnitude "
+        "Conversion) is not supported yet");
       param_nlt* p = get_comp_object(comp_num);
       if (p == NULL)
         p = add_object(comp_num);
-      p->enabled = enable;
+      p->Tnlt = type;
+      p->enabled = true;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
-                                             bool& is_signed) const
+    bool
+    param_nlt::get_nonlinearity(ui32 comp_num, ui8& bit_depth, bool& is_signed, 
+                                nonlinearity& type) const
     {
       const param_nlt* p = get_comp_object(comp_num);
       p = p ? p : this;
@@ -1430,8 +1436,10 @@ namespace ojph {
         bit_depth = (ui8)((p->BDnlt & 0x7F) + 1);
         bit_depth = bit_depth <= 38 ? bit_depth : 38;
         is_signed = (p->BDnlt & 0x80) == 0x80;
+        type = (nonlinearity)p->Tnlt;
+        return true;
       }
-      return p->enabled;
+      return false;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1499,14 +1507,10 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     const param_nlt* param_nlt::get_comp_object(ui32 comp_num) const
     {
-      if (Cnlt == comp_num)
-        return this;
-      else {
-        param_nlt* p = next;
-        while (p && p->Cnlt != comp_num)
-          p = p->next;
-        return p;
-      }
+      const param_nlt* p = this;
+      while (p && p->Cnlt != comp_num)
+        p = p->next;
+      return p;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1540,8 +1544,11 @@ namespace ojph {
     {
       param_nlt* p = this->next;
       while (p) {
-          if (p->enabled == true && p->Cnlt >= num_comps)
+          if (p->enabled == true && p->Cnlt >= num_comps) {
             p->enabled = false;
+            OJPH_INFO(0x00050161, "We are removing the NLT marker segment "
+              "for the non-existing component %d", p->Cnlt);
+          }
         p = p->next;
       }
     }

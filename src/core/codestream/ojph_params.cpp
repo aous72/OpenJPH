@@ -952,6 +952,34 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    void param_qcd::check_validity(const param_siz& siz, const param_cod& cod)
+    {
+      ui32 num_decomps = cod.get_num_decompositions();
+      num_subbands = 1 + 3 * num_decomps;
+      if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
+      {
+        ui32 bit_depth = 0;
+        for (ui32 i = 0; i < siz.get_num_components(); ++i)
+          bit_depth = ojph_max(bit_depth, siz.get_bit_depth(i));
+        set_rev_quant(num_decomps, bit_depth,
+          cod.is_employing_color_transform());
+      }
+      else if (cod.get_wavelet_kern() == param_cod::DWT_IRV97)
+      {
+        if (base_delta == -1.0f) {
+          ui32 bit_depth = 0;
+          for (ui32 i = 0; i < siz.get_num_components(); ++i)
+            bit_depth =
+            ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
+          base_delta = 1.0f / (float)(1 << bit_depth);
+        }
+        set_irrev_quant(num_decomps);
+      }
+      else
+        assert(0);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void param_qcd::set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {

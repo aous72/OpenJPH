@@ -108,7 +108,6 @@ namespace ojph {
     struct param_siz;
     struct param_cod;
     struct param_qcd;
-    struct param_qcc;
     struct param_cap;
     struct param_sot;
     struct param_tlm;
@@ -328,6 +327,15 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct cod_SPcod
     {
+      cod_SPcod() {
+        num_decomp = 5;
+        block_width = 4;    // 64
+        block_height = 4;   // 64       
+        block_style = 0x40; // HT mode
+        wavelet_trans = 0;  // reversible 5 / 3
+        memset(precinct_size, 0, sizeof(precinct_size));
+      }
+
       ui8 num_decomp;
       ui8 block_width;
       ui8 block_height;
@@ -350,6 +358,7 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct cod_SGcod
     {
+      cod_SGcod() : prog_order(OJPH_PO_RPCL), num_layers(1), mc_trans(0) {}
       ui8 prog_order;
       ui16 num_layers;
       ui8 mc_trans;
@@ -359,8 +368,9 @@ namespace ojph {
     struct param_cod
     {
       // serves for both COD and COC markers
-
       friend ::ojph::param_cod;
+      enum default_comp_num : ui16 { OJPH_COD_DEFAULT = 65535 };      
+
       ////////////////////////////////////////
       enum BLOCK_CODING_STYLES {
         VERT_CAUSAL_MODE = 0x8,
@@ -371,8 +381,8 @@ namespace ojph {
         UNDEFINED = 0,
         COD_MAIN  = 1,
         COC_MAIN  = 2,
-        COD_TILE  = 3,
-        COC_TILE  = 4
+        COD_TILE  = 3,  // not implemented
+        COC_TILE  = 4   // not implemented
       };
       ////////////////////////////////////////
       enum dwt_type : ui8 {
@@ -384,15 +394,13 @@ namespace ojph {
       ////////////////////////////////////////
       param_cod()
       {
-        memset(this, 0, sizeof(param_cod));
-        SPcod.block_style = HT_MODE;
-        SGCod.prog_order = OJPH_PO_RPCL;
-        SGCod.num_layers = 1;
-        SGCod.mc_trans = 0;
-        SPcod.num_decomp = 5;
-        SPcod.block_width = 4; //64
-        SPcod.block_height = 4; //64
+        type = UNDEFINED;
+        Lcod = 0;
+        Scod = 0;
         next = NULL;
+        atk = NULL;
+        parent = NULL;
+        comp_num = OJPH_COD_DEFAULT;
       }
 
       ////////////////////////////////////////
@@ -525,9 +533,6 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
-      ui32 propose_precision(const param_siz* siz, ui32 comp_num) const;
-
-      ////////////////////////////////////////
       bool write(outfile_base *file);
 
       ////////////////////////////////////////
@@ -547,13 +552,14 @@ namespace ojph {
       ////////////////////////////////////////
       const param_cod* get_cod(ui32 comp_num) const
       {
-        const param_cod* result = this->next;
+        const param_cod* result = this;
+        if (result->type != COD_MAIN)
+          result = result->parent;
+        assert(result->type == COD_MAIN);
+
         while (result != NULL && result->get_comp_num() != comp_num)
           result = result->next;
-        if (result)
-          return result;
-        else
-          return this;
+        return result ? result : this;
       }
 
       ////////////////////////////////////////
@@ -570,7 +576,11 @@ namespace ojph {
 
       ////////////////////////////////////////
       ui32 get_comp_num() const
-      { assert(type == COC_MAIN); return comp_num; }
+      { 
+        assert((type == COC_MAIN && comp_num != OJPH_COD_DEFAULT) || 
+               (type == COD_MAIN && comp_num == OJPH_COD_DEFAULT));
+        return comp_num; 
+      }
 
     private: // Common variables
       cod_type type;        // The type of this cod structure
@@ -595,71 +605,91 @@ namespace ojph {
     ///////////////////////////////////////////////////////////////////////////
     struct param_qcd
     {
+      // serves for both QCD and QCC markers
       friend ::ojph::param_qcd;
+      enum default_comp_num : ui16 { OJPH_QCD_DEFAULT = 65535 };
+
+      ////////////////////////////////////////
+      enum qcd_type : ui8 {
+        UNDEFINED = 0,
+        QCD_MAIN  = 1,
+        QCC_MAIN  = 2,
+        QCD_TILE  = 3,  // not implemented
+        QCC_TILE  = 4   // not implemented
+      };      
     public:
       param_qcd()
       { 
+        type = QCD_MAIN;
         Lqcd = 0;
         Sqcd = 0;
-        memset(u16_SPqcd, 0, sizeof(u16_SPqcd));
+        memset(&SPqcd, 0, sizeof(SPqcd));
         num_subbands = 0;
         base_delta = -1.0f;
+        enabled = true;
+        next = NULL;
+        top_qcd = this;
+        comp_idx = OJPH_QCD_DEFAULT;
+      }
+      ~param_qcd() {
+        if (next)
+        {
+          delete next;
+          next = NULL;
+        }
       }
 
-      void set_delta(float delta) { base_delta = delta; }
       void check_validity(const param_siz& siz, const param_cod& cod);
-
+      void set_delta(float delta) { base_delta = delta; }
+      void set_delta(ui32 comp_idx, float delta);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGBp() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
                     ui32 resolution, ui32 subband) const;
-      float irrev_get_delta(const param_dfs* dfs,
+      ui32 propose_precision(const param_cod* cod) const;
+      float get_irrev_delta(const param_dfs* dfs,
                             ui32 num_decompositions,
                             ui32 resolution, ui32 subband) const;
-
       bool write(outfile_base *file);
+      bool write_qcc(outfile_base *file, ui32 num_comps);
       void read(infile_base *file);
+      void read_qcc(infile_base *file, ui32 num_comps);
 
-    protected:
+      param_qcd* get_qcc(ui32 comp_idx);
+      const param_qcd* get_qcc(ui32 comp_idx) const;
+      param_qcd* add_qcc_object();
+      ui16 get_comp_idx() const { return comp_idx; }
+
+    private:
       void set_rev_quant(ui32 num_decomps, ui32 bit_depth, 
                          bool is_employing_color_transform);
       void set_irrev_quant(ui32 num_decomps);
+      ui32 get_largest_Kmax() const;
+      bool internal_write_qcc(outfile_base *file, ui32 num_comps);      
 
       ui8 decode_SPqcd(ui8 v) const
       { return (ui8)(v >> 3); }
       ui8 encode_SPqcd(ui8 v) const
       { return (ui8)(v << 3); }
-   protected:
+
+    private: // QCD variables
+      qcd_type type;
       ui16 Lqcd;
       ui8 Sqcd;
       union
       {
-        ui8 u8_SPqcd[97];
-        ui16 u16_SPqcd[97];
-      };
-      ui32 num_subbands;        // number of subbands
-      float base_delta;         // base quantization step size -- all other
-                                // step sizes are derived from it.
-    };
+        ui8 u8[97];
+        ui16 u16[97];
+      } SPqcd;
+      ui32 num_subbands;  // number of subbands
+      float base_delta;   // base quantization step size -- all other
+                          // step sizes are derived from it.
+      bool enabled;       // true if this object is enabled
+      param_qcd *next;    // pointer to create chains of qcc marker segments
+      param_qcd *top_qcd; // pointer to the top QCD (this is the default)
 
-    ///////////////////////////////////////////////////////////////////////////
-    //
-    //
-    //
-    //
-    //
-    ///////////////////////////////////////////////////////////////////////////
-    struct param_qcc : public param_qcd
-    {
-    public:
-      param_qcc() : param_qcd()
-      { comp_idx = 0; }
-
-      ui16 get_comp_num() { return comp_idx; }
-      void read(infile_base *file, ui32 num_comps);
-
-    protected:
-        ui16 comp_idx;
+    private: // QCC only variables
+      ui16 comp_idx;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -679,7 +709,7 @@ namespace ojph {
         Lnlt = 6;
         Cnlt = special_comp_num::ALL_COMPS; // default
         BDnlt = 0;
-        Tnlt = nonlinearity::OJPH_NLT_NO_NLT;
+        Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
         enabled = false; next = NULL; alloced_next = false;
       }
 
@@ -692,15 +722,15 @@ namespace ojph {
       }
 
       void check_validity(param_siz& siz);
-      void set_nonlinearity(ui32 comp_num, nonlinearity type);
+      void set_nonlinearity(ui32 comp_num, ui8 nl_type);
       bool get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
-                            bool& is_signed, nonlinearity& type) const;
+                            bool& is_signed, ui8& nl_type) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);
 
     private:
-      const param_nlt* get_comp_object(ui32 comp_num) const;
-      param_nlt* get_comp_object(ui32 comp_num);
+      const param_nlt* get_nlt_object(ui32 comp_num) const;
+      param_nlt* get_nlt_object(ui32 comp_num);
       param_nlt* add_object(ui32 comp_num);
       bool is_any_enabled() const;
       void trim_non_existing_components(ui32 num_comps);

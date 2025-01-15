@@ -626,7 +626,6 @@ namespace ojph {
         memset(&SPqcd, 0, sizeof(SPqcd));
         num_subbands = 0;
         base_delta = -1.0f;
-        enabled = true;
         next = NULL;
         top_qcd = this;
         comp_idx = OJPH_QCD_DEFAULT;
@@ -643,7 +642,7 @@ namespace ojph {
       void set_delta(float delta) { base_delta = delta; }
       void set_delta(ui32 comp_idx, float delta);
       ui32 get_num_guard_bits() const;
-      ui32 get_MAGBp() const;
+      ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
                     ui32 resolution, ui32 subband) const;
       ui32 propose_precision(const param_cod* cod) const;
@@ -684,7 +683,6 @@ namespace ojph {
       ui32 num_subbands;  // number of subbands
       float base_delta;   // base quantization step size -- all other
                           // step sizes are derived from it.
-      bool enabled;       // true if this object is enabled
       param_qcd *next;    // pointer to create chains of qcc marker segments
       param_qcd *top_qcd; // pointer to the top QCD (this is the default)
 
@@ -722,9 +720,9 @@ namespace ojph {
       }
 
       void check_validity(param_siz& siz);
-      void set_nonlinearity(ui32 comp_num, ui8 nl_type);
-      bool get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
-                            bool& is_signed, ui8& nl_type) const;
+      void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
+      bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                   bool& is_signed, ui8& nl_type) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);
 
@@ -776,15 +774,13 @@ namespace ojph {
           Ccap[0] |= 0x0020;
         Ccap[0] &= 0xFFE0;
         ui32 Bp = 0;
-        ui32 B = qcd.get_MAGBp();
+        ui32 B = qcd.get_MAGB();
         if (B <= 8)
           Bp = 0;
         else if (B < 28)
           Bp = B - 8;
-        else if (B < 48)
-          Bp = 13 + (B >> 2);
         else
-          Bp = 31;
+          Bp = 13 + (B >> 2);
         Ccap[0] = (ui16)(Ccap[0] | (ui16)Bp);
       }
 

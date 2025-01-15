@@ -379,16 +379,17 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_nlt::set_nonlinearity(ui32 comp_num, ui8 nl_type)
+  void param_nlt::set_nonlinear_transform(ui32 comp_num, ui8 nl_type)
   {
-    state->set_nonlinearity(comp_num, nl_type);
+    state->set_nonlinear_transform(comp_num, nl_type);
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_nlt::get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
-                                   bool& is_signed, ui8& nl_type) const
+  bool param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                          bool& is_signed, ui8& nl_type) const
   {
-    return state->get_nonlinearity(comp_num, bit_depth, is_signed, nl_type);
+    return state->get_nonlinear_transform(comp_num, bit_depth, is_signed, 
+                                          nl_type);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -991,9 +992,8 @@ namespace ojph {
         for (ui32 c = 0; c < num_comp; ++c)
         {
           param_qcd *qp = get_qcc(c);
-          if (qp == NULL) {
+          if (qp == this) {
             qp = this->add_qcc_object();
-            qp->enabled = true;
             qp->top_qcd = this;
             qp->comp_idx = c;
           }
@@ -1055,7 +1055,6 @@ namespace ojph {
       param_qcd *p = get_qcc(comp_idx);
       if (p == NULL) {
         p = add_qcc_object();
-        p->enabled = true;
         p->top_qcd = this;
         p->comp_idx = comp_idx;
       }
@@ -1152,28 +1151,36 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 param_qcd::get_MAGBp() const
-    { //this can be written better, but it is only executed once
-
-      // this assumes a bi-directional wavelet (conventional DWT)
-      ui32 num_decomps = (num_subbands - 1) / 3;
-
+    ui32 param_qcd::get_MAGB() const
+    { 
       ui32 B = 0;
-      int irrev = Sqcd & 0x1F;
-      if (irrev == 0) //reversible
-        for (ui32 i = 0; i < num_subbands; ++i) {
-          ui32 t = decode_SPqcd(SPqcd.u8[i]);
-          t += get_num_guard_bits() - 1u;
-          B = ojph_max(B, t);
-        }
-      else if (irrev == 2) //scalar expounded
-        for (ui32 i = 0; i < num_subbands; ++i)
-        {
-          ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
-          B = ojph_max(B, (SPqcd.u16[i] >> 11) + get_num_guard_bits() - nb);
-        }
-      else
-        assert(0);
+
+      const param_qcd *p = this;
+      while (p)
+      {
+        //this can be written better, but it is only executed once
+        // this assumes a bi-directional wavelet (conventional DWT)
+        ui32 num_decomps = (p->num_subbands - 1) / 3;
+
+        int irrev = p->Sqcd & 0x1F;
+        if (irrev == 0) //reversible
+          for (ui32 i = 0; i < p->num_subbands; ++i) {
+            ui32 t = p->decode_SPqcd(p->SPqcd.u8[i]);
+            t += p->get_num_guard_bits() - 1u;
+            B = ojph_max(B, t);
+          }
+        else if (irrev == 2) //scalar expounded
+          for (ui32 i = 0; i < p->num_subbands; ++i)
+          {
+            ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
+            ui32 t = (p->SPqcd.u16[i] >> 11) + p->get_num_guard_bits() - nb;
+            B = ojph_max(B, t);
+          }
+        else
+          assert(0);
+        
+        p = p->next;
+      }
 
       return B;
     }
@@ -1614,6 +1621,19 @@ namespace ojph {
           }
         }
       }
+      else { 
+        // fill NLT segment markers with correct information
+        ui32 num_comps = siz.get_num_components();
+        for (ui32 c = 0; c < num_comps; ++c)
+        { // captured by ALL_COMPS
+          param_nlt* p = get_nlt_object(c);
+          if (p != NULL && p->enabled) 
+          { // can be type 0 or type 3
+            p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+            p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
+          }
+        }
+      }
 
       trim_non_existing_components(siz.get_num_components());
 
@@ -1622,7 +1642,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::set_nonlinearity(ui32 comp_num, ui8 nl_type)
+    void param_nlt::set_nonlinear_transform(ui32 comp_num, ui8 nl_type)
     {
       if (nl_type != ojph::param_nlt::OJPH_NLT_NO_NLT && 
           nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
@@ -1638,8 +1658,8 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     bool
-    param_nlt::get_nonlinearity(ui32 comp_num, ui8& bit_depth, bool& is_signed, 
-                                ui8& nl_type) const
+    param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                       bool& is_signed, ui8& nl_type) const
     {
       const param_nlt* p = get_nlt_object(comp_num);
       p = p ? p : this;
@@ -1691,7 +1711,7 @@ namespace ojph {
         OJPH_ERROR(0x00050141, "error reading NLT marker segment");
 
       ui16 length = swap_byte(*(ui16*)buf);
-      if (length != 6 || buf[5] != 3 || buf[5] != 0) // wrong length or type
+      if (length != 6 || (buf[5] != 3 && buf[5] != 0)) // wrong length or type
         OJPH_ERROR(0x00050142, "Unsupported NLT type %d\n", buf[5]);
 
       ui16 comp = swap_byte(*(ui16*)(buf + 2));

@@ -210,12 +210,12 @@ namespace ojph {
 
         num_bits[i] = szp->get_bit_depth(i);
         is_signed[i] = szp->is_signed(i);
-        bool result = nlp->get_nonlinearity(i, bd, is, nlt_type3[i]);
+        bool result = nlp->get_nonlinear_transform(i, bd, is, nlt_type3[i]);
         if (result == true && (bd != num_bits[i] || is != is_signed[i]))
           OJPH_ERROR(0x000300A1, "Mismatch between Ssiz (bit_depth = %d, "
             "is_signed = %s) from SIZ marker segment, and BDnlt "
             "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
-            "for component %d",i, num_bits[i], 
+            "for component %d", i, num_bits[i], 
             is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
         cur_line[i] = 0;
       }

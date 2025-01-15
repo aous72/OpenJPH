@@ -232,7 +232,7 @@ namespace ojph {
       * @param comp_num: component number, or 65535 for the default setting
       * @param type: desired non-linearity from enum nonlinearity
       */
-    void set_nonlinearity(ui32 comp_num, ui8 nl_type);
+    void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
 
     /**
       * @brief get the nonlinearity type associated with comp_num, which 
@@ -244,8 +244,8 @@ namespace ojph {
       * @param type: nonlinearity type
       * @return true if the nonlinearity for comp_num is set
       */
-    bool get_nonlinearity(ui32 comp_num, ui8& bit_depth, 
-                          bool& is_signed, ui8& nl_type) const;
+    bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                 bool& is_signed, ui8& nl_type) const;
 
   private:
     local::param_nlt* state;

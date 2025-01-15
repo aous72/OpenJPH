@@ -301,7 +301,7 @@ int main(int argc, char *argv[]) {
           ojph::ui8 bd = 0;
           bool is = true;
           ojph::ui8 nl_type;
-          bool result = nlt.get_nonlinearity(c, bd, is, nl_type);
+          bool result = nlt.get_nonlinear_transform(c, bd, is, nl_type);
           if (result == false || 
               nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
             OJPH_ERROR(0x0200000E,

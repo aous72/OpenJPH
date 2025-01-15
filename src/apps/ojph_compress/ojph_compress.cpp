@@ -842,11 +842,11 @@ int main(int argc, char * argv[]) {
           // Of course for .pfm images all components should have the same
           // bit depth and signedness.
           if (all_the_same)
-            nlt.set_nonlinearity(ojph::param_nlt::ALL_COMPS, 
+            nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
               ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
           else
             for (ojph::ui32 c = 0; c < num_comps; ++c)
-              nlt.set_nonlinearity(c, 
+              nlt.set_nonlinear_transform(c, 
                 ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
         }
         else

@@ -2103,4 +2103,410 @@ namespace ojph {
     return width;
   }
 
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////
+  void exr_in::open(const char* filename)
+  {
+    fname = filename;
+
+    // check if this is a valid OpenEXR file 
+    bool is_tiled_openexr_file = false;
+    bool is_deep_openexr_file = false;
+    bool is_mulitpart_openexr_file = false;
+    bool is_valid_openexr_file = Imf::isOpenExrFile(filename, 
+      is_tiled_openexr_file, is_deep_openexr_file, is_mulitpart_openexr_file);
+
+    if (false == is_valid_openexr_file)
+    {
+      fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is not a valid OpenEXR file\n",
+        __LINE__, __FILE__, __FUNCTION__, filename);
+      return;
+    }
+
+    if (true == is_tiled_openexr_file || true == is_deep_openexr_file || true == is_mulitpart_openexr_file)
+    {
+      fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is a valid OpenEXR file but is not yet supported by this software.\n",
+        __LINE__, __FILE__, __FUNCTION__, filename);
+      if (true == is_tiled_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is tiled.\n", filename);
+      }
+      if (true == is_deep_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is deep.\n", filename);
+      }
+      if (true == is_mulitpart_openexr_file)
+      {
+        fprintf(stderr, " the input file %s is multi-part.\n", filename);
+      }
+      return;
+    }
+
+    bool has_RGB = false;
+    bool has_alpha = false;
+
+    // first open with most generic interface to see if the file can be supported by the easier RGBA interface
+    try {
+      Imf::InputFile file(filename);
+      const Imf::Header header = file.header();
+      Imath::Box2i       dw = header.dataWindow();
+      int                width = dw.max.x - dw.min.x + 1;
+      int                height = dw.max.y - dw.min.y + 1;
+
+      const Imf::ChannelList& channelList = file.header().channels();
+      has_alpha = channelList.findChannel("A");
+      bool has_R = channelList.findChannel("R");
+      bool has_G = channelList.findChannel("G");
+      bool has_B = channelList.findChannel("B");
+      has_RGB = has_R ? has_G ? has_B : false : false;
+
+      this->width = width;
+      this->height = height;     
+      
+      int channel_index = 0;
+      for (Imf::ChannelList::ConstIterator i = channelList.begin(); i != channelList.end(); ++i)
+      {
+          const Imf::Channel & channel = i.channel();
+          const char* name = i.name();
+          fprintf(stderr, "channel %d name = %s\n", channel_index, name);
+
+          switch (channel.type)
+          {
+          case Imf::PixelType::UINT:
+            fprintf(stderr, "channel %d type = UINT\n", channel_index);
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 32;
+              this->is_signed[channel_index] = false;
+            }
+            
+            break;
+          case Imf::PixelType::HALF:
+            fprintf(stderr, "channel %d type = HALF\n", channel_index);
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 16;
+              this->is_signed[channel_index] = true;
+            }
+            break;
+          case Imf::PixelType::FLOAT:
+            fprintf(stderr, "channel %d type = FLOAT\n", channel_index);
+            if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+            {
+              this->bit_depth[channel_index] = 32;
+              this->is_signed[channel_index] = true;
+            }
+            break;
+          default:
+            fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel %d PixelType = %d, this should be UINT=0, HALF=1 or FLOAT=2\n",
+              __LINE__, __FILE__, __FUNCTION__, channel_index, channel.type);
+            return;
+            break;
+          }
+
+          fprintf(stderr, "channel %d xSampling = %d\n", channel_index, channel.xSampling);
+          fprintf(stderr, "channel %d ySampling = %d\n", channel_index, channel.ySampling);
+          if (channel_index < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+          {
+            this->subsampling[channel_index] = point(channel.xSampling, channel.ySampling);
+          }
+          fprintf(stderr, "channel %d pLinear = %s\n", channel_index, channel.pLinear ? "true" : "false");
+
+          // increment channel index at the end of the loop
+          channel_index++;
+      }
+
+      this->num_comps = channel_index;
+
+      if (channel_index > MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN)
+      {
+        fprintf(stderr, "ERROR on line %d of file %s in function %s():\n channel_index = %d, this software currently supports %d channels\n",
+          __LINE__, __FILE__, __FUNCTION__, channel_index, MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN);
+        return;
+      }
+
+      // check if this is a complete OpenEXR file
+      if (false == file.isComplete())
+      {
+        fprintf(stderr, "ERROR on line %d of file %s in function %s():\n the input file %s is not complete and therefore not yet supported by this software.\n",
+          __LINE__, __FILE__, __FUNCTION__, filename);
+        return;
+      }
+    }
+    catch (const std::exception& e) {
+      std::cerr << "error reading image file " << filename << ": " << e.what() << std::endl;
+      return;
+    }
+
+    // if the channels are RGB or RGBA then use the simple RGBA interface to read the pixel data
+    if ((3 == this->num_comps && true == has_RGB && false == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16) ||
+        (4 == this->num_comps && true == has_RGB &&  true == has_alpha && bit_depth[0] == 16 && bit_depth[1] == 16 && bit_depth[2] == 16 && bit_depth[3] == 16))
+    {
+      this->use_Rgba_interface = true;
+    }
+    else
+    {
+      this->use_Rgba_interface = false;
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface because this->num_comps = %d and has_RGB = false\n",
+        __FILE__, __LINE__, __FUNCTION__, this->num_comps);
+      exit(-1);
+    }
+
+    if (true == this->use_Rgba_interface)
+    {
+      try {
+        rgba_input_file = new Imf::RgbaInputFile(filename);
+        data_window = rgba_input_file->dataWindow();
+        int  width = data_window.max.x - data_window.min.x + 1;
+        int height = data_window.max.y - data_window.min.y + 1;
+
+        // reserve memory for 1 scanline
+        pixels.resizeErase(1, width);
+        // reserve memory for the whole image
+        //pixels.resizeErase(height, width);
+
+      }
+      catch (const std::exception& e) {
+        std::cerr << "error reading image file " << filename << ": " << e.what() << std::endl;
+        return;
+      }
+    }
+    else
+    {
+      fprintf(stderr, "ERROR in file %s on line %d in function %s:\n Unable to use RGBA interface this->use_Rgba_interface = %s\n",
+        __FILE__, __LINE__, __FUNCTION__, this->use_Rgba_interface ? "true" : "false" );
+      exit(-1);
+    }
+
+  }
+
+  ui32 exr_in::read(const line_buf* line, ui32 comp_num)
+  {
+    assert(comp_num < num_comps);
+    assert((ui32)line->size >= width);
+
+    if (true == this->use_Rgba_interface)
+    {
+      // if this is the first component then read a new line
+      if (0 == comp_num)
+      {
+        try {         
+          rgba_input_file->setFrameBuffer(&pixels[0][0] - data_window.min.x - data_window.min.y * width, 1, width);
+          rgba_input_file->readPixels(data_window.min.y);
+        }
+        catch (const std::exception& e) {
+          std::cerr << "error reading image file " << e.what() << std::endl;
+          return 0;
+        }
+      }
+
+      switch (comp_num)
+      {
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].r.bits();
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].g.bits();
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].b.bits();
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          line->i32[i] = (si16)pixels[0][i].a.bits();
+        }
+        break;
+      default:
+        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+          __FILE__, __LINE__, __FUNCTION__, comp_num);
+        return 0;
+        break;
+      }
+    }
+
+    if (comp_num == (num_comps-1))
+    {
+      data_window.min.y += 1;
+      cur_line++;
+    }
+
+    return width;
+  }
+
+  void exr_out::open(const char* filename)
+  {
+    fname = filename;
+    cur_line = 0;
+    if (true == is_use_Rgba_interface)
+    {
+      // allocate a scanline to hold a line of decoded data
+      pixels.resizeErase(1, width);
+
+      Imath::Box2i          display_window(Imath::V2i(0, 0), Imath::V2i(width - 1, height - 1));
+      data_window.min.x = 0;
+      data_window.min.y = 0;
+      data_window.max.x = width - 1;
+      data_window.max.y = height - 1;
+      if (num_components == 4)
+      {
+        rgba_output_file = new Imf::RgbaOutputFile(fname, display_window, data_window, Imf::WRITE_RGBA);
+      }
+      else if (num_components == 3)
+      {
+        rgba_output_file = new Imf::RgbaOutputFile(fname, display_window, data_window, Imf::WRITE_RGB);
+      }
+      else
+      {
+        fprintf(stderr, "this software currently only supports writing EXR files with 3 or 4 components\n");
+        exit(-1);
+      }
+    } 
+
+    is_open = true;
+    return;
+  }
+
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui8 *bitdepths, bool* is_signed)
+  {
+    this->num_components = num_components;
+    this->width = width;
+    this->height = height;
+    for (ui32 i = 0; i < num_components; i++)
+    {
+      this->has_nlt[i] = has_nlt[i];
+      this->bit_depth[i] = bitdepths[i];
+      this->is_signed[i] = is_signed[i];
+    }
+
+    this->is_use_Rgba_interface = false;
+    if (num_components == 3 || num_components == 4)
+    {
+      for (ui32 i = 0; i < num_components; i++)
+      {
+        if (true == has_nlt[i] && bit_depth[i] == 16 && true == is_signed[i])
+        {
+          this->is_use_Rgba_interface = true;
+        }
+        else
+        {
+          this->is_use_Rgba_interface = false;
+          fprintf(stderr, "not using RGBA interface\n");
+          break;
+        }
+      }
+    }
+    else
+    {
+      this->is_use_Rgba_interface = false;
+      fprintf(stderr, "not using RGBA interface\n");
+    }
+
+    
+
+    return;
+  }
+
+  ui32 exr_out::write(const line_buf* line, ui32 comp_num)
+  {
+    if (true == this->is_use_Rgba_interface)
+    {
+      // set framebuffer for first component
+      if (0 == comp_num)
+      {
+        rgba_output_file->setFrameBuffer(&pixels[0][0] - data_window.min.x - data_window.min.y * width, 1, width);
+      }
+
+      switch (comp_num)
+      {
+      case 0:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[0][i].r.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 1:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[0][i].g.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 2:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[0][i].b.setBits((si16)line->i32[i]);
+        }
+        break;
+      case 3:
+        for (ui32 i = 0; i < width; i++)
+        {
+          pixels[0][i].a.setBits((si16)line->i32[i]);
+        }
+        break;
+      default:
+        fprintf(stderr, "ERROR in file %s on line %d in function %s:\n comp_num = %d, this software currently only supports num_comps = 1-4\n",
+          __FILE__, __LINE__, __FUNCTION__, comp_num);
+        return 0;
+        break;
+      }
+
+      // write to file after last component has been populated in this line
+      if (comp_num == num_components - 1)
+      {
+        rgba_output_file->writePixels(1);
+        data_window.min.y++;
+      }
+        
+    }
+    else
+    {
+      fprintf(stderr, "not using RGBA interface is not currently supported\n");
+    }
+
+    if( comp_num == num_components - 1)
+      cur_line++;
+    
+    return 0;
+  }
+
+  void exr_out::close()
+  {
+    if (true == is_open)
+    {
+      if (true == is_use_Rgba_interface)
+      {
+        pixels.resizeErase(0, 0);
+
+        if (NULL != rgba_output_file)
+          delete rgba_output_file;
+      }
+      else
+      {
+        fprintf(stderr, "this software does not yet support writing files without the RGBA interface");
+        exit(-1);
+      }
+
+      fname = NULL;
+      is_open = false;
+    }
+  }
+
+#endif
 } 

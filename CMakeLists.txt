@@ -7,6 +7,11 @@ include(ojph_version.cmake)
 project (openjph VERSION ${OPENJPH_VERSION} DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(CMAKE_MODULE_PATH
+	"${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
+	${CMAKE_MODULE_PATH}
+)
+
 ################################################################################################
 # Building OpenJPH
 ################################################################################################
@@ -22,6 +27,7 @@ message(STATUS "CPU Architecture is ${OJPH_TARGET_ARCH}")
 ## options
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
+option(OJPH_ENABLE_OPENEXR_SUPPORT "Enables input and output support for OpenEXR files" ON)
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 option(OJPH_BUILD_STREAM_EXPAND "Enables building ojph_stream_expand executable" OFF)
@@ -66,6 +72,7 @@ endif()
 if(EMSCRIPTEN)
   set(BUILD_SHARED_LIBS OFF)
   set(OJPH_ENABLE_TIFF_SUPPORT OFF)
+  set(OJPH_ENABLE_OPENEXR_SUPPORT OFF)
   set(OJPH_BUILD_STREAM_EXPAND OFF)
   set(OJPH_DISABLE_SIMD ON)
 endif()

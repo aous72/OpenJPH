@@ -1,4 +1,7 @@
-FROM ubuntu:focal
+#in ubuntu:noble, apt-get installs OpenEXR v3
+FROM ubuntu:noble 
+#in ubuntu:jammy, apt-get installs OpenEXR v2
+#FROM ubuntu:jammy 
 
 RUN apt-get update
 
@@ -8,18 +11,48 @@ ENV DEBIAN_FRONTEND noninteractive
 # install developement tools
 RUN apt-get -y install cmake
 RUN apt-get -y install g++
-RUN apt-get -y install libtiff-dev
-
-# install developement debugging tools
+RUN apt-get -y install git
 RUN apt-get -y install valgrind
+
+# install optional openjph dependencies
+RUN apt-get -y install libtiff-dev
+#libilmbase-dev is needed for OpenEXR v2 but not for OpenEXR v3
+#RUN apt-get -y install libilmbase-dev 
+RUN apt-get -y install libopenexr-dev
+
+######### build/install openexr from source
+# WORKDIR /usr/src/
+# RUN git clone https://github.com/madler/zlib.git
+# WORKDIR /usr/src/zlib/build
+# RUN cmake ..
+# RUN make
+# RUN make install
+
+# WORKDIR /usr/src/
+# RUN git clone https://github.com/AcademySoftwareFoundation/Imath.git
+# WORKDIR /usr/src/Imath/build
+# RUN cmake ..
+# RUN make
+# RUN make install
+
+# WORKDIR /usr/src/
+# RUN git clone https://github.com/AcademySoftwareFoundation/openexr.git
+# WORKDIR /usr/src/openexr
+# #RUN git checkout RB-3.1 
+# WORKDIR /usr/src/openexr/build
+# RUN cmake .. -DBUILD_TESTING=OFF -DOPENEXR_BUILD_TOOLS=OFF -DOPENEXR_INSTALL_EXAMPLES=OFF
+# RUN make
+# RUN make install
 
 # OpenJPH
 WORKDIR /usr/src/openjph/
 COPY . .
 WORKDIR /usr/src/openjph/build
-RUN cmake -DCMAKE_BUILD_TYPE=Release ../
+RUN rm -R * || true
+RUN cmake -DCMAKE_BUILD_TYPE=Release ../ 
 RUN make
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/openjph/bin
+RUN make install
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/openjph/bin;/usr/local/lib/
 ENV PATH=$PATH:/usr/src/openjph/bin
 
 # finalize docker environment

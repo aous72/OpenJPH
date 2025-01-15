@@ -49,6 +49,16 @@
   #include "tiffio.h"
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+  #define IMATH_HALF_NO_LOOKUP_TABLE
+  #include <ImfRgbaFile.h>
+  #include <ImfInputFile.h>
+  #include <ImfChannelList.h>
+  #include <ImfArray.h>
+  #include <ImfTestFile.h>
+  #include <iostream>
+#endif
+
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
@@ -507,6 +517,84 @@ namespace ojph {
     si64 start_of_data;
   };
 
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+#define MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN 4
+  class exr_in : public image_in_base
+  {
+  public:
+    exr_in()
+    {
+      fname = NULL;
+
+      width = height = num_comps = 0;
+      use_Rgba_interface = false;
+      this->rgba_input_file = NULL;
+      this->data_window.makeEmpty();
+      pixels.resizeErase(0, 0);
+
+      cur_line = 0;
+
+      for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN; i++)
+      {
+        bit_depth[i] = 0;
+        is_signed[i] = false;
+        subsampling[i] = point(1, 1);
+      }
+    }
+    virtual ~exr_in()
+    {
+      if (true == this->use_Rgba_interface)
+      {
+        delete rgba_input_file;
+        pixels.resizeErase(0, 0);
+      }
+      
+      close();
+    }
+
+    void open(const char* filename);
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    void close() {
+      fname = NULL;
+    }
+
+    size get_size() { 
+      return size(width, height); }
+    ui32 get_num_components() {; 
+      return num_comps; }
+    ui32 get_bit_depth(ui32 comp_num) {
+      assert(comp_num < num_comps);
+      return bit_depth[comp_num];
+    }
+    bool get_is_signed(ui32 comp_num) {
+      assert(comp_num < num_comps);
+      return is_signed[comp_num];
+    }
+    point get_comp_subsampling(ui32 comp_num) {
+      assert(comp_num < num_comps);
+      return subsampling[comp_num];
+    }
+
+  private:
+
+    const char* fname;
+    ui32 width, height;
+
+    bool use_Rgba_interface;
+    Imf::RgbaInputFile *rgba_input_file;
+    Imath::Box2i         data_window;
+
+    ui32 num_comps;
+    ui32 cur_line;
+
+    ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
+    bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
+    point subsampling[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_IN];
+
+    Imf::Array2D<Imf::Rgba> pixels;
+  };
+#endif
+
 
   ////////////////////////////////////////////////////////////////////////////
   // Accelerators (defined in ojph_img_io_*)
@@ -812,6 +900,62 @@ namespace ojph {
     ui32 cur_line;
     si64 start_of_data;
   };
+
+#ifdef OJPH_ENABLE_OPENEXR_SUPPORT
+#define MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT 4
+  class exr_out : public image_out_base
+  {
+  public:
+    exr_out()
+    {
+      pixels.resizeErase(0, 0);
+      cur_line = 0;
+      width = 0; 
+      height = 0; 
+      num_components = 0;
+      for (int i = 0; i < MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT; i++)
+      {
+        has_nlt[i] = false;
+        bit_depth[i] = 0;
+        is_signed[i] = false;
+      }
+      rgba_output_file = NULL;
+      is_use_Rgba_interface = false;
+
+      this->data_window.makeEmpty();
+        
+      is_open = false;
+    }
+    virtual ~exr_out()
+    {
+      close();
+    }
+
+    void open(const char* filename);
+    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui8* bitdepths, bool* is_signed);
+    virtual ui32 write(const line_buf* line, ui32 comp_num);
+    virtual void close();
+
+  private:
+
+    const char* fname;
+    bool is_open;
+
+    ui32 width, height, num_components;
+
+    bool has_nlt[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+    ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+    bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+
+    Imf::RgbaOutputFile* rgba_output_file;
+    Imf::Array2D<Imf::Rgba> pixels;
+    bool is_use_Rgba_interface;
+
+    Imath::Box2i         data_window;
+
+    ui32 cur_line;
+  };
+#endif /* OJPH_ENABLE_OPENEXR_SUPPORT */
 
 
 }

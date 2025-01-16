@@ -1643,12 +1643,9 @@ namespace ojph {
             param_nlt* p = get_nlt_object(c);
             if (p == NULL || !p->enabled)
             { // captured by ALL_COMPS
-              if (p)
-                p->enabled = true;
-              else {
+              if (p == NULL)
                 p = add_object(c);
-                p->Cnlt = c;
-              }
+              p->enabled = true;                
               p->Tnlt = nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
               p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
               p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
@@ -1696,8 +1693,9 @@ namespace ojph {
     param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
                                        bool& is_signed, ui8& nl_type) const
     {
+      assert(Cnlt == special_comp_num::ALL_COMPS);
       const param_nlt* p = get_nlt_object(comp_num);
-      p = p ? p : this;
+      p = (p && p->enabled) ? p : this;
       if (p->enabled)
       {
         bit_depth = (ui8)((p->BDnlt & 0x7F) + 1);
@@ -1780,7 +1778,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     param_nlt* param_nlt::add_object(ui32 comp_num)
     {
-      assert(Cnlt != comp_num);
+      assert(comp_num != special_comp_num::ALL_COMPS);
+      assert(Cnlt == special_comp_num::ALL_COMPS);
       param_nlt* p = this;
       while (p->next != NULL) {
         assert(p->Cnlt != comp_num);

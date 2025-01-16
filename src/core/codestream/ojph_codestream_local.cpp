@@ -776,7 +776,7 @@ namespace ojph {
         }
         else if (marker_idx == 6)
         {
-          param_qcd* p = qcd.add_qcc_object();
+          param_qcd* p = qcd.add_qcc_object(param_qcd::OJPH_QCD_UNKNOWN); 
           p->read_qcc(file, siz.get_num_components());
           if (p->get_comp_idx() >= siz.get_num_components())
             OJPH_ERROR(0x00030054, "The codestream carries a QCC narker "

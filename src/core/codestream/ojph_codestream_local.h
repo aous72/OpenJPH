@@ -84,8 +84,8 @@ namespace ojph {
       { return ojph::param_cod(&cod); }
       const param_cod* get_cod()              //return internal cod
       { return &cod; }
-      const param_cod* get_cod(ui32 comp_num) //return internal cod
-      { return cod.get_cod(comp_num); }
+      const param_cod* get_coc(ui32 comp_num) //return internal cod
+      { return cod.get_coc(comp_num); }
       const param_qcd* access_qcd()
       { return &qcd; }
       const param_dfs* access_dfs()

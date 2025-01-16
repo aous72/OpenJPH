@@ -63,7 +63,7 @@ namespace ojph {
       if (empty)
         return;
 
-      const param_cod* cdp = codestream->get_cod(comp_num);
+      const param_cod* cdp = codestream->get_coc(comp_num);
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
 
@@ -120,7 +120,7 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      const param_cod* cdp = codestream->get_cod(parent->get_comp_num());
+      const param_cod* cdp = codestream->get_coc(parent->get_comp_num());
       this->reversible = cdp->access_atk()->is_reversible();
       size log_cb = cdp->get_log_block_dims();
       log_PP = cdp->get_log_precinct_size(res_num);

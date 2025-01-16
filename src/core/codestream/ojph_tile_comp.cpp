@@ -73,7 +73,7 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      num_decomps = codestream->get_cod(comp_num)->get_num_decompositions();
+      num_decomps = codestream->get_coc(comp_num)->get_num_decompositions();
 
       comp_downsamp = codestream->get_siz()->get_downsampling(comp_num);
       this->comp_rect = comp_rect;

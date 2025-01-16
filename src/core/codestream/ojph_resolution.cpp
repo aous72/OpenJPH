@@ -61,7 +61,7 @@ namespace ojph {
                                ui32 comp_num, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      const param_cod* cdp = codestream->get_cod(comp_num);
+      const param_cod* cdp = codestream->get_coc(comp_num);
       ui32 num_decomps = cdp->get_num_decompositions();
       ui32 t = num_decomps - codestream->get_skipped_res_for_recon();
       bool skipped_res_for_recon = res_num > t;
@@ -236,7 +236,7 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      const param_cod* cdp = codestream->get_cod(comp_num);
+      const param_cod* cdp = codestream->get_coc(comp_num);
       ui32 t, num_decomps = cdp->get_num_decompositions();
       t = num_decomps - codestream->get_skipped_res_for_recon();
       skipped_res_for_recon = res_num > t;

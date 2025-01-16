@@ -697,7 +697,7 @@ namespace ojph {
       assert(comp_num < get_num_components());
 
       point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
-      const param_cod* cdp = cod->get_cod(comp_num);
+      const param_cod* cdp = cod->get_coc(comp_num);
       if (dfs && cdp && cdp->is_dfs_defined()) {
         const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
         factor = d->get_res_downsamp(skipped_resolutions);
@@ -935,112 +935,127 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::check_validity(const param_siz& siz, const param_cod& cod)
     {
-      ui32 num_comp = siz.get_num_components();
+      ui32 num_comps = siz.get_num_components();
+      trim_non_existing_components(num_comps);
 
       // first check that all the component captured by QCD have the same
       // bit_depth and signedness
       bool all_same = true;
       bool other_comps_exist = false;
-      ui32 bit_depth = 0;
-      bool is_signed = false;
       ui32 first_comp = 0xFFFF; // an impossible component
-      for (ui32 c = 0; c < num_comp && all_same; ++c)
       {
-        if (get_qcc(c) == this) // no qcc defined for component c
+        ui32 num_decompositions = 0;
+        ui32 bit_depth = 0;
+        bool is_signed = false;
+        ui32 wavelet_kern = param_cod::DWT_IRV97;
+
+        for (ui32 c = 0; c < num_comps; ++c)
         {
-          if (bit_depth == 0) // first component captured by QCD
+          if (get_qcc(c) == this) // no qcc defined for component c
           {
-            bit_depth = siz.get_bit_depth(c);
-            is_signed = siz.is_signed(c);
-            first_comp = c;
+            const param_cod *p = cod.get_coc(c);          
+            if (bit_depth == 0) // first component captured by QCD
+            {
+              num_decompositions = p->get_num_decompositions();
+              bit_depth = siz.get_bit_depth(c);
+              is_signed = siz.is_signed(c);
+              wavelet_kern = p->get_wavelet_kern();
+              first_comp = c;
+            }
+            else
+            {
+              all_same = all_same 
+                && (num_decompositions == p->get_num_decompositions())
+                && (bit_depth == siz.get_bit_depth(c))
+                && (is_signed == siz.is_signed(c))
+                && (wavelet_kern == p->get_wavelet_kern());
+            }
           }
           else
-          {
-            all_same = all_same && (bit_depth == siz.get_bit_depth(c));
-            all_same = all_same && (is_signed == siz.is_signed(c));
-          }
+            other_comps_exist = true;
         }
-        else
-          other_comps_exist = true;
       }
-      first_comp = first_comp != 0xFFFF ? first_comp : 0;
 
       // configure QCD according COD
-      bool employing_color_transform = cod.is_employing_color_transform();
-      ui32 num_decomps = cod.get_num_decompositions();
-      num_subbands = 1 + 3 * num_decomps;
-      if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
+      ui32 qcd_num_decompositions;
+      ui32 qcd_bit_depth;
+      bool qcd_is_signed;
+      ui32 qcd_wavelet_kern;
       {
-        ui32 bit_depth = siz.get_bit_depth(first_comp);
-        set_rev_quant(num_decomps, bit_depth,
-          first_comp < 3 ? employing_color_transform : false);
-      }
-      else if (cod.get_wavelet_kern() == param_cod::DWT_IRV97)
-      {
-        if (base_delta == -1.0f) {
-          ui32 bit_depth = siz.get_bit_depth(first_comp);
-          base_delta = 1.0f / (float)(1 << bit_depth);
-        }
-        set_irrev_quant(num_decomps);
-      }
-      else
-        assert(0);
-
-      // if not all the same and captured by QCD, the create QCC for them
-      if (!all_same && bit_depth != 0)
-      {
-        for (ui32 c = 0; c < num_comp; ++c)
+        ui32 qcd_component = first_comp != 0xFFFF ? first_comp : 0;
+        bool employing_color_transform = cod.is_employing_color_transform();
+        qcd_num_decompositions = cod.get_num_decompositions();
+        qcd_bit_depth = siz.get_bit_depth(qcd_component);
+        qcd_is_signed = siz.is_signed(qcd_component);
+        qcd_wavelet_kern = cod.get_wavelet_kern();
+        this->num_subbands = 1 + 3 * qcd_num_decompositions;
+        if (qcd_wavelet_kern == param_cod::DWT_REV53)
+          set_rev_quant(qcd_num_decompositions, qcd_bit_depth,
+            qcd_component < 3 ? employing_color_transform : false);
+        else if (qcd_wavelet_kern == param_cod::DWT_IRV97) 
         {
+          if (this->base_delta == -1.0f)
+            this->base_delta = 1.0f / (float)(1 << qcd_bit_depth);
+          set_irrev_quant(qcd_num_decompositions);
+        }
+        else
+          assert(0);
+      }
+
+      // if not all the same and captured by QCD, then create QCC for them
+      if (!all_same)
+      {
+        bool employing_color_transform = cod.is_employing_color_transform();
+        for (ui32 c = 0; c < num_comps; ++c)
+        {
+          const param_cod *cp = cod.get_coc(c);
+          if (qcd_num_decompositions == cp->get_num_decompositions()
+              && qcd_bit_depth == siz.get_bit_depth(c)
+              && qcd_is_signed == siz.is_signed(c)
+              && qcd_wavelet_kern == cp->get_wavelet_kern())
+            continue; // captured by QCD
+
+          // Does not match QCD, must have QCC
           param_qcd *qp = get_qcc(c);
-          if (qp == this) {
-            qp = this->add_qcc_object();
-            qp->top_qcd = this;
-            qp->comp_idx = c;
-          }
-          const param_cod *cp = cod.get_cod(c);
-          ui32 num_decomps = cp->get_num_decompositions();
-          qp->num_subbands = 1 + 3 * num_decomps;
+          if (qp == this) // no QCC was defined, create QCC
+            qp = this->add_qcc_object(c);
+
+          ui32 num_decompositions = cp->get_num_decompositions();
+          qp->num_subbands = 1 + 3 * num_decompositions;
+          ui32 bit_depth = siz.get_bit_depth(c);
           if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
-          {
-            ui32 bit_depth = siz.get_bit_depth(c);
-            qp->set_rev_quant(num_decomps, bit_depth,
+            qp->set_rev_quant(num_decompositions, bit_depth,
               c < 3 ? employing_color_transform : false);
-          }
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f) {
-              ui32 bit_depth = siz.get_bit_depth(c);
+            if (qp->base_delta == -1.0f)
               qp->base_delta = 1.0f / (float)(1 << bit_depth);
-            }
-            qp->set_irrev_quant(num_decomps);
+            qp->set_irrev_quant(num_decompositions);
           }
           else
             assert(0);
         }
       }
-      else if (other_comps_exist)
+      else if (other_comps_exist) // Some are captured by QCD
       {
-        for (ui32 c = 0; c < num_comp; ++c)
+        bool employing_color_transform = cod.is_employing_color_transform();
+        for (ui32 c = 0; c < num_comps; ++c)
         {
           param_qcd *qp = get_qcc(c);
-          if (qp == this)
+          if (qp == this) // if captured by QCD continue
             continue;
-          const param_cod *cp = cod.get_cod(c);
-          ui32 num_decomps = cp->get_num_decompositions();
-          qp->num_subbands = 1 + 3 * num_decomps;
+          const param_cod *cp = cod.get_coc(c);
+          ui32 num_decompositions = cp->get_num_decompositions();
+          qp->num_subbands = 1 + 3 * num_decompositions;
+          ui32 bit_depth = siz.get_bit_depth(c);
           if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
-          {
-            ui32 bit_depth = siz.get_bit_depth(c);
-            qp->set_rev_quant(num_decomps, bit_depth,
+            qp->set_rev_quant(num_decompositions, bit_depth,
               c < 3 ? employing_color_transform : false);
-          }
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f) {
-              ui32 bit_depth = siz.get_bit_depth(c);
+            if (qp->base_delta == -1.0f)
               qp->base_delta = 1.0f / (float)(1 << bit_depth);
-            }
-            qp->set_irrev_quant(num_decomps);
+            qp->set_irrev_quant(num_decompositions);
           }
           else
             assert(0);
@@ -1053,11 +1068,8 @@ namespace ojph {
     {
       assert(type == QCD_MAIN);
       param_qcd *p = get_qcc(comp_idx);
-      if (p == NULL) {
-        p = add_qcc_object();
-        p->top_qcd = this;
-        p->comp_idx = comp_idx;
-      }
+      if (p == NULL)
+        p = add_qcc_object(comp_idx);
       p->set_delta(delta);
     }
 
@@ -1221,7 +1233,7 @@ namespace ojph {
       ui32 comp_idx = cod->get_comp_num();
       ui32 precision = 0;
       const param_cod *main = 
-        cod->get_cod(param_cod::OJPH_COD_DEFAULT);
+        cod->get_coc(param_cod::OJPH_COD_DEFAULT);
       if (main->is_employing_color_transform() && comp_idx < 3)
       {
         for (ui32 i = 0; i < 3; ++i) {
@@ -1232,7 +1244,12 @@ namespace ojph {
       else {
         precision = get_largest_Kmax();
       }
-      return precision;
+      // ``precision'' now holds the largest K_max, which excludes the sign 
+      // bit.
+      // + 1 for the sign bit
+      // + 1 because my block decoder/encoder does not supports up to 30 
+      //     bits (not 31), so we bump it by one more bit.
+      return precision + 1 + 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1350,11 +1367,13 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_qcd::write_qcc(outfile_base *file, ui32 num_comps)
     {
+      assert(type == QCD_MAIN);
       bool result = true;
       param_qcd *p = this->next;
       while (p)
       {
-        result &= p->internal_write_qcc(file, num_comps);
+        if (p->enabled)
+          result &= p->internal_write_qcc(file, num_comps);
         p = p->next;
       }
       return result;
@@ -1411,6 +1430,19 @@ namespace ojph {
 
       return result;
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::trim_non_existing_components(ui32 num_comps)
+    {
+      assert(type == QCD_MAIN && comp_idx == OJPH_QCD_DEFAULT);
+      param_qcd *p = this->next;
+      while (p)
+      {
+        assert(p->type == QCC_MAIN);
+        p->enabled = p->comp_idx < num_comps;
+        p = p->next;
+      }
+    }    
 
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::read(infile_base *file)
@@ -1520,6 +1552,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     const param_qcd* param_qcd::get_qcc(ui32 comp_idx) const
     {
+      assert(this->top_qcd->type == QCD_MAIN);
       param_qcd* p = this->top_qcd;
       while (p && p->comp_idx != comp_idx)
         p = p->next;
@@ -1527,8 +1560,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    param_qcd* param_qcd::add_qcc_object()
+    param_qcd* param_qcd::add_qcc_object(ui32 comp_idx)
     {
+      assert(type == QCD_MAIN);
       param_qcd *p = this;
       while (p->next != NULL)
         p = p->next;
@@ -1538,6 +1572,7 @@ namespace ojph {
       p->type = QCC_MAIN;
       p->next = NULL;
       p->top_qcd = this;
+      p->comp_idx = (ui16)comp_idx;
       return p;
     }
 

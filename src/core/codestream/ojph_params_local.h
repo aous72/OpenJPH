@@ -436,17 +436,35 @@ namespace ojph {
 
         if (SGCod.mc_trans == 1)
         {
-          bool test = false;
+          bool test_signedness = false;
+          bool test_bit_depth = false;
+          bool test_downsampling = false;
           point p = siz.get_downsampling(0);
+          ui32 bit_depth = siz.get_bit_depth(0);
+          bool is_signed = siz.is_signed(0);
           for (ui32 i = 1; i < 3; ++i)
           {
             point p1 = siz.get_downsampling(i);
-            test = test || (p.x != p1.x || p.y != p1.y);
+            test_downsampling = test_downsampling
+              || (p.x != p1.x || p.y != p1.y);
+            test_bit_depth = test_bit_depth 
+              || (bit_depth != siz.get_bit_depth(i));
+            test_signedness = test_signedness 
+              || (is_signed != siz.is_signed(i));
           }
-          if (test)
+          if (test_downsampling)
             OJPH_ERROR(0x00040012,
-              "when color transform is used, the first 3 colour "
-              "components must have the same downsampling.");
+              "when color transform is used, the first 3 colour components "
+              "must have the same downsampling factor.");
+          if (test_bit_depth)
+            OJPH_ERROR(0x00040014,
+              "when color transform is used, the first 3 colour components "
+              "must have the same bit depth.");
+          if (test_signedness)
+            OJPH_ERROR(0x00040015,
+              "when color transform is used, the first 3 colour components "
+              "must have the same signedness (signed or unsigned).");
+
         }
 
         //check the progression order matches downsampling
@@ -550,7 +568,7 @@ namespace ojph {
       { this->next = coc; }
 
       ////////////////////////////////////////
-      const param_cod* get_cod(ui32 comp_num) const
+      const param_cod* get_coc(ui32 comp_num) const
       {
         const param_cod* result = this;
         if (result->type != COD_MAIN)
@@ -607,7 +625,10 @@ namespace ojph {
     {
       // serves for both QCD and QCC markers
       friend ::ojph::param_qcd;
-      enum default_comp_num : ui16 { OJPH_QCD_DEFAULT = 65535 };
+      enum default_comp_num : ui16 { 
+        OJPH_QCD_UNKNOWN = 65534, 
+        OJPH_QCD_DEFAULT = 65535 
+      };
 
       ////////////////////////////////////////
       enum qcd_type : ui8 {
@@ -626,6 +647,7 @@ namespace ojph {
         memset(&SPqcd, 0, sizeof(SPqcd));
         num_subbands = 0;
         base_delta = -1.0f;
+        enabled = true;
         next = NULL;
         top_qcd = this;
         comp_idx = OJPH_QCD_DEFAULT;
@@ -656,7 +678,7 @@ namespace ojph {
 
       param_qcd* get_qcc(ui32 comp_idx);
       const param_qcd* get_qcc(ui32 comp_idx) const;
-      param_qcd* add_qcc_object();
+      param_qcd* add_qcc_object(ui32 comp_idx);
       ui16 get_comp_idx() const { return comp_idx; }
 
     private:
@@ -664,7 +686,8 @@ namespace ojph {
                          bool is_employing_color_transform);
       void set_irrev_quant(ui32 num_decomps);
       ui32 get_largest_Kmax() const;
-      bool internal_write_qcc(outfile_base *file, ui32 num_comps);      
+      bool internal_write_qcc(outfile_base *file, ui32 num_comps);
+      void trim_non_existing_components(ui32 num_comps);
 
       ui8 decode_SPqcd(ui8 v) const
       { return (ui8)(v >> 3); }
@@ -683,6 +706,7 @@ namespace ojph {
       ui32 num_subbands;  // number of subbands
       float base_delta;   // base quantization step size -- all other
                           // step sizes are derived from it.
+      bool enabled;       // enabled if two, and ignored if false
       param_qcd *next;    // pointer to create chains of qcc marker segments
       param_qcd *top_qcd; // pointer to the top QCD (this is the default)
 

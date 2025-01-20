@@ -63,7 +63,7 @@ namespace ojph {
       if (empty)
         return;
 
-      const param_cod* cdp = codestream->get_cod(comp_num);
+      const param_cod* cdp = codestream->get_coc(comp_num);
       size log_cb = cdp->get_log_block_dims();
       size log_PP = cdp->get_log_precinct_size(res_num);
 
@@ -90,15 +90,16 @@ namespace ojph {
       //allocate codeblock headers
       allocator->pre_alloc_obj<coded_cb_header>((size_t)num_blocks.area());
 
+      const param_qcd* qp = codestream->access_qcd()->get_qcc(comp_num);
+      ui32 precision = qp->propose_precision(cdp);
+
       for (ui32 i = 0; i < num_blocks.w; ++i)
-        codeblock::pre_alloc(codestream, comp_num, nominal);
+        codeblock::pre_alloc(codestream, nominal, precision);
 
       //allocate lines
       allocator->pre_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_precision(szp, comp_num);
       if (precision <= 32)      
         allocator->pre_alloc_data<si32>(width, 1);
       else
@@ -119,7 +120,7 @@ namespace ojph {
       this->band_rect = band_rect;
       this->parent = res;
 
-      const param_cod* cdp = codestream->get_cod(parent->get_comp_num());
+      const param_cod* cdp = codestream->get_coc(parent->get_comp_num());
       this->reversible = cdp->access_atk()->is_reversible();
       size log_cb = cdp->get_log_block_dims();
       log_PP = cdp->get_log_precinct_size(res_num);
@@ -142,17 +143,18 @@ namespace ojph {
           dfs = dfs->get_dfs(cdp->get_dfs_index());
       }
       ui32 comp_num = parent->get_comp_num();
-      param_qcd* qcd = codestream->access_qcd(comp_num);
+      const param_qcd* qcd = codestream->access_qcd()->get_qcc(comp_num);
       ui32 num_decomps = cdp->get_num_decompositions();
       this->K_max = qcd->get_Kmax(dfs, num_decomps, this->res_num, band_num);
       if (!reversible)
       {
         float d = 
-          qcd->irrev_get_delta(dfs, num_decomps, res_num, subband_num);
+          qcd->get_irrev_delta(dfs, num_decomps, res_num, subband_num);
         d /= (float)(1u << (31 - this->K_max));
         delta = d;
         delta_inv = (1.0f/d);
       }
+      ui32 precision = qcd->propose_precision(cdp);
 
       this->empty = ((band_rect.siz.w == 0) || (band_rect.siz.h == 0));
       if (this->empty)
@@ -190,7 +192,8 @@ namespace ojph {
         ui32 cbx1 = ojph_min(tbx1, x_lower_bound + (i + 1) * nominal.w);
         cb_size.w = cbx1 - cbx0;
         blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
-                                  coded_cbs + i, K_max, line_offset);
+                                 coded_cbs + i, K_max, line_offset, 
+                                 precision);
         line_offset += cb_size.w;
       }
 
@@ -198,8 +201,6 @@ namespace ojph {
       lines = allocator->post_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_precision(szp, comp_num);
       if (precision <= 32)      
         lines->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
       else

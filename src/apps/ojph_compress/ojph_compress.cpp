@@ -834,11 +834,20 @@ int main(int argc, char * argv[]) {
 
         ojph::param_nlt nlt = codestream.access_nlt();
         if (reversible) {
+          // Note: Even if only ALL_COMPS is set to 
+          // OJPH_NLT_BINARY_COMPLEMENT_NLT, the library can decide if
+          // one ALL_COMPS NLT marker segment is needed, or multiple 
+          // per component NLT marker segments are needed (when the components
+          // have different bit depths or signedness).
+          // Of course for .pfm images all components should have the same
+          // bit depth and signedness.
           if (all_the_same)
-            nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+            nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
+              ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
           else
             for (ojph::ui32 c = 0; c < num_comps; ++c)
-              nlt.set_type3_transformation(c, true);
+              nlt.set_nonlinear_transform(c, 
+                ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
         }
         else
           OJPH_ERROR(0x01000093, "We currently support lossless only for "

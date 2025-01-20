@@ -84,16 +84,10 @@ namespace ojph {
       { return ojph::param_cod(&cod); }
       const param_cod* get_cod()              //return internal cod
       { return &cod; }
-      const param_cod* get_cod(ui32 comp_num) //return internal cod
-      { return cod.get_cod(comp_num); }
-      param_qcd* access_qcd(ui32 comp_num)
-      { 
-        if (used_qcc_fields > 0)
-          for (int v = 0; v < used_qcc_fields; ++v)
-            if (qcc[v].get_comp_num() == comp_num)
-              return qcc + v;
-        return &qcd; 
-      }
+      const param_cod* get_coc(ui32 comp_num) //return internal cod
+      { return cod.get_coc(comp_num); }
+      const param_qcd* access_qcd()
+      { return &qcd; }
       const param_dfs* access_dfs()
       { if (dfs.exists()) return &dfs; else return NULL; }
       const param_nlt* get_nlt()
@@ -166,9 +160,6 @@ namespace ojph {
       param_nlt nlt;         // non-linearity point transformation
 
     private: // this is to handle qcc and coc
-      int used_qcc_fields;
-      param_qcc *qcc;         // quantization component
-      param_qcc qcc_store[4]; // we allocate 4, we allocate more if needed
       int used_coc_fields;
       param_cod *coc;         // coding style component
       param_cod coc_store[4]; // we allocate 4, we allocate more if needed
@@ -178,8 +169,6 @@ namespace ojph {
       param_atk* atk;        // a pointer to atk
       param_atk atk_store[3];// 0 and 1 are for DWT from Part 1, 2 onward are
                              // for arbitrary transformation kernels
-
-
     private:
       mem_fixed_allocator *allocator;
       mem_elastic_allocator *elastic_alloc;

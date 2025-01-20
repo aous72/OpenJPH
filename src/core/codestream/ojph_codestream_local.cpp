@@ -79,8 +79,6 @@ namespace ojph {
 
       precinct_scratch_needed_bytes = 0;
 
-      used_qcc_fields = 0;
-      qcc = qcc_store;
       used_coc_fields = 0;
       coc = coc_store;
 
@@ -100,8 +98,6 @@ namespace ojph {
     ////////////////////////////////////////////////////////////////////////////
     codestream::~codestream()
     {
-      if (qcc_store != qcc)
-        delete[] qcc;
       if (allocator)
         delete allocator;
       if (elastic_alloc)
@@ -633,6 +629,9 @@ namespace ojph {
       if (!qcd.write(file))
         OJPH_ERROR(0x00030026, "Error writing to file");
 
+      if (!qcd.write_qcc(file, num_comps))
+        OJPH_ERROR(0x0003002D, "Error writing to file");
+
       if (!nlt.write(file))
         OJPH_ERROR(0x00030027, "Error writing to file");
 
@@ -766,9 +765,7 @@ namespace ojph {
           ui32 num_comps = siz.get_num_components();
           if (coc == coc_store && 
               num_comps * sizeof(param_cod) > sizeof(coc_store))
-          {
             coc = new param_cod[num_comps];
-          }
           coc[used_coc_fields++].read(
             file, param_cod::COC_MAIN, num_comps, &cod);
         }
@@ -779,13 +776,18 @@ namespace ojph {
         }
         else if (marker_idx == 6)
         {
-          ui32 num_comps = siz.get_num_components();
-          if (qcc == qcc_store && 
-              num_comps * sizeof(param_qcc) > sizeof(qcc_store))
-          {
-            qcc = new param_qcc[num_comps];
-          }
-          qcc[used_qcc_fields++].read(file, num_comps);
+          param_qcd* p = qcd.add_qcc_object(param_qcd::OJPH_QCD_UNKNOWN); 
+          p->read_qcc(file, siz.get_num_components());
+          if (p->get_comp_idx() >= siz.get_num_components())
+            OJPH_ERROR(0x00030054, "The codestream carries a QCC narker "
+              "segment for a component indexed by %d, which is more than the "
+              "allowed index number, since the codestream has %d components", 
+              p->get_comp_idx(), num_comps);
+          param_qcd *q = qcd.get_qcc(p->get_comp_idx());
+          if (p != q && p->get_comp_idx() == q->get_comp_idx())
+            OJPH_ERROR(0x00030055, "The codestream has two QCC marker "
+              "segments for one component of index %d", 
+              p->get_comp_idx());
         }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",

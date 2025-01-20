@@ -269,6 +269,12 @@ int main(int argc, char *argv[]) {
       }
       else if (is_matching(".pfm", v))
       {
+        OJPH_INFO(0x02000011, "Note: The .pfm implementation is "
+          "experimental. It is developed for me the test NLT marker segments. "
+          "For this reason, I am restricting it to images that employ the "
+          "NLT marker segment, with the assumption that original values are "
+          "floating-point numbers.");
+
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
         ojph::param_cod cod = codestream.access_cod();
@@ -294,8 +300,10 @@ int main(int argc, char *argv[]) {
         for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c) {
           ojph::ui8 bd = 0;
           bool is = true;
-          bool result = nlt.get_type3_transformation(c, bd, is);
-          if (result == false)
+          ojph::ui8 nl_type;
+          bool result = nlt.get_nonlinear_transform(c, bd, is, nl_type);
+          if (result == false || 
+              nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
             OJPH_ERROR(0x0200000E,
               "This codestream is not supported; it does not have an "
               "NLT segment marker for this component (or no default NLT "

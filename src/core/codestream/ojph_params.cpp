@@ -364,25 +364,32 @@ namespace ojph {
     state->set_delta(delta);
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
-
   //////////////////////////////////////////////////////////////////////////
-  void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
+  void param_qcd::set_irrev_quant(ui32 comp_idx, float delta)
   {
-    state->set_type3_transformation(comp_num, enable);
+    state->set_delta(comp_idx, delta);
   }
 
-  //////////////////////////////////////////////////////////////////////////
-  bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth,
-                                           bool& is_signed)
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_nlt::set_nonlinear_transform(ui32 comp_num, ui8 nl_type)
   {
-    return state->get_type3_transformation(comp_num, bit_depth, is_signed);
+    state->set_nonlinear_transform(comp_num, nl_type);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                          bool& is_signed, ui8& nl_type) const
+  {
+    return state->get_nonlinear_transform(comp_num, bit_depth, is_signed, 
+                                          nl_type);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -690,7 +697,7 @@ namespace ojph {
       assert(comp_num < get_num_components());
 
       point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
-      const param_cod* cdp = cod->get_cod(comp_num);
+      const param_cod* cdp = cod->get_coc(comp_num);
       if (dfs && cdp && cdp->is_dfs_defined()) {
         const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
         factor = d->get_res_downsamp(skipped_resolutions);
@@ -775,32 +782,6 @@ namespace ojph {
     //
     //
     //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    ui32 
-    param_cod::propose_precision(const param_siz* siz, ui32 comp_num) const
-    {
-      if (atk->is_reversible() == false)
-        return 32;
-      else
-      {
-        ui32 bit_depth = 0;
-        if (comp_num < 3 && is_employing_color_transform())
-        {
-          for (ui32 c = 0; c < 3; ++c)
-            bit_depth = ojph_max(bit_depth, siz->get_bit_depth(c));
-          ++bit_depth; // colour transform needs one extra bit
-        }
-        else
-          bit_depth = siz->get_bit_depth(comp_num);
-
-        // 3 or 4 is how many extra bits are needed for the HH band at the 
-        // bottom most level of decomposition. 
-        bit_depth += get_num_decompositions() > 5 ? 4 : 3; 
-
-        return bit_depth;
-      }
-    }
 
     //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
@@ -954,29 +935,142 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::check_validity(const param_siz& siz, const param_cod& cod)
     {
-      ui32 num_decomps = cod.get_num_decompositions();
-      num_subbands = 1 + 3 * num_decomps;
-      if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
+      ui32 num_comps = siz.get_num_components();
+      trim_non_existing_components(num_comps);
+
+      // first check that all the component captured by QCD have the same
+      // bit_depth and signedness
+      bool all_same = true;
+      bool other_comps_exist = false;
+      ui32 first_comp = 0xFFFF; // an impossible component
       {
+        ui32 num_decompositions = 0;
         ui32 bit_depth = 0;
-        for (ui32 i = 0; i < siz.get_num_components(); ++i)
-          bit_depth = ojph_max(bit_depth, siz.get_bit_depth(i));
-        set_rev_quant(num_decomps, bit_depth,
-          cod.is_employing_color_transform());
-      }
-      else if (cod.get_wavelet_kern() == param_cod::DWT_IRV97)
-      {
-        if (base_delta == -1.0f) {
-          ui32 bit_depth = 0;
-          for (ui32 i = 0; i < siz.get_num_components(); ++i)
-            bit_depth =
-            ojph_max(bit_depth, siz.get_bit_depth(i) + siz.is_signed(i));
-          base_delta = 1.0f / (float)(1 << bit_depth);
+        bool is_signed = false;
+        ui32 wavelet_kern = param_cod::DWT_IRV97;
+
+        for (ui32 c = 0; c < num_comps; ++c)
+        {
+          if (get_qcc(c) == this) // no qcc defined for component c
+          {
+            const param_cod *p = cod.get_coc(c);          
+            if (bit_depth == 0) // first component captured by QCD
+            {
+              num_decompositions = p->get_num_decompositions();
+              bit_depth = siz.get_bit_depth(c);
+              is_signed = siz.is_signed(c);
+              wavelet_kern = p->get_wavelet_kern();
+              first_comp = c;
+            }
+            else
+            {
+              all_same = all_same 
+                && (num_decompositions == p->get_num_decompositions())
+                && (bit_depth == siz.get_bit_depth(c))
+                && (is_signed == siz.is_signed(c))
+                && (wavelet_kern == p->get_wavelet_kern());
+            }
+          }
+          else
+            other_comps_exist = true;
         }
-        set_irrev_quant(num_decomps);
       }
-      else
-        assert(0);
+
+      // configure QCD according COD
+      ui32 qcd_num_decompositions;
+      ui32 qcd_bit_depth;
+      bool qcd_is_signed;
+      ui32 qcd_wavelet_kern;
+      {
+        ui32 qcd_component = first_comp != 0xFFFF ? first_comp : 0;
+        bool employing_color_transform = cod.is_employing_color_transform();
+        qcd_num_decompositions = cod.get_num_decompositions();
+        qcd_bit_depth = siz.get_bit_depth(qcd_component);
+        qcd_is_signed = siz.is_signed(qcd_component);
+        qcd_wavelet_kern = cod.get_wavelet_kern();
+        this->num_subbands = 1 + 3 * qcd_num_decompositions;
+        if (qcd_wavelet_kern == param_cod::DWT_REV53)
+          set_rev_quant(qcd_num_decompositions, qcd_bit_depth,
+            qcd_component < 3 ? employing_color_transform : false);
+        else if (qcd_wavelet_kern == param_cod::DWT_IRV97) 
+        {
+          if (this->base_delta == -1.0f)
+            this->base_delta = 1.0f / (float)(1 << qcd_bit_depth);
+          set_irrev_quant(qcd_num_decompositions);
+        }
+        else
+          assert(0);
+      }
+
+      // if not all the same and captured by QCD, then create QCC for them
+      if (!all_same)
+      {
+        bool employing_color_transform = cod.is_employing_color_transform();
+        for (ui32 c = 0; c < num_comps; ++c)
+        {
+          const param_cod *cp = cod.get_coc(c);
+          if (qcd_num_decompositions == cp->get_num_decompositions()
+              && qcd_bit_depth == siz.get_bit_depth(c)
+              && qcd_is_signed == siz.is_signed(c)
+              && qcd_wavelet_kern == cp->get_wavelet_kern())
+            continue; // captured by QCD
+
+          // Does not match QCD, must have QCC
+          param_qcd *qp = get_qcc(c);
+          if (qp == this) // no QCC was defined, create QCC
+            qp = this->add_qcc_object(c);
+
+          ui32 num_decompositions = cp->get_num_decompositions();
+          qp->num_subbands = 1 + 3 * num_decompositions;
+          ui32 bit_depth = siz.get_bit_depth(c);
+          if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
+            qp->set_rev_quant(num_decompositions, bit_depth,
+              c < 3 ? employing_color_transform : false);
+          else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
+          {
+            if (qp->base_delta == -1.0f)
+              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            qp->set_irrev_quant(num_decompositions);
+          }
+          else
+            assert(0);
+        }
+      }
+      else if (other_comps_exist) // Some are captured by QCD
+      {
+        bool employing_color_transform = cod.is_employing_color_transform();
+        for (ui32 c = 0; c < num_comps; ++c)
+        {
+          param_qcd *qp = get_qcc(c);
+          if (qp == this) // if captured by QCD continue
+            continue;
+          const param_cod *cp = cod.get_coc(c);
+          ui32 num_decompositions = cp->get_num_decompositions();
+          qp->num_subbands = 1 + 3 * num_decompositions;
+          ui32 bit_depth = siz.get_bit_depth(c);
+          if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
+            qp->set_rev_quant(num_decompositions, bit_depth,
+              c < 3 ? employing_color_transform : false);
+          else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
+          {
+            if (qp->base_delta == -1.0f)
+              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            qp->set_irrev_quant(num_decompositions);
+          }
+          else
+            assert(0);
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_delta(ui32 comp_idx, float delta)
+    {
+      assert(type == QCD_MAIN);
+      param_qcd *p = get_qcc(comp_idx);
+      if (p == NULL)
+        p = add_qcc_object(comp_idx);
+      p->set_delta(delta);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -988,19 +1082,19 @@ namespace ojph {
       int s = 0;
       double bibo_l = bibo_gains::get_bibo_gain_l(num_decomps, true);
       ui32 X = (ui32) ceil(log(bibo_l * bibo_l) / M_LN2);
-      u8_SPqcd[s++] = (ui8)(B + X);
+      SPqcd.u8[s++] = (ui8)(B + X);
       ui32 max_B_plus_X = (ui32)(B + X);
       for (ui32 d = num_decomps; d > 0; --d)
       {
         double bibo_l = bibo_gains::get_bibo_gain_l(d, true);
         double bibo_h = bibo_gains::get_bibo_gain_h(d - 1, true);
         X = (ui32) ceil(log(bibo_h * bibo_l) / M_LN2);
-        u8_SPqcd[s++] = (ui8)(B + X);
+        SPqcd.u8[s++] = (ui8)(B + X);
         max_B_plus_X = ojph_max(max_B_plus_X, B + X);
-        u8_SPqcd[s++] = (ui8)(B + X);
+        SPqcd.u8[s++] = (ui8)(B + X);
         max_B_plus_X = ojph_max(max_B_plus_X, B + X);
         X = (ui32) ceil(log(bibo_h * bibo_h) / M_LN2);
-        u8_SPqcd[s++] = (ui8)(B + X);
+        SPqcd.u8[s++] = (ui8)(B + X);
         max_B_plus_X = ojph_max(max_B_plus_X, B + X);
       }
 
@@ -1013,15 +1107,15 @@ namespace ojph {
       int guard_bits = ojph_max(1, (si32)max_B_plus_X - 31);
       Sqcd = (ui8)(guard_bits << 5);
       s = 0;
-      u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+      SPqcd.u8[s] = encode_SPqcd((ui8)(SPqcd.u8[s] - guard_bits));
       s++;
       for (ui32 d = num_decomps; d > 0; --d)
       {
-        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        SPqcd.u8[s] = encode_SPqcd((ui8)(SPqcd.u8[s] - guard_bits));
         s++;
-        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        SPqcd.u8[s] = encode_SPqcd((ui8)(SPqcd.u8[s] - guard_bits));
         s++;
-        u8_SPqcd[s] = encode_SPqcd((ui8)(u8_SPqcd[s] - guard_bits));
+        SPqcd.u8[s] = encode_SPqcd((ui8)(SPqcd.u8[s] - guard_bits));
         s++;
       }
     }
@@ -1041,7 +1135,7 @@ namespace ojph {
       // but that should not happen in reality
       mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
       mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-      u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
+      SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
       for (ui32 d = num_decomps; d > 0; --d)
       {
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
@@ -1054,8 +1148,8 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
-        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
+        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
+        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
 
         delta_b = base_delta / (gain_h * gain_h);
 
@@ -1064,39 +1158,47 @@ namespace ojph {
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        u16_SPqcd[s++] = (ui16)((exp << 11) | mantissa);
+        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    ui32 param_qcd::get_MAGBp() const
-    { //this can be written better, but it is only executed once
-
-      // this assumes a bi-directional wavelet (conventional DWT)
-      ui32 num_decomps = (num_subbands - 1) / 3;
-
+    ui32 param_qcd::get_MAGB() const
+    { 
       ui32 B = 0;
-      int irrev = Sqcd & 0x1F;
-      if (irrev == 0) //reversible
-        for (ui32 i = 0; i < num_subbands; ++i) {
-          ui32 t = decode_SPqcd(u8_SPqcd[i]);
-          t += get_num_guard_bits() - 1u;
-          B = ojph_max(B, t);
-        }
-      else if (irrev == 2) //scalar expounded
-        for (ui32 i = 0; i < num_subbands; ++i)
-        {
-          ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
-          B = ojph_max(B, (u16_SPqcd[i] >> 11) + get_num_guard_bits() - nb);
-        }
-      else
-        assert(0);
+
+      const param_qcd *p = this;
+      while (p)
+      {
+        //this can be written better, but it is only executed once
+        // this assumes a bi-directional wavelet (conventional DWT)
+        ui32 num_decomps = (p->num_subbands - 1) / 3;
+
+        int irrev = p->Sqcd & 0x1F;
+        if (irrev == 0) //reversible
+          for (ui32 i = 0; i < p->num_subbands; ++i) {
+            ui32 t = p->decode_SPqcd(p->SPqcd.u8[i]);
+            t += p->get_num_guard_bits() - 1u;
+            B = ojph_max(B, t);
+          }
+        else if (irrev == 2) //scalar expounded
+          for (ui32 i = 0; i < p->num_subbands; ++i)
+          {
+            ui32 nb = num_decomps - (i ? (i - 1) / 3 : 0); //decompsition level
+            ui32 t = (p->SPqcd.u16[i] >> 11) + p->get_num_guard_bits() - nb;
+            B = ojph_max(B, t);
+          }
+        else
+          assert(0);
+        
+        p = p->next;
+      }
 
       return B;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd::irrev_get_delta(const param_dfs* dfs, 
+    float param_qcd::get_irrev_delta(const param_dfs* dfs, 
                                      ui32 num_decompositions,
                                      ui32 resolution, ui32 subband) const
     {
@@ -1117,12 +1219,37 @@ namespace ojph {
           idx + 1, num_subbands, num_subbands - 1);
         idx = num_subbands - 1;
       }
-      int eps = u16_SPqcd[idx] >> 11;
+      int eps = SPqcd.u16[idx] >> 11;
       float mantissa;
-      mantissa = (float)((u16_SPqcd[idx] & 0x7FF) | 0x800) * arr[subband];
+      mantissa = (float)((SPqcd.u16[idx] & 0x7FF) | 0x800) * arr[subband];
       mantissa /= (float)(1 << 11);
       mantissa /= (float)(1u << eps);
       return mantissa;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 param_qcd::propose_precision(const param_cod* cod) const
+    {
+      ui32 comp_idx = cod->get_comp_num();
+      ui32 precision = 0;
+      const param_cod *main = 
+        cod->get_coc(param_cod::OJPH_COD_DEFAULT);
+      if (main->is_employing_color_transform() && comp_idx < 3)
+      {
+        for (ui32 i = 0; i < 3; ++i) {
+          const param_qcd* p = this->get_qcc(i);
+          precision = ojph_max(precision, p->get_largest_Kmax());
+        }
+      }
+      else {
+        precision = get_largest_Kmax();
+      }
+      // ``precision'' now holds the largest K_max, which excludes the sign 
+      // bit.
+      // + 1 for the sign bit
+      // + 1 because my block decoder/encoder does not supports up to 30 
+      //     bits (not 31), so we bump it by one more bit.
+      return precision + 1 + 1;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1135,7 +1262,6 @@ namespace ojph {
     ui32 param_qcd::get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
                              ui32 resolution, ui32 subband) const
     {
-      ui32 num_bits = get_num_guard_bits();
       ui32 idx;
       if (dfs != NULL && dfs->exists())
         idx = dfs->get_subband_idx(num_decompositions, resolution, subband);
@@ -1152,19 +1278,47 @@ namespace ojph {
       }
 
       int irrev = Sqcd & 0x1F;
+      ui32 num_bits = 0;
       if (irrev == 0) // reversible; this is (10.22) from the J2K book
       {
-        num_bits += decode_SPqcd(u8_SPqcd[idx]);
+        num_bits = decode_SPqcd(SPqcd.u8[idx]);
         num_bits = num_bits == 0 ? 0 : num_bits - 1;
       }
       else if (irrev == 1)
         assert(0);
       else if (irrev == 2) //scalar expounded
-        num_bits += (u16_SPqcd[idx] >> 11) - 1;
+        num_bits = (SPqcd.u16[idx] >> 11) - 1;
       else
         assert(0);
 
-      return num_bits;
+      return num_bits + get_num_guard_bits();
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 param_qcd::get_largest_Kmax() const
+    {
+      int irrev = Sqcd & 0x1F;
+      ui32 num_bits = 0;
+      if (irrev == 0) // reversible; this is (10.22) from the J2K book
+      {
+        for (ui32 i = 0; i < num_subbands; ++i) {
+          ui32 t = decode_SPqcd(SPqcd.u8[i]);
+          num_bits = ojph_max(num_bits, t == 0 ? 0 : t - 1);
+        }
+      }
+      else if (irrev == 1)
+        assert(0);
+      else if (irrev == 2) //scalar expounded
+      {
+        for (ui32 i = 0; i < num_subbands; ++i) {
+          ui32 t = (SPqcd.u16[i] >> 11) - 1;
+          num_bits = ojph_max(num_bits, t);
+        }
+      }
+      else
+        assert(0);
+      
+      return num_bits + get_num_guard_bits();        
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1195,21 +1349,101 @@ namespace ojph {
       if (irrev == 0)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui8*)buf = u8_SPqcd[i];
+          *(ui8*)buf = SPqcd.u8[i];
           result &= file->write(&buf, 1) == 1;
         }
       else if (irrev == 2)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui16*)buf = swap_byte(u16_SPqcd[i]);
+          *(ui16*)buf = swap_byte(SPqcd.u16[i]);
           result &= file->write(&buf, 2) == 2;
         }
       else
         assert(0);
 
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_qcd::write_qcc(outfile_base *file, ui32 num_comps)
+    {
+      assert(type == QCD_MAIN);
+      bool result = true;
+      param_qcd *p = this->next;
+      while (p)
+      {
+        if (p->enabled)
+          result &= p->internal_write_qcc(file, num_comps);
+        p = p->next;
+      }
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_qcd::internal_write_qcc(outfile_base *file, ui32 num_comps)
+    {
+      int irrev = Sqcd & 0x1F;
+
+      //marker size excluding header
+      Lqcd = (ui16)(4 + (num_comps < 257 ? 0 : 1));
+      if (irrev == 0)
+        Lqcd = (ui16)(Lqcd + num_subbands);
+      else if (irrev == 2)
+        Lqcd = (ui16)(Lqcd + 2 * num_subbands);
+      else
+        assert(0);
+
+      char buf[4];
+      bool result = true;
+
+      *(ui16*)buf = JP2K_MARKER::QCC;
+      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      result &= file->write(&buf, 2) == 2;
+      *(ui16*)buf = swap_byte(Lqcd);
+      result &= file->write(&buf, 2) == 2;
+      if (num_comps < 257)
+      {
+        *(ui8*)buf = (ui8)comp_idx;
+        result &= file->write(&buf, 1) == 1;
+      }
+      else
+      {
+        *(ui16*)buf = swap_byte(comp_idx);
+        result &= file->write(&buf, 2) == 2;
+      }
+      *(ui8*)buf = Sqcd;
+      result &= file->write(&buf, 1) == 1;
+      if (irrev == 0)
+        for (ui32 i = 0; i < num_subbands; ++i)
+        {
+          *(ui8*)buf = SPqcd.u8[i];
+          result &= file->write(&buf, 1) == 1;
+        }
+      else if (irrev == 2)
+        for (ui32 i = 0; i < num_subbands; ++i)
+        {
+          *(ui16*)buf = swap_byte(SPqcd.u16[i]);
+          result &= file->write(&buf, 2) == 2;
+        }
+      else
+        assert(0);
 
       return result;
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::trim_non_existing_components(ui32 num_comps)
+    {
+      assert(type == QCD_MAIN && comp_idx == OJPH_QCD_DEFAULT);
+      param_qcd *p = this->next;
+      while (p)
+      {
+        assert(p->type == QCC_MAIN);
+        p->enabled = p->comp_idx < num_comps;
+        p = p->next;
+      }
+    }    
+
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::read(infile_base *file)
     {
@@ -1224,7 +1458,7 @@ namespace ojph {
         if (Lqcd != 3 + num_subbands)
           OJPH_ERROR(0x00050083, "wrong Lqcd value in QCD marker");
         for (ui32 i = 0; i < num_subbands; ++i)
-          if (file->read(&u8_SPqcd[i], 1) != 1)
+          if (file->read(&SPqcd.u8[i], 1) != 1)
             OJPH_ERROR(0x00050084, "error reading QCD marker");
       }
       else if ((Sqcd & 0x1F) == 1)
@@ -1242,9 +1476,9 @@ namespace ojph {
           OJPH_ERROR(0x00050086, "wrong Lqcd value in QCD marker");
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          if (file->read(&u16_SPqcd[i], 2) != 2)
+          if (file->read(&SPqcd.u16[i], 2) != 2)
             OJPH_ERROR(0x00050087, "error reading QCD marker");
-          u16_SPqcd[i] = swap_byte(u16_SPqcd[i]);
+          SPqcd.u16[i] = swap_byte(SPqcd.u16[i]);
         }
       }
       else
@@ -1252,15 +1486,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    //
-    //
-    //
-    //
-    //
-    //////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////////
-    void param_qcc::read(infile_base *file, ui32 num_comps)
+    void param_qcd::read_qcc(infile_base *file, ui32 num_comps)
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x000500A1, "error reading QCC marker");
@@ -1287,7 +1513,7 @@ namespace ojph {
         if (Lqcd != offset + num_subbands)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value in QCC marker");
         for (ui32 i = 0; i < num_subbands; ++i)
-          if (file->read(&u8_SPqcd[i], 1) != 1)
+          if (file->read(&SPqcd.u8[i], 1) != 1)
             OJPH_ERROR(0x000500A6, "error reading QCC marker");
       }
       else if ((Sqcd & 0x1F) == 1)
@@ -1305,13 +1531,49 @@ namespace ojph {
           OJPH_ERROR(0x000500A8, "wrong Lqcc value in QCC marker");
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          if (file->read(&u16_SPqcd[i], 2) != 2)
+          if (file->read(&SPqcd.u16[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
-          u16_SPqcd[i] = swap_byte(u16_SPqcd[i]);
+          SPqcd.u16[i] = swap_byte(SPqcd.u16[i]);
         }
       }
       else
         OJPH_ERROR(0x000500AA, "wrong Sqcc value in QCC marker");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_qcd* param_qcd::get_qcc(ui32 comp_idx) 
+    { 
+      // cast object to constant
+      const param_qcd* const_p = const_cast<const param_qcd*>(this);
+      // call using the constant object, then cast to non-const
+      return const_cast<param_qcd*>(const_p->get_qcc(comp_idx));
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    const param_qcd* param_qcd::get_qcc(ui32 comp_idx) const
+    {
+      assert(this->top_qcd->type == QCD_MAIN);
+      param_qcd* p = this->top_qcd;
+      while (p && p->comp_idx != comp_idx)
+        p = p->next;
+      return p ? p : this->top_qcd;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_qcd* param_qcd::add_qcc_object(ui32 comp_idx)
+    {
+      assert(type == QCD_MAIN);
+      param_qcd *p = this;
+      while (p->next != NULL)
+        p = p->next;
+      p->next = new param_qcd;
+      p = p->next;
+
+      p->type = QCC_MAIN;
+      p->next = NULL;
+      p->top_qcd = this;
+      p->comp_idx = (ui16)comp_idx;
+      return p;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1328,110 +1590,121 @@ namespace ojph {
       if (is_any_enabled() == false)
         return;
 
-      bool all_same = true;
-      ui32 num_comps = siz.get_num_components();
+      if (this->enabled && this->Tnlt == nonlinearity::OJPH_NLT_NO_NLT)
+        this->enabled = false;
 
-      // first stage; find out if all components captured by the default
-      // entry (ALL_COMPS) has the same bit_depth/signedness,
-      // while doing this, set the BDnlt for components not captured but the
-      // default entry (ALL_COMPS)
-      ui32 bit_depth = 0;      // unknown yet
-      bool is_signed = false;  // unknown yet
-      for (ui32 c = 0; c < num_comps; ++c)
+      if (this->enabled && 
+          this->Tnlt == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT)
       {
-        param_nlt* p = get_comp_object(c);
-        if (p == NULL || !p->enabled) // comp is not in list or not enabled
-        {
-          if (bit_depth == 0)
-          { // this is the first component which has not type 3 nlt definition
-            bit_depth = siz.get_bit_depth(c);
-            is_signed = siz.is_signed(c);
+        bool all_same = true;
+        ui32 num_comps = siz.get_num_components();
+
+        // first stage; find out if all components captured by the default
+        // entry (ALL_COMPS) has the same bit_depth/signedness,
+        // while doing this, set the BDnlt for components not captured by the
+        // default entry (ALL_COMPS)
+        ui32 bit_depth = 0;      // unknown yet
+        bool is_signed = false;  // unknown yet
+        for (ui32 c = 0; c < num_comps; ++c)
+        { // captured by ALL_COMPS
+          param_nlt* p = get_nlt_object(c);
+          if (p == NULL || !p->enabled) 
+          {
+            if (bit_depth != 0)
+            { 
+              // we have seen an undefined component previously
+              all_same = all_same && (bit_depth == siz.get_bit_depth(c));
+              all_same = all_same && (is_signed == siz.is_signed(c));
+            }
+            else
+            { 
+              // this is the first component which has not type 3 nlt definition
+              bit_depth = siz.get_bit_depth(c);
+              is_signed = siz.is_signed(c);
+            }
           }
           else
-          { // we have seen an undefined component previously
-            all_same = all_same && (bit_depth == siz.get_bit_depth(c));
-            all_same = all_same && (is_signed == siz.is_signed(c));
+          { // can be type 0 or type 3
+            p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+            p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
           }
         }
-        else
-        {
-          p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
-          p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
+
+        if (all_same && bit_depth != 0) 
+        { // all the same, and some components are captured by ALL_COMPS
+          this->BDnlt = (ui8)(bit_depth - 1);
+          this->BDnlt = (ui8)(this->BDnlt | (is_signed ? 0x80 : 0));
         }
-      }
-
-      // If the default entry is enabled/used, then if the components captured
-      // by it are not the same, we need to create entries for these 
-      // components
-      if (this->enabled)
-      {
-        if (bit_depth != 0) // default captures some components
-        {
-          // captures at least one of the componets in the default entry
-          this->BDnlt = (ui8)((bit_depth - 1) | (is_signed ? 0x80 : (ui8)0));
-
-          if (!all_same)
+        else if (!all_same)
+        { // have different settings or no component is captured by ALL_COMPS
+          this->enabled = false;
+          for (ui32 c = 0; c < num_comps; ++c)
           {
-            // We cannot use the default for all components in it, so we 
-            // will keep the first one, and we will also define other
-            // components on their own.
-
-            for (ui32 c = 0; c < num_comps; ++c)
-            {
-              ui32 bd = siz.get_bit_depth(c);
-              bool is = siz.is_signed(c);
-              if (bd != bit_depth || is != is_signed)
-              { 
-                // this component has different bit_depth/signedness than the
-                // default (ALL_COMPS) entry
-                param_nlt* p = get_comp_object(c);
-                if (p == NULL || !p->enabled)
-                {
-                  // this component is captured by the default (ALL_COMPS)
-                  // entry (because it is either not in the list, or 
-                  // not enabled
-                  if (p == NULL)
-                    p = add_object(c);
-                  p->enabled = true;
-                  p->BDnlt = (ui8)((bd - 1) | (is ? 0x80 : 0));
-                }
-              }
+            param_nlt* p = get_nlt_object(c);
+            if (p == NULL || !p->enabled)
+            { // captured by ALL_COMPS
+              if (p == NULL)
+                p = add_object(c);
+              p->enabled = true;                
+              p->Tnlt = nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+              p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+              p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
             }
           }
         }
-        else
-          this->enabled = false;
+      }
+      else { 
+        // fill NLT segment markers with correct information
+        ui32 num_comps = siz.get_num_components();
+        for (ui32 c = 0; c < num_comps; ++c)
+        { // captured by ALL_COMPS
+          param_nlt* p = get_nlt_object(c);
+          if (p != NULL && p->enabled) 
+          { // can be type 0 or type 3
+            p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
+            p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
+          }
+        }
       }
 
-      trim_non_existing_components(num_comps);
+      trim_non_existing_components(siz.get_num_components());
 
-      if (is_any_enabled() == false)
-        return;
-      siz.set_Rsiz_flag(param_siz::RSIZ_EXT_FLAG | param_siz::RSIZ_NLT_FLAG);
+      if (is_any_enabled() == true)
+        siz.set_Rsiz_flag(param_siz::RSIZ_EXT_FLAG | param_siz::RSIZ_NLT_FLAG);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::set_type3_transformation(ui32 comp_num, bool enable)
+    void param_nlt::set_nonlinear_transform(ui32 comp_num, ui8 nl_type)
     {
-      param_nlt* p = get_comp_object(comp_num);
+      if (nl_type != ojph::param_nlt::OJPH_NLT_NO_NLT && 
+          nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
+      OJPH_ERROR(0x00050171, "Nonliearities other than type 0 "
+        "(No Nonlinearity) or type  3 (Binary Binary Complement to Sign "
+        "Magnitude Conversion) are not supported yet");
+      param_nlt* p = get_nlt_object(comp_num);
       if (p == NULL)
         p = add_object(comp_num);
-      p->enabled = enable;
+      p->Tnlt = nl_type;
+      p->enabled = true;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_nlt::get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
-                                             bool& is_signed) const
+    bool
+    param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                       bool& is_signed, ui8& nl_type) const
     {
-      const param_nlt* p = get_comp_object(comp_num);
-      p = p ? p : this;
+      assert(Cnlt == special_comp_num::ALL_COMPS);
+      const param_nlt* p = get_nlt_object(comp_num);
+      p = (p && p->enabled) ? p : this;
       if (p->enabled)
       {
         bit_depth = (ui8)((p->BDnlt & 0x7F) + 1);
         bit_depth = bit_depth <= 38 ? bit_depth : 38;
         is_signed = (p->BDnlt & 0x80) == 0x80;
+        nl_type = (nonlinearity)p->Tnlt;
+        return true;
       }
-      return p->enabled;
+      return false;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1471,48 +1744,42 @@ namespace ojph {
         OJPH_ERROR(0x00050141, "error reading NLT marker segment");
 
       ui16 length = swap_byte(*(ui16*)buf);
-      if (length != 6 || buf[5] != 3) // wrong length or type
+      if (length != 6 || (buf[5] != 3 && buf[5] != 0)) // wrong length or type
         OJPH_ERROR(0x00050142, "Unsupported NLT type %d\n", buf[5]);
 
       ui16 comp = swap_byte(*(ui16*)(buf + 2));
-      param_nlt* p = this;
-      if (comp != special_comp_num::ALL_COMPS)
-      {
-        p = get_comp_object(comp);
-        if (p == NULL)
-          p = add_object(comp);
-      }
+      param_nlt* p = get_nlt_object(comp);
+      if (p == NULL)
+        p = add_object(comp);
       p->enabled = true;
       p->Cnlt = comp;
       p->BDnlt = buf[4];
+      p->Tnlt = buf[5];
     }
 
     //////////////////////////////////////////////////////////////////////////
-    param_nlt* param_nlt::get_comp_object(ui32 comp_num) 
+    param_nlt* param_nlt::get_nlt_object(ui32 comp_num) 
     { 
       // cast object to constant
       const param_nlt* const_p = const_cast<const param_nlt*>(this);
       // call using the constant object, then cast to non-const
-      return const_cast<param_nlt*>(const_p->get_comp_object(comp_num));
+      return const_cast<param_nlt*>(const_p->get_nlt_object(comp_num));
     }
 
     //////////////////////////////////////////////////////////////////////////
-    const param_nlt* param_nlt::get_comp_object(ui32 comp_num) const
+    const param_nlt* param_nlt::get_nlt_object(ui32 comp_num) const
     {
-      if (Cnlt == comp_num)
-        return this;
-      else {
-        param_nlt* p = next;
-        while (p && p->Cnlt != comp_num)
-          p = p->next;
-        return p;
-      }
+      const param_nlt* p = this;
+      while (p && p->Cnlt != comp_num)
+        p = p->next;
+      return p;
     }
 
     //////////////////////////////////////////////////////////////////////////
     param_nlt* param_nlt::add_object(ui32 comp_num)
     {
-      assert(Cnlt != comp_num);
+      assert(comp_num != special_comp_num::ALL_COMPS);
+      assert(Cnlt == special_comp_num::ALL_COMPS);
       param_nlt* p = this;
       while (p->next != NULL) {
         assert(p->Cnlt != comp_num);
@@ -1540,8 +1807,11 @@ namespace ojph {
     {
       param_nlt* p = this->next;
       while (p) {
-          if (p->enabled == true && p->Cnlt >= num_comps)
+          if (p->enabled == true && p->Cnlt >= num_comps) {
             p->enabled = false;
+            OJPH_INFO(0x00050161, "The NLT marker segment for the "
+              "non-existing component %d has been removed.", p->Cnlt);
+          }
         p = p->next;
       }
     }

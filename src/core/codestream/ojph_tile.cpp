@@ -67,7 +67,7 @@ namespace ojph {
       allocator->pre_alloc_obj<ui32>(num_comps); //for line_offsets
       allocator->pre_alloc_obj<ui32>(num_comps); //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
-      allocator->pre_alloc_obj<bool>(num_comps); //for nlt_type3
+      allocator->pre_alloc_obj<ui8>(num_comps); //for nlt_type3
       allocator->pre_alloc_obj<ui32>(num_comps); //for cur_line
 
       ui32 tilepart_div = codestream->get_tilepart_div();
@@ -154,7 +154,7 @@ namespace ojph {
       line_offsets = allocator->post_alloc_obj<ui32>(num_comps);
       num_bits = allocator->post_alloc_obj<ui32>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
-      nlt_type3 = allocator->post_alloc_obj<bool>(num_comps);
+      nlt_type3 = allocator->post_alloc_obj<ui8>(num_comps);
       cur_line = allocator->post_alloc_obj<ui32>(num_comps);
 
       profile = codestream->get_profile();
@@ -210,12 +210,12 @@ namespace ojph {
 
         num_bits[i] = szp->get_bit_depth(i);
         is_signed[i] = szp->is_signed(i);
-        nlt_type3[i] = nlp->get_type3_transformation(i, bd, is);
-        if (nlt_type3[i] == true && (bd != num_bits[i] || is != is_signed[i]))
+        bool result = nlp->get_nonlinear_transform(i, bd, is, nlt_type3[i]);
+        if (result == true && (bd != num_bits[i] || is != is_signed[i]))
           OJPH_ERROR(0x000300A1, "Mismatch between Ssiz (bit_depth = %d, "
             "is_signed = %s) from SIZ marker segment, and BDnlt "
             "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
-            "for component %d",i, num_bits[i], 
+            "for component %d", i, num_bits[i], 
             is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
         cur_line[i] = 0;
       }
@@ -244,6 +244,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile::push(line_buf *line, ui32 comp_num)
     {
+      constexpr ui8 type3 = 
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= comp_rects[comp_num].siz.h)
         return false;
@@ -259,7 +262,7 @@ namespace ojph {
         if (reversible)
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (is_signed[comp_num] && nlt_type3[comp_num])
+          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(line, line_offsets[comp_num],
               tc, 0, shift + 1, comp_width);
           else {
@@ -286,7 +289,7 @@ namespace ojph {
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible)
         {
-          if (is_signed[comp_num] && nlt_type3[comp_num])
+          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(line, line_offsets[comp_num], 
               lines + comp_num, 0, shift + 1, comp_width);            
           else {
@@ -334,6 +337,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile::pull(line_buf* tgt_line, ui32 comp_num)
     {
+      constexpr ui8 type3 = 
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= recon_comp_rects[comp_num].siz.h)
         return false;
@@ -347,7 +353,7 @@ namespace ojph {
         if (reversible)
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (is_signed[comp_num] && nlt_type3[comp_num])
+          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(src_line, 0, tgt_line, 
               line_offsets[comp_num], shift + 1, comp_width);
           else {
@@ -390,7 +396,7 @@ namespace ojph {
             src_line = lines + comp_num;
           else
             src_line = comps[comp_num].pull_line();
-          if (is_signed[comp_num] && nlt_type3[comp_num])
+          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(src_line, 0, tgt_line, 
               line_offsets[comp_num], shift + 1, comp_width);
           else {

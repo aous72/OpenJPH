@@ -53,18 +53,15 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    void codeblock::pre_alloc(codestream *codestream, ui32 comp_num,
-                              const size& nominal)
+    void codeblock::pre_alloc(codestream *codestream, const size& nominal, 
+                              ui32 precision)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       assert(byte_alignment / sizeof(ui32) > 1);
       const ui32 f = byte_alignment / sizeof(ui32) - 1;
       ui32 stride = (nominal.w + f) & ~f; // a multiple of 8
-
-      const param_siz* sz = codestream->get_siz();
-      const param_cod* cd = codestream->get_cod(comp_num);
-      ui32 precision = cd->propose_precision(sz, comp_num);
+      
       if (precision <= 32)
         allocator->pre_alloc_data<ui32>(nominal.h * (size_t)stride, 0);
       else
@@ -76,7 +73,8 @@ namespace ojph {
                                    subband *parent, const size& nominal,
                                    const size& cb_size,
                                    coded_cb_header* coded_cb,
-                                   ui32 K_max, int line_offset)
+                                   ui32 K_max, int line_offset,
+                                   ui32 precision)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -84,16 +82,12 @@ namespace ojph {
       this->stride = (nominal.w + f) & ~f; // a multiple of 8
       this->buf_size = this->stride * nominal.h;
 
-      ui32 comp_num = parent->get_parent()->get_comp_num();
-      const param_siz* sz = codestream->get_siz();
-      const param_cod* cd = codestream->get_cod(comp_num);
-      ui32 bit_depth = cd->propose_precision(sz, comp_num);
-      if (bit_depth <= 32) {
-        precision = BUF32;
+      if (precision <= 32) {
+        this->precision = BUF32;
         this->buf32 = allocator->post_alloc_data<ui32>(this->buf_size, 0);
       }
       else {
-        precision = BUF64;
+        this->precision = BUF64;
         this->buf64 = allocator->post_alloc_data<ui64>(this->buf_size, 0);
       }
 

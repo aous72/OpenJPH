@@ -61,9 +61,9 @@ namespace ojph {
                                ui32 comp_num, ui32 res_num)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
-      const param_cod* cdp = codestream->get_cod(comp_num);
-      ui32 t = cdp->get_num_decompositions()
-             - codestream->get_skipped_res_for_recon();
+      const param_cod* cdp = codestream->get_coc(comp_num);
+      ui32 num_decomps = cdp->get_num_decompositions();
+      ui32 t = num_decomps - codestream->get_skipped_res_for_recon();
       bool skipped_res_for_recon = res_num > t;
 
       const param_atk* atk = cdp->access_atk();
@@ -85,7 +85,6 @@ namespace ojph {
               "with index %d, but there are no such marker within the "
               "main codestream headers", dfs_idx);
           }
-          ui32 num_decomps = cdp->get_num_decompositions();
           ds = dfs->get_dwt_type(num_decomps - res_num + 1);
         }
       }
@@ -199,15 +198,15 @@ namespace ojph {
         allocator->pre_alloc_obj<precinct>((size_t)num_precincts.area());
       }
 
-      const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_precision(szp, comp_num);
-
       //allocate lines
       if (skipped_res_for_recon == false)
       {
         ui32 num_steps = atk->get_num_steps();
         allocator->pre_alloc_obj<line_buf>(num_steps + 2);
         allocator->pre_alloc_obj<lifting_buf>(num_steps + 2);
+
+        const param_qcd* qp = codestream->access_qcd()->get_qcc(comp_num);
+        ui32 precision = qp->propose_precision(cdp);
 
         ui32 width = res_rect.siz.w + 1;
         if (precision <= 32) {
@@ -237,7 +236,7 @@ namespace ojph {
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
       elastic = codestream->get_elastic_alloc();
-      const param_cod* cdp = codestream->get_cod(comp_num);
+      const param_cod* cdp = codestream->get_coc(comp_num);
       ui32 t, num_decomps = cdp->get_num_decompositions();
       t = num_decomps - codestream->get_skipped_res_for_recon();
       skipped_res_for_recon = res_num > t;
@@ -448,9 +447,6 @@ namespace ojph {
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
 
-      const param_siz* szp = codestream->get_siz();
-      ui32 precision = cdp->propose_precision(szp, comp_num);
-
       //allocate lines
       if (skipped_res_for_recon == false)
       {
@@ -472,6 +468,9 @@ namespace ojph {
         sig->line = lines + num_steps;
         new (aug) lifting_buf;
         aug->line = lines + num_steps + 1;
+
+        const param_qcd* qp = codestream->access_qcd()->get_qcc(comp_num);
+        ui32 precision = qp->propose_precision(cdp);
 
         // initiate storage of line_buf
         ui32 width = res_rect.siz.w + 1;

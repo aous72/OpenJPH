@@ -44,19 +44,18 @@
 
 namespace ojph {
 
-  ////////////////////////////////////////////////////////////////////////////
+  /***************************************************************************/
   //prototyping from local
   namespace local {
     struct param_siz;
     struct param_cod;
     struct param_qcd;
-    struct param_qcc;
     struct param_cap;
     struct param_nlt;
     class codestream;
   }
 
-  ////////////////////////////////////////////////////////////////////////////
+  /***************************************************************************/
   class OJPH_EXPORT param_siz
   {
   public:
@@ -89,7 +88,7 @@ namespace ojph {
     local::param_siz* state;
   };
 
-  ////////////////////////////////////////////////////////////////////////////
+  /***************************************************************************/
   class OJPH_EXPORT param_cod
   {
   public:
@@ -120,27 +119,105 @@ namespace ojph {
     local::param_cod* state;
   };
 
-  ////////////////////////////////////////////////////////////////////////////
+  /***************************************************************************/
+  /**
+    * @brief Quantization parameters object
+    * 
+    */
   class OJPH_EXPORT param_qcd
   {
   public:
     param_qcd(local::param_qcd* p) : state(p) {}
 
+    /**
+     * @brief Set the irreversible quantization base delta.  
+     *  
+     * This represents the default base delta and influences QCD marker 
+     * segment
+     * 
+     * @param delta 
+     */
     void set_irrev_quant(float delta);
+
+    /**
+     * @brief Set the irreversible quantization base delta for a specific 
+     *        component
+     * 
+     * This represents the default base delta for component comp_idx, and 
+     * influences QCC marker segment for the component, inserting one
+     * if needed, which is usually the case.
+     * 
+     * @param comp_idx 
+     * @param delta 
+     */
+    void set_irrev_quant(ui32 comp_idx, float delta);
 
   private:
     local::param_qcd* state;
   };
 
+  /*************************************************************************/
   /**
     * @brief non-linearity point transformation object
     *        (implements NLT marker segment)
+    * 
+    *  There are a few things to know here.  
+      * The NLT marker segment contains the nonlinearity type and the 
+      * bit depth and signedness of the component to which it applies.
+      * There is the default component ALL_COMPS which applies to all 
+      * components unless it is overridden by another NLT segment marker.
+      * The library checks that the settings make sense, and also make
+      * sure that bit depth and signedness are correct, creating any missing
+      * NLT marker segments in the process.
+      * If all components have the same bit depth and signedness, and need
+      * nonlinearity type 3 (Binary Complement to Sign Magnitude Conversion), 
+      * then the best option is to set ALL_COMPS to type 3.
+      * Otherwise, the best option is to set type 3 only to components that 
+      * need it, leaving out the default ALL_COMPS nonlinearity not set.
+      * Another option is for the end-user can set the ALL_COMPS to type 3, 
+      * and then put exception for the components that does not need type 3, 
+      * by setting them to type 0.
+      * 
+      * The library, during validity check, which is run when the codestream
+      * is created for writing, will do the following:
+      * -- If ALL_COMPS is set to type 0, it will be ignored, and the 
+      * codestream will NOT have the corresponding NLT marker segment.
+      * -- If ALL_COMPS is set to type 3, then the following will happen:
+      *   - If all the components (except those with type 0 set for them) have 
+      *   the same bit depth and signedness, then the ALL_COMPS NLT marker 
+      *   segment will be respected and inserted into the codestream.
+      *   Of course, components with NLT 0 will also have the corresponding
+      *   NLT marker segment inserted.
+      *   - If components, for which no NTL type 0 is specified, have differing
+      *   bit depth or signedness, then the ALL_COMPS will be ignored, and 
+      *   NLT markers are inserted for each component that needs type 3.
+      * Components that have their component field larger than the number of
+      * components in the codestream are removed.
+      * 
+      * It also worth noting that type 3 nonlinearity has no effect on 
+      * positive image samples.  It is also not recommended for integer-valued 
+      * types. It is only recommended for floating-point image samples, for 
+      * which some of the samples are negative, where type 3 nonlinearity 
+      * should be beneficial.  This is because the encoding engine expects 
+      * two-complement representation for negative values while floating point 
+      * numbers have a sign bit followed by an exponent, which has a biased 
+      * integer representation.  The core idea is to make floating-point
+      * representation more compatible with integer representation.
+
     * 
     */
   class OJPH_EXPORT param_nlt
   {
   public:
     enum special_comp_num : ui16 { ALL_COMPS = 65535 };
+    enum nonlinearity : ui8 { 
+      OJPH_NLT_NO_NLT = 0,                // supported
+      OJPH_NLT_GAMMA_STYLE_NLT = 1,       // not supported
+      OJPH_NLT_LUT_STYLE_NLT = 2,         // not supported
+      OJPH_NLT_BINARY_COMPLEMENT_NLT = 3, // supported
+      OJPH_NLT_UNDEFINED = 255          // This is used internally and is 
+                                          // not part of the standard 
+    };
   public:
     param_nlt(local::param_nlt* p) : state(p) {}
 
@@ -148,32 +225,33 @@ namespace ojph {
       * @brief enables or disables type 3 nonlinearity for a component 
       *        or the default setting
       * 
-      * If you think that you need type 3 nonlinearity for all components,
-      * call this function with comp_num set to 65535 and enable to true.
+      * When creating a codestream for writing, call this function before
+      * you call codestream::write_headers.
+      * 
       * 
       * @param comp_num: component number, or 65535 for the default setting
-      * @param enable: true to enable nlt type 3 for this component or the 
-                       default setting, false to disable nlt type 3.
+      * @param type: desired non-linearity from enum nonlinearity
       */
-    void set_type3_transformation(ui32 comp_num, bool enable);
+    void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
 
     /**
-      * @brief get the state (enabled or disabled) of type 3 nonlinearity 
-      *        for a component or the default setting
+      * @brief get the nonlinearity type associated with comp_num, which 
+      *        should be one from enum nonlinearity
       *
       * @param comp_num: component number, or 65535 for the default setting
       * @param bit_depth: returns the bit depth of the component/default
       * @param is_signed: returns true if the component/default is signed
-      * @return true if enabled or false if not.
+      * @param type: nonlinearity type
+      * @return true if the nonlinearity for comp_num is set
       */
-    bool get_type3_transformation(ui32 comp_num, ui8& bit_depth, 
-                                  bool& is_signed);
+    bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+                                 bool& is_signed, ui8& nl_type) const;
 
   private:
     local::param_nlt* state;
   };
 
-  ////////////////////////////////////////////////////////////////////////////
+  /***************************************************************************/
   class OJPH_EXPORT comment_exchange
   {
     friend class local::codestream;

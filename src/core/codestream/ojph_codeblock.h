@@ -71,12 +71,12 @@ namespace ojph {
       };
 
     public:
-      static void pre_alloc(codestream *codestream, ui32 comp_num, 
-                            const size& nominal);
+      static void pre_alloc(codestream *codestream, const size& nominal, 
+                            ui32 precision);
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
                           coded_cb_header* coded_cb,
-                          ui32 K_max, int tbx0);
+                          ui32 K_max, int tbx0, ui32 precision);
       void push(line_buf *line);
       void encode(mem_elastic_allocator *elastic);
       void recreate(const size& cb_size, coded_cb_header* coded_cb);

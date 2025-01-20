@@ -53,8 +53,8 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    void codeblock::pre_alloc(codestream *codestream, ui32 comp_num,
-                              const size& nominal, ui32 precision)
+    void codeblock::pre_alloc(codestream *codestream, const size& nominal, 
+                              ui32 precision)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 

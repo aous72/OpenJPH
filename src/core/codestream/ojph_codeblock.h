@@ -71,8 +71,8 @@ namespace ojph {
       };
 
     public:
-      static void pre_alloc(codestream *codestream, ui32 comp_num, 
-                            const size& nominal, ui32 precision);
+      static void pre_alloc(codestream *codestream, const size& nominal, 
+                            ui32 precision);
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
                           coded_cb_header* coded_cb,

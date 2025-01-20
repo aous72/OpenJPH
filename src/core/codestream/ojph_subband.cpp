@@ -94,7 +94,7 @@ namespace ojph {
       ui32 precision = qp->propose_precision(cdp);
 
       for (ui32 i = 0; i < num_blocks.w; ++i)
-        codeblock::pre_alloc(codestream, comp_num, nominal, precision);
+        codeblock::pre_alloc(codestream, nominal, precision);
 
       //allocate lines
       allocator->pre_alloc_obj<line_buf>(1);

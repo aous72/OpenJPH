@@ -1385,7 +1385,7 @@ namespace ojph {
       int irrev = Sqcd & 0x1F;
 
       //marker size excluding header
-      Lqcd = 4 + (num_comps < 257 ? 0 : 1);
+      Lqcd = (ui16)(4 + (num_comps < 257 ? 0 : 1));
       if (irrev == 0)
         Lqcd = (ui16)(Lqcd + num_subbands);
       else if (irrev == 2)

@@ -273,13 +273,18 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
-          const si32 *sp = line->i32 + line_offsets[comp_num];
-          float *dp = tc->f32;
-          if (is_signed[comp_num])
-            cnvrt_si32_to_float(sp, dp, mul, comp_width);
-          else
-            cnvrt_si32_to_float_shftd(sp, dp, mul, comp_width);
+          if (nlt_type3[comp_num] == type3)
+            irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
+              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
+          else {
+            float mul = 1.0f / (float)(1<<num_bits[comp_num]);
+            const si32 *sp = line->i32 + line_offsets[comp_num];
+            float *dp = tc->f32;
+            if (is_signed[comp_num])
+              cnvrt_si32_to_float(sp, dp, mul, comp_width);
+            else
+              cnvrt_si32_to_float_shftd(sp, dp, mul, comp_width);
+          }
         }
         comps[comp_num].push_line();
       }
@@ -311,13 +316,19 @@ namespace ojph {
         }
         else
         {
-          float mul = 1.0f / (float)(1<<num_bits[comp_num]);
-          const si32 *sp = line->i32 + line_offsets[comp_num];
-          float *dp = lines[comp_num].f32;
-          if (is_signed[comp_num])
-            cnvrt_si32_to_float(sp, dp, mul, comp_width);
-          else
-            cnvrt_si32_to_float_shftd(sp, dp, mul, comp_width);
+          if (nlt_type3[comp_num] == type3)
+            irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
+              lines + comp_num, num_bits[comp_num], is_signed[comp_num], 
+              comp_width);
+          else {
+            float mul = 1.0f / (float)(1<<num_bits[comp_num]);
+            const si32 *sp = line->i32 + line_offsets[comp_num];
+            float *dp = lines[comp_num].f32;
+            if (is_signed[comp_num])
+              cnvrt_si32_to_float(sp, dp, mul, comp_width);
+            else
+              cnvrt_si32_to_float_shftd(sp, dp, mul, comp_width);
+          }
           if (comp_num == 2)
           { // irreversible color transform
             ict_forward(lines[0].f32, lines[1].f32, lines[2].f32,
@@ -364,13 +375,21 @@ namespace ojph {
         }
         else
         {
-          float mul = (float)(1 << num_bits[comp_num]);
-          const float *sp = src_line->f32;
-          si32 *dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num])
-            cnvrt_float_to_si32(sp, dp, mul, comp_width);
-          else
-            cnvrt_float_to_si32_shftd(sp, dp, mul, comp_width);
+          if (nlt_type3[comp_num] == type3)
+          {
+            irv_convert_to_integer_nlt_type3(src_line, tgt_line, 
+              line_offsets[comp_num], num_bits[comp_num], 
+              is_signed[comp_num], comp_width);
+          }
+          else {
+            float mul = (float)(1 << num_bits[comp_num]);
+            const float *sp = src_line->f32;
+            si32 *dp = tgt_line->i32 + line_offsets[comp_num];
+            if (is_signed[comp_num])
+              cnvrt_float_to_si32(sp, dp, mul, comp_width);
+            else
+              cnvrt_float_to_si32_shftd(sp, dp, mul, comp_width);
+          }
         }
       }
       else
@@ -407,17 +426,30 @@ namespace ojph {
         }
         else
         {
-          float mul = (float)(1 << num_bits[comp_num]);
-          const float *sp;
-          if (comp_num < 3)
-            sp = lines[comp_num].f32;
-          else
-            sp = comps[comp_num].pull_line()->f32;
-          si32 *dp = tgt_line->i32 + line_offsets[comp_num];
-          if (is_signed[comp_num])
-            cnvrt_float_to_si32(sp, dp, mul, comp_width);
-          else
-            cnvrt_float_to_si32_shftd(sp, dp, mul, comp_width);
+          if (nlt_type3[comp_num] == type3)
+          {
+            line_buf* lbp;
+            if (comp_num < 3)
+              lbp = lines + comp_num;
+            else
+              lbp = comps[comp_num].pull_line();            
+            irv_convert_to_integer_nlt_type3(lbp, tgt_line, 
+              line_offsets[comp_num], num_bits[comp_num], 
+              is_signed[comp_num], comp_width);
+          }
+          else {
+            float mul = (float)(1 << num_bits[comp_num]);
+            const float *sp;
+            if (comp_num < 3)
+              sp = lines[comp_num].f32;
+            else
+              sp = comps[comp_num].pull_line()->f32;
+            si32 *dp = tgt_line->i32 + line_offsets[comp_num];
+            if (is_signed[comp_num])
+              cnvrt_float_to_si32(sp, dp, mul, comp_width);
+            else
+              cnvrt_float_to_si32_shftd(sp, dp, mul, comp_width);
+          }
         }
       }
 

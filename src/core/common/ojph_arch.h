@@ -272,6 +272,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  static inline si64 ojph_round64(float val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    return (si64)(val + (val >= 0.0f ? 0.5f : -0.5f));
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (si64)(val + (val >= 0.0f ? 0.5f : -0.5f));
+  #else
+    return (si64)round(val);
+  #endif
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   static inline si32 ojph_trunc(float val)
   {
   #ifdef OJPH_COMPILER_MSVC

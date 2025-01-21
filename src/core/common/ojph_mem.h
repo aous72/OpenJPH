@@ -138,8 +138,8 @@ namespace ojph {
     enum : ui32 {
       LFT_UNDEFINED  = 0x00, // Type is undefined/uninitialized
                              // These flags reflects data size in bytes
-      LFT_BYTE       = 0x01, // Set when data is 1 byte
-      LFT_16BIT      = 0x02, // Set when data is 2 bytes
+      LFT_BYTE       = 0x01, // Set when data is 1 byte  (not used)
+      LFT_16BIT      = 0x02, // Set when data is 2 bytes (not used)
       LFT_32BIT      = 0x04, // Set when data is 4 bytes
       LFT_64BIT      = 0x08, // Set when data is 8 bytes
       LFT_REVERSIBLE = 0x10, // Set when data is used for reversible coding

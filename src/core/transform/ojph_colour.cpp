@@ -390,8 +390,8 @@ namespace ojph {
         // using 32 bit integer
         const si32 half = (1 << (bit_depth - 1));
         const si32 shift = half + 1;
-        const si32 upper_limit = 0x7FFFFFFF >> (32 - bit_depth);
-        const si32 lower_limit = 0x80000000 >> (32 - bit_depth);
+        const si32 upper_limit = INT_MAX >> (32 - bit_depth);
+        const si32 lower_limit = INT_MIN >> (32 - bit_depth);
 
         if (is_signed)
         {
@@ -428,8 +428,8 @@ namespace ojph {
         // it is either infinity, -infinity, qNan or sNan.
         const si32 half = (1 << (bit_depth - 1));
         const si32 shift = half + 1;
-        const si64 upper_limit = 0x7FFFFFFFFFFFFFFFLL >> (64 - bit_depth);
-        const si64 lower_limit = 0x8000000000000000LL >> (64 - bit_depth);
+        const si64 upper_limit = LLONG_MAX >> (64 - bit_depth);
+        const si64 lower_limit = LLONG_MIN >> (64 - bit_depth);
 
         if (is_signed)
         {

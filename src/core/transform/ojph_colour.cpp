@@ -36,6 +36,7 @@
 //***************************************************************************/
 
 #include <cmath>
+#include <climits>
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"

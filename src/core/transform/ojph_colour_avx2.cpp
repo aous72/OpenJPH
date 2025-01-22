@@ -243,12 +243,12 @@ namespace ojph {
                           line_buf *y, line_buf *cb, line_buf *cr, 
                           ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
       
       if  (y->flags & line_buf::LFT_32BIT)
       {
@@ -333,12 +333,12 @@ namespace ojph {
                            line_buf *r, line_buf *g, line_buf *b, 
                            ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
 
       if (y->flags & line_buf::LFT_32BIT)
       {

@@ -122,11 +122,16 @@ namespace ojph {
       }
 
       //allocate lines
-      if (codestream->get_cod()->is_employing_color_transform())
+      const param_cod* cdp = codestream->get_cod();
+      if (cdp->is_employing_color_transform())
       {
         allocator->pre_alloc_obj<line_buf>(3);
-        for (int i = 0; i < 3; ++i)
-          allocator->pre_alloc_data<si32>(width, 0);
+        if (cdp->access_atk()->is_reversible())
+          for (int i = 0; i < 3; ++i)
+            allocator->pre_alloc_data<si32>(width, 0);
+        else
+          for (int i = 0; i < 3; ++i)
+            allocator->pre_alloc_data<float>(width, 0);
       }
     }
 
@@ -230,8 +235,14 @@ namespace ojph {
       {
         num_lines = 3;
         lines = allocator->post_alloc_obj<line_buf>(num_lines);
-        for (int i = 0; i < 3; ++i)
-          lines[i].wrap(allocator->post_alloc_data<si32>(width, 0), width, 0);
+        if (reversible)
+          for (int i = 0; i < 3; ++i)
+            lines[i].wrap(
+              allocator->post_alloc_data<si32>(width, 0), width, 0);
+        else
+          for (int i = 0; i < 3; ++i)
+            lines[i].wrap(
+              allocator->post_alloc_data<float>(width, 0), width, 0);
       }
       else
       {

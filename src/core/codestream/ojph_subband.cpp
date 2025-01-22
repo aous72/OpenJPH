@@ -92,6 +92,8 @@ namespace ojph {
 
       const param_qcd* qp = codestream->access_qcd()->get_qcc(comp_num);
       ui32 precision = qp->propose_precision(cdp);
+      const param_atk* atk = cdp->access_atk();
+      bool reversible = atk->is_reversible();
 
       for (ui32 i = 0; i < num_blocks.w; ++i)
         codeblock::pre_alloc(codestream, nominal, precision);
@@ -100,10 +102,15 @@ namespace ojph {
       allocator->pre_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      if (precision <= 32)      
-        allocator->pre_alloc_data<si32>(width, 1);
+      if (reversible)
+      {
+        if (precision <= 32)
+          allocator->pre_alloc_data<si32>(width, 1);
+        else
+          allocator->pre_alloc_data<si64>(width, 1);
+      }
       else
-        allocator->pre_alloc_data<si64>(width, 1);
+        allocator->pre_alloc_data<float>(width, 1);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -201,10 +208,15 @@ namespace ojph {
       lines = allocator->post_alloc_obj<line_buf>(1);
       //allocate line_buf
       ui32 width = band_rect.siz.w + 1;
-      if (precision <= 32)      
-        lines->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+      if (reversible)
+      {
+        if (precision <= 32)      
+          lines->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
+        else
+          lines->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+      }
       else
-        lines->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+        lines->wrap(allocator->post_alloc_data<float>(width, 1), width, 1);
     }
 
     //////////////////////////////////////////////////////////////////////////

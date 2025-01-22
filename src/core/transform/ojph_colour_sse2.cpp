@@ -83,7 +83,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // This requires SSE4.1
+    // _mm_max_epi32 requires SSE4.1, so here we implement it in SSE2
+    static inline
     __m128i ojph_mm_max_epi32(__m128i a, __m128i b)
     {
       __m128i c = _mm_cmpgt_epi32(a, b);  // 0xFFFFFFFF for a > b
@@ -93,12 +94,35 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // This requires SSE4.1
+    // _mm_min_epi32 requires SSE4.1, so here we implement it in SSE2
+    static inline
     __m128i ojph_mm_min_epi32 (__m128i a, __m128i b)
     {
       __m128i c = _mm_cmplt_epi32(a, b);  // 0xFFFFFFFF for a < b
       __m128i d = _mm_and_si128(c, a);    // keep only a, where a < b
       __m128i e = _mm_andnot_si128(c, b); // keep only b, where a >= b
+      return _mm_or_si128(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    __m128i ojph_mm_max_ge_epi32(__m128i a, __m128i b, __m128 x, __m128 y)
+    {
+      __m128 ct = _mm_cmpge_ps(x, y);     // 0xFFFFFFFF for x >= y
+      __m128i c = _mm_castps_si128(ct);   // does not generate any code
+      __m128i d = _mm_and_si128(c, a);    // keep only a, where x >= y
+      __m128i e = _mm_andnot_si128(c, b); // keep only b, where x <  y
+      return _mm_or_si128(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    __m128i ojph_mm_min_lt_epi32(__m128i a, __m128i b, __m128 x, __m128 y)
+    {
+      __m128 ct = _mm_cmplt_ps(x, y);     // 0xFFFFFFFF for x < y
+      __m128i c = _mm_castps_si128(ct);   // does not generate any code
+      __m128i d = _mm_and_si128(c, a);    // keep only a, where x <  y
+      __m128i e = _mm_andnot_si128(c, b); // keep only b, where x >= y
       return _mm_or_si128(d, e);          // combine
     }
 
@@ -129,7 +153,7 @@ namespace ojph {
         if (is_signed)
         {
           __m128i zero = _mm_setzero_si128();
-          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));          
+          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
           {
             __m128 t = _mm_loadu_ps(sp);
@@ -172,31 +196,42 @@ namespace ojph {
         // can achieve.  All this is academic, because here are talking
         // about a number which has all the exponent bits set, meaning 
         // it is either infinity, -infinity, qNan or sNan.
-        float mul = (float)(1ull << bit_depth);
-        const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
-        const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+        si64 neg_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+        __m128 mul = _mm_set1_ps((float)(1 << bit_depth));
+        __m128 fl_upper_limit = _mm_set1_ps(-(float)neg_limit); // val < upper
+        __m128 fl_lower_limit = _mm_set1_ps( (float)neg_limit); // val >= lower
+        __m128i s32_upper_limit = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
+        __m128i s32_lower_limit = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
 
         if (is_signed)
         {
-          const si32 bias = (1 << (bit_depth - 1)) + 1;
-          for (ui32 i = width; i > 0; --i) {
-            si64 t = ojph_round64(*sp++ * mul);
-            t = ojph_max(t, lower_limit);
-            t = ojph_min(t, upper_limit);
-            si32 v = (si32)t;
-            v = (v >= 0) ? v : (- v - bias);
-            *dp++ = v;
+          __m128i zero = _mm_setzero_si128();
+          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));                   
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+            __m128 t = _mm_loadu_ps(sp);
+            t = _mm_mul_ps(t, mul);
+            __m128i u = _mm_cvtps_epi32(t);
+            u = ojph_mm_max_ge_epi32(u, s32_lower_limit, t, fl_lower_limit);
+            u = ojph_mm_min_lt_epi32(u, s32_upper_limit, t, fl_upper_limit);
+            __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+            __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
+            neg = _mm_and_si128(c, neg);          //keep only - bias - value
+            __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
+            v = _mm_or_si128(neg, v);             //combine
+            _mm_storeu_si128((__m128i*)dp, v);
           }
         }
         else
         {
-          const si32 half = (1 << (bit_depth - 1));
-          for (ui32 i = width; i > 0; --i) {
-            si64 t = ojph_round64(*sp++ * mul);
-            t = ojph_max(t, lower_limit);
-            t = ojph_min(t, upper_limit);
-            si32 v = (si32)t;
-            *dp++ = v + half;
+          __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+            __m128 t = _mm_loadu_ps(sp);
+            t = _mm_mul_ps(t, mul);
+            __m128i u = _mm_cvtps_epi32(t);
+            u = ojph_mm_max_ge_epi32(u, s32_lower_limit, t, fl_lower_limit);
+            u = ojph_mm_min_lt_epi32(u, s32_upper_limit, t, fl_upper_limit);
+            u = _mm_add_epi32(u, half);
+            _mm_storeu_si128((__m128i*)dp, u);
           }
         }
       }

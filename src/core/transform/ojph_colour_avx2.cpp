@@ -237,6 +237,32 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    static inline
+    __m256i ojph_mm256_max_ge_epi32(__m256i a, __m256i b, __m256 x, __m256 y)
+    {
+      // We must use _CMP_NLT_UQ or _CMP_GE_OQ, _CMP_GE_OS, or _CMP_NLT_US
+      // It is not clear to me which to use
+      __m256 ct = _mm256_cmp_ps(x, y, _CMP_NLT_UQ); // 0xFFFFFFFF for x >= y
+      __m256i c = _mm256_castps_si256(ct);   // does not generate any code
+      __m256i d = _mm256_and_si256(c, a);    // keep only a, where x >= y
+      __m256i e = _mm256_andnot_si256(c, b); // keep only b, where x <  y
+      return _mm256_or_si256(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline
+    __m256i ojph_mm256_min_lt_epi32(__m256i a, __m256i b, __m256 x, __m256 y)
+    {
+      // We must use _CMP_LT_OQ or _CMP_NGE_UQ, _CMP_LT_OS, or _CMP_NGE_US
+      // It is not clear to me which to use
+      __m256 ct = _mm256_cmp_ps(x, y, _CMP_NGE_UQ); // 0xFFFFFFFF for x < y
+      __m256i c = _mm256_castps_si256(ct);   // does not generate any code
+      __m256i d = _mm256_and_si256(c, a);    // keep only a, where x <  y
+      __m256i e = _mm256_andnot_si256(c, b); // keep only b, where x >= y
+      return _mm256_or_si256(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
@@ -307,31 +333,42 @@ namespace ojph {
         // can achieve.  All this is academic, because here are talking
         // about a number which has all the exponent bits set, meaning 
         // it is either infinity, -infinity, qNan or sNan.
-        float mul = (float)(1ull << bit_depth);
-        const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
-        const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+        si64 neg_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+        __m256 mul = _mm256_set1_ps((float)(1 << bit_depth));
+        __m256 fl_up_lim = _mm256_set1_ps(-(float)neg_limit);  // val < upper
+        __m256 fl_low_lim = _mm256_set1_ps((float)neg_limit);  // val >= lower
+        __m256i s32_up_lim = _mm256_set1_epi32(INT_MAX >> (32 - bit_depth));
+        __m256i s32_low_lim = _mm256_set1_epi32(INT_MIN >> (32 - bit_depth));
 
         if (is_signed)
         {
-          const si32 bias = (1 << (bit_depth - 1)) + 1;
-          for (ui32 i = width; i > 0; --i) {
-            si64 t = ojph_round64(*sp++ * mul);
-            t = ojph_max(t, lower_limit);
-            t = ojph_min(t, upper_limit);
-            si32 v = (si32)t;
-            v = (v >= 0) ? v : (- v - bias);
-            *dp++ = v;
+          __m256i zero = _mm256_setzero_si256();
+          __m256i bias = _mm256_set1_epi32(-((1 << (bit_depth - 1)) + 1));                   
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+            __m256 t = _mm256_loadu_ps(sp);
+            t = _mm256_mul_ps(t, mul);
+            __m256i u = _mm256_cvtps_epi32(t);
+            u = ojph_mm256_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
+            u = ojph_mm256_min_lt_epi32(u,  s32_up_lim, t,  fl_up_lim);
+            __m256i c = _mm256_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+            __m256i neg = _mm256_sub_epi32(bias, u); //-bias -value
+            neg = _mm256_and_si256(c, neg);          //keep only - bias - value
+            __m256i v = _mm256_andnot_si256(c, u);   //keep only +ve or 0
+            v = _mm256_or_si256(neg, v);             //combine
+            _mm256_storeu_si256((__m256i*)dp, v);
           }
         }
         else
         {
-          const si32 half = (1 << (bit_depth - 1));
-          for (ui32 i = width; i > 0; --i) {
-            si64 t = ojph_round64(*sp++ * mul);
-            t = ojph_max(t, lower_limit);
-            t = ojph_min(t, upper_limit);
-            si32 v = (si32)t;
-            *dp++ = v + half;
+          __m256i half = _mm256_set1_epi32(-(1 << (bit_depth - 1)));
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+            __m256 t = _mm256_loadu_ps(sp);
+            t = _mm256_mul_ps(t, mul);
+            __m256i u = _mm256_cvtps_epi32(t);
+            u = ojph_mm256_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
+            u = ojph_mm256_min_lt_epi32(u,  s32_up_lim, t,  fl_up_lim);
+            u = _mm256_add_epi32(u, half);
+            _mm256_storeu_si256((__m256i*)dp, u);
           }
         }
       }

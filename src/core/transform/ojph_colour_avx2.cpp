@@ -237,6 +237,153 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER));
+      
+      const float* sp = src_line->f32;
+      si32* dp = dst_line->i32 + dst_line_offset;
+      if (bit_depth <= 30) 
+      {
+        // We are leaving two bit overhead -- here, we are assuming that after
+        // multiplications, the resulting number can still be represented
+        // using 32 bit integer
+        __m256 mul = _mm256_set1_ps((float)(1 << bit_depth));
+        __m256i upper_limit = _mm256_set1_epi32(INT_MAX >> (32 - bit_depth));
+        __m256i lower_limit = _mm256_set1_epi32(INT_MIN >> (32 - bit_depth));
+
+        if (is_signed)
+        {
+          __m256i zero = _mm256_setzero_si256();
+          __m256i bias = _mm256_set1_epi32(-((1 << (bit_depth - 1)) + 1));
+          for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) 
+          {
+            __m256 t = _mm256_loadu_ps(sp);
+            t = _mm256_mul_ps(t, mul);
+            t = _mm256_round_ps(t, 
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m256i u = _mm256_cvtps_epi32(t);
+            u = _mm256_max_epi32(u, lower_limit);
+            u = _mm256_min_epi32(u, upper_limit);
+
+            __m256i c = _mm256_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+            __m256i neg = _mm256_sub_epi32(bias, u); //-bias -value
+            neg = _mm256_and_si256(c, neg);          //keep only - bias - value
+            __m256i v = _mm256_andnot_si256(c, u);   //keep only +ve or 0
+            v = _mm256_or_si256(neg, v);             //combine
+            _mm256_storeu_si256((__m256i*)dp, v);
+          }
+        }
+        else
+        {
+          __m256i half = _mm256_set1_epi32(-(1 << (bit_depth - 1)));
+          for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+            __m256 t = _mm256_loadu_ps(sp);
+            t = _mm256_mul_ps(t, mul);
+            t = _mm256_round_ps(t, 
+              _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m256i u = _mm256_cvtps_epi32(t);
+            u = _mm256_max_epi32(u, lower_limit);
+            u = _mm256_min_epi32(u, upper_limit);
+            u = _mm256_add_epi32(u, half);
+            _mm256_storeu_si256((__m256i*)dp, u);
+          }
+        }
+      }
+      else
+      {
+        // There is the possibility that converting to integer will
+        // exceed the dynamic range of 32bit integer; therefore, we need
+        // to use 64 bit.  One may think, why not limit the floats to the
+        // range of [-0.5f, 0.5f)? 
+        // Notice the half closed range -- we need a value just below 0.5f.
+        // While getting this number is possible, after multiplication, the
+        // resulting number will not be exactly the maximum that the integer 
+        // can achieve.  All this is academic, because here are talking
+        // about a number which has all the exponent bits set, meaning 
+        // it is either infinity, -infinity, qNan or sNan.
+        float mul = (float)(1ull << bit_depth);
+        const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
+        const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+
+        if (is_signed)
+        {
+          const si32 bias = (1 << (bit_depth - 1)) + 1;
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            v = (v >= 0) ? v : (- v - bias);
+            *dp++ = v;
+          }
+        }
+        else
+        {
+          const si32 half = (1 << (bit_depth - 1));
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            *dp++ = v + half;
+          }
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_float_nlt_type3(const line_buf *src_line, 
+      ui32 src_line_offset, line_buf *dst_line, 
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+
+      __m256 mul = _mm256_set1_ps((float)(1.0 / 65536.0 / 65536.0));
+
+      const si32* sp = src_line->i32 + src_line_offset;
+      float* dp = dst_line->f32;
+      si32 shift = 32 - (si32)bit_depth;
+      if (is_signed)
+      {
+        __m256i zero = _mm256_setzero_si256();
+        __m256i bias = _mm256_set1_epi32(-(si32)((ui32)INT_MIN + 1));
+        for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+          __m256i t = _mm256_loadu_si256((__m256i*)sp);
+          __m256i u = _mm256_slli_epi32(t, shift);
+          __m256i c = _mm256_cmpgt_epi32(zero, u); // 0xFFFFFFFF for -ve value
+          __m256i neg = _mm256_sub_epi32(bias, u); // - bias - value
+          neg = _mm256_and_si256(c, neg);          // keep only - bias - value
+          t = _mm256_andnot_si256(c, u);           // keep only +ve or 0
+          u = _mm256_or_si256(neg, t);             // combine
+          __m256 v = _mm256_cvtepi32_ps(u);
+          v = _mm256_mul_ps(v, mul);
+          _mm256_storeu_ps(dp, v);        
+        }
+      }
+      else
+      {
+        __m256 half = _mm256_set1_ps(0.5f);
+        for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+          __m256i t = _mm256_loadu_si256((__m256i*)sp);
+          __m256i u = _mm256_slli_epi32(t, shift);
+          __m256 v = _mm256_cvtepi32_ps(u);
+          v = _mm256_mul_ps(v, mul);
+          v = _mm256_add_ps(v, half);
+          _mm256_storeu_ps(dp, v);
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const line_buf *r, 
                           const line_buf *g, 
                           const line_buf *b,

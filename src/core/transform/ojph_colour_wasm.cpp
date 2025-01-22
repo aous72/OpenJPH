@@ -261,18 +261,163 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER));
+      
+      // const float* sp = src_line->f32;
+      // si32* dp = dst_line->i32 + dst_line_offset;
+      // if (bit_depth <= 30) 
+      // {
+      //   // We are leaving two bit overhead -- here, we are assuming that after
+      //   // multiplications, the resulting number can still be represented
+      //   // using 32 bit integer
+      //   __m128 mul = _mm_set1_ps((float)(1 << bit_depth));
+      //   __m128i upper_limit = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
+      //   __m128i lower_limit = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
+        
+      //   if (is_signed)
+      //   {
+      //     __m128i zero = _mm_setzero_si128();
+      //     __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));          
+      //     for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
+      //     {
+      //       __m128 t = _mm_loadu_ps(sp);
+      //       t = _mm_mul_ps(t, mul);
+      //       t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      //       __m128i u = _mm_cvtps_epi32(t);
+      //       u = ojph_mm_max_epi32(u, lower_limit);
+      //       u = ojph_mm_min_epi32(u, upper_limit);
+
+      //       __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+      //       __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
+      //       neg = _mm_and_si128(c, neg);          //keep only - bias - value
+      //       __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
+      //       v = _mm_or_si128(neg, v);             //combine
+      //       _mm_storeu_si128((__m128i*)dp, v);
+      //     }
+      //   }
+      //   else
+      //   {
+      //     __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
+      //     for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+      //       __m128 t = _mm_loadu_ps(sp);
+      //       t = _mm_mul_ps(t, mul);
+      //       t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+      //       __m128i u = _mm_cvtps_epi32(t);
+      //       u = ojph_mm_max_epi32(u, lower_limit);
+      //       u = ojph_mm_min_epi32(u, upper_limit);
+      //       u = _mm_add_epi32(u, half);
+      //       _mm_storeu_si128((__m128i*)dp, u);
+      //     }
+      //   }
+      // }
+      // else
+      // {
+      //   // There is the possibility that converting to integer will
+      //   // exceed the dynamic range of 32bit integer; therefore, we need
+      //   // to use 64 bit.  One may think, why not limit the floats to the
+      //   // range of [-0.5f, 0.5f)? 
+      //   // Notice the half closed range -- we need a value just below 0.5f.
+      //   // While getting this number is possible, after multiplication, the
+      //   // resulting number will not be exactly the maximum that the integer 
+      //   // can achieve.  All this is academic, because here are talking
+      //   // about a number which has all the exponent bits set, meaning 
+      //   // it is either infinity, -infinity, qNan or sNan.
+      //   float mul = (float)(1ull << bit_depth);
+      //   const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
+      //   const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+
+      //   if (is_signed)
+      //   {
+      //     const si32 bias = (1 << (bit_depth - 1)) + 1;
+      //     for (ui32 i = width; i > 0; --i) {
+      //       si64 t = ojph_round64(*sp++ * mul);
+      //       t = ojph_max(t, lower_limit);
+      //       t = ojph_min(t, upper_limit);
+      //       si32 v = (si32)t;
+      //       v = (v >= 0) ? v : (- v - bias);
+      //       *dp++ = v;
+      //     }
+      //   }
+      //   else
+      //   {
+      //     const si32 half = (1 << (bit_depth - 1));
+      //     for (ui32 i = width; i > 0; --i) {
+      //       si64 t = ojph_round64(*sp++ * mul);
+      //       t = ojph_max(t, lower_limit);
+      //       t = ojph_min(t, upper_limit);
+      //       si32 v = (si32)t;
+      //       *dp++ = v + half;
+      //     }
+      //   }
+      // }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_float_nlt_type3(const line_buf *src_line, 
+      ui32 src_line_offset, line_buf *dst_line, 
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+
+      // __m128 mul = _mm_set1_ps((float)(1.0 / 65536.0 / 65536.0));
+
+      // const si32* sp = src_line->i32 + src_line_offset;
+      // float* dp = dst_line->f32;
+      // si32 shift = 32 - (si32)bit_depth;
+      // if (is_signed)
+      // {
+      //   __m128i zero = _mm_setzero_si128();
+      //   __m128i bias = _mm_set1_epi32(-(si32)((ui32)INT_MIN + 1));
+      //   for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+      //     __m128i t = _mm_loadu_si128((__m128i*)sp);
+      //     __m128i u = _mm_slli_epi32(t, shift);
+      //     __m128i c = _mm_cmplt_epi32(u, zero); // 0xFFFFFFFF for -ve value
+      //     __m128i neg = _mm_sub_epi32(bias, u); // - bias - value
+      //     neg = _mm_and_si128(c, neg);          // keep only - bias - value
+      //     t = _mm_andnot_si128(c, u);           // keep only +ve or 0
+      //     u = _mm_or_si128(neg, t);             // combine
+      //     __m128 v = _mm_cvtepi32_ps(u);
+      //     v = _mm_mul_ps(v, mul);
+      //     _mm_storeu_ps(dp, v);        
+      //   }
+      // }
+      // else
+      // {
+      //   __m128 half = _mm_set1_ps(0.5f);
+      //   for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+      //     __m128i t = _mm_loadu_si128((__m128i*)sp);
+      //     __m128i u = _mm_slli_epi32(t, shift);
+      //     __m128 v = _mm_cvtepi32_ps(u);
+      //     v = _mm_mul_ps(v, mul);
+      //     v = _mm_add_ps(v, half);
+      //     _mm_storeu_ps(dp, v);
+      //   }
+      // }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void wasm_rct_forward(const line_buf *r, 
                           const line_buf *g, 
                           const line_buf *b,
                           line_buf *y, line_buf *cb, line_buf *cr, 
                           ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
       
       if  (y->flags & line_buf::LFT_32BIT)
       {
@@ -357,12 +502,12 @@ namespace ojph {
                            line_buf *r, line_buf *g, line_buf *b, 
                            ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
 
       if (y->flags & line_buf::LFT_32BIT)
       {

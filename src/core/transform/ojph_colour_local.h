@@ -169,6 +169,11 @@ namespace ojph {
                                   ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_integer_nlt_type3(
+      const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
     //
     //
     //                       SSE2 Functions (integer)
@@ -187,6 +192,11 @@ namespace ojph {
       const line_buf *src_line, const ui32 src_line_offset, 
       line_buf *dst_line, const ui32 dst_line_offset, 
       si64 shift, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_float_nlt_type3(
+      const line_buf *src_line, ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void sse2_rct_forward(
@@ -251,6 +261,16 @@ namespace ojph {
       si64 shift, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_integer_nlt_type3(
+      const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_float_nlt_type3(
+      const line_buf *src_line, ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(
       const line_buf *r, const line_buf *g, const line_buf *b,
       line_buf *y, line_buf *cb, line_buf *cr, ui32 repeat);
@@ -295,6 +315,16 @@ namespace ojph {
       const line_buf *src_line, const ui32 src_line_offset, 
       line_buf *dst_line, const ui32 dst_line_offset, 
       si64 shift, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_integer_nlt_type3(
+      const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width);
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_float_nlt_type3(
+      const line_buf *src_line, ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
 
     //////////////////////////////////////////////////////////////////////////
     void wasm_rct_forward(

@@ -48,6 +48,159 @@
 namespace ojph {
   namespace local {
 
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
+                                       ui32 width)
+    {
+      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
+      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+      __m128 shift = _mm_set1_ps(0.5f);
+      __m128 m = _mm_set1_ps(mul);
+      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      {
+        __m128 t = _mm_loadu_ps(sp);
+        __m128 s = _mm_add_ps(t, shift);
+        s = _mm_mul_ps(s, m);
+        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      }
+      _MM_SET_ROUNDING_MODE(rounding_mode);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
+                                  ui32 width)
+    {
+      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
+      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+      __m128 m = _mm_set1_ps(mul);
+      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      {
+        __m128 t = _mm_loadu_ps(sp);
+        __m128 s = _mm_mul_ps(t, m);
+        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+      }
+      _MM_SET_ROUNDING_MODE(rounding_mode);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // This requires SSE4.1
+    __m128i ojph_mm_max_epi32(__m128i a, __m128i b)
+    {
+      __m128i c = _mm_cmpgt_epi32(a, b);  // 0xFFFFFFFF for a > b
+      __m128i d = _mm_and_si128(c, a);    // keep only a, where a > b
+      __m128i e = _mm_andnot_si128(c, b); // keep only b, where a <= b
+      return _mm_or_si128(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // This requires SSE4.1
+    __m128i ojph_mm_min_epi32 (__m128i a, __m128i b)
+    {
+      __m128i c = _mm_cmplt_epi32(a, b);  // 0xFFFFFFFF for a < b
+      __m128i d = _mm_and_si128(c, a);    // keep only a, where a < b
+      __m128i e = _mm_andnot_si128(c, b); // keep only b, where a >= b
+      return _mm_or_si128(d, e);          // combine
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER));
+      
+      const float* sp = src_line->f32;
+      si32* dp = dst_line->i32 + dst_line_offset;
+      if (bit_depth <= 30) 
+      {
+        // We are leaving two bit overhead -- here, we are assuming that after
+        // multiplications, the resulting number can still be represented
+        // using 32 bit integer
+        __m128 mul = _mm_set1_ps((float)(1 << bit_depth));
+        __m128i upper_limit = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
+        __m128i lower_limit = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
+        
+        if (is_signed)
+        {
+          __m128i zero = _mm_setzero_si128();
+          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));          
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
+          {
+            __m128 t = _mm_loadu_ps(sp);
+            t = _mm_mul_ps(t, mul);
+            t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m128i u = _mm_cvtps_epi32(t);
+            u = ojph_mm_max_epi32(u, lower_limit);
+            u = ojph_mm_min_epi32(u, upper_limit);
+
+            __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+            __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
+            neg = _mm_and_si128(c, neg);          //keep only - bias - value
+            __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
+            v = _mm_or_si128(neg, v);             //combine
+            _mm_storeu_si128((__m128i*)dp, v);
+          }
+        }
+        else
+        {
+          __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
+          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+            __m128 t = _mm_loadu_ps(sp);
+            t = _mm_mul_ps(t, mul);
+            t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m128i u = _mm_cvtps_epi32(t);
+            u = ojph_mm_max_epi32(u, lower_limit);
+            u = ojph_mm_min_epi32(u, upper_limit);
+            u = _mm_add_epi32(u, half);
+            _mm_storeu_si128((__m128i*)dp, u);
+          }
+        }
+      }
+      else
+      {
+        // There is the possibility that converting to integer will
+        // exceed the dynamic range of 32bit integer; therefore, we need
+        // to use 64 bit.  One may think, why not limit the floats to the
+        // range of [-0.5f, 0.5f)? 
+        // Notice the half closed range -- we need a value just below 0.5f.
+        // While getting this number is possible, after multiplication, the
+        // resulting number will not be exactly the maximum that the integer 
+        // can achieve.  All this is academic, because here are talking
+        // about a number which has all the exponent bits set, meaning 
+        // it is either infinity, -infinity, qNan or sNan.
+        float mul = (float)(1ull << bit_depth);
+        const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
+        const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+
+        if (is_signed)
+        {
+          const si32 bias = (1 << (bit_depth - 1)) + 1;
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            v = (v >= 0) ? v : (- v - bias);
+            *dp++ = v;
+          }
+        }
+        else
+        {
+          const si32 half = (1 << (bit_depth - 1));
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            *dp++ = v + half;
+          }
+        }
+      }
+    }
+
     /////////////////////////////////////////////////////////////////////////
     // https://github.com/seung-lab/dijkstra3d/blob/master/libdivide.h
     static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
@@ -250,37 +403,49 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       ui32 width)
+    void sse2_irv_convert_to_float_nlt_type3(const line_buf *src_line, 
+      ui32 src_line_offset, line_buf *dst_line, 
+      ui32 bit_depth, bool is_signed, ui32 width)
     {
-      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
-      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-      __m128 shift = _mm_set1_ps(0.5f);
-      __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
-      {
-        __m128 t = _mm_loadu_ps(sp);
-        __m128 s = _mm_add_ps(t, shift);
-        s = _mm_mul_ps(s, m);
-        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
-      }
-      _MM_SET_ROUNDING_MODE(rounding_mode);
-    }
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
-    //////////////////////////////////////////////////////////////////////////
-    void sse2_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 ui32 width)
-    {
-      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
-      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
-      __m128 m = _mm_set1_ps(mul);
-      for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
+      __m128 mul = _mm_set1_ps((float)(1.0 / 65536.0 / 65536.0));
+
+      const si32* sp = src_line->i32 + src_line_offset;
+      float* dp = dst_line->f32;
+      si32 shift = 32 - (si32)bit_depth;
+      if (is_signed)
       {
-        __m128 t = _mm_loadu_ps(sp);
-        __m128 s = _mm_mul_ps(t, m);
-        _mm_storeu_si128((__m128i*)dp, _mm_cvtps_epi32(s));
+        __m128i zero = _mm_setzero_si128();
+        __m128i bias = _mm_set1_epi32(-(si32)((ui32)INT_MIN + 1));
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128i t = _mm_loadu_si128((__m128i*)sp);
+          __m128i u = _mm_slli_epi32(t, shift);
+          __m128i c = _mm_cmplt_epi32(u, zero); // 0xFFFFFFFF for -ve value
+          __m128i neg = _mm_sub_epi32(bias, u); // - bias - value
+          neg = _mm_and_si128(c, neg);          // keep only - bias - value
+          t = _mm_andnot_si128(c, u);           // keep only +ve or 0
+          u = _mm_or_si128(neg, t);             // combine
+          __m128 v = _mm_cvtepi32_ps(u);
+          v = _mm_mul_ps(v, mul);
+          _mm_storeu_ps(dp, v);        
+        }
       }
-      _MM_SET_ROUNDING_MODE(rounding_mode);
+      else
+      {
+        __m128 half = _mm_set1_ps(0.5f);
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128i t = _mm_loadu_si128((__m128i*)sp);
+          __m128i u = _mm_slli_epi32(t, shift);
+          __m128 v = _mm_cvtepi32_ps(u);
+          v = _mm_mul_ps(v, mul);
+          v = _mm_add_ps(v, half);
+          _mm_storeu_ps(dp, v);
+        }
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////

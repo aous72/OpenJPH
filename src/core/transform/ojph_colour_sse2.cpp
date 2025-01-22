@@ -112,6 +112,9 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER));
       
+      uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
+      _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+
       const float* sp = src_line->f32;
       si32* dp = dst_line->i32 + dst_line_offset;
       if (bit_depth <= 30) 
@@ -131,7 +134,6 @@ namespace ojph {
           {
             __m128 t = _mm_loadu_ps(sp);
             t = _mm_mul_ps(t, mul);
-            t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
             __m128i u = _mm_cvtps_epi32(t);
             u = ojph_mm_max_epi32(u, lower_limit);
             u = ojph_mm_min_epi32(u, upper_limit);
@@ -150,7 +152,6 @@ namespace ojph {
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
             __m128 t = _mm_loadu_ps(sp);
             t = _mm_mul_ps(t, mul);
-            t = _mm_round_ps(t, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
             __m128i u = _mm_cvtps_epi32(t);
             u = ojph_mm_max_epi32(u, lower_limit);
             u = ojph_mm_min_epi32(u, upper_limit);
@@ -199,6 +200,8 @@ namespace ojph {
           }
         }
       }
+
+      _MM_SET_ROUNDING_MODE(rounding_mode);
     }
 
     /////////////////////////////////////////////////////////////////////////

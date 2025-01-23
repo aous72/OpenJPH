@@ -205,6 +205,8 @@ namespace ojph {
       cnvrt_si32_to_float = wasm_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = wasm_cnvrt_float_to_si32_shftd;
       cnvrt_float_to_si32 = wasm_cnvrt_float_to_si32;
+      irv_convert_to_integer_nlt_type3 = wasm_irv_convert_to_integer_nlt_type3;
+      irv_convert_to_float_nlt_type3 = wasm_irv_convert_to_float_nlt_type3;
       rct_forward = wasm_rct_forward;
       rct_backward = wasm_rct_backward;
       ict_forward = wasm_ict_forward;

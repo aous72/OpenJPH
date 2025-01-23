@@ -48,6 +48,20 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
+    static inline
+    v128_t ojph_convert_float_to_i32(v128_t a, v128_t zero, v128_t half)
+    { // We implement ojph_round, which is 
+      // val + (val >= 0.0f ? 0.5f : -0.5f), where val is float
+      v128_t c = wasm_f32x4_ge(a, zero);   // greater or equal to zero
+      v128_t p = wasm_f32x4_add(a, half);  // for positive, add half
+      v128_t n = wasm_f32x4_sub(a, half);  // for negative, subtract half
+      v128_t d = wasm_v128_and(c, p);      // keep positive only
+      v128_t e = wasm_v128_andnot(n, c);   // keep negative only
+      v128_t v = wasm_v128_or(d, e);       // combine
+      return wasm_i32x4_trunc_sat_f32x4(v);// truncate (towards 0)
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void wasm_rev_convert(const line_buf *src_line,
                           const ui32 src_line_offset,
                           line_buf *dst_line,
@@ -129,7 +143,7 @@ namespace ojph {
             v128_t c = wasm_i32x4_lt(s, zero);     // 0xFFFFFFFF for -ve value
             v128_t v_m_sh = wasm_i32x4_sub(sh, s); // - shift - value
             v_m_sh = wasm_v128_and(c, v_m_sh);     // keep only - shift - value
-            s = wasm_v128_andnot(c, s);            // keep only +ve or 0
+            s = wasm_v128_andnot(s, c);            // keep only +ve or 0
             s = wasm_v128_or(s, v_m_sh);           // combine
             wasm_v128_store(dp, s);
           }
@@ -149,7 +163,7 @@ namespace ojph {
             c = wasm_i64x2_lt(u, zero);        // 64b -1 for -ve value
             v_m_sh = wasm_i64x2_sub(sh, u);    // - shift - value
             v_m_sh = wasm_v128_and(c, v_m_sh); // keep only - shift - value
-            u = wasm_v128_andnot(c, u);        // keep only +ve or 0
+            u = wasm_v128_andnot(u, c);        // keep only +ve or 0
             u = wasm_v128_or(u, v_m_sh);       // combine
 
             wasm_v128_store(dp, u);
@@ -158,7 +172,7 @@ namespace ojph {
             c = wasm_i64x2_lt(u, zero);        // 64b -1 for -ve value
             v_m_sh = wasm_i64x2_sub(sh, u);    // - shift - value
             v_m_sh = wasm_v128_and(c, v_m_sh); // keep only - shift - value
-            u = wasm_v128_andnot(c, u);        // keep only +ve or 0
+            u = wasm_v128_andnot(u, c);        // keep only +ve or 0
             u = wasm_v128_or(u, v_m_sh);       // combine
 
             wasm_v128_store(dp + 2, u);
@@ -182,14 +196,14 @@ namespace ojph {
           m = wasm_i64x2_lt(s, zero);   // 64b -1 for -ve value
           tm = wasm_i64x2_sub(sh, s);   // - shift - value
           n = wasm_v128_and(m, tm);     // -ve
-          p = wasm_v128_andnot(m, s);   // +ve
+          p = wasm_v128_andnot(s, m);   // +ve
           t0 = wasm_v128_or(n, p);
 
           s = wasm_v128_load(sp + 2);
           m = wasm_i64x2_lt(s, zero);   // 64b -1 for -ve value
           tm = wasm_i64x2_sub(sh, s);   // - shift - value
           n = wasm_v128_and(m, tm);     // -ve
-          p = wasm_v128_andnot(m, s);   // +ve
+          p = wasm_v128_andnot(s, m);   // +ve
           t1 = wasm_v128_or(n, p);
 
           t0 = wasm_i32x4_shuffle(t0, t1, 0, 2, 4 + 0, 4 + 2);
@@ -232,16 +246,16 @@ namespace ojph {
     void wasm_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
                                         ui32 width)
     {
-      // rounding mode is always set to _MM_ROUND_NEAREST
-      v128_t shift = wasm_f32x4_splat(0.5f);
+      const v128_t zero = wasm_f32x4_splat(0.0f);
+      const v128_t half = wasm_f32x4_splat(0.5f);
       v128_t m = wasm_f32x4_splat(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
         v128_t t = wasm_v128_load(sp);
-        v128_t s = wasm_f32x4_add(t, shift);
+        v128_t s = wasm_f32x4_add(t, half);
         s = wasm_f32x4_mul(s, m);
-        s = wasm_f32x4_add(s, shift); // + 0.5 and followed by floor next
-        wasm_v128_store(dp, wasm_i32x4_trunc_sat_f32x4(s));
+        s = wasm_f32x4_add(s, half); // + 0.5 and followed by floor next
+        wasm_v128_store(dp, ojph_convert_float_to_i32(s, zero, half));
       }
     }
 
@@ -249,15 +263,15 @@ namespace ojph {
     void wasm_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
                                   ui32 width)
     {
-      // rounding mode is always set to _MM_ROUND_NEAREST
-      v128_t shift = wasm_f32x4_splat(0.5f);
+      const v128_t zero = wasm_f32x4_splat(0.0f);
+      const v128_t half = wasm_f32x4_splat(0.5f);
       v128_t m = wasm_f32x4_splat(mul);
       for (int i = (width + 3) >> 2; i > 0; --i, sp+=4, dp+=4)
       {
         v128_t t = wasm_v128_load(sp);
         v128_t s = wasm_f32x4_mul(t, m);
-        s = wasm_f32x4_add(s, shift); // + 0.5 and followed by floor next
-        wasm_v128_store(dp, wasm_i32x4_trunc_sat_f32x4(s));
+        s = wasm_f32x4_add(s, half); // + 0.5 and followed by floor next
+        wasm_v128_store(dp, ojph_convert_float_to_i32(s, zero, half));
       }
     }
 
@@ -267,7 +281,7 @@ namespace ojph {
     {
       v128_t c = wasm_i32x4_ge(x, y);    // 0xFFFFFFFF for x >= y
       v128_t d = wasm_v128_and(c, a);    // keep only a, where x >= y
-      v128_t e = wasm_v128_andnot(c, b); // keep only b, where x <  y
+      v128_t e = wasm_v128_andnot(b, c); // keep only b, where x <  y
       return wasm_v128_or(d, e);         // combine
     }
 
@@ -277,7 +291,7 @@ namespace ojph {
     {
       v128_t c = wasm_i32x4_lt(x, y);    // 0xFFFFFFFF for x < y
       v128_t d = wasm_v128_and(c, a);    // keep only a, where x <  y
-      v128_t e = wasm_v128_andnot(c, b); // keep only b, where x >= y
+      v128_t e = wasm_v128_andnot(b, c); // keep only b, where x >= y
       return wasm_v128_or(d, e);         // combine
     }
 
@@ -290,8 +304,6 @@ namespace ojph {
              (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER));
-
-      // rounding mode is always set to _MM_ROUND_NEAREST
 
       const float* sp = src_line->f32;
       si32* dp = dst_line->i32 + dst_line_offset;
@@ -306,34 +318,37 @@ namespace ojph {
         
         if (is_signed)
         {
-          v128_t zero = wasm_i32x4_splat(0);
+          const v128_t zero = wasm_f32x4_splat(0.0f);
+          const v128_t half = wasm_f32x4_splat(0.5f);
           v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
           {
             v128_t t = wasm_v128_load(sp);
             t = wasm_f32x4_mul(t, mul);
-            v128_t u = wasm_i32x4_trunc_sat_f32x4(t);
+            v128_t u = ojph_convert_float_to_i32(t, zero, half);
             u = wasm_i32x4_max(u, lower_limit);
             u = wasm_i32x4_min(u, upper_limit);
 
             v128_t c = wasm_i32x4_gt(zero, u);    //0xFFFFFFFF for -ve value
             v128_t neg = wasm_i32x4_sub(bias, u); //-bias -value
             neg = wasm_v128_and(c, neg);          //keep only - bias - value
-            v128_t v = wasm_v128_andnot(c, u);    //keep only +ve or 0
+            v128_t v = wasm_v128_andnot(u, c);    //keep only +ve or 0
             v = wasm_v128_or(neg, v);             //combine
             wasm_v128_store(dp, v);
           }
         }
         else
         {
-          v128_t half = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
+          const v128_t zero = wasm_f32x4_splat(0.0f);
+          const v128_t half = wasm_f32x4_splat(0.5f);
+          v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
             v128_t t = wasm_v128_load(sp);
             t = wasm_f32x4_mul(t, mul);
-            v128_t u = wasm_i32x4_trunc_sat_f32x4(t);
+            v128_t u = ojph_convert_float_to_i32(t, zero, half);
             u = wasm_i32x4_max(u, lower_limit);
             u = wasm_i32x4_min(u, upper_limit);
-            u = wasm_i32x4_add(u, half);
+            u = wasm_i32x4_add(u, ihalf);
             wasm_v128_store(dp, u);
           }
         }
@@ -359,32 +374,35 @@ namespace ojph {
 
         if (is_signed)
         {
-          v128_t zero = wasm_i32x4_splat(0);
+          const v128_t zero = wasm_f32x4_splat(0.0f);
+          const v128_t half = wasm_f32x4_splat(0.5f);
           v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));                   
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
             v128_t t = wasm_v128_load(sp);
             t = wasm_f32x4_mul(t, mul);
-            v128_t u = wasm_i32x4_trunc_sat_f32x4(t);
+            v128_t u = ojph_convert_float_to_i32(t, zero, half);
             u = ojph_wasm_i32x4_max_ge(u, s32_lower_limit, t, fl_lower_limit);
             u = ojph_wasm_i32x4_min_lt(u, s32_upper_limit, t, fl_upper_limit);
             v128_t c = wasm_i32x4_gt(zero, u);    //0xFFFFFFFF for -ve value
             v128_t neg = wasm_i32x4_sub(bias, u); //-bias -value
             neg = wasm_v128_and(c, neg);          //keep only - bias - value
-            v128_t v = wasm_v128_andnot(c, u);    //keep only +ve or 0
+            v128_t v = wasm_v128_andnot(u, c);    //keep only +ve or 0
             v = wasm_v128_or(neg, v);             //combine
             wasm_v128_store(dp, v);
           }
         }
         else
         {
-          v128_t half = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
+          const v128_t zero = wasm_f32x4_splat(0.0f);
+          const v128_t half = wasm_f32x4_splat(0.5f);
+          v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
           for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
             v128_t t = wasm_v128_load(sp);
             t = wasm_f32x4_mul(t, mul);
-            v128_t u = wasm_i32x4_trunc_sat_f32x4(t);
+            v128_t u = ojph_convert_float_to_i32(t, zero, half);
             u = ojph_wasm_i32x4_max_ge(u, s32_lower_limit, t, fl_lower_limit);
             u = ojph_wasm_i32x4_min_lt(u, s32_upper_limit, t, fl_upper_limit);
-            u = wasm_i32x4_add(u, half);
+            u = wasm_i32x4_add(u, ihalf);
             wasm_v128_store(dp, u);
           }
         }
@@ -416,7 +434,7 @@ namespace ojph {
           v128_t c = wasm_i32x4_lt(u, zero);    // 0xFFFFFFFF for -ve value
           v128_t neg = wasm_i32x4_sub(bias, u); // - bias - value
           neg = wasm_v128_and(c, neg);          // keep only - bias - value
-          t = wasm_v128_andnot(c, u);           // keep only +ve or 0
+          t = wasm_v128_andnot(u, c);           // keep only +ve or 0
           u = wasm_v128_or(neg, t);             // combine
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);

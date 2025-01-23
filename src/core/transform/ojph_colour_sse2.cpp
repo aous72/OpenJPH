@@ -480,7 +480,7 @@ namespace ojph {
           __m128i u = _mm_slli_epi32(t, shift);
           __m128 v = _mm_cvtepi32_ps(u);
           v = _mm_mul_ps(v, mul);
-          v = _mm_add_ps(v, half);
+          v = _mm_sub_ps(v, half);
           _mm_storeu_ps(dp, v);
         }
       }

@@ -449,7 +449,7 @@ namespace ojph {
           v128_t u = wasm_i32x4_shl(t, shift);
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);
-          v = wasm_f32x4_add(v, half);
+          v = wasm_f32x4_sub(v, half);
           wasm_v128_store(dp, v);
         }
       }

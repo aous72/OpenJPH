@@ -414,7 +414,7 @@ namespace ojph {
           __m256i u = _mm256_slli_epi32(t, shift);
           __m256 v = _mm256_cvtepi32_ps(u);
           v = _mm256_mul_ps(v, mul);
-          v = _mm256_add_ps(v, half);
+          v = _mm256_sub_ps(v, half);
           _mm256_storeu_ps(dp, v);
         }
       }

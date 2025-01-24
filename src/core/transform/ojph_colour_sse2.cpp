@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -127,7 +127,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
+    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -135,104 +135,55 @@ namespace ojph {
              (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER));
-      
+
+      assert(bit_depth <= 32);
       uint32_t rounding_mode = _MM_GET_ROUNDING_MODE();
       _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
 
       const float* sp = src_line->f32;
       si32* dp = dst_line->i32 + dst_line_offset;
-      if (bit_depth <= 30) 
-      {
-        // We are leaving two bit overhead -- here, we are assuming that after
-        // multiplications, the resulting number can still be represented
-        // using 32 bit integer
-        __m128 mul = _mm_set1_ps((float)(1 << bit_depth));
-        __m128i upper_limit = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
-        __m128i lower_limit = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
-        
-        if (is_signed)
-        {
-          __m128i zero = _mm_setzero_si128();
-          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
-          {
-            __m128 t = _mm_loadu_ps(sp);
-            t = _mm_mul_ps(t, mul);
-            __m128i u = _mm_cvtps_epi32(t);
-            u = ojph_mm_max_epi32(u, lower_limit);
-            u = ojph_mm_min_epi32(u, upper_limit);
+      // There is the possibility that converting to integer will
+      // exceed the dynamic range of 32bit integer; therefore, care must be
+      // exercised.
+      // We look if the floating point number is outside the half-closed
+      // interval [-0.5f, 0.5f). If so, we limit the resulting integer
+      // to the maximum/minimum that number supports.
+      si32 neg_limit = (si32)INT_MIN >> (32 - bit_depth);
+      __m128 mul = _mm_set1_ps((float)(1ull << bit_depth));
+      __m128 fl_up_lim = _mm_set1_ps(-(float)neg_limit); // val < upper
+      __m128 fl_low_lim = _mm_set1_ps((float)neg_limit); // val >= lower
+      __m128i s32_up_lim = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
+      __m128i s32_low_lim = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
 
-            __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
-            __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
-            neg = _mm_and_si128(c, neg);          //keep only - bias - value
-            __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
-            v = _mm_or_si128(neg, v);             //combine
-            _mm_storeu_si128((__m128i*)dp, v);
-          }
-        }
-        else
-        {
-          __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            __m128 t = _mm_loadu_ps(sp);
-            t = _mm_mul_ps(t, mul);
-            __m128i u = _mm_cvtps_epi32(t);
-            u = ojph_mm_max_epi32(u, lower_limit);
-            u = ojph_mm_min_epi32(u, upper_limit);
-            u = _mm_add_epi32(u, half);
-            _mm_storeu_si128((__m128i*)dp, u);
-          }
+      if (is_signed)
+      {
+        __m128i zero = _mm_setzero_si128();
+        __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128 t = _mm_loadu_ps(sp);
+          t = _mm_mul_ps(t, mul);
+          __m128i u = _mm_cvtps_epi32(t);
+          u = ojph_mm_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
+          u = ojph_mm_min_lt_epi32(u, s32_up_lim, t, fl_up_lim);
+          __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+          __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
+          neg = _mm_and_si128(c, neg);          //keep only - bias - value
+          __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
+          v = _mm_or_si128(neg, v);             //combine
+          _mm_storeu_si128((__m128i*)dp, v);
         }
       }
       else
       {
-        // There is the possibility that converting to integer will
-        // exceed the dynamic range of 32bit integer; therefore, we need
-        // to use 64 bit.  One may think, why not limit the floats to the
-        // range of [-0.5f, 0.5f)? 
-        // Notice the half closed range -- we need a value just below 0.5f.
-        // While getting this number is possible, after multiplication, the
-        // resulting number will not be exactly the maximum that the integer 
-        // can achieve.  All this is academic, because here are talking
-        // about a number which has all the exponent bits set, meaning 
-        // it is either infinity, -infinity, qNan or sNan.
-        si64 neg_limit = (si64)LLONG_MIN >> (64 - bit_depth);
-        __m128 mul = _mm_set1_ps((float)(1 << bit_depth));
-        __m128 fl_upper_limit = _mm_set1_ps(-(float)neg_limit); // val < upper
-        __m128 fl_lower_limit = _mm_set1_ps( (float)neg_limit); // val >= lower
-        __m128i s32_upper_limit = _mm_set1_epi32(INT_MAX >> (32 - bit_depth));
-        __m128i s32_lower_limit = _mm_set1_epi32(INT_MIN >> (32 - bit_depth));
-
-        if (is_signed)
-        {
-          __m128i zero = _mm_setzero_si128();
-          __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));                   
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            __m128 t = _mm_loadu_ps(sp);
-            t = _mm_mul_ps(t, mul);
-            __m128i u = _mm_cvtps_epi32(t);
-            u = ojph_mm_max_ge_epi32(u, s32_lower_limit, t, fl_lower_limit);
-            u = ojph_mm_min_lt_epi32(u, s32_upper_limit, t, fl_upper_limit);
-            __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
-            __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
-            neg = _mm_and_si128(c, neg);          //keep only - bias - value
-            __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
-            v = _mm_or_si128(neg, v);             //combine
-            _mm_storeu_si128((__m128i*)dp, v);
-          }
-        }
-        else
-        {
-          __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            __m128 t = _mm_loadu_ps(sp);
-            t = _mm_mul_ps(t, mul);
-            __m128i u = _mm_cvtps_epi32(t);
-            u = ojph_mm_max_ge_epi32(u, s32_lower_limit, t, fl_lower_limit);
-            u = ojph_mm_min_lt_epi32(u, s32_upper_limit, t, fl_upper_limit);
-            u = _mm_add_epi32(u, half);
-            _mm_storeu_si128((__m128i*)dp, u);
-          }
+        __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128 t = _mm_loadu_ps(sp);
+          t = _mm_mul_ps(t, mul);
+          __m128i u = _mm_cvtps_epi32(t);
+          u = ojph_mm_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
+          u = ojph_mm_min_lt_epi32(u, s32_up_lim, t, fl_up_lim);
+          u = _mm_add_epi32(u, half);
+          _mm_storeu_si128((__m128i*)dp, u);
         }
       }
 
@@ -241,7 +192,7 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     // https://github.com/seung-lab/dijkstra3d/blob/master/libdivide.h
-    static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m) 
+    static inline __m128i sse2_mm_srai_epi64(__m128i a, int amt, __m128i m)
     {
       // note than m must be obtained using
       // __m128i m = _mm_set1_epi64x(1ULL << (63 - amt));
@@ -270,14 +221,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_convert(const line_buf *src_line, 
+    void sse2_rev_convert(const line_buf *src_line,
                           const ui32 src_line_offset,
-                          line_buf *dst_line, 
-                          const ui32 dst_line_offset, 
+                          line_buf *dst_line,
+                          const ui32 dst_line_offset,
                           si64 shift, ui32 width)
     {
       if (src_line->flags & line_buf::LFT_32BIT)
-      { 
+      {
         if (dst_line->flags & line_buf::LFT_32BIT)
         {
           const si32 *sp = src_line->i32 + src_line_offset;
@@ -288,9 +239,9 @@ namespace ojph {
             __m128i s = _mm_loadu_si128((__m128i*)sp);
             s = _mm_add_epi32(s, sh);
             _mm_storeu_si128((__m128i*)dp, s);
-          }            
+          }
         }
-        else 
+        else
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si64 *dp = dst_line->i64 + dst_line_offset;
@@ -300,18 +251,18 @@ namespace ojph {
           {
             __m128i s, t;
             s = _mm_loadu_si128((__m128i*)sp);
-            
+
             t = sse2_cvtlo_epi32_epi64(s, zero);
             t = _mm_add_epi64(t, sh);
             _mm_storeu_si128((__m128i*)dp, t);
-            
+
             t = sse2_cvthi_epi32_epi64(s, zero);
             t = _mm_add_epi64(t, sh);
             _mm_storeu_si128((__m128i*)dp + 1, t);
-          }            
+          }
         }
       }
-      else 
+      else
       {
         assert(src_line->flags | line_buf::LFT_64BIT);
         assert(dst_line->flags | line_buf::LFT_32BIT);
@@ -333,22 +284,22 @@ namespace ojph {
 
           s = _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 0, 0, 0));
           s = _mm_andnot_si128(low_bits, s);
-          
+
           t = _mm_or_si128(s, t);
           _mm_storeu_si128((__m128i*)dp, t);
-        }            
+        }
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rev_convert_nlt_type3(const line_buf *src_line, 
-                                    const ui32 src_line_offset, 
-                                    line_buf *dst_line, 
-                                    const ui32 dst_line_offset, 
+    void sse2_rev_convert_nlt_type3(const line_buf *src_line,
+                                    const ui32 src_line_offset,
+                                    line_buf *dst_line,
+                                    const ui32 dst_line_offset,
                                     si64 shift, ui32 width)
     {
       if (src_line->flags & line_buf::LFT_32BIT)
-      { 
+      {
         if (dst_line->flags & line_buf::LFT_32BIT)
         {
           const si32 *sp = src_line->i32 + src_line_offset;
@@ -359,14 +310,14 @@ namespace ojph {
           {
             __m128i s = _mm_loadu_si128((__m128i*)sp);
             __m128i c = _mm_cmplt_epi32(s, zero);  // 0xFFFFFFFF for -ve value
-            __m128i v_m_sh = _mm_sub_epi32(sh, s); // - shift - value 
+            __m128i v_m_sh = _mm_sub_epi32(sh, s); // - shift - value
             v_m_sh = _mm_and_si128(c, v_m_sh);     // keep only - shift - value
             s = _mm_andnot_si128(c, s);            // keep only +ve or 0
             s = _mm_or_si128(s, v_m_sh);           // combine
             _mm_storeu_si128((__m128i*)dp, s);
           }
         }
-        else 
+        else
         {
           const si32 *sp = src_line->i32 + src_line_offset;
           si64 *dp = dst_line->i64 + dst_line_offset;
@@ -381,7 +332,7 @@ namespace ojph {
             u = _mm_unpacklo_epi32(s, t);      // correct 64bit data
             c = _mm_unpacklo_epi32(t, t);      // 64bit -1 for -ve value
 
-            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value 
+            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value
             v_m_sh = _mm_and_si128(c, v_m_sh); // keep only - shift - value
             u = _mm_andnot_si128(c, u);        // keep only +ve or 0
             u = _mm_or_si128(u, v_m_sh);       // combine
@@ -390,7 +341,7 @@ namespace ojph {
             u = _mm_unpackhi_epi32(s, t);      // correct 64bit data
             c = _mm_unpackhi_epi32(t, t);      // 64bit -1 for -ve value
 
-            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value 
+            v_m_sh = _mm_sub_epi64(sh, u);     // - shift - value
             v_m_sh = _mm_and_si128(c, v_m_sh); // keep only - shift - value
             u = _mm_andnot_si128(c, u);        // keep only +ve or 0
             u = _mm_or_si128(u, v_m_sh);       // combine
@@ -399,7 +350,7 @@ namespace ojph {
           }
         }
       }
-      else 
+      else
       {
         assert(src_line->flags | line_buf::LFT_64BIT);
         assert(dst_line->flags | line_buf::LFT_32BIT);
@@ -414,7 +365,7 @@ namespace ojph {
           // m for mask, and tm for temp
           __m128i s, t, p, n, m, tm;
           s = _mm_loadu_si128((__m128i*)sp);
-          
+
           tm = _mm_cmplt_epi32(s, zero);   // 32b -1 for -ve value
           m = _mm_shuffle_epi32(tm, _MM_SHUFFLE(3, 3, 1, 1)); // expand to 64b
           tm = _mm_sub_epi64(sh, s);       // - shift - value
@@ -441,8 +392,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_irv_convert_to_float_nlt_type3(const line_buf *src_line, 
-      ui32 src_line_offset, line_buf *dst_line, 
+    void sse2_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
       assert((src_line->flags & line_buf::LFT_32BIT) &&
@@ -451,6 +402,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
       __m128 mul = _mm_set1_ps((float)(1.0 / 65536.0 / 65536.0));
+      float mulf = (float)(1.0 / 65536.0 / 65536.0);
 
       const si32* sp = src_line->i32 + src_line_offset;
       float* dp = dst_line->f32;
@@ -469,45 +421,45 @@ namespace ojph {
           u = _mm_or_si128(neg, t);             // combine
           __m128 v = _mm_cvtepi32_ps(u);
           v = _mm_mul_ps(v, mul);
-          _mm_storeu_ps(dp, v);        
+          _mm_storeu_ps(dp, v);
         }
       }
       else
       {
-        __m128 half = _mm_set1_ps(0.5f);
+        __m128i half = _mm_set1_epi32(INT_MIN);
         for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i t = _mm_loadu_si128((__m128i*)sp);
-          __m128i u = _mm_slli_epi32(t, shift);
-          __m128 v = _mm_cvtepi32_ps(u);
+          t = _mm_slli_epi32(t, shift);
+          t = _mm_sub_epi32(t, half);
+          __m128 v = _mm_cvtepi32_ps(t);
           v = _mm_mul_ps(v, mul);
-          v = _mm_sub_ps(v, half);
           _mm_storeu_ps(dp, v);
         }
       }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rct_forward(const line_buf *r, 
-                          const line_buf *g, 
+    void sse2_rct_forward(const line_buf *r,
+                          const line_buf *g,
                           const line_buf *b,
-                          line_buf *y, line_buf *cb, line_buf *cr, 
+                          line_buf *y, line_buf *cb, line_buf *cr,
                           ui32 repeat)
     {
       assert((y->flags  & line_buf::LFT_INTEGER) &&
-             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cb->flags & line_buf::LFT_INTEGER) &&
              (cr->flags & line_buf::LFT_INTEGER) &&
              (r->flags  & line_buf::LFT_INTEGER) &&
-             (g->flags  & line_buf::LFT_INTEGER) && 
+             (g->flags  & line_buf::LFT_INTEGER) &&
              (b->flags  & line_buf::LFT_INTEGER));
-      
+
       if  (y->flags & line_buf::LFT_32BIT)
       {
         assert((y->flags  & line_buf::LFT_32BIT) &&
-               (cb->flags & line_buf::LFT_32BIT) && 
+               (cb->flags & line_buf::LFT_32BIT) &&
                (cr->flags & line_buf::LFT_32BIT) &&
                (r->flags  & line_buf::LFT_32BIT) &&
-               (g->flags  & line_buf::LFT_32BIT) && 
-               (b->flags  & line_buf::LFT_32BIT));        
+               (g->flags  & line_buf::LFT_32BIT) &&
+               (b->flags  & line_buf::LFT_32BIT));
         const si32 *rp = r->i32, * gp = g->i32, * bp = b->i32;
         si32 *yp = y->i32, * cbp = cb->i32, * crp = cr->i32;
         for (int i = (repeat + 3) >> 2; i > 0; --i)
@@ -527,13 +479,13 @@ namespace ojph {
           yp += 4; cbp += 4; crp += 4;
         }
       }
-      else 
+      else
       {
         assert((y->flags  & line_buf::LFT_64BIT) &&
-               (cb->flags & line_buf::LFT_64BIT) && 
+               (cb->flags & line_buf::LFT_64BIT) &&
                (cr->flags & line_buf::LFT_64BIT) &&
                (r->flags  & line_buf::LFT_32BIT) &&
-               (g->flags  & line_buf::LFT_32BIT) && 
+               (g->flags  & line_buf::LFT_32BIT) &&
                (b->flags  & line_buf::LFT_32BIT));
         __m128i zero = _mm_setzero_si128();
         __m128i v2 = _mm_set1_epi64x(1ULL << (63 - 2));
@@ -548,7 +500,7 @@ namespace ojph {
           mr = sse2_cvtlo_epi32_epi64(mr32, zero);
           mg = sse2_cvtlo_epi32_epi64(mg32, zero);
           mb = sse2_cvtlo_epi32_epi64(mb32, zero);
-          
+
           t = _mm_add_epi64(mr, mb);
           t = _mm_add_epi64(t, _mm_slli_epi64(mg, 1));
           _mm_store_si128((__m128i*)yp, sse2_mm_srai_epi64(t, 2, v2));
@@ -562,7 +514,7 @@ namespace ojph {
           mr = sse2_cvthi_epi32_epi64(mr32, zero);
           mg = sse2_cvthi_epi32_epi64(mg32, zero);
           mb = sse2_cvthi_epi32_epi64(mb32, zero);
-          
+
           t = _mm_add_epi64(mr, mb);
           t = _mm_add_epi64(t, _mm_slli_epi64(mg, 1));
           _mm_store_si128((__m128i*)yp, sse2_mm_srai_epi64(t, 2, v2));
@@ -578,26 +530,26 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_rct_backward(const line_buf *y, 
-                           const line_buf *cb, 
+    void sse2_rct_backward(const line_buf *y,
+                           const line_buf *cb,
                            const line_buf *cr,
-                           line_buf *r, line_buf *g, line_buf *b, 
+                           line_buf *r, line_buf *g, line_buf *b,
                            ui32 repeat)
     {
       assert((y->flags  & line_buf::LFT_INTEGER) &&
-             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cb->flags & line_buf::LFT_INTEGER) &&
              (cr->flags & line_buf::LFT_INTEGER) &&
              (r->flags  & line_buf::LFT_INTEGER) &&
-             (g->flags  & line_buf::LFT_INTEGER) && 
+             (g->flags  & line_buf::LFT_INTEGER) &&
              (b->flags  & line_buf::LFT_INTEGER));
 
       if (y->flags & line_buf::LFT_32BIT)
       {
         assert((y->flags  & line_buf::LFT_32BIT) &&
-               (cb->flags & line_buf::LFT_32BIT) && 
+               (cb->flags & line_buf::LFT_32BIT) &&
                (cr->flags & line_buf::LFT_32BIT) &&
                (r->flags  & line_buf::LFT_32BIT) &&
-               (g->flags  & line_buf::LFT_32BIT) && 
+               (g->flags  & line_buf::LFT_32BIT) &&
                (b->flags  & line_buf::LFT_32BIT));
         const si32 *yp = y->i32, *cbp = cb->i32, *crp = cr->i32;
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
@@ -617,15 +569,15 @@ namespace ojph {
 
           yp += 4; cbp += 4; crp += 4;
           rp += 4; gp += 4; bp += 4;
-        }        
+        }
       }
       else
       {
         assert((y->flags  & line_buf::LFT_64BIT) &&
-               (cb->flags & line_buf::LFT_64BIT) && 
+               (cb->flags & line_buf::LFT_64BIT) &&
                (cr->flags & line_buf::LFT_64BIT) &&
                (r->flags  & line_buf::LFT_32BIT) &&
-               (g->flags  & line_buf::LFT_32BIT) && 
+               (g->flags  & line_buf::LFT_32BIT) &&
                (b->flags  & line_buf::LFT_32BIT));
         __m128i v2 = _mm_set1_epi64x(1ULL << (63 - 2));
         __m128i low_bits = _mm_set_epi64x(0, (si64)ULLONG_MAX);
@@ -633,7 +585,7 @@ namespace ojph {
         si32 *rp = r->i32, *gp = g->i32, *bp = b->i32;
         for (int i = (repeat + 3) >> 2; i > 0; --i)
         {
-          __m128i my, mcb, mcr, tr, tg, tb;          
+          __m128i my, mcb, mcr, tr, tg, tb;
           my  = _mm_load_si128((__m128i*)yp);
           mcb = _mm_load_si128((__m128i*)cbp);
           mcr = _mm_load_si128((__m128i*)crp);
@@ -678,7 +630,7 @@ namespace ojph {
 
           yp += 2; cbp += 2; crp += 2;
           rp += 4; gp += 4; bp += 4;
-        }        
+        }
       }
     }
   }

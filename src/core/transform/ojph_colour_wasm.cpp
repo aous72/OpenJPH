@@ -391,13 +391,13 @@ namespace ojph {
       }
       else
       {
-        v128_t half = wasm_f32x4_splat(0.5f);
+        v128_t half = wasm_i32x4_splat(INT_MIN);
         for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           v128_t u = wasm_i32x4_shl(t, shift);
+          u = wasm_i32x4_sub(u, half);
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);
-          v = wasm_f32x4_sub(v, half);
           wasm_v128_store(dp, v);
         }
       }

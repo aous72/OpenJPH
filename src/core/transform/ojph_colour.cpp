@@ -419,12 +419,12 @@ namespace ojph {
       }
       else
       {
-        const si32 half = INT_MIN;
+        const ui32 half = (ui32)INT_MIN;
         for (ui32 i = width; i > 0; --i) {
-          si32 v = *sp++;
+          ui32 v = (ui32)*sp++;
           v <<= shift;
           v -= half;
-          *dp++ = (float)v * mul;
+          *dp++ = (float)(si32)v * mul;
         }
       }
     }

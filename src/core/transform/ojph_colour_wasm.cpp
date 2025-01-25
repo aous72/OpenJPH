@@ -50,7 +50,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     static inline
     v128_t ojph_convert_float_to_i32(v128_t a, v128_t zero, v128_t half)
-    { // We implement ojph_round, which is 
+    { // We implement ojph_round, which is
       // val + (val >= 0.0f ? 0.5f : -0.5f), where val is float
       v128_t c = wasm_f32x4_ge(a, zero);   // greater or equal to zero
       v128_t p = wasm_f32x4_add(a, half);  // for positive, add half
@@ -279,7 +279,7 @@ namespace ojph {
     static inline
     v128_t ojph_wasm_i32x4_max_ge(v128_t a, v128_t b, v128_t x, v128_t y)
     {
-      v128_t c = wasm_i32x4_ge(x, y);    // 0xFFFFFFFF for x >= y
+      v128_t c = wasm_f32x4_ge(x, y);    // 0xFFFFFFFF for x >= y
       v128_t d = wasm_v128_and(c, a);    // keep only a, where x >= y
       v128_t e = wasm_v128_andnot(b, c); // keep only b, where x <  y
       return wasm_v128_or(d, e);         // combine
@@ -289,7 +289,7 @@ namespace ojph {
     static inline
     v128_t ojph_wasm_i32x4_min_lt(v128_t a, v128_t b, v128_t x, v128_t y)
     {
-      v128_t c = wasm_i32x4_lt(x, y);    // 0xFFFFFFFF for x < y
+      v128_t c = wasm_f32x4_lt(x, y);    // 0xFFFFFFFF for x < y
       v128_t d = wasm_v128_and(c, a);    // keep only a, where x <  y
       v128_t e = wasm_v128_andnot(b, c); // keep only b, where x >= y
       return wasm_v128_or(d, e);         // combine
@@ -305,106 +305,54 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER));
 
+      assert(bit_depth <= 32);
       const float* sp = src_line->f32;
       si32* dp = dst_line->i32 + dst_line_offset;
-      if (bit_depth <= 30) 
-      {
-        // We are leaving two bit overhead -- here, we are assuming that after
-        // multiplications, the resulting number can still be represented
-        // using 32 bit integer
-        v128_t mul = wasm_f32x4_splat((float)(1 << bit_depth));
-        v128_t upper_limit = wasm_i32x4_splat(INT_MAX >> (32 - bit_depth));
-        v128_t lower_limit = wasm_i32x4_splat(INT_MIN >> (32 - bit_depth));
-        
-        if (is_signed)
-        {
-          const v128_t zero = wasm_f32x4_splat(0.0f);
-          const v128_t half = wasm_f32x4_splat(0.5f);
-          v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) 
-          {
-            v128_t t = wasm_v128_load(sp);
-            t = wasm_f32x4_mul(t, mul);
-            v128_t u = ojph_convert_float_to_i32(t, zero, half);
-            u = wasm_i32x4_max(u, lower_limit);
-            u = wasm_i32x4_min(u, upper_limit);
+      // There is the possibility that converting to integer will
+      // exceed the dynamic range of 32bit integer; therefore, care must be
+      // exercised.
+      // We look if the floating point number is outside the half-closed
+      // interval [-0.5f, 0.5f). If so, we limit the resulting integer
+      // to the maximum/minimum that number supports.
+      si32 neg_limit = (si32)INT_MIN >> (32 - bit_depth);
+      v128_t mul = wasm_f32x4_splat((float)(1ull << bit_depth));
+      v128_t fl_up_lim = wasm_f32x4_splat(-(float)neg_limit); // val < upper
+      v128_t fl_low_lim = wasm_f32x4_splat((float)neg_limit); // val >= lower
+      v128_t s32_up_lim = wasm_i32x4_splat(INT_MAX >> (32 - bit_depth));
+      v128_t s32_low_lim = wasm_i32x4_splat(INT_MIN >> (32 - bit_depth));
 
-            v128_t c = wasm_i32x4_gt(zero, u);    //0xFFFFFFFF for -ve value
-            v128_t neg = wasm_i32x4_sub(bias, u); //-bias -value
-            neg = wasm_v128_and(c, neg);          //keep only - bias - value
-            v128_t v = wasm_v128_andnot(u, c);    //keep only +ve or 0
-            v = wasm_v128_or(neg, v);             //combine
-            wasm_v128_store(dp, v);
-          }
-        }
-        else
-        {
-          const v128_t zero = wasm_f32x4_splat(0.0f);
-          const v128_t half = wasm_f32x4_splat(0.5f);
-          v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            v128_t t = wasm_v128_load(sp);
-            t = wasm_f32x4_mul(t, mul);
-            v128_t u = ojph_convert_float_to_i32(t, zero, half);
-            u = wasm_i32x4_max(u, lower_limit);
-            u = wasm_i32x4_min(u, upper_limit);
-            u = wasm_i32x4_add(u, ihalf);
-            wasm_v128_store(dp, u);
-          }
+      if (is_signed)
+      {
+        const v128_t zero = wasm_f32x4_splat(0.0f);
+        const v128_t half = wasm_f32x4_splat(0.5f);
+        v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          v128_t t = wasm_v128_load(sp);
+          t = wasm_f32x4_mul(t, mul);
+          v128_t u = ojph_convert_float_to_i32(t, zero, half);
+          u = ojph_wasm_i32x4_max_ge(u, s32_low_lim, t, fl_low_lim);
+          u = ojph_wasm_i32x4_min_lt(u, s32_up_lim, t, fl_up_lim);
+          v128_t c = wasm_i32x4_gt(zero, u);    // 0xFFFFFFFF for -ve value
+          v128_t neg = wasm_i32x4_sub(bias, u); // -bias -value
+          neg = wasm_v128_and(c, neg);          // keep only - bias - value
+          v128_t v = wasm_v128_andnot(u, c);    // keep only +ve or 0
+          v = wasm_v128_or(neg, v);             // combine
+          wasm_v128_store(dp, v);
         }
       }
       else
       {
-        // There is the possibility that converting to integer will
-        // exceed the dynamic range of 32bit integer; therefore, we need
-        // to use 64 bit.  One may think, why not limit the floats to the
-        // range of [-0.5f, 0.5f)? 
-        // Notice the half closed range -- we need a value just below 0.5f.
-        // While getting this number is possible, after multiplication, the
-        // resulting number will not be exactly the maximum that the integer 
-        // can achieve.  All this is academic, because here are talking
-        // about a number which has all the exponent bits set, meaning 
-        // it is either infinity, -infinity, qNan or sNan.
-        si64 neg_limit = (si64)LLONG_MIN >> (64 - bit_depth);
-        v128_t mul = wasm_f32x4_splat((float)(1 << bit_depth));
-        v128_t fl_upper_limit = wasm_f32x4_splat(-(float)neg_limit); // val< up
-        v128_t fl_lower_limit = wasm_f32x4_splat( (float)neg_limit); // val>=lo
-        v128_t s32_upper_limit = wasm_i32x4_splat(INT_MAX >> (32 - bit_depth));
-        v128_t s32_lower_limit = wasm_i32x4_splat(INT_MIN >> (32 - bit_depth));
-
-        if (is_signed)
-        {
-          const v128_t zero = wasm_f32x4_splat(0.0f);
-          const v128_t half = wasm_f32x4_splat(0.5f);
-          v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));                   
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            v128_t t = wasm_v128_load(sp);
-            t = wasm_f32x4_mul(t, mul);
-            v128_t u = ojph_convert_float_to_i32(t, zero, half);
-            u = ojph_wasm_i32x4_max_ge(u, s32_lower_limit, t, fl_lower_limit);
-            u = ojph_wasm_i32x4_min_lt(u, s32_upper_limit, t, fl_upper_limit);
-            v128_t c = wasm_i32x4_gt(zero, u);    //0xFFFFFFFF for -ve value
-            v128_t neg = wasm_i32x4_sub(bias, u); //-bias -value
-            neg = wasm_v128_and(c, neg);          //keep only - bias - value
-            v128_t v = wasm_v128_andnot(u, c);    //keep only +ve or 0
-            v = wasm_v128_or(neg, v);             //combine
-            wasm_v128_store(dp, v);
-          }
-        }
-        else
-        {
-          const v128_t zero = wasm_f32x4_splat(0.0f);
-          const v128_t half = wasm_f32x4_splat(0.5f);
-          v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
-          for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
-            v128_t t = wasm_v128_load(sp);
-            t = wasm_f32x4_mul(t, mul);
-            v128_t u = ojph_convert_float_to_i32(t, zero, half);
-            u = ojph_wasm_i32x4_max_ge(u, s32_lower_limit, t, fl_lower_limit);
-            u = ojph_wasm_i32x4_min_lt(u, s32_upper_limit, t, fl_upper_limit);
-            u = wasm_i32x4_add(u, ihalf);
-            wasm_v128_store(dp, u);
-          }
+        const v128_t zero = wasm_f32x4_splat(0.0f);
+        const v128_t half = wasm_f32x4_splat(0.5f);
+        v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
+        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+          v128_t t = wasm_v128_load(sp);
+          t = wasm_f32x4_mul(t, mul);
+          v128_t u = ojph_convert_float_to_i32(t, zero, half);
+          u = ojph_wasm_i32x4_max_ge(u, s32_low_lim, t, fl_low_lim);
+          u = ojph_wasm_i32x4_min_lt(u, s32_up_lim, t, fl_up_lim);
+          u = wasm_i32x4_add(u, ihalf);
+          wasm_v128_store(dp, u);
         }
       }
     }

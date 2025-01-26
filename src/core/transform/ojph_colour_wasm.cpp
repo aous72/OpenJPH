@@ -372,7 +372,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+    void wasm_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {

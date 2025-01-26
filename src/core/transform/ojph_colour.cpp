@@ -327,7 +327,7 @@ namespace ojph {
       if (is_signed)
       {
         const si32 bias = (1 << (bit_depth - 1)) + 1;
-        for (int i = width; i > 0; --i) {
+        for (int i = (int)width; i > 0; --i) {
           float t = *sp++ * mul;
           si32 v = ojph_round(t);
           v = t >= fl_low_lim ? v : s32_low_lim;
@@ -340,7 +340,7 @@ namespace ojph {
       else
       {
         const si32 half = 1 << (bit_depth - 1);
-        for (int i = width; i > 0; --i) {
+        for (int i = (int)width; i > 0; --i) {
           float t = *sp++ * mul;
           si32 v = ojph_round(t);
           v = t >= fl_low_lim ? v : s32_low_lim;
@@ -388,7 +388,7 @@ namespace ojph {
       if (is_signed)
       {
         si32 bias = (si32)((ui32)INT_MIN + 1);
-        for (int i = width; i > 0; --i) {
+        for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++ << shift;
           if (NLT_TYPE3)
             v = (v >= 0) ? v : (- v - bias);
@@ -398,7 +398,7 @@ namespace ojph {
       else
       {
         const ui32 half = (ui32)INT_MIN;
-        for (int i = width; i > 0; --i) {
+        for (int i = (int)width; i > 0; --i) {
           ui32 v = (ui32)*sp++;
           v <<= shift;
           v -= half;

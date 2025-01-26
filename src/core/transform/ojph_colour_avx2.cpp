@@ -294,7 +294,7 @@ namespace ojph {
       {
         __m256i zero = _mm256_setzero_si256();
         __m256i bias = _mm256_set1_epi32(-((1 << (bit_depth - 1)) + 1));
-        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
           __m256i u = _mm256_cvtps_epi32(t);
@@ -314,7 +314,7 @@ namespace ojph {
       else
       {
         __m256i half = _mm256_set1_epi32(1 << (bit_depth - 1));
-        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
           __m256i u = _mm256_cvtps_epi32(t);
@@ -365,7 +365,7 @@ namespace ojph {
       {
         __m256i zero = _mm256_setzero_si256();
         __m256i bias = _mm256_set1_epi32(-(si32)((ui32)INT_MIN + 1));
-        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
           __m256i u = _mm256_slli_epi32(t, shift);
           if (NLT_TYPE3)
@@ -384,7 +384,7 @@ namespace ojph {
       else
       {
         __m256i half = _mm256_set1_epi32(INT_MIN);
-        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
           t = _mm256_slli_epi32(t, shift);
           t = _mm256_sub_epi32(t, half);

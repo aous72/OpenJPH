@@ -328,7 +328,7 @@ namespace ojph {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
         v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
           v128_t u = ojph_convert_float_to_i32(t, zero, half);
@@ -350,7 +350,7 @@ namespace ojph {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
         v128_t ihalf = wasm_i32x4_splat(1 << (bit_depth - 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
           v128_t u = ojph_convert_float_to_i32(t, zero, half);
@@ -401,7 +401,7 @@ namespace ojph {
       {
         v128_t zero = wasm_i32x4_splat(0);
         v128_t bias = wasm_i32x4_splat(-(si32)((ui32)INT_MIN + 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           v128_t u = wasm_i32x4_shl(t, shift);
           if (NLT_TYPE3)
@@ -420,7 +420,7 @@ namespace ojph {
       else
       {
         v128_t half = wasm_i32x4_splat(INT_MIN);
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           v128_t u = wasm_i32x4_shl(t, shift);
           u = wasm_i32x4_sub(u, half);

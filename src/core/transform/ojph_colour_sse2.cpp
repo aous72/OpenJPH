@@ -161,7 +161,7 @@ namespace ojph {
       {
         __m128i zero = _mm_setzero_si128();
         __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_mul_ps(t, mul);
           __m128i u = _mm_cvtps_epi32(t);
@@ -181,7 +181,7 @@ namespace ojph {
       else
       {
         __m128i half = _mm_set1_epi32(1 << (bit_depth - 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_mul_ps(t, mul);
           __m128i u = _mm_cvtps_epi32(t);
@@ -427,7 +427,6 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
       __m128 mul = _mm_set1_ps((float)(1.0 / 65536.0 / 65536.0));
-      float mulf = (float)(1.0 / 65536.0 / 65536.0);
 
       const si32* sp = src_line->i32 + src_line_offset;
       float* dp = dst_line->f32;
@@ -436,7 +435,7 @@ namespace ojph {
       {
         __m128i zero = _mm_setzero_si128();
         __m128i bias = _mm_set1_epi32(-(si32)((ui32)INT_MIN + 1));
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i t = _mm_loadu_si128((__m128i*)sp);
           __m128i u = _mm_slli_epi32(t, shift);
           if (NLT_TYPE3)
@@ -455,7 +454,7 @@ namespace ojph {
       else
       {
         __m128i half = _mm_set1_epi32(INT_MIN);
-        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i t = _mm_loadu_si128((__m128i*)sp);
           t = _mm_slli_epi32(t, shift);
           t = _mm_sub_epi32(t, half);

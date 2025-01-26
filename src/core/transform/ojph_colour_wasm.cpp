@@ -296,7 +296,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+    template <bool NLT_TYPE3>
+    static inline
+    void local_wasm_irv_convert_to_integer(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -326,26 +328,29 @@ namespace ojph {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
         v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
           v128_t u = ojph_convert_float_to_i32(t, zero, half);
           u = ojph_wasm_i32x4_max_ge(u, s32_low_lim, t, fl_low_lim);
           u = ojph_wasm_i32x4_min_lt(u, s32_up_lim, t, fl_up_lim);
-          v128_t c = wasm_i32x4_gt(zero, u);    // 0xFFFFFFFF for -ve value
-          v128_t neg = wasm_i32x4_sub(bias, u); // -bias -value
-          neg = wasm_v128_and(c, neg);          // keep only - bias - value
-          v128_t v = wasm_v128_andnot(u, c);    // keep only +ve or 0
-          v = wasm_v128_or(neg, v);             // combine
-          wasm_v128_store(dp, v);
+          if (NLT_TYPE3)
+          {
+            v128_t c = wasm_i32x4_gt(zero, u);    // 0xFFFFFFFF for -ve value
+            v128_t neg = wasm_i32x4_sub(bias, u); // -bias -value
+            neg = wasm_v128_and(c, neg);          // keep only - bias - value
+            u = wasm_v128_andnot(u, c);           // keep only +ve or 0
+            u = wasm_v128_or(neg, u);             // combine
+          }
+          wasm_v128_store(dp, u);
         }
       }
       else
       {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
-        v128_t ihalf = wasm_i32x4_splat(-(1 << (bit_depth - 1)));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        v128_t ihalf = wasm_i32x4_splat(1 << (bit_depth - 1));
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
           v128_t u = ojph_convert_float_to_i32(t, zero, half);
@@ -358,7 +363,27 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void wasm_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+    void wasm_irv_convert_to_integer(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_wasm_irv_convert_to_integer<false>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_wasm_irv_convert_to_integer<true>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template <bool NLT_TYPE3>
+    static inline
+    void local_wasm_irv_convert_to_float(const line_buf *src_line,
       ui32 src_line_offset, line_buf *dst_line,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -376,14 +401,17 @@ namespace ojph {
       {
         v128_t zero = wasm_i32x4_splat(0);
         v128_t bias = wasm_i32x4_splat(-(si32)((ui32)INT_MIN + 1));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           v128_t u = wasm_i32x4_shl(t, shift);
-          v128_t c = wasm_i32x4_lt(u, zero);    // 0xFFFFFFFF for -ve value
-          v128_t neg = wasm_i32x4_sub(bias, u); // - bias - value
-          neg = wasm_v128_and(c, neg);          // keep only - bias - value
-          t = wasm_v128_andnot(u, c);           // keep only +ve or 0
-          u = wasm_v128_or(neg, t);             // combine
+          if (NLT_TYPE3)
+          {
+            v128_t c = wasm_i32x4_lt(u, zero);    // 0xFFFFFFFF for -ve value
+            v128_t neg = wasm_i32x4_sub(bias, u); // - bias - value
+            neg = wasm_v128_and(c, neg);          // keep only - bias - value
+            t = wasm_v128_andnot(u, c);           // keep only +ve or 0
+            u = wasm_v128_or(neg, t);             // combine
+          }
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);
           wasm_v128_store(dp, v);
@@ -392,7 +420,7 @@ namespace ojph {
       else
       {
         v128_t half = wasm_i32x4_splat(INT_MIN);
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           v128_t u = wasm_i32x4_shl(t, shift);
           u = wasm_i32x4_sub(u, half);
@@ -401,6 +429,24 @@ namespace ojph {
           wasm_v128_store(dp, v);
         }
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_float(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_wasm_irv_convert_to_float<false>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void wasm_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_wasm_irv_convert_to_float<true>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
     }
 
     //////////////////////////////////////////////////////////////////////////

@@ -63,21 +63,16 @@ namespace ojph {
        line_buf *dst_line, const ui32 dst_line_offset,
        si64 shift, ui32 width) = NULL;
 
-    //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_si32_to_float_shftd)
-      (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_si32_to_float)
-      (const si32 *sp, float *dp, float mul, ui32 width) = NULL;
+    void (*irv_convert_to_integer) (
+      const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_float_to_si32_shftd)
-      (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
-
-    //////////////////////////////////////////////////////////////////////////
-    void (*cnvrt_float_to_si32)
-      (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
+    void (*irv_convert_to_float) (
+      const line_buf *src_line, ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
     void (*irv_convert_to_integer_nlt_type3) (
@@ -122,12 +117,10 @@ namespace ojph {
 
       rev_convert = gen_rev_convert;
       rev_convert_nlt_type3 = gen_rev_convert_nlt_type3;
-      cnvrt_si32_to_float_shftd = gen_cnvrt_si32_to_float_shftd;
-      cnvrt_si32_to_float = gen_cnvrt_si32_to_float;
-      cnvrt_float_to_si32_shftd = gen_cnvrt_float_to_si32_shftd;
-      cnvrt_float_to_si32 = gen_cnvrt_float_to_si32;
-      irv_convert_to_float_nlt_type3 = gen_irv_convert_to_float_nlt_type3;
+      irv_convert_to_integer = gen_irv_convert_to_integer;
+      irv_convert_to_float = gen_irv_convert_to_float;
       irv_convert_to_integer_nlt_type3 = gen_irv_convert_to_integer_nlt_type3;
+      irv_convert_to_float_nlt_type3 = gen_irv_convert_to_float_nlt_type3;
       rct_forward = gen_rct_forward;
       rct_backward = gen_rct_backward;
       ict_forward = gen_ict_forward;
@@ -140,10 +133,6 @@ namespace ojph {
       #ifndef OJPH_DISABLE_SSE
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE)
         {
-          cnvrt_si32_to_float_shftd = sse_cnvrt_si32_to_float_shftd;
-          cnvrt_si32_to_float = sse_cnvrt_si32_to_float;
-          cnvrt_float_to_si32_shftd = sse_cnvrt_float_to_si32_shftd;
-          cnvrt_float_to_si32 = sse_cnvrt_float_to_si32;
           ict_forward = sse_ict_forward;
           ict_backward = sse_ict_backward;
         }
@@ -154,8 +143,8 @@ namespace ojph {
         {
           rev_convert = sse2_rev_convert;
           rev_convert_nlt_type3 = sse2_rev_convert_nlt_type3;
-          cnvrt_float_to_si32_shftd = sse2_cnvrt_float_to_si32_shftd;
-          cnvrt_float_to_si32 = sse2_cnvrt_float_to_si32;
+          irv_convert_to_integer = sse2_irv_convert_to_integer;
+          irv_convert_to_float = sse2_irv_convert_to_float;
           irv_convert_to_integer_nlt_type3 =
             sse2_irv_convert_to_integer_nlt_type3;
           irv_convert_to_float_nlt_type3 =
@@ -168,10 +157,6 @@ namespace ojph {
       #ifndef OJPH_DISABLE_AVX
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX)
         {
-          cnvrt_si32_to_float_shftd = avx_cnvrt_si32_to_float_shftd;
-          cnvrt_si32_to_float = avx_cnvrt_si32_to_float;
-          cnvrt_float_to_si32_shftd = avx_cnvrt_float_to_si32_shftd;
-          cnvrt_float_to_si32 = avx_cnvrt_float_to_si32;
           ict_forward = avx_ict_forward;
           ict_backward = avx_ict_backward;
         }
@@ -182,6 +167,8 @@ namespace ojph {
         {
           rev_convert = avx2_rev_convert;
           rev_convert_nlt_type3 = avx2_rev_convert_nlt_type3;
+          irv_convert_to_integer = avx2_irv_convert_to_integer;
+          irv_convert_to_float = avx2_irv_convert_to_float;
           irv_convert_to_integer_nlt_type3 =
             avx2_irv_convert_to_integer_nlt_type3;
           irv_convert_to_float_nlt_type3 =
@@ -201,10 +188,8 @@ namespace ojph {
 
       rev_convert = wasm_rev_convert;
       rev_convert_nlt_type3 = wasm_rev_convert_nlt_type3;
-      cnvrt_si32_to_float_shftd = wasm_cnvrt_si32_to_float_shftd;
-      cnvrt_si32_to_float = wasm_cnvrt_si32_to_float;
-      cnvrt_float_to_si32_shftd = wasm_cnvrt_float_to_si32_shftd;
-      cnvrt_float_to_si32 = wasm_cnvrt_float_to_si32;
+      irv_convert_to_integer = wasm_irv_convert_to_integer;
+      irv_convert_to_float = wasm_irv_convert_to_float;
       irv_convert_to_integer_nlt_type3 = wasm_irv_convert_to_integer_nlt_type3;
       irv_convert_to_float_nlt_type3 = wasm_irv_convert_to_float_nlt_type3;
       rct_forward = wasm_rct_forward;
@@ -310,40 +295,11 @@ namespace ojph {
       }
     }
 
-    //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       ui32 width)
-    {
-      for (ui32 i = width; i > 0; --i)
-        *dp++ = (float)(ui32)*sp++ * mul - 0.5f;
-    }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 ui32 width)
-    {
-      for (ui32 i = width; i > 0; --i)
-        *dp++ = (float)*sp++ * mul;
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       ui32 width)
-    {
-      for (ui32 i = width; i > 0; --i)
-        *dp++ = (si32)ojph_round((*sp++ + 0.5f) * mul);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 ui32 width)
-    {
-      for (ui32 i = width; i > 0; --i)
-        *dp++ = ojph_round(*sp++ * mul);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+    template<bool NLT_TYPE3>
+    static inline
+    void local_gen_irv_convert_to_integer(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -371,19 +327,20 @@ namespace ojph {
       if (is_signed)
       {
         const si32 bias = (1 << (bit_depth - 1)) + 1;
-        for (ui32 i = width; i > 0; --i) {
+        for (int i = width; i > 0; --i) {
           float t = *sp++ * mul;
           si32 v = ojph_round(t);
           v = t >= fl_low_lim ? v : s32_low_lim;
           v = t <  fl_up_lim  ? v : s32_up_lim;
-          v = (v >= 0) ? v : (- v - bias);
+          if (NLT_TYPE3)
+            v = (v >= 0) ? v : (- v - bias);
           *dp++ = v;
         }
       }
       else
       {
-        const si32 half = (1 << (bit_depth - 1));
-        for (ui32 i = width; i > 0; --i) {
+        const si32 half = 1 << (bit_depth - 1);
+        for (int i = width; i > 0; --i) {
           float t = *sp++ * mul;
           si32 v = ojph_round(t);
           v = t >= fl_low_lim ? v : s32_low_lim;
@@ -394,7 +351,27 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+    void gen_irv_convert_to_integer(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_gen_irv_convert_to_integer<false>(src_line, dst_line,
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_gen_irv_convert_to_integer<true>(src_line, dst_line,
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template<bool NLT_TYPE3>
+    static inline
+    void local_gen_irv_convert_to_float(const line_buf *src_line,
       ui32 src_line_offset, line_buf *dst_line,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -411,22 +388,41 @@ namespace ojph {
       if (is_signed)
       {
         si32 bias = (si32)((ui32)INT_MIN + 1);
-        for (ui32 i = width; i > 0; --i) {
+        for (int i = width; i > 0; --i) {
           si32 v = *sp++ << shift;
-          v = (v >= 0) ? v : (- v - bias);
+          if (NLT_TYPE3)
+            v = (v >= 0) ? v : (- v - bias);
           *dp++ = (float)v * mul;
         }
       }
       else
       {
         const ui32 half = (ui32)INT_MIN;
-        for (ui32 i = width; i > 0; --i) {
+        for (int i = width; i > 0; --i) {
           ui32 v = (ui32)*sp++;
           v <<= shift;
           v -= half;
           *dp++ = (float)(si32)v * mul;
         }
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_float(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_gen_irv_convert_to_float<false>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_gen_irv_convert_to_float<true>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
     }
 
     //////////////////////////////////////////////////////////////////////////

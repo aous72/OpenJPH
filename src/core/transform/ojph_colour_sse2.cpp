@@ -127,7 +127,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+    template <bool NLT_TYPE3>
+    static inline
+    void local_sse2_irv_convert_to_integer(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -159,24 +161,27 @@ namespace ojph {
       {
         __m128i zero = _mm_setzero_si128();
         __m128i bias = _mm_set1_epi32(-((1 << (bit_depth - 1)) + 1));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_mul_ps(t, mul);
           __m128i u = _mm_cvtps_epi32(t);
           u = ojph_mm_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
           u = ojph_mm_min_lt_epi32(u, s32_up_lim, t, fl_up_lim);
-          __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
-          __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
-          neg = _mm_and_si128(c, neg);          //keep only - bias - value
-          __m128i v = _mm_andnot_si128(c, u);   //keep only +ve or 0
-          v = _mm_or_si128(neg, v);             //combine
-          _mm_storeu_si128((__m128i*)dp, v);
+          if (NLT_TYPE3)
+          {
+            __m128i c = _mm_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
+            __m128i neg = _mm_sub_epi32(bias, u); //-bias -value
+            neg = _mm_and_si128(c, neg);          //keep only - bias - value
+            u = _mm_andnot_si128(c, u);           //keep only +ve or 0
+            u = _mm_or_si128(neg, u);             //combine
+          }
+          _mm_storeu_si128((__m128i*)dp, u);
         }
       }
       else
       {
-        __m128i half = _mm_set1_epi32(-(1 << (bit_depth - 1)));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        __m128i half = _mm_set1_epi32(1 << (bit_depth - 1));
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_mul_ps(t, mul);
           __m128i u = _mm_cvtps_epi32(t);
@@ -188,6 +193,24 @@ namespace ojph {
       }
 
       _MM_SET_ROUNDING_MODE(rounding_mode);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_integer(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_sse2_irv_convert_to_integer<false>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_sse2_irv_convert_to_integer<true>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -392,7 +415,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void sse2_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+    template<bool NLT_TYPE3>
+    static inline
+    void local_sse2_irv_convert_to_float(const line_buf *src_line,
       ui32 src_line_offset, line_buf *dst_line,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -411,14 +436,17 @@ namespace ojph {
       {
         __m128i zero = _mm_setzero_si128();
         __m128i bias = _mm_set1_epi32(-(si32)((ui32)INT_MIN + 1));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i t = _mm_loadu_si128((__m128i*)sp);
           __m128i u = _mm_slli_epi32(t, shift);
-          __m128i c = _mm_cmplt_epi32(u, zero); // 0xFFFFFFFF for -ve value
-          __m128i neg = _mm_sub_epi32(bias, u); // - bias - value
-          neg = _mm_and_si128(c, neg);          // keep only - bias - value
-          t = _mm_andnot_si128(c, u);           // keep only +ve or 0
-          u = _mm_or_si128(neg, t);             // combine
+          if (NLT_TYPE3)
+          {
+            __m128i c = _mm_cmplt_epi32(u, zero); // 0xFFFFFFFF for -ve value
+            __m128i neg = _mm_sub_epi32(bias, u); // - bias - value
+            neg = _mm_and_si128(c, neg);          // keep only - bias - value
+            t = _mm_andnot_si128(c, u);           // keep only +ve or 0
+            u = _mm_or_si128(neg, t);             // combine
+          }
           __m128 v = _mm_cvtepi32_ps(u);
           v = _mm_mul_ps(v, mul);
           _mm_storeu_ps(dp, v);
@@ -427,7 +455,7 @@ namespace ojph {
       else
       {
         __m128i half = _mm_set1_epi32(INT_MIN);
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i t = _mm_loadu_si128((__m128i*)sp);
           t = _mm_slli_epi32(t, shift);
           t = _mm_sub_epi32(t, half);
@@ -436,6 +464,24 @@ namespace ojph {
           _mm_storeu_ps(dp, v);
         }
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_float(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_sse2_irv_convert_to_float<false>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void sse2_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_sse2_irv_convert_to_float<true>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
     }
 
     //////////////////////////////////////////////////////////////////////////

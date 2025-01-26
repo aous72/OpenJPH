@@ -263,7 +263,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+    template<bool NLT_TYPE3>
+    static inline
+    void local_avx2_irv_convert_to_integer(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -292,24 +294,27 @@ namespace ojph {
       {
         __m256i zero = _mm256_setzero_si256();
         __m256i bias = _mm256_set1_epi32(-((1 << (bit_depth - 1)) + 1));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
           __m256i u = _mm256_cvtps_epi32(t);
           u = ojph_mm256_max_ge_epi32(u, s32_low_lim, t, fl_low_lim);
           u = ojph_mm256_min_lt_epi32(u,  s32_up_lim, t,  fl_up_lim);
-          __m256i c = _mm256_cmpgt_epi32(zero, u); //0xFFFFFFFF for -ve value
-          __m256i neg = _mm256_sub_epi32(bias, u); //-bias -value
-          neg = _mm256_and_si256(c, neg);          //keep only - bias - value
-          __m256i v = _mm256_andnot_si256(c, u);   //keep only +ve or 0
-          v = _mm256_or_si256(neg, v);             //combine
-          _mm256_storeu_si256((__m256i*)dp, v);
+          if (NLT_TYPE3)
+          {
+            __m256i c = _mm256_cmpgt_epi32(zero, u); // 0xFFFFFFFF for -ve val
+            __m256i neg = _mm256_sub_epi32(bias, u); // -bias -value
+            neg = _mm256_and_si256(c, neg);          // keep only - bias - val
+            u = _mm256_andnot_si256(c, u);           // keep only +ve or 0
+            u = _mm256_or_si256(neg, u);             // combine
+          }
+          _mm256_storeu_si256((__m256i*)dp, u);
         }
       }
       else
       {
-        __m256i half = _mm256_set1_epi32(-(1 << (bit_depth - 1)));
-        for (ui32 i = width; i > 0; i -= 4, sp += 4, dp += 4) {
+        __m256i half = _mm256_set1_epi32(1 << (bit_depth - 1));
+        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
           __m256i u = _mm256_cvtps_epi32(t);
@@ -322,7 +327,27 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void avx2_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+    void avx2_irv_convert_to_integer(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_avx2_irv_convert_to_integer<false>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_avx2_irv_convert_to_integer<true>(src_line, dst_line, 
+        dst_line_offset, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template<bool NLT_TYPE3>
+    static inline    
+    void local_avx2_irv_convert_to_float(const line_buf *src_line,
       ui32 src_line_offset, line_buf *dst_line,
       ui32 bit_depth, bool is_signed, ui32 width)
     {
@@ -340,14 +365,17 @@ namespace ojph {
       {
         __m256i zero = _mm256_setzero_si256();
         __m256i bias = _mm256_set1_epi32(-(si32)((ui32)INT_MIN + 1));
-        for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
           __m256i u = _mm256_slli_epi32(t, shift);
-          __m256i c = _mm256_cmpgt_epi32(zero, u); // 0xFFFFFFFF for -ve value
-          __m256i neg = _mm256_sub_epi32(bias, u); // - bias - value
-          neg = _mm256_and_si256(c, neg);          // keep only - bias - value
-          t = _mm256_andnot_si256(c, u);           // keep only +ve or 0
-          u = _mm256_or_si256(neg, t);             // combine
+          if (NLT_TYPE3)
+          {          
+            __m256i c = _mm256_cmpgt_epi32(zero, u); // 0xFFFFFFFF for -ve val
+            __m256i neg = _mm256_sub_epi32(bias, u); // - bias - value
+            neg = _mm256_and_si256(c, neg);          // keep only - bias - val
+            t = _mm256_andnot_si256(c, u);           // keep only +ve or 0
+            u = _mm256_or_si256(neg, t);             // combine
+          }
           __m256 v = _mm256_cvtepi32_ps(u);
           v = _mm256_mul_ps(v, mul);
           _mm256_storeu_ps(dp, v);
@@ -356,7 +384,7 @@ namespace ojph {
       else
       {
         __m256i half = _mm256_set1_epi32(INT_MIN);
-        for (ui32 i = width; i > 0; i -= 8, sp += 8, dp += 8) {
+        for (int i = width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
           t = _mm256_slli_epi32(t, shift);
           t = _mm256_sub_epi32(t, half);
@@ -366,6 +394,25 @@ namespace ojph {
         }
       }
     }
+
+        //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_float(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_avx2_irv_convert_to_float<false>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void avx2_irv_convert_to_float_nlt_type3(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      local_avx2_irv_convert_to_float<true>(src_line, src_line_offset,
+        dst_line, bit_depth, is_signed, width);
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     void avx2_rct_forward(const line_buf *r,

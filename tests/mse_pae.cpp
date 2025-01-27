@@ -358,7 +358,6 @@ void load_rawl(const char *filename, img_info& img)
   strncpy(name_buf, filename, (size_t)cpy_len);
   name_buf[cpy_len] = 0;
 
-  size_t w = calc_aligned_size<si32, byte_alignment>(s.w);
   if (num_comps == 3)
     img.init(num_comps, s.w, s.h, bit_depth, is_signed, FORMAT444);
   else
@@ -588,7 +587,7 @@ void find_nlt_mse_pae(const img_info& img1, const img_info& img2,
           si32 b = *p1++;
           a = (a >= 0) ? a : (- a - bias);
           b = (b >= 0) ? b : (- b - bias);
-          ui32 err = a > b ? a - b : b - a;
+          ui32 err = (ui32)(a > b ? a - b : b - a);
           lpae = err > lpae ? err : lpae;
           se += (double)err * (double)err;
         }

@@ -411,7 +411,7 @@ namespace ojph {
             c = wasm_v128_andnot(t, c);           // keep only +ve or 0
             t = wasm_v128_or(neg, c);             // combine
           }
-          v128_t v = wasm_f32x4_convert_i32x4(u);
+          v128_t v = wasm_f32x4_convert_i32x4(t);
           v = wasm_f32x4_mul(v, mul);
           wasm_v128_store(dp, v);
         }
@@ -421,8 +421,8 @@ namespace ojph {
         v128_t half = wasm_i32x4_splat((si32)(1ULL << (bit_depth - 1)));
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
-          u = wasm_i32x4_sub(u, half);
-          v128_t v = wasm_f32x4_convert_i32x4(u);
+          t = wasm_i32x4_sub(t, half);
+          v128_t v = wasm_f32x4_convert_i32x4(t);
           v = wasm_f32x4_mul(v, mul);
           wasm_v128_store(dp, v);
         }

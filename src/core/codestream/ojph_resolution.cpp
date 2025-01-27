@@ -207,20 +207,31 @@ namespace ojph {
 
         const param_qcd* qp = codestream->access_qcd()->get_qcc(comp_num);
         ui32 precision = qp->propose_precision(cdp);
+        const param_atk* atk = cdp->access_atk();
+        bool reversible = atk->is_reversible();
 
         ui32 width = res_rect.siz.w + 1;
-        if (precision <= 32) {
-          for (ui32 i = 0; i < num_steps; ++i)
-            allocator->pre_alloc_data<si32>(width, 1);
-          allocator->pre_alloc_data<si32>(width, 1);
-          allocator->pre_alloc_data<si32>(width, 1);
-        }
-        else 
+        if (reversible)
         {
-          for (ui32 i = 0; i < num_steps; ++i)
+          if (precision <= 32) {
+            for (ui32 i = 0; i < num_steps; ++i)
+              allocator->pre_alloc_data<si32>(width, 1);
+            allocator->pre_alloc_data<si32>(width, 1);
+            allocator->pre_alloc_data<si32>(width, 1);
+          }
+          else 
+          {
+            for (ui32 i = 0; i < num_steps; ++i)
+              allocator->pre_alloc_data<si64>(width, 1);
             allocator->pre_alloc_data<si64>(width, 1);
-          allocator->pre_alloc_data<si64>(width, 1);
-          allocator->pre_alloc_data<si64>(width, 1);
+            allocator->pre_alloc_data<si64>(width, 1);
+          }
+        }
+        else {
+          for (ui32 i = 0; i < num_steps; ++i)
+            allocator->pre_alloc_data<float>(width, 1);
+          allocator->pre_alloc_data<float>(width, 1);
+          allocator->pre_alloc_data<float>(width, 1);
         }
       }
     }
@@ -474,21 +485,38 @@ namespace ojph {
 
         // initiate storage of line_buf
         ui32 width = res_rect.siz.w + 1;
-        if (precision <= 32)
+        if (this->reversible)
         {
-          for (ui32 i = 0; i < num_steps; ++i)
-            ssp[i].line->wrap(
+          if (precision <= 32)
+          {
+            for (ui32 i = 0; i < num_steps; ++i)
+              ssp[i].line->wrap(
+                allocator->post_alloc_data<si32>(width, 1), width, 1);
+            sig->line->wrap(
               allocator->post_alloc_data<si32>(width, 1), width, 1);
-          sig->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
-          aug->line->wrap(allocator->post_alloc_data<si32>(width, 1), width, 1);
-        }
-        else
-        {
-          for (ui32 i = 0; i < num_steps; ++i)
-            ssp[i].line->wrap(
+            aug->line->wrap(
+              allocator->post_alloc_data<si32>(width, 1), width, 1);
+          }
+          else
+          {
+            for (ui32 i = 0; i < num_steps; ++i)
+              ssp[i].line->wrap(
+                allocator->post_alloc_data<si64>(width, 1), width, 1);
+            sig->line->wrap(
               allocator->post_alloc_data<si64>(width, 1), width, 1);
-          sig->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
-          aug->line->wrap(allocator->post_alloc_data<si64>(width, 1), width, 1);
+            aug->line->wrap(
+              allocator->post_alloc_data<si64>(width, 1), width, 1);
+          }
+        }
+        else 
+        {
+            for (ui32 i = 0; i < num_steps; ++i)
+              ssp[i].line->wrap(
+                allocator->post_alloc_data<float>(width, 1), width, 1);
+            sig->line->wrap(
+              allocator->post_alloc_data<float>(width, 1), width, 1);
+            aug->line->wrap(
+              allocator->post_alloc_data<float>(width, 1), width, 1);
         }
 
         cur_line = 0;

@@ -61,21 +61,26 @@ namespace ojph {
      line_buf *dst_line, const ui32 dst_line_offset, 
      si64 shift, ui32 width);
 
-  ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_si32_to_float_shftd)
-    (const si32 *sp, float *dp, float mul, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_si32_to_float)
-    (const si32 *sp, float *dp, float mul, ui32 width);
+  extern void (*irv_convert_to_integer) (
+    const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+    ui32 bit_depth, bool is_signed, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_float_to_si32_shftd)
-    (const float *sp, si32 *dp, float mul, ui32 width);
+  extern void (*irv_convert_to_float) (
+    const line_buf *src_line, ui32 src_line_offset,
+    line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*cnvrt_float_to_si32)
-    (const float *sp, si32 *dp, float mul, ui32 width);
+  extern void (*irv_convert_to_integer_nlt_type3) (
+    const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
+    ui32 bit_depth, bool is_signed, ui32 width);
+
+  ////////////////////////////////////////////////////////////////////////////
+  extern void (*irv_convert_to_float_nlt_type3) (
+    const line_buf *src_line, ui32 src_line_offset,
+    line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*rct_forward)

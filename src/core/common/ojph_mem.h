@@ -138,29 +138,17 @@ namespace ojph {
     enum : ui32 {
       LFT_UNDEFINED  = 0x00, // Type is undefined/uninitialized
                              // These flags reflects data size in bytes
-      LFT_BYTE       = 0x01, // Set when data is 1 byte
-      LFT_16BIT      = 0x02, // Set when data is 2 bytes
+      LFT_BYTE       = 0x01, // Set when data is 1 byte  (not used)
+      LFT_16BIT      = 0x02, // Set when data is 2 bytes (not used)
       LFT_32BIT      = 0x04, // Set when data is 4 bytes
       LFT_64BIT      = 0x08, // Set when data is 8 bytes
-      LFT_REVERSIBLE = 0x10, // Set when data is used for reversible coding
-                             // Not all combinations are useful
+      LFT_INTEGER    = 0x10, // Set when data is an integer, in other words
+                             // 32bit integer, not 32bit float
       LFT_SIZE_MASK  = 0x0F, // To extract data size
     };
 
   public:
     line_buf() : size(0), pre_size(0), flags(LFT_UNDEFINED), i32(0) {}
-
-    template<typename T>
-    void pre_alloc(mem_fixed_allocator *p, size_t num_ele, ui32 pre_size)
-    {
-      memset(this, 0, sizeof(line_buf));
-      p->pre_alloc_data<T>(num_ele, pre_size);
-      size = num_ele;
-      this->pre_size = pre_size;
-    }
-    
-    template<typename T>
-    void finalize_alloc(mem_fixed_allocator *p);
 
     template<typename T>
     void wrap(T *buffer, size_t num_ele, ui32 pre_size);

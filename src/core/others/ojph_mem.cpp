@@ -51,36 +51,12 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   template<>
-  void line_buf::finalize_alloc<si32>(mem_fixed_allocator *p)
-  {
-    assert(p != 0 && size != 0);
-    i32 = p->post_alloc_data<si32>(size, pre_size);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  template<>
-  void line_buf::finalize_alloc<float>(mem_fixed_allocator *p)
-  {
-    assert(p != 0 && size != 0);
-    f32 = p->post_alloc_data<float>(size, pre_size);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  template<>
-  void line_buf::finalize_alloc<si64>(mem_fixed_allocator *p)
-  {
-    assert(p != 0 && size != 0);
-    i64 = p->post_alloc_data<si64>(size, pre_size);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  template<>
   void line_buf::wrap(si32 *buffer, size_t num_ele, ui32 pre_size)
   {
     this->i32 = buffer;
     this->size = num_ele;
     this->pre_size = pre_size;
-    this->flags = LFT_32BIT | LFT_REVERSIBLE;
+    this->flags = LFT_32BIT | LFT_INTEGER;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -100,7 +76,7 @@ namespace ojph {
     this->i64 = buffer;
     this->size = num_ele;
     this->pre_size = pre_size;
-    this->flags = LFT_64BIT | LFT_REVERSIBLE;
+    this->flags = LFT_64BIT | LFT_INTEGER;
   }
 
   ////////////////////////////////////////////////////////////////////////////

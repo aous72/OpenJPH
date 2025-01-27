@@ -48,66 +48,6 @@ namespace ojph {
   namespace local {
 
     //////////////////////////////////////////////////////////////////////////
-    void avx_cnvrt_si32_to_float_shftd(const si32 *sp, float *dp, float mul,
-                                       ui32 width)
-    {
-      __m256 shift = _mm256_set1_ps(0.5f);
-      __m256 m = _mm256_set1_ps(mul);
-      for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
-      {
-        __m256i t = _mm256_loadu_si256((__m256i*)sp);
-        __m256 s = _mm256_cvtepi32_ps(t);
-        s = _mm256_mul_ps(s, m);
-        s = _mm256_sub_ps(s, shift);
-        _mm256_store_ps(dp, s);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void avx_cnvrt_si32_to_float(const si32 *sp, float *dp, float mul,
-                                 ui32 width)
-    {
-      __m256 m = _mm256_set1_ps(mul);
-      for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
-      {
-        __m256i t = _mm256_loadu_si256((__m256i*)sp);
-        __m256 s = _mm256_cvtepi32_ps(t);
-        s = _mm256_mul_ps(s, m);
-        _mm256_store_ps(dp, s);
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void avx_cnvrt_float_to_si32_shftd(const float *sp, si32 *dp, float mul,
-                                       ui32 width)
-    {
-      __m256 shift = _mm256_set1_ps(0.5f);
-      __m256 m = _mm256_set1_ps(mul);
-      for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
-      {
-        __m256 t = _mm256_load_ps(sp);
-        __m256 s = _mm256_add_ps(t, shift);
-        s = _mm256_mul_ps(s, m);
-        s = _mm256_round_ps(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm256_storeu_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void avx_cnvrt_float_to_si32(const float *sp, si32 *dp, float mul,
-                                 ui32 width)
-    {
-      __m256 m = _mm256_set1_ps(mul);
-      for (int i = (width + 7) >> 3; i > 0; --i, sp+=8, dp+=8)
-      {
-        __m256 t = _mm256_load_ps(sp);
-        __m256 s = _mm256_mul_ps(t, m);
-        s = _mm256_round_ps(s, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        _mm256_storeu_si256((__m256i*)dp, _mm256_cvtps_epi32(s));
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     void avx_ict_forward(const float *r, const float *g, const float *b,
                          float *y, float *cb, float *cr, ui32 repeat)
     {

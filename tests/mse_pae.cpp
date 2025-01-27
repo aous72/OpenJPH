@@ -60,7 +60,8 @@ struct img_info {
     width = height = 0;
     comps[0] = comps[1] = comps[2] = 0;
     format = UNDEFINED;
-    max_val = 0;
+    bit_depth = 0;
+    is_signed = false;
   }
   ~img_info() {
     for (ui32 i = 0; i < num_comps; ++i)
@@ -70,15 +71,16 @@ struct img_info {
     }
   }
   
-  void init(ui32 num_comps, size_t width, size_t height, ui32 max_val,
-            ui32 format=FORMAT444)
+  void init(ui32 num_comps, size_t width, size_t height, ui32 bit_depth,
+            bool is_signed, ui32 format=FORMAT444)
   {
     assert(num_comps <= 3 && comps[0] == NULL);
     this->num_comps = num_comps;
     this->width = width;
     this->height = height;
     this->format = format;
-    this->max_val = max_val;
+    this->bit_depth = bit_depth;
+    this->is_signed = is_signed;
     for (ui32 i = 0; i < num_comps; ++i)
       switch (format)
       {
@@ -114,7 +116,8 @@ struct img_info {
   point downsampling[3];
   si32 *comps[3];
   ui32 format;
-  ui32 max_val;
+  ui32 bit_depth;
+  bool is_signed;
 };
 
 bool is_pnm(const char *filename)
@@ -137,7 +140,7 @@ void load_ppm(const char *filename, img_info& img)
   ui32 num_comps = ppm.get_num_components();
   size_t width = ppm.get_width();
   size_t height = ppm.get_height();
-  img.init(num_comps, width, height, ppm.get_max_val());
+  img.init(num_comps, width, height, ppm.get_bit_depth(0), false);
   
   width = calc_aligned_size<si32, byte_alignment>(width);
   si32 *buffer = new si32[width];
@@ -259,7 +262,7 @@ void load_yuv(const char *filename, img_info& img)
   yuv.set_img_props(s, num_comps, num_comps, downsampling);  
   yuv.open(name_buf);
   
-  img.init(num_comps, s.w, s.h, (1 << bit_depth) - 1, format);
+  img.init(num_comps, s.w, s.h, bit_depth, false, format);
   
   size_t w = calc_aligned_size<si32, byte_alignment>(s.w);
   si32 *buffer = new si32[w];
@@ -281,12 +284,237 @@ void load_yuv(const char *filename, img_info& img)
   delete[] buffer;
 }
 
+bool is_rawl(const char *filename)
+{
+  const char *p = strchr(filename, ':'); // p is either NULL or pointing to ':'
+  if (p != NULL && p - filename >= 5 && p[-5] == '.' && 
+      toupper(p[-4]) == 'R' && toupper(p[-3])== 'A' && 
+      toupper(p[-2]) == 'W' && toupper(p[-1]) == 'L')
+    return true;
+  return false;
+}
+
+void load_rawl(const char *filename, img_info& img)
+{  
+  const char *p = strchr(filename, ':'); // p is either NULL or pointing to ':'
+  const char *name_end = p;
+  if (p == NULL) {
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp\n");
+    exit(-1);
+  }
+  ojph::size s;
+  ++p;
+  s.w = (ui32)atoi(p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting image height.\n");
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp\n");
+    exit(-1);
+  }
+  ++p;
+  s.h = (ui32)atoi(p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting image bitdepth.\n");
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp\n");
+    exit(-1);
+  }
+  ++p;
+  ui32 bit_depth = (ui32)atoi(p);
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting signedness information (either 0 or 1).\n");
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp, where num_comp is\n");
+    printf("either 1 or 3\n");
+    exit(-1);
+  }
+  ++p;
+  bool is_signed = *p != '0';
+  p = strchr(p, 'x'); // p is either NULL or pointing to ':'
+  if (p == NULL) {
+    printf("Expecting number of components.\n");
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp, where num_comp is\n");
+    printf("either 1 or 3\n");
+    exit(-1);
+  }
+  ++p;
+  ui32 num_comps = (ui32)atoi(p);
+  if (num_comps != 1 && num_comps != 3)
+  {
+    printf("num_comp must be either 1 or 3, %s was supplied.\n", p);
+    printf("A .rawl that does not have the expected format, which is\n");
+    printf(".rawl:widthxheightxbitdepthxsignedxnum_comp, where format is\n");
+    printf("either 1 or 3\n");
+    exit(-1);
+  }
+
+  char name_buf[2048];
+  ptrdiff_t cpy_len = name_end - filename > 2047 ? 2047 : name_end - filename;
+  strncpy(name_buf, filename, (size_t)cpy_len);
+  name_buf[cpy_len] = 0;
+
+  if (num_comps == 3)
+    img.init(num_comps, s.w, s.h, bit_depth, is_signed, FORMAT444);
+  else
+    img.init(num_comps, s.w, s.h, bit_depth, is_signed, FORMAT400);
+
+  if (is_signed)
+  {
+    if (bit_depth <= 8)
+    {
+      si8 *buffer = new si8[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        si8 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 1, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+    else if (bit_depth <= 16)
+    {
+      si16 *buffer = new si16[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        si16 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 2, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+    else
+    {
+      si32 *buffer = new si32[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        si32 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 4, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+  }
+  else
+  {
+    if (bit_depth <= 8)
+    {
+      ui8 *buffer = new ui8[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        ui8 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 1, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+    else if (bit_depth <= 16)
+    {
+      ui16 *buffer = new ui16[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        ui16 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 2, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+    else
+    {
+      ui32 *buffer = new ui32[s.w *  s.h];      
+      FILE *f = fopen(name_buf, "rb");
+      if (f == NULL) {
+        printf("Error opening file %s\n", name_buf);
+        exit(-1);
+      }
+
+      for (ui32 i = 0; i < num_comps; ++i)
+      {
+        ui32 *sp = buffer;
+        si32 *dp = img.comps[i];
+        if (fread(buffer, 4, s.w * s.h, f) != s.w * s.h) {
+          printf("Error reading from file %s\n", name_buf);
+          exit(-1);
+        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = (si32)*sp++;
+      }
+      fclose(f);
+      delete[] buffer;
+    }
+  }
+}
+
 void find_mse_pae(const img_info& img1, const img_info& img2, 
                   float mse[3], ui32 pae[3])
 {
   if (img1.num_comps != img2.num_comps || img1.format != img2.format ||
       img1.width != img2.width || img1.height != img2.height ||
-      img1.max_val != img2.max_val)
+      img1.bit_depth != img2.bit_depth || img1.is_signed != img2.is_signed)
   {
     printf("Error: mismatching images\n");
     exit(-1);
@@ -298,26 +526,99 @@ void find_mse_pae(const img_info& img1, const img_info& img2,
     h = (img1.height + img1.downsampling[c].x - 1) / img1.downsampling[c].x;
     double se = 0;
     ui32 lpae = 0;
-    for (ui32 v = 0; v < h; ++v)
-    {
-      si32 *p0 = img1.comps[c] + w * v;
-      si32 *p1 = img2.comps[c] + w * v;
-      for (ui32 s = 0; s < w; ++s)
+    if (img1.is_signed)
+      for (ui32 v = 0; v < h; ++v)
       {
-        si32 err = *p0++ - *p1++;
-        ui32 ae = (ui32)(err > 0 ? err : -err);
-        lpae = ae > lpae ? ae : lpae;
-        se += (double)err * (double)err;
+        si32 *p0 = img1.comps[c] + w * v;
+        si32 *p1 = img2.comps[c] + w * v;
+        for (ui32 s = 0; s < w; ++s)
+        {
+          si32 err = *p0++ - *p1++;
+          ui32 ae = (ui32)(err > 0 ? err : -err);
+          lpae = ae > lpae ? ae : lpae;
+          se += (double)err * (double)err;
+        }
       }
-    }
+    else
+      for (ui32 v = 0; v < h; ++v)
+      {
+        ui32 *p0 = (ui32*)img1.comps[c] + w * v;
+        ui32 *p1 = (ui32*)img2.comps[c] + w * v;
+        for (ui32 s = 0; s < w; ++s)
+        {
+          ui32 a = *p0++;
+          ui32 b = *p1++;
+          ui32 err = a > b ? a - b : b - a;
+          lpae = err > lpae ? err : lpae;
+          se += (double)err * (double)err;
+        }
+      }
     mse[c] = (float)se / (float)(w * h);
     pae[c] = lpae;
   }
-  // float t = 0;
-  // for (ui32 c = 0; c < img1.num_comps; ++c)
-  //   t += (float)mse[c];
-  // t /= (float)num_pixels;
-  // psnr = 10.0f * log10f((float)img1.max_val * (float)img1.max_val / t);
+}
+
+void find_nlt_mse_pae(const img_info& img1, const img_info& img2, 
+                      float mse[3], ui32 pae[3])
+{
+  if (img1.num_comps != img2.num_comps || img1.format != img2.format ||
+      img1.width != img2.width || img1.height != img2.height ||
+      img1.bit_depth != img2.bit_depth || img1.is_signed != img2.is_signed)
+  {
+    printf("Error: mismatching images\n");
+    exit(-1);
+  }
+  if (img1.is_signed)
+    for (ui32 c = 0; c < img1.num_comps; ++c)
+    {
+      size_t w, h;
+      w = (img1.width + img1.downsampling[c].x - 1) / img1.downsampling[c].x;
+      h = (img1.height + img1.downsampling[c].x - 1) / img1.downsampling[c].x;
+      double se = 0;
+      ui32 lpae = 0;
+      si32 bias = (si32)((1ULL << (img1.bit_depth - 1)) + 1);
+      for (ui32 v = 0; v < h; ++v)
+      {
+        si32 *p0 = img1.comps[c] + w * v;
+        si32 *p1 = img2.comps[c] + w * v;
+        for (ui32 s = 0; s < w; ++s)
+        {
+          si32 a = *p0++;
+          si32 b = *p1++;
+          a = (a >= 0) ? a : (- a - bias);
+          b = (b >= 0) ? b : (- b - bias);
+          ui32 err = (ui32)(a > b ? a - b : b - a);
+          lpae = err > lpae ? err : lpae;
+          se += (double)err * (double)err;
+        }
+      }
+      mse[c] = (float)se / (float)(w * h);
+      pae[c] = lpae;
+    }
+  else
+    for (ui32 c = 0; c < img1.num_comps; ++c)
+    {
+      size_t w, h;
+      w = (img1.width + img1.downsampling[c].x - 1) / img1.downsampling[c].x;
+      h = (img1.height + img1.downsampling[c].x - 1) / img1.downsampling[c].x;
+      double se = 0;
+      ui32 lpae = 0;
+      for (ui32 v = 0; v < h; ++v)
+      {
+        ui32 *p0 = (ui32*)img1.comps[c] + w * v;
+        ui32 *p1 = (ui32*)img2.comps[c] + w * v;
+        for (ui32 s = 0; s < w; ++s)
+        {
+          ui32 a = *p0++;
+          ui32 b = *p1++;
+          ui32 err = a > b ? a - b : b - a;
+          lpae = err > lpae ? err : lpae;
+          se += (double)err * (double)err;
+        }
+      }
+      mse[c] = (float)se / (float)(w * h);
+      pae[c] = lpae;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -325,20 +626,36 @@ int main(int argc, char *argv[])
   if (argc < 3)
   {
     printf("mse_pae expects two arguments <filename1, filename2>\n");
+    printf("A third optional argment is \"-nlt\".\n");
     exit(-1);
   }
-    
+
+  bool nlt = false;
+  if (argc == 4)
+  {
+    if (strcmp("-nlt", argv[3]) == 0)
+      nlt = true;
+    else {
+      printf("unknown 4th parameter %s\n", argv[3]);
+      exit(-1);      
+    }
+  }
+
+
   img_info img1, img2;
   try {
     if (is_pnm(argv[1]))
       load_ppm(argv[1], img1);
     else if (is_yuv(argv[1]))
       load_yuv(argv[1], img1);
+    else if (is_rawl(argv[1]))
+      load_rawl(argv[1], img1);
     else {
       printf("mse_pae does not know file format of %s\n", argv[1]);
       printf("or a .yuv that does not have the expected format, which is\n");
       printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
-      printf("either 444, 422, or 420\n");
+      printf("either 444, 422, or 420, or wrongly format .rawl, which has\n");
+      printf(".rawl:widthxheightxbitdepthxsignedxnum_comp format.\n");
       exit(-1);  
     }
   }
@@ -355,11 +672,14 @@ int main(int argc, char *argv[])
       load_ppm(argv[2], img2);
     else if (is_yuv(argv[2]))
       load_yuv(argv[2], img2);
+    else if (is_rawl(argv[2]))
+      load_rawl(argv[2], img2);
     else {
       printf("mse_pae does not know file format of %s\n", argv[2]);
       printf("or a .yuv that does not have the expected format, which is\n");
       printf(".yuv:widthxheightxbitdepthxformat, where format is\n");
-      printf("either 444, 422, or 420\n");
+      printf("either 444, 422, or 420, or wrongly format .rawl, which has\n");
+      printf(".rawl:widthxheightxbitdepthxsignedxnum_comp format.\n");
       exit(-1);  
     }
   }
@@ -372,7 +692,10 @@ int main(int argc, char *argv[])
   }  
   
   float mse[3]; ui32 pae[3];
-  find_mse_pae(img1, img2, mse, pae);
+  if (!nlt)
+    find_mse_pae(img1, img2, mse, pae);
+  else
+    find_nlt_mse_pae(img1, img2, mse, pae);
   
   for (ui32 c = 0; c < img1.num_comps; ++c)
     printf("%f %d\n", mse[c], pae[c]);

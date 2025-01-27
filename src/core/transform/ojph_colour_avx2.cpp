@@ -293,7 +293,8 @@ namespace ojph {
       if (is_signed)
       {
         __m256i zero = _mm256_setzero_si256();
-        __m256i bias = _mm256_set1_epi32(-((1 << (bit_depth - 1)) + 1));
+        __m256i bias = 
+          _mm256_set1_epi32(-(si32)((1ULL << (bit_depth - 1)) + 1));
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
@@ -313,7 +314,7 @@ namespace ojph {
       }
       else
       {
-        __m256i half = _mm256_set1_epi32(1 << (bit_depth - 1));
+        __m256i half = _mm256_set1_epi32((si32)(1ULL << (bit_depth - 1)));
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_mul_ps(t, mul);
@@ -356,37 +357,36 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
-      __m256 mul = _mm256_set1_ps((float)(1.0 / 65536.0 / 65536.0));
+      assert(bit_depth <= 32);
+      __m256 mul = _mm256_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
 
       const si32* sp = src_line->i32 + src_line_offset;
       float* dp = dst_line->f32;
-      si32 shift = 32 - (si32)bit_depth;
       if (is_signed)
       {
         __m256i zero = _mm256_setzero_si256();
-        __m256i bias = _mm256_set1_epi32(-(si32)((ui32)INT_MIN + 1));
+        __m256i bias = 
+          _mm256_set1_epi32(-(si32)((1ULL << (bit_depth - 1)) + 1));
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
-          __m256i u = _mm256_slli_epi32(t, shift);
           if (NLT_TYPE3)
           {          
-            __m256i c = _mm256_cmpgt_epi32(zero, u); // 0xFFFFFFFF for -ve val
-            __m256i neg = _mm256_sub_epi32(bias, u); // - bias - value
+            __m256i c = _mm256_cmpgt_epi32(zero, t); // 0xFFFFFFFF for -ve val
+            __m256i neg = _mm256_sub_epi32(bias, t); // - bias - value
             neg = _mm256_and_si256(c, neg);          // keep only - bias - val
-            t = _mm256_andnot_si256(c, u);           // keep only +ve or 0
-            u = _mm256_or_si256(neg, t);             // combine
+            c = _mm256_andnot_si256(c, t);           // keep only +ve or 0
+            t = _mm256_or_si256(neg, c);             // combine
           }
-          __m256 v = _mm256_cvtepi32_ps(u);
+          __m256 v = _mm256_cvtepi32_ps(t);
           v = _mm256_mul_ps(v, mul);
           _mm256_storeu_ps(dp, v);
         }
       }
       else
       {
-        __m256i half = _mm256_set1_epi32(INT_MIN);
+        __m256i half = _mm256_set1_epi32((si32)(1ULL << (bit_depth - 1)));
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i t = _mm256_loadu_si256((__m256i*)sp);
-          t = _mm256_slli_epi32(t, shift);
           t = _mm256_sub_epi32(t, half);
           __m256 v = _mm256_cvtepi32_ps(t);
           v = _mm256_mul_ps(v, mul);

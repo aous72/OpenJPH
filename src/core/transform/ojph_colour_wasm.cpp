@@ -327,7 +327,7 @@ namespace ojph {
       {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
-        v128_t bias = wasm_i32x4_splat(-((1 << (bit_depth - 1)) + 1));
+        v128_t bias = wasm_i32x4_splat(-(si32)((1ULL << (bit_depth - 1)) + 1));
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
@@ -349,7 +349,7 @@ namespace ojph {
       {
         const v128_t zero = wasm_f32x4_splat(0.0f);
         const v128_t half = wasm_f32x4_splat(0.5f);
-        v128_t ihalf = wasm_i32x4_splat(1 << (bit_depth - 1));
+        v128_t ihalf = wasm_i32x4_splat((si32)(1ULL << (bit_depth - 1)));
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
           t = wasm_f32x4_mul(t, mul);
@@ -392,25 +392,24 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
-      v128_t mul = wasm_f32x4_splat((float)(1.0 / 65536.0 / 65536.0));
+      assert(bit_depth <= 32);
+      v128_t mul = wasm_f32x4_splat((float)(1.0 / (double)(1ULL << bit_depth)));
 
       const si32* sp = src_line->i32 + src_line_offset;
       float* dp = dst_line->f32;
-      ui32 shift = (ui32)32 - bit_depth;
       if (is_signed)
       {
         v128_t zero = wasm_i32x4_splat(0);
-        v128_t bias = wasm_i32x4_splat(-(si32)((ui32)INT_MIN + 1));
+        v128_t bias = wasm_i32x4_splat(-(si32)((1ULL << (bit_depth - 1)) + 1));
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
-          v128_t u = wasm_i32x4_shl(t, shift);
           if (NLT_TYPE3)
           {
-            v128_t c = wasm_i32x4_lt(u, zero);    // 0xFFFFFFFF for -ve value
-            v128_t neg = wasm_i32x4_sub(bias, u); // - bias - value
+            v128_t c = wasm_i32x4_lt(t, zero);    // 0xFFFFFFFF for -ve value
+            v128_t neg = wasm_i32x4_sub(bias, t); // - bias - value
             neg = wasm_v128_and(c, neg);          // keep only - bias - value
-            t = wasm_v128_andnot(u, c);           // keep only +ve or 0
-            u = wasm_v128_or(neg, t);             // combine
+            c = wasm_v128_andnot(t, c);           // keep only +ve or 0
+            t = wasm_v128_or(neg, c);             // combine
           }
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);
@@ -419,10 +418,9 @@ namespace ojph {
       }
       else
       {
-        v128_t half = wasm_i32x4_splat(INT_MIN);
+        v128_t half = wasm_i32x4_splat((si32)(1ULL << (bit_depth - 1)));
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           v128_t t = wasm_v128_load(sp);
-          v128_t u = wasm_i32x4_shl(t, shift);
           u = wasm_i32x4_sub(u, half);
           v128_t v = wasm_f32x4_convert_i32x4(u);
           v = wasm_f32x4_mul(v, mul);

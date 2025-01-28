@@ -919,7 +919,8 @@ namespace ojph {
       ui8 buf[4];
       bool result = true;
 
-      *(ui16*)buf = swap_byte(JP2K_MARKER::COC);
+      *(ui16*)buf = JP2K_MARKER::COC;
+      *(ui16*)buf = swap_byte(*(ui16*)buf);
       result &= file->write(&buf, 2) == 2;
       *(ui16*)buf = swap_byte(Lcod);
       result &= file->write(&buf, 2) == 2;

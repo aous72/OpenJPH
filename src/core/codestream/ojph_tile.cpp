@@ -67,20 +67,38 @@ namespace ojph {
       allocator->pre_alloc_obj<ui32>(num_comps); //for line_offsets
       allocator->pre_alloc_obj<ui32>(num_comps); //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
-      allocator->pre_alloc_obj<ui8>(num_comps); //for nlt_type3
+      allocator->pre_alloc_obj<bool>(num_comps); //for reversible
+      allocator->pre_alloc_obj<ui8>(num_comps);  //for nlt_type3
       allocator->pre_alloc_obj<ui32>(num_comps); //for cur_line
 
-      ui32 tilepart_div = codestream->get_tilepart_div();
-      num_tileparts = 1; //for num_rc_bytes
-      // this code is not ideal, since the number of decompositions can be 
-      // different for different components
-      if (tilepart_div & OJPH_TILEPART_COMPONENTS)
-        num_tileparts *= num_comps;
-      if (tilepart_div & OJPH_TILEPART_RESOLUTIONS)
-        num_tileparts *= codestream->get_cod()->get_num_decompositions() + 1;
-      if (num_tileparts > 255)
-        OJPH_ERROR(0x000300D1, "Trying to create %d tileparts; a tile cannot "
-          "have more than 255 tile parts.", num_tileparts);
+      {
+        ui32 tilepart_div = codestream->get_tilepart_div();
+        ui32 t = tilepart_div & OJPH_TILEPART_MASK;
+        if (t == OJPH_TILEPART_NO_DIVISIONS)
+          num_tileparts = 1; //for num_rc_bytes
+        else if (t == OJPH_TILEPART_COMPONENTS)
+          num_tileparts = num_comps;
+        else if (t == OJPH_TILEPART_RESOLUTIONS)
+        {
+          ui32 max_decs = 0;
+          for (ui32 c = 0; c < num_comps; ++c) {
+            ui32 s = codestream->get_coc(c)->get_num_decompositions();
+            max_decs = ojph_max(max_decs, s);
+          }
+          num_tileparts = 1 + max_decs;
+        }
+        else if (t == (OJPH_TILEPART_COMPONENTS | OJPH_TILEPART_RESOLUTIONS))
+        {
+          num_tileparts = 0;
+          for (ui32 c = 0; c < num_comps; ++c) {
+            ui32 s = codestream->get_coc(c)->get_num_decompositions();
+            num_tileparts += s + 1;
+          }
+        }
+        if (num_tileparts > 255)
+          OJPH_ERROR(0x000300D1, "Trying to create %d tileparts; a tile "
+            "cannot have more than 255 tile parts.", num_tileparts);
+      }
 
       ui32 tx0 = tile_rect.org.x;
       ui32 ty0 = tile_rect.org.y;
@@ -125,8 +143,22 @@ namespace ojph {
       const param_cod* cdp = codestream->get_cod();
       if (cdp->is_employing_color_transform())
       {
+        bool reversible[3];
+        for (ui32 i = 0; i < 3; ++i)
+          reversible[i] = codestream->get_coc(i)->is_reversible();
+        if (reversible[0] != reversible[1] || reversible[1] != reversible[2])
+          OJPH_ERROR(0x000300A2, "When the colour transform is employed. "
+            "all colour components must undergo either reversible or "
+            "irreversible wavelet transform; if not, then it is not clear "
+            "what colour transform should be used (reversible or "
+            "irreversible).  Here we found that the first three colour "
+            "components uses %s, %s, and %s transforms, respectively.",
+            reversible[0] ? "reversible" : "irreversible",
+            reversible[1] ? "reversible" : "irreversible",
+            reversible[2] ? "reversible" : "irreversible");
+
         allocator->pre_alloc_obj<line_buf>(3);
-        if (cdp->access_atk()->is_reversible())
+        if (reversible[0])
           for (int i = 0; i < 3; ++i)
             allocator->pre_alloc_data<si32>(width, 0);
         else
@@ -159,19 +191,41 @@ namespace ojph {
       line_offsets = allocator->post_alloc_obj<ui32>(num_comps);
       num_bits = allocator->post_alloc_obj<ui32>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
+      reversible = allocator->post_alloc_obj<bool>(num_comps);
       nlt_type3 = allocator->post_alloc_obj<ui8>(num_comps);
       cur_line = allocator->post_alloc_obj<ui32>(num_comps);
 
       profile = codestream->get_profile();
       tilepart_div = codestream->get_tilepart_div();
       need_tlm = codestream->is_tlm_needed();
-      num_tileparts = 1;
-      // this code is not ideal, since the number of decompositions can be 
-      // different for different components
-      if (tilepart_div & OJPH_TILEPART_COMPONENTS)
-        num_tileparts *= num_comps;
-      if (tilepart_div & OJPH_TILEPART_RESOLUTIONS)
-        num_tileparts *= codestream->get_cod()->get_num_decompositions() + 1;
+      {
+        ui32 tilepart_div = codestream->get_tilepart_div();
+        ui32 t = tilepart_div & OJPH_TILEPART_MASK;
+        if (t == OJPH_TILEPART_NO_DIVISIONS)
+          num_tileparts = 1; //for num_rc_bytes
+        else if (t == OJPH_TILEPART_COMPONENTS)
+          num_tileparts = num_comps;
+        else if (t == OJPH_TILEPART_RESOLUTIONS)
+        {
+          ui32 max_decs = 0;
+          for (ui32 c = 0; c < num_comps; ++c) {
+            ui32 s = codestream->get_coc(c)->get_num_decompositions();
+            max_decs = ojph_max(max_decs, s);
+          }
+          num_tileparts = 1 + max_decs;
+        }
+        else if (t == (OJPH_TILEPART_COMPONENTS | OJPH_TILEPART_RESOLUTIONS))
+        {
+          num_tileparts = 0;
+          for (ui32 c = 0; c < num_comps; ++c) {
+            ui32 s = codestream->get_coc(c)->get_num_decompositions();
+            num_tileparts += s + 1;
+          }
+        }
+        if (num_tileparts > 255)
+          OJPH_ERROR(0x000300D1, "Trying to create %d tileparts; a tile "
+          "cannot have more than 255 tile parts.", num_tileparts);
+      }
 
       this->resilient = codestream->is_resilient();
       this->tile_rect = tile_rect;
@@ -223,19 +277,19 @@ namespace ojph {
             "for component %d", i, num_bits[i], 
             is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
         cur_line[i] = 0;
+        reversible[i] = codestream->get_coc(i)->is_reversible();
       }
 
       offset += tile_rect.siz.w;
 
       //allocate lines
       const param_cod* cdp = codestream->get_cod();
-      this->reversible = cdp->access_atk()->is_reversible();
       this->employ_color_transform = cdp->is_employing_color_transform();
       if (this->employ_color_transform)
       {
         num_lines = 3;
         lines = allocator->post_alloc_obj<line_buf>(num_lines);
-        if (reversible)
+        if (reversible[0])
           for (int i = 0; i < 3; ++i)
             lines[i].wrap(
               allocator->post_alloc_data<si32>(width, 0), width, 0);
@@ -270,7 +324,7 @@ namespace ojph {
         assert(comp_num < num_comps);
         ui32 comp_width = comp_rects[comp_num].siz.w;
         line_buf *tc = comps[comp_num].get_line();
-        if (reversible)
+        if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
@@ -297,7 +351,7 @@ namespace ojph {
       {
         si64 shift = (si64)1 << (num_bits[comp_num] - 1);
         ui32 comp_width = comp_rects[comp_num].siz.w;
-        if (reversible)
+        if (reversible[comp_num])
         {
           if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(line, line_offsets[comp_num], 
@@ -361,7 +415,7 @@ namespace ojph {
       {
         line_buf *src_line = comps[comp_num].pull_line();
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
-        if (reversible)
+        if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
@@ -391,7 +445,7 @@ namespace ojph {
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (comp_num == 0)
         {
-          if (reversible)
+          if (reversible[comp_num])
             rct_backward(comps[0].pull_line(), comps[1].pull_line(),
               comps[2].pull_line(), lines + 0, lines + 1,
               lines + 2, comp_width);
@@ -400,7 +454,7 @@ namespace ojph {
               comps[2].pull_line()->f32, lines[0].f32, lines[1].f32,
               lines[2].f32, comp_width);
         }
-        if (reversible)
+        if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
           line_buf* src_line;

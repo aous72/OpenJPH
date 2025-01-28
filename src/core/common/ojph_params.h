@@ -45,10 +45,21 @@
 namespace ojph {
 
   /***************************************************************************/
-  //prototyping from local
+  // defined here
+  class param_siz;
+  class param_cod;
+  class param_coc;
+  class param_qcd;
+  class param_cap;
+  class param_nlt;
+  class codestream;
+
+  /***************************************************************************/
+  // prototyping from local
   namespace local {
     struct param_siz;
     struct param_cod;
+    struct param_coc;
     struct param_qcd;
     struct param_cap;
     struct param_nlt;
@@ -100,6 +111,7 @@ namespace ojph {
     void set_progression_order(const char *name);
     void set_color_transform(bool color_transform);
     void set_reversible(bool reversible);
+    param_coc get_coc(ui32 component_idx);
 
     ui32 get_num_decompositions() const;
     size get_block_dims() const;
@@ -113,6 +125,29 @@ namespace ojph {
     bool is_using_color_transform() const;
     bool packets_may_use_sop() const;
     bool packets_use_eph() const;
+    bool get_block_vertical_causality() const;
+
+  private:
+    local::param_cod* state;
+  };
+
+  /***************************************************************************/
+  class OJPH_EXPORT param_coc
+  {
+  public:
+    param_coc(local::param_cod* p) : state(p) {}
+
+    void set_num_decomposition(ui32 num_decompositions);
+    void set_block_dims(ui32 width, ui32 height);
+    void set_precinct_size(int num_levels, size* precinct_size);
+    void set_reversible(bool reversible);
+
+    ui32 get_num_decompositions() const;
+    size get_block_dims() const;
+    size get_log_block_dims() const;
+    bool is_reversible() const;
+    size get_precinct_size(ui32 level_num) const;
+    size get_log_precinct_size(ui32 level_num) const;
     bool get_block_vertical_causality() const;
 
   private:

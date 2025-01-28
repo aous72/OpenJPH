@@ -54,7 +54,7 @@ else()
 
   add_executable(ojph_expand ${SOURCES})
   target_include_directories(ojph_expand PRIVATE ../common)
-  if (TIFF_FOUND)
+  if (TIFF_FOUND AND (NOT EMSCRIPTEN))
     target_link_libraries(ojph_expand PRIVATE openjph TIFF::TIFF )
   else()
     target_link_libraries(ojph_expand PRIVATE openjph)

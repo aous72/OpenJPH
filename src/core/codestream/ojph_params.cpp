@@ -958,7 +958,6 @@ namespace ojph {
     {
       assert(type == COD_MAIN);
 
-      this->type = type;
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050071, "error reading COD segment");
       Lcod = swap_byte(Lcod);
@@ -997,7 +996,6 @@ namespace ojph {
       assert(type == COC_MAIN);
       assert(top_cod != NULL);
 
-      this->type = type;
       this->SGCod = top_cod->SGCod;
       this->top_cod = top_cod;
       if (file->read(&Lcod, 2) != 2)
@@ -1091,7 +1089,7 @@ namespace ojph {
       param_cod *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_cod(this, comp_idx);
+      p->next = new param_cod(this, (ui16)comp_idx);
       return p->next;
     }
 

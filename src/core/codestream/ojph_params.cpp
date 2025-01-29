@@ -914,7 +914,7 @@ namespace ojph {
 
       //marker size excluding header
       Lcod = num_comps < 257 ? 9 : 10;
-      Lcod = (ui16)(Lcod + (Scod & 1 ? SPcod.num_decomp : 0));
+      Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
       ui8 buf[4];
       bool result = true;

@@ -148,15 +148,10 @@ endif()
 ################################################################################################
 
 include(GNUInstallDirs)
-install(TARGETS openjph
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-install(DIRECTORY src/core/common/
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openjph
-  FILES_MATCHING
-  PATTERN "*.h")
+install(EXPORT openjph-config
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
+)
 
 install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
@@ -178,6 +173,16 @@ configure_file(
   "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   @ONLY
 )
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/openjph-configVersion.cmake
+                                 COMPATIBILITY SameMinorVersion)
+
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/openjph-configVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
+)
+
 
 ################################################################################################
 # Testing (OJPH_BUILD_TESTS)

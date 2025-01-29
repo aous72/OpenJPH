@@ -1,6 +1,4 @@
 
-include_directories(common)
-
 file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h")
 file(GLOB CODESTREAM_SSE   "codestream/*_sse.cpp")
 file(GLOB CODESTREAM_SSE2  "codestream/*_sse2.cpp")
@@ -38,10 +36,9 @@ if(EMSCRIPTEN)
   add_library(openjph ${SOURCES})
   add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
 
-  target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
-  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
-
   target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
+
+  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
 
   source_group("codestream" FILES ${CODESTREAM_WASM})
   source_group("coding" FILES ${CODING_WASM})
@@ -124,8 +121,8 @@ if (BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 ## include library version/name
-target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
+target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
 
 if (MSVC)
   set(OJPH_LIB_NAME_STRING "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
@@ -139,3 +136,13 @@ else()
       SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
       VERSION "${OPENJPH_VERSION}")
 endif()
+
+install(TARGETS openjph
+  EXPORT openjph-config
+)
+
+install(DIRECTORY common/
+  DESTINATION include/openjph
+  FILES_MATCHING
+  PATTERN "*.h"
+)

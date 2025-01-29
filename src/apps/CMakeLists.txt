@@ -7,10 +7,9 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
 
   if( TIFF_FOUND )
     set(USE_TIFF TRUE CACHE BOOL "Add TIFF support")
-    include_directories( ${TIFF_INCLUDE_DIR} ) 
     add_definitions(-DOJPH_ENABLE_TIFF_SUPPORT)
-  elseif(MSVC)
-    message(STATUS "TIFF support has been enabled by no path to the TIFF library "
+  else()
+    message(WARNING "TIFF support has been requested but no path to the TIFF library "
     "has been specified; please configure with -DCMAKE_PREFIX_PATH=<TIFF library directory>, "
     "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
   endif( TIFF_FOUND )

@@ -3,10 +3,8 @@
 
 if (OJPH_BUILD_STREAM_EXPAND)
 
-  include_directories(../common)
-  include_directories(../../core/common)
   set(CMAKE_CXX_STANDARD 14)
-  
+
   file(GLOB OJPH_STREAM_EXPAND  "*.cpp" "*.h")
   file(GLOB OJPH_SOCKETS         "../others/ojph_sockets.cpp")
   file(GLOB OJPH_SOCKETS_H       "../common/ojph_sockets.h")
@@ -20,12 +18,15 @@ if (OJPH_BUILD_STREAM_EXPAND)
   source_group("common"      FILES ${OJPH_SOCKETS_H} ${OJPH_THREADS_H})
 
   add_executable(ojph_stream_expand ${SOURCES})
+  target_include_directories(ojph_stream_expand PRIVATE ../common)
   if(MSVC)
       target_link_libraries(ojph_stream_expand PUBLIC openjph ws2_32)
   else()
       target_link_libraries(ojph_stream_expand PUBLIC openjph pthread)
   endif(MSVC)
 
-  install(TARGETS ojph_stream_expand DESTINATION bin)
+  install(TARGETS ojph_stream_expand
+          EXPORT openjph-config
+  )
 
 endif(OJPH_BUILD_STREAM_EXPAND)

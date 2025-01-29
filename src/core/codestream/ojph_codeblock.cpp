@@ -74,7 +74,7 @@ namespace ojph {
                                    const size& cb_size,
                                    coded_cb_header* coded_cb,
                                    ui32 K_max, int line_offset,
-                                   ui32 precision)
+                                   ui32 precision, ui32 comp_idx)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -101,10 +101,10 @@ namespace ojph {
       this->K_max = K_max;
       for (int i = 0; i < 4; ++i)
         this->max_val64[i] = 0;
-      ojph::param_cod cod = codestream->access_cod();
-      this->reversible = cod.is_reversible();
+      const param_cod* coc = codestream->get_coc(comp_idx);
+      this->reversible = coc->is_reversible();
       this->resilient = codestream->is_resilient();
-      this->stripe_causal = cod.get_block_vertical_causality();
+      this->stripe_causal = coc->get_block_vertical_causality();
       this->zero_block = false;
       this->coded_cb = coded_cb;
 

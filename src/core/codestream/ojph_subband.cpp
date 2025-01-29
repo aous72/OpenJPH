@@ -200,7 +200,7 @@ namespace ojph {
         cb_size.w = cbx1 - cbx0;
         blocks[i].finalize_alloc(codestream, this, nominal, cb_size,
                                  coded_cbs + i, K_max, line_offset, 
-                                 precision);
+                                 precision, comp_num);
         line_offset += cb_size.w;
       }
 

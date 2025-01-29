@@ -1039,13 +1039,11 @@ namespace ojph {
     {
       if (this->res_num == resolution_num)
         return get_num_bytes();
-      else {
-        if (child_res)
-          return child_res->get_num_bytes(resolution_num);
-        else
-          return 0;
+      if (resolution_num < this->res_num) {
+        assert(child_res);
+        return child_res->get_num_bytes(resolution_num);
       }
-
+      return 0;
     }
   }
 }

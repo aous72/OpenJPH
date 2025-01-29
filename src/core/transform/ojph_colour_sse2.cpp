@@ -83,28 +83,6 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // _mm_max_epi32 requires SSE4.1, so here we implement it in SSE2
-    static inline
-    __m128i ojph_mm_max_epi32(__m128i a, __m128i b)
-    {
-      __m128i c = _mm_cmpgt_epi32(a, b);  // 0xFFFFFFFF for a > b
-      __m128i d = _mm_and_si128(c, a);    // keep only a, where a > b
-      __m128i e = _mm_andnot_si128(c, b); // keep only b, where a <= b
-      return _mm_or_si128(d, e);          // combine
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    // _mm_min_epi32 requires SSE4.1, so here we implement it in SSE2
-    static inline
-    __m128i ojph_mm_min_epi32 (__m128i a, __m128i b)
-    {
-      __m128i c = _mm_cmplt_epi32(a, b);  // 0xFFFFFFFF for a < b
-      __m128i d = _mm_and_si128(c, a);    // keep only a, where a < b
-      __m128i e = _mm_andnot_si128(c, b); // keep only b, where a >= b
-      return _mm_or_si128(d, e);          // combine
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     static inline
     __m128i ojph_mm_max_ge_epi32(__m128i a, __m128i b, __m128 x, __m128 y)
     {

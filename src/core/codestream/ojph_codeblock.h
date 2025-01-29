@@ -75,8 +75,8 @@ namespace ojph {
                             ui32 precision);
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
-                          coded_cb_header* coded_cb,
-                          ui32 K_max, int tbx0, ui32 precision);
+                          coded_cb_header* coded_cb, ui32 K_max, 
+                          int tbx0, ui32 precision, ui32 comp_idx);
       void push(line_buf *line);
       void encode(mem_elastic_allocator *elastic);
       void recreate(const size& cb_size, coded_cb_header* coded_cb);

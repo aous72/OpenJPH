@@ -79,9 +79,6 @@ namespace ojph {
 
       precinct_scratch_needed_bytes = 0;
 
-      used_coc_fields = 0;
-      coc = coc_store;
-
       atk = atk_store;
       atk[0].init_irv97();
       atk[0].link(atk_store + 1);
@@ -626,6 +623,9 @@ namespace ojph {
       if (!cod.write(file))
         OJPH_ERROR(0x00030025, "Error writing to file");
 
+      if (!cod.write_coc(file, num_comps))
+        OJPH_ERROR(0x0003002E, "Error writing to file");
+
       if (!qcd.write(file))
         OJPH_ERROR(0x00030026, "Error writing to file");
 
@@ -751,7 +751,7 @@ namespace ojph {
           skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
         { 
-          cod.read(file, param_cod::COD_MAIN); 
+          cod.read(file);
           received_markers |= 1;
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
@@ -762,12 +762,17 @@ namespace ojph {
         }
         else if (marker_idx == 4) 
         {
-          ui32 num_comps = siz.get_num_components();
-          if (coc == coc_store && 
-              num_comps * sizeof(param_cod) > sizeof(coc_store))
-            coc = new param_cod[num_comps];
-          coc[used_coc_fields++].read(
-            file, param_cod::COC_MAIN, num_comps, &cod);
+          param_cod* p = cod.add_coc_object(param_cod::OJPH_COD_UNKNOWN);
+          p->read_coc(file, siz.get_num_components(), &cod);
+          if (p->get_comp_idx() >= siz.get_num_components())
+            OJPH_INFO(0x00030056, "The codestream carries a COC marker "
+              "segment for a component indexed by %d, which is more than the "
+              "allowed index number, since the codestream has %d components", 
+              p->get_comp_idx(), num_comps);
+          param_cod *q = cod.get_coc(p->get_comp_idx());
+          if (p != q && p->get_comp_idx() == q->get_comp_idx())
+            OJPH_ERROR(0x00030057, "The codestream has two COC marker "
+              "segments for one component of index %d",  p->get_comp_idx());
         }
         else if (marker_idx == 5)
         { 
@@ -779,15 +784,14 @@ namespace ojph {
           param_qcd* p = qcd.add_qcc_object(param_qcd::OJPH_QCD_UNKNOWN); 
           p->read_qcc(file, siz.get_num_components());
           if (p->get_comp_idx() >= siz.get_num_components())
-            OJPH_ERROR(0x00030054, "The codestream carries a QCC narker "
+            OJPH_ERROR(0x00030054, "The codestream carries a QCC marker "
               "segment for a component indexed by %d, which is more than the "
               "allowed index number, since the codestream has %d components", 
               p->get_comp_idx(), num_comps);
           param_qcd *q = qcd.get_qcc(p->get_comp_idx());
           if (p != q && p->get_comp_idx() == q->get_comp_idx())
             OJPH_ERROR(0x00030055, "The codestream has two QCC marker "
-              "segments for one component of index %d", 
-              p->get_comp_idx());
+              "segments for one component of index %d", p->get_comp_idx());
         }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
@@ -827,12 +831,6 @@ namespace ojph {
       }
 
       cod.update_atk(atk);
-      for (int i = 0; i < used_coc_fields; ++i) 
-      {
-        if (i == 0) cod.link_cod(coc);
-        else coc[i - 1].link_cod(coc + i);
-        coc[i].update_atk(atk);
-      }
       siz.link(&cod);
       if (dfs.exists())
         siz.link(&dfs);

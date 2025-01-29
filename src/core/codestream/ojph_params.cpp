@@ -255,6 +255,15 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  param_coc param_cod::get_coc(ui32 component_idx)
+  {
+    local::param_cod *p = state->get_coc(component_idx);
+    if (p == state) // no COC segment marker for this component
+      p = state->add_coc_object(component_idx);
+    return param_coc(p);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   ui32 param_cod::get_num_decompositions() const
   {
     return state->get_num_decompositions();
@@ -275,12 +284,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::is_reversible() const
   {
-    if (state->SPcod.wavelet_trans <= 1)
-      return state->get_wavelet_kern() == local::param_cod::DWT_REV53;
-    else {
-      assert(state->atk != NULL);
-      return state->access_atk()->is_reversible();
-    }
+    return state->is_reversible();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -346,8 +350,60 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   bool param_cod::get_block_vertical_causality() const
   {
-    return (state->SPcod.block_style & local::param_cod::VERT_CAUSAL_MODE)!=0;
+    return state->get_block_vertical_causality();
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_coc::set_num_decomposition(ui32 num_decompositions)
+  { ojph::param_cod(state).set_num_decomposition(num_decompositions); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_coc::set_block_dims(ui32 width, ui32 height)
+  { ojph::param_cod(state).set_block_dims(width, height); }
+  
+  ////////////////////////////////////////////////////////////////////////////  
+  void param_coc::set_precinct_size(int num_levels, size* precinct_size)
+  { ojph::param_cod(state).set_precinct_size(num_levels, precinct_size); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_coc::set_reversible(bool reversible)
+  { ojph::param_cod(state).set_reversible(reversible); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ui32 param_coc::get_num_decompositions() const
+  { return ojph::param_cod(state).get_num_decompositions(); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size param_coc::get_block_dims() const
+  { return ojph::param_cod(state).get_block_dims(); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size param_coc::get_log_block_dims() const
+  { return ojph::param_cod(state).get_log_block_dims(); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_coc::is_reversible() const
+  { return ojph::param_cod(state).is_reversible(); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size param_coc::get_precinct_size(ui32 level_num) const
+  { return ojph::param_cod(state).get_precinct_size(level_num); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  size param_coc::get_log_precinct_size(ui32 level_num) const
+  { return ojph::param_cod(state).get_log_precinct_size(level_num); }
+
+  ////////////////////////////////////////////////////////////////////////////
+  bool param_coc::get_block_vertical_causality() const
+  { return ojph::param_cod(state).get_block_vertical_causality(); }
 
 
   ////////////////////////////////////////////////////////////////////////////
@@ -784,6 +840,17 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
+    bool param_cod::is_reversible() const
+    { 
+      if (SPcod.wavelet_trans <= 1)
+        return get_wavelet_kern() == local::param_cod::DWT_REV53;
+      else {
+        assert(atk != NULL);
+        return atk->is_reversible();
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     bool param_cod::write(outfile_base *file)
     {
       assert(type == COD_MAIN);
@@ -826,12 +893,71 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::read(infile_base *file, param_cod::cod_type type)
+    bool param_cod::write_coc(outfile_base *file, ui32 num_comps)
     {
-      assert(this->type == UNDEFINED);
+      assert(type == COD_MAIN);
+      bool result = true;
+      param_cod *p = this->next;
+      while (p)
+      {
+        if (p->comp_idx < num_comps)
+          result &= p->internal_write_coc(file, num_comps);
+        p = p->next;
+      }
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool param_cod::internal_write_coc(outfile_base *file, ui32 num_comps)
+    {
+      assert(type == COC_MAIN);
+
+      //marker size excluding header
+      Lcod = num_comps < 257 ? 9 : 10;
+      Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
+
+      ui8 buf[4];
+      bool result = true;
+
+      *(ui16*)buf = JP2K_MARKER::COC;
+      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      result &= file->write(&buf, 2) == 2;
+      *(ui16*)buf = swap_byte(Lcod);
+      result &= file->write(&buf, 2) == 2;
+      if (num_comps < 257)
+      {
+        *(ui8*)buf = (ui8)comp_idx;
+        result &= file->write(&buf, 1) == 1;
+      }
+      else
+      {
+        *(ui16*)buf = swap_byte(comp_idx);
+        result &= file->write(&buf, 2) == 2;
+      }
+      *(ui8*)buf = Scod;
+      result &= file->write(&buf, 1) == 1;
+      buf[0] = SPcod.num_decomp;
+      buf[1] = SPcod.block_width;
+      buf[2] = SPcod.block_height;
+      buf[3] = SPcod.block_style;
+      result &= file->write(&buf, 4) == 4;
+      *(ui8*)buf = SPcod.wavelet_trans;
+      result &= file->write(&buf, 1) == 1;
+      if (Scod & 1)
+        for (int i = 0; i <= SPcod.num_decomp; ++i)
+        {
+          *(ui8*)buf = SPcod.precinct_size[i];
+          result &= file->write(&buf, 1) == 1;
+        }
+
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_cod::read(infile_base *file)
+    {
       assert(type == COD_MAIN);
 
-      this->type = type;
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050071, "error reading COD segment");
       Lcod = swap_byte(Lcod);
@@ -864,16 +990,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::read(infile_base* file, param_cod::cod_type type, 
-                         ui32 num_comps, param_cod *cod)
+    void param_cod::read_coc(infile_base* file, ui32 num_comps, 
+                             param_cod *top_cod)
     {
-      assert(this->type == UNDEFINED);
       assert(type == COC_MAIN);
-      assert(cod != NULL);
+      assert(top_cod != NULL);
 
-      this->type = type;
-      this->SGCod = cod->SGCod;
-      this->parent = cod;
+      this->SGCod = top_cod->SGCod;
+      this->top_cod = top_cod;
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050121, "error reading COC segment");
       Lcod = swap_byte(Lcod);
@@ -881,12 +1005,12 @@ namespace ojph {
         ui8 t;
         if (file->read(&t, 1) != 1)
           OJPH_ERROR(0x00050122, "error reading COC segment");
-        comp_num = t;
+        comp_idx = t;
       }
       else {
-        if (file->read(&comp_num, 2) != 2)
+        if (file->read(&comp_idx, 2) != 2)
           OJPH_ERROR(0x00050123, "error reading COC segment");
-        comp_num = swap_byte(comp_num);
+        comp_idx = swap_byte(comp_idx);
       }
       if (file->read(&Scod, 1) != 1)
         OJPH_ERROR(0x00050124, "error reading COC segment");
@@ -917,11 +1041,56 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_cod::update_atk(const param_atk* atk)
     {
+      assert(type == COD_MAIN);
       this->atk = atk->get_atk(SPcod.wavelet_trans);
       if (this->atk == NULL)
-        OJPH_ERROR(0x00050131, "A COD/COC segment employs the DWT kernel "
-          "atk=%d, but a corresponding ATK segment cannot be found", 
+        OJPH_ERROR(0x00050131, "A COD segment employs the DWT kernel "
+          "atk = %d, but a corresponding ATK segment cannot be found.", 
           SPcod.wavelet_trans);
+      param_cod *p = next;
+      while (p)
+      {
+        p->atk = atk->get_atk(p->SPcod.wavelet_trans);
+        if (p->atk == NULL)
+          OJPH_ERROR(0x00050132, "A COC segment employs the DWT kernel "
+            "atk = %d, but a corresponding ATK segment cannot be found", 
+            SPcod.wavelet_trans);
+        p = p->next;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    const param_cod* param_cod::get_coc(ui32 comp_idx) const
+    {
+      assert(this->type == COD_MAIN || this->top_cod->type == COD_MAIN);
+      const param_cod *p, *q;
+      if (this->type == COD_MAIN)
+        q = p = this;
+      else
+        q = p = this->top_cod;
+      while (p && p->comp_idx != comp_idx)
+        p = p->next;
+      return p ? p : q;
+    }
+
+    ////////////////////////////////////////
+    param_cod* param_cod::get_coc(ui32 comp_idx)
+    {
+      // cast object to constant
+      const param_cod* const_p = const_cast<const param_cod*>(this);
+      // call using the constant object, then cast to non-const
+      return const_cast<param_cod*>(const_p->get_coc(comp_idx));
+    }
+
+    ////////////////////////////////////////
+    param_cod* param_cod::add_coc_object(ui32 comp_idx)
+    {
+      assert(type == COD_MAIN);
+      param_cod *p = this;
+      while (p->next != NULL)
+        p = p->next;
+      p->next = new param_cod(this, (ui16)comp_idx);
+      return p->next;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1230,7 +1399,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     ui32 param_qcd::propose_precision(const param_cod* cod) const
     {
-      ui32 comp_idx = cod->get_comp_num();
+      ui32 comp_idx = cod->get_comp_idx();
       ui32 precision = 0;
       const param_cod *main = 
         cod->get_coc(param_cod::OJPH_COD_DEFAULT);
@@ -1552,11 +1721,15 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     const param_qcd* param_qcd::get_qcc(ui32 comp_idx) const
     {
-      assert(this->top_qcd->type == QCD_MAIN);
-      param_qcd* p = this->top_qcd;
+      assert(this->type == QCD_MAIN || this->top_qcd->type == QCD_MAIN);
+      const param_qcd *p, *q;
+      if (this->type == QCD_MAIN)
+        q = p = this;
+      else
+        q = p = this->top_qcd;
       while (p && p->comp_idx != comp_idx)
         p = p->next;
-      return p ? p : this->top_qcd;
+      return p ? p : q;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1566,14 +1739,8 @@ namespace ojph {
       param_qcd *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_qcd;
-      p = p->next;
-
-      p->type = QCC_MAIN;
-      p->next = NULL;
-      p->top_qcd = this;
-      p->comp_idx = (ui16)comp_idx;
-      return p;
+      p->next = new param_qcd(this, (ui16)comp_idx);
+      return p->next;
     }
 
     //////////////////////////////////////////////////////////////////////////

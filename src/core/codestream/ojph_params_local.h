@@ -100,6 +100,7 @@ namespace ojph {
     OJPH_TILEPART_RESOLUTIONS  = 0x1,
     OJPH_TILEPART_COMPONENTS   = 0x2,
     OJPH_TILEPART_LAYERS       = 0x4, // these are meaningless with HTJ2K
+    OJPH_TILEPART_MASK         = 0x3, // mask used for testing
   };
 
   namespace local {
@@ -369,7 +370,10 @@ namespace ojph {
     {
       // serves for both COD and COC markers
       friend ::ojph::param_cod;
-      enum default_comp_num : ui16 { OJPH_COD_DEFAULT = 65535 };      
+      enum default_comp_num : ui16 { 
+        OJPH_COD_UNKNOWN = 65534, 
+        OJPH_COD_DEFAULT = 65535 
+      };
 
       ////////////////////////////////////////
       enum BLOCK_CODING_STYLES {
@@ -392,22 +396,29 @@ namespace ojph {
 
     public: // COD_MAIN and COC_MAIN common functions
       ////////////////////////////////////////
-      param_cod()
+      param_cod(param_cod* top_cod = NULL, ui16 comp_idx = OJPH_COD_DEFAULT)
       {
-        type = UNDEFINED;
+        type = top_cod ? COC_MAIN : COD_MAIN;
         Lcod = 0;
         Scod = 0;
         next = NULL;
         atk = NULL;
-        parent = NULL;
-        comp_num = OJPH_COD_DEFAULT;
+        this->top_cod = top_cod;
+        this->comp_idx = comp_idx;
+      }
+
+      ////////////////////////////////////////
+      ~param_cod() {
+        if (next) {
+          delete next;
+          next = NULL;
+        }
       }
 
       ////////////////////////////////////////
       void set_reversible(bool reversible)
       {
-        assert(type == UNDEFINED || type == COD_MAIN);
-        type = COD_MAIN;
+        assert(type == UNDEFINED || type == COD_MAIN || type == COC_MAIN);
         SPcod.wavelet_trans = reversible ? DWT_REV53 : DWT_IRV97;
       }
 
@@ -416,15 +427,13 @@ namespace ojph {
       {
         assert(val == 0 || val == 1);
         assert(type == UNDEFINED || type == COD_MAIN);
-        type = COD_MAIN;
         SGCod.mc_trans = val;
       }
 
       ////////////////////////////////////////
       void check_validity(const param_siz& siz)
       {
-        assert(type == UNDEFINED || type == COD_MAIN);
-        type = COD_MAIN;
+        assert(type == COD_MAIN);
 
         //check that colour transform and match number of components and
         // downsampling
@@ -490,7 +499,7 @@ namespace ojph {
         else if (type == COC_MAIN)
         {
           if (is_dfs_defined())
-            return parent->get_num_decompositions();
+            return top_cod->get_num_decompositions();
           else
             return SPcod.num_decomp;
         }
@@ -513,8 +522,16 @@ namespace ojph {
       { return SPcod.wavelet_trans; }
 
       ////////////////////////////////////////
+      bool is_reversible() const;
+
+      ////////////////////////////////////////
       bool is_employing_color_transform() const
-      { return (SGCod.mc_trans == 1); }
+      { 
+        if (type == COD_MAIN || type == COD_TILE)
+          return (SGCod.mc_trans == 1);
+        else
+          return top_cod->is_employing_color_transform();
+      }
 
       ////////////////////////////////////////
       size get_precinct_size(ui32 res_num) const
@@ -535,50 +552,46 @@ namespace ojph {
       ////////////////////////////////////////
       bool packets_may_use_sop() const
       { 
-        if (parent)
-          return (parent->Scod & 2) == 2; 
-        else
+        if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 2) == 2;
+        return false;
       }
 
       ////////////////////////////////////////
       bool packets_use_eph() const
       { 
-        if (parent)
-          return (parent->Scod & 4) == 4;
-        else
+        if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 4) == 4;
+        return false;
       }
+
+      ////////////////////////////////////////
+      bool get_block_vertical_causality() const
+      { return (SPcod.block_style & local::param_cod::VERT_CAUSAL_MODE) != 0; }
 
       ////////////////////////////////////////
       bool write(outfile_base *file);
 
       ////////////////////////////////////////
-      void read(infile_base *file, cod_type type);
+      bool write_coc(outfile_base *file, ui32 num_comps);
 
       ////////////////////////////////////////
-      void read(infile_base* file, cod_type type, ui32 num_comps, 
-                param_cod* cod);
+      void read(infile_base *file);
+
+      ////////////////////////////////////////
+      void read_coc(infile_base* file, ui32 num_comps, param_cod* top_cod);
 
       ////////////////////////////////////////
       void update_atk(const param_atk* atk);
 
       ////////////////////////////////////////
-      void link_cod(const param_cod* coc)
-      { this->next = coc; }
+      const param_cod* get_coc(ui32 comp_idx) const;
 
       ////////////////////////////////////////
-      const param_cod* get_coc(ui32 comp_num) const
-      {
-        const param_cod* result = this;
-        if (result->type != COD_MAIN)
-          result = result->parent;
-        assert(result->type == COD_MAIN);
+      param_cod* get_coc(ui32 comp_idx);
 
-        while (result != NULL && result->get_comp_num() != comp_num)
-          result = result->next;
-        return result ? result : this;
-      }
+      ////////////////////////////////////////
+      param_cod* add_coc_object(ui32 comp_idx);
 
       ////////////////////////////////////////
       const param_atk* access_atk() const { return atk; }
@@ -593,25 +606,29 @@ namespace ojph {
       { return SPcod.num_decomp & 0xF; }
 
       ////////////////////////////////////////
-      ui32 get_comp_num() const
+      ui32 get_comp_idx() const
       { 
-        assert((type == COC_MAIN && comp_num != OJPH_COD_DEFAULT) || 
-               (type == COD_MAIN && comp_num == OJPH_COD_DEFAULT));
-        return comp_num; 
+        assert((type == COC_MAIN && comp_idx != OJPH_COD_DEFAULT) || 
+               (type == COD_MAIN && comp_idx == OJPH_COD_DEFAULT));
+        return comp_idx; 
       }
 
+    private:
+      bool internal_write_coc(outfile_base *file, ui32 num_comps);
+
+    ////////////////////////////////////////
     private: // Common variables
       cod_type type;        // The type of this cod structure
       ui16 Lcod;            // serves as Lcod and Scod
       ui8 Scod;             // serves as Scod and Scoc
       cod_SGcod SGCod;      // Used in COD and copied to COC
       cod_SPcod SPcod;      // serves as SPcod and SPcoc
-      const param_cod* next;// to chain coc parameters to cod
+      param_cod* next;      // to chain coc parameters to cod
       const param_atk* atk; // used to read transform information
 
     private: // COC only variables
-      param_cod* parent;    // parent COD structure
-      ui16 comp_num;        // component index of this COC structure
+      param_cod* top_cod;   // parent COD structure
+      ui16 comp_idx;        // component index of this COC structure
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -637,11 +654,12 @@ namespace ojph {
         QCC_MAIN  = 2,
         QCD_TILE  = 3,  // not implemented
         QCC_TILE  = 4   // not implemented
-      };      
+      };
+
     public:
-      param_qcd()
+      param_qcd(param_qcd* top_qcd = NULL, ui16 comp_idx = OJPH_QCD_DEFAULT)
       { 
-        type = QCD_MAIN;
+        type = top_qcd ? QCC_MAIN : QCD_MAIN;
         Lqcd = 0;
         Sqcd = 0;
         memset(&SPqcd, 0, sizeof(SPqcd));
@@ -649,8 +667,8 @@ namespace ojph {
         base_delta = -1.0f;
         enabled = true;
         next = NULL;
-        top_qcd = this;
-        comp_idx = OJPH_QCD_DEFAULT;
+        this->top_qcd = top_qcd;
+        this->comp_idx = comp_idx;
       }
       ~param_qcd() {
         if (next)

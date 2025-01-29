@@ -159,11 +159,6 @@ namespace ojph {
       param_tlm tlm;         // tile-part lengths
       param_nlt nlt;         // non-linearity point transformation
 
-    private: // this is to handle qcc and coc
-      int used_coc_fields;
-      param_cod *coc;         // coding style component
-      param_cod coc_store[4]; // we allocate 4, we allocate more if needed
-
     private:  // these are from Part 2 of the standard
       param_dfs dfs;         // downsmapling factor styles
       param_atk* atk;        // a pointer to atk

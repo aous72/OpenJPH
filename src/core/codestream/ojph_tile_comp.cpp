@@ -58,7 +58,8 @@ namespace ojph {
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
       //allocate a resolution
-      ui32 num_decomps = codestream->access_cod().get_num_decompositions();
+      ui32 num_decomps;
+      num_decomps = codestream->get_coc(comp_num)->get_num_decompositions();
       allocator->pre_alloc_obj<resolution>(1);
 
       resolution::pre_alloc(codestream, comp_rect, recon_comp_rect, comp_num, 
@@ -130,13 +131,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile_comp::get_top_left_precinct(ui32 res_num, point &top_left)
     {
-      assert(res_num <= num_decomps);
-      res_num = num_decomps - res_num;
+      int resolution_num = (int)num_decomps - (int)res_num;
       resolution *r = res;
-      while (res_num > 0 && r != NULL)
+       while (resolution_num > 0 && r != NULL)
       {
         r = r->next_resolution();
-        --res_num;
+        --resolution_num;
       }
       if (r) //resolution does not exist if r is NULL
         return r->get_top_left_precinct(top_left);
@@ -147,13 +147,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void tile_comp::write_one_precinct(ui32 res_num, outfile_base *file)
     {
-      assert(res_num <= num_decomps);
-      res_num = num_decomps - res_num;
+      int resolution_num = (int)num_decomps - (int)res_num;
       resolution *r = res;
-      while (res_num > 0 && r != NULL)
+      while (resolution_num > 0 && r != NULL)
       {
         r = r->next_resolution();
-        --res_num;
+        --resolution_num;
       }
       if (r) //resolution does not exist if r is NULL
         r->write_one_precinct(file);

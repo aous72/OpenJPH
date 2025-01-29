@@ -81,7 +81,8 @@ namespace ojph {
       tile_comp *comps;
       ui32 num_lines;
       line_buf* lines;
-      bool reversible, employ_color_transform, resilient;
+      bool employ_color_transform, resilient;
+      bool *reversible;
       rect *comp_rects, *recon_comp_rects;
       ui32 *line_offsets;
       ui32 skipped_res_for_read;

@@ -32,13 +32,8 @@ source_group("others"            FILES ${OTHERS})
 source_group("transform"         FILES ${TRANSFORM})
 
 if(EMSCRIPTEN)
-  add_compile_options(-std=c++11 -O3 -fexceptions)
-  add_library(openjph ${SOURCES})
-  add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
-
-  target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
-
-  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
+  add_compile_options(-std=c++11 -O3 -fexceptions -DOJPH_ENABLE_WASM_SIMD -msimd128)
+  list(APPEND SOURCES ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
 
   source_group("codestream" FILES ${CODESTREAM_WASM})
   source_group("coding" FILES ${CODING_WASM})
@@ -111,9 +106,10 @@ else()
 
   endif()
 
-  add_library(openjph ${SOURCES})
 
 endif()
+
+add_library(openjph ${SOURCES})
 
 ## The option BUILD_SHARED_LIBS
 if (BUILD_SHARED_LIBS AND WIN32)

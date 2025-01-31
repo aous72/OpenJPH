@@ -14,14 +14,7 @@ source_group("others"      FILES ${OJPH_IMG_IO})
 source_group("common"      FILES ${OJPH_IMG_IO_H})
 
 if(EMSCRIPTEN)
-  add_compile_options(-std=c++11 -O3 -fexceptions)
-  add_link_options(-sWASM=1 -sASSERTIONS=1 -sALLOW_MEMORY_GROWTH=1 -sNODERAWFS=1 -sENVIRONMENT=node -sEXIT_RUNTIME=1 -sEXCEPTION_CATCHING_ALLOWED=['fake'])
-  add_executable(ojph_compress_simd ${SOURCES} ${OJPH_IMG_IO_SSE4})
-  target_compile_options(ojph_compress_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128 -msse4.1)
   source_group("others" FILES ${OJPH_IMG_IO_SSE4})
-  target_include_directories(ojph_compress_simd PRIVATE ../common)
-  target_link_libraries(ojph_compress_simd PRIVATE openjphsimd)
-  install(TARGETS ojph_compress_simd)
 else()
   if (NOT OJPH_DISABLE_SIMD)
     if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
@@ -51,11 +44,7 @@ endif()
 
 add_executable(ojph_compress ${SOURCES})
 target_include_directories(ojph_compress PRIVATE ../common)
-if (TIFF_FOUND AND (NOT EMSCRIPTEN))
-  target_link_libraries(ojph_compress PRIVATE openjph TIFF::TIFF)
-else()
-  target_link_libraries(ojph_compress PRIVATE openjph)
-endif()
+target_link_libraries(ojph_compress PRIVATE openjph $<TARGET_NAME_IF_EXISTS:TIFF::TIFF>)
 
 install(TARGETS ojph_compress
   EXPORT openjph-config

@@ -21,5 +21,5 @@ jobs:
       - name: Build
         run: |
           cd build
-          cmake ..
-          make
+          emcmake cmake ..
+          emmake make

@@ -58,16 +58,26 @@ if (DEFINED OJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## Setting some of the options if EMSCRIPTEN is the compiler
-# WebAssembly SIMD is treated differently.  The SIMD flags above have no effect on the 
-# use of WASM SIMD.  This is because, for WASM, both non-SIMD and SIMD are required,
-# and therefore two sets of binaries are generated. For CPUs, one binary can carry both 
-# non-SIMD and SIMD, and the program, at run-time, can decide which path to follow, 
-# depending on what CPU instructions are available.
+# In previous releases, the cmake script used to produce both non-SIMD and 
+# SIMD builds in one go.  At the time of this writing, all interpreters and 
+# compilers of WASM code, such as web-browser and node, support SIMD, therefore 
+# it is time to make the SIMD build the default.  In other words, this cmake 
+# script builds only WASM SIMD code by default, if desired, a non-SIMD build
+# can be generated using the OJPH_DISABLE_SIMD option (in this case, the 
+# WASM SIMD code is not generated).
+# It is worth remembering that the SIMD/non-SIMD issue arose because it is
+# NOT possible to have multiple execution paths in the code, one for non-SIMD
+# and one for SIMD, as we do for CPUs, letting the program select, at run-time, 
+# the best path to follow.
 if(EMSCRIPTEN)
   set(BUILD_SHARED_LIBS OFF)
   set(OJPH_ENABLE_TIFF_SUPPORT OFF)
   set(OJPH_BUILD_STREAM_EXPAND OFF)
-  set(OJPH_DISABLE_SIMD ON)
+  if (OJPH_DISABLE_SIMD)
+    set(OJPH_ENABLE_WASM_SIMD OFF)
+  else()
+    set(OJPH_ENABLE_WASM_SIMD ON)
+  endif()
 endif()
 
 # This is related to how the timestamp is set for URL downloaded files.
@@ -105,6 +115,12 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   -Wconversion 
   -Wunused-parameter
   )
+endif()
+if (EMSCRIPTEN)
+  add_compile_options(-fexceptions)
+  if(OJPH_ENABLE_WASM_SIMD)
+    add_compile_options(-DOJPH_ENABLE_WASM_SIMD -msimd128)
+  endif()
 endif()
 
 ## Enhanced instruction options

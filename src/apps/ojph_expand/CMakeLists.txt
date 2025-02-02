@@ -1,7 +1,6 @@
 ## building ojph_expand
 #######################
 
-
 file(GLOB OJPH_EXPAND         "ojph_expand.cpp")
 file(GLOB OJPH_IMG_IO         "../others/ojph_img_io.cpp")
 file(GLOB OJPH_IMG_IO_SSE4    "../others/ojph_img_io_sse41.cpp")
@@ -15,7 +14,11 @@ source_group("others"      FILES ${OJPH_IMG_IO})
 source_group("common"      FILES ${OJPH_IMG_IO_H})
 
 if(EMSCRIPTEN)
-  source_group("others" FILES ${OJPH_IMG_IO_SSE4})
+  if (OJPH_ENABLE_WASM_SIMD)
+    list(APPEND SOURCES ${OJPH_IMG_IO_SSE4})
+    source_group("others" FILES ${OJPH_IMG_IO_SSE4})
+    set_source_files_properties(${OJPH_IMG_IO_SSE4} PROPERTIES COMPILE_FLAGS -msse4.1)
+  endif()
 else()
   if (NOT OJPH_DISABLE_SIMD)
     if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))

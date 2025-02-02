@@ -18,8 +18,30 @@ jobs:
         with:
           actions-cache-folder: 'emsdk-cache'
 
-      - name: Build
+      - name: Build non-SIMD and Debug
         run: |
           cd build
-          emcmake cmake ..
-          emmake make
+          emcmake cmake .. --fresh -DOJPH_DISABLE_SIMD=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build . --config Debug --clean-first
+          cd ..
+
+      - name: Build non-SIMD and Release
+        run: |
+          cd build
+          emcmake cmake .. --fresh -DOJPH_DISABLE_SIMD=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release --clean-first
+          cd ..
+
+      - name: Build SIMD and Debug
+        run: |
+          cd build
+          emcmake cmake .. --fresh -DOJPH_DISABLE_SIMD=OFF -DCMAKE_BUILD_TYPE=Debug
+          cmake --build . --config Debug --clean-first
+          cd ..
+
+      - name: Build SIMD and Release
+        run: |
+          cd build
+          emcmake cmake .. --fresh -DOJPH_DISABLE_SIMD=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release --clean-first
+          cd ..

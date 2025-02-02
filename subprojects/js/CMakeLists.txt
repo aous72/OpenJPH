@@ -2,18 +2,26 @@ cmake_minimum_required(VERSION 3.10.0)
 
 set(CMAKE_SYSTEM_NAME Generic)
 
-project (openjphwasm DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../html)
+project (OpenJPH_WASM DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
 
 add_subdirectory("../.." openjph EXCLUDE_FROM_ALL)
 add_executable(libopenjph "src/ojph_wrapper.cpp")
-set_target_properties(libopenjph PROPERTIES SUFFIX ".js" LINK_FLAGS "-O3 -fexceptions -s WASM=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728")
+if (OJPH_DISABLE_SIMD)
+else()
+  target_compile_options(libopenjph PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
+endif()
+set_target_properties(libopenjph PROPERTIES SUFFIX ".js")
+target_link_options(libopenjph PRIVATE
+  -fexceptions
+  -sWASM=1
+  -sEXPORT_ES6=1
+  -sMODULARIZE=1
+  -sENVIRONMENT=web
+  -sEXPORTED_FUNCTIONS=[_free,_malloc]
+  -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory]
+  -sNO_EXIT_RUNTIME=1
+  -sALLOW_MEMORY_GROWTH=1
+  -sINITIAL_MEMORY=134217728
+)
 target_link_libraries(libopenjph PRIVATE openjph)
-
-add_executable(libopenjph_simd "src/ojph_wrapper.cpp" )
-target_compile_options(libopenjph_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
-set_target_properties(libopenjph_simd PROPERTIES SUFFIX ".js" LINK_FLAGS "-O3 -fexceptions -s WASM=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s ENVIRONMENT=web -s EXPORTED_FUNCTIONS=[_free,_malloc] -s EXPORTED_RUNTIME_METHODS=[ccall,cwrap,writeArrayToMemory] -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728")
-target_link_libraries(libopenjph_simd PRIVATE openjphsimd)
 

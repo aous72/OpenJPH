@@ -503,7 +503,7 @@ namespace ojph {
       { // all subbands are empty
         ui32 bit = 0;
         bb_read_bit(&bb, bit);
-        assert(bit == 0);
+        //assert(bit == 0);
       }
       bb_terminate(&bb, uses_eph);
       //read codeblock data

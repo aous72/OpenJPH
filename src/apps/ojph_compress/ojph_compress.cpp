@@ -777,33 +777,20 @@ int main(int argc, char * argv[]) {
           if (num_bit_depths < num_comps)  // but if not enough, repeat
             for (ojph::ui32 c = num_bit_depths; c < num_comps; ++c)
               bit_depth[c] = bit_depth[num_bit_depths - 1];
-        if (is_signed[0] != -1)            // one was set
-          if (num_is_signed < num_comps)   // but if not enough, repeat
-            for (ojph::ui32 c = num_is_signed; c < num_comps; ++c)
-              is_signed[c] = is_signed[num_is_signed - 1];
 
         bool all_the_same = true;
         if (num_comps == 3)
-        {
           all_the_same = all_the_same 
             && bit_depth[0] == bit_depth[1] 
             && bit_depth[1] == bit_depth[2];
-          all_the_same = all_the_same
-            && is_signed[0] == is_signed[1]
-            && is_signed[1] == is_signed[2];
-        }
 
-        pfm.configure(bit_depth);
-        ojph::point ds(1, 1);
         for (ojph::ui32 c = 0; c < num_comps; ++c) {
-          ojph::ui32 bd = 32;
-          if (bit_depth[c] != 0)
-            bd = bit_depth[c];
-          bool is = true;
-          if (is_signed[c] != -1)
-            is = is_signed[c] != 0;
-          siz.set_component(c, ds, bd, is);
+          if (bit_depth[c] == 0)
+            bit_depth[c] = 32;
+          siz.set_component(c, ojph::point(1,1), bit_depth[c], true);
         }
+        pfm.configure(bit_depth);
+
         siz.set_image_offset(image_offset);
         siz.set_tile_size(tile_size);
         siz.set_tile_offset(tile_offset);
@@ -817,7 +804,7 @@ int main(int argc, char * argv[]) {
         if (num_comps == 1)
         {
           if (employ_color_transform != -1)
-            OJPH_WARN(0x01000092,
+            OJPH_WARN(0x01000091,
               "-colour_trans option is not needed and was not used; "
               "this is because the image has one component only\n");
         }
@@ -829,29 +816,30 @@ int main(int argc, char * argv[]) {
             cod.set_color_transform(employ_color_transform == 1);
         }
         cod.set_reversible(reversible);
-        if (!reversible && quantization_step != -1.0f)
-          codestream.access_qcd().set_irrev_quant(quantization_step);
-
-        ojph::param_nlt nlt = codestream.access_nlt();
-        if (reversible) {
-          // Note: Even if only ALL_COMPS is set to 
-          // OJPH_NLT_BINARY_COMPLEMENT_NLT, the library can decide if
-          // one ALL_COMPS NLT marker segment is needed, or multiple 
-          // per component NLT marker segments are needed (when the components
-          // have different bit depths or signedness).
-          // Of course for .pfm images all components should have the same
-          // bit depth and signedness.
-          if (all_the_same)
-            nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
-              ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
+        if (!reversible) {
+          const float min_step = 1.0f / 16384.0f;
+          if (quantization_step == -1.0f)
+            quantization_step = min_step;
           else
-            for (ojph::ui32 c = 0; c < num_comps; ++c)
-              nlt.set_nonlinear_transform(c, 
-                ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
+            quantization_step = ojph_max(quantization_step, min_step);
+          codestream.access_qcd().set_irrev_quant(quantization_step);
         }
+
+        // Note: Even if only ALL_COMPS is set to 
+        // OJPH_NLT_BINARY_COMPLEMENT_NLT, the library can decide if
+        // one ALL_COMPS NLT marker segment is needed, or multiple 
+        // per component NLT marker segments are needed (when the components
+        // have different bit depths or signedness).
+        // Of course for .pfm images all components should have the same
+        // bit depth and signedness.
+        ojph::param_nlt nlt = codestream.access_nlt();
+        if (all_the_same)
+          nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
+            ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
         else
-          OJPH_ERROR(0x01000093, "We currently support lossless only for "
-            "pfm images; this may change in the future.");
+          for (ojph::ui32 c = 0; c < num_comps; ++c)
+            nlt.set_nonlinear_transform(c, 
+              ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
 
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
@@ -861,13 +849,16 @@ int main(int argc, char * argv[]) {
         codestream.request_tlm_marker(tlm_marker);          
 
         if (dims.w != 0 || dims.h != 0)
-          OJPH_WARN(0x01000094,
+          OJPH_WARN(0x01000092,
             "-dims option is not needed and was not used\n");
         if (num_components != 0)
-          OJPH_WARN(0x01000095,
+          OJPH_WARN(0x01000093,
             "-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          OJPH_WARN(0x01000094,
+            "-signed is not needed and was not used\n");            
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
-          OJPH_WARN(0x01000096,
+          OJPH_WARN(0x01000095,
             "-downsamp is not needed and was not used\n");
 
         base = &pfm;

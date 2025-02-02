@@ -275,7 +275,6 @@ int main(int argc, char *argv[]) {
 
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
-        ojph::param_cod cod = codestream.access_cod();
 
         ojph::ui32 num_comps = siz.get_num_components();
         if (num_comps != 3 && num_comps != 1)

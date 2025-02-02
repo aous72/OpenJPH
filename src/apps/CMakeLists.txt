@@ -19,7 +19,6 @@ endif()
 
 if (EMSCRIPTEN)
   add_link_options(-sWASM=1 -sASSERTIONS=1 -sALLOW_MEMORY_GROWTH=1 -sNODERAWFS=1 -sENVIRONMENT=node -sEXIT_RUNTIME=1 -sEXCEPTION_CATCHING_ALLOWED=['fake'])
-  add_compile_options(-DOJPH_ENABLE_WASM_SIMD -msimd128 -msse4.1 -std=c++11 -O3 -fexceptions)
 endif()
 
 ## Build executables

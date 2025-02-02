@@ -269,60 +269,31 @@ int main(int argc, char *argv[]) {
       }
       else if (is_matching(".pfm", v))
       {
-        OJPH_INFO(0x02000011, "Note: The .pfm implementation is "
-          "experimental. It is developed for me the test NLT marker segments. "
-          "For this reason, I am restricting it to images that employ the "
-          "NLT marker segment, with the assumption that original values are "
+        OJPH_INFO(0x02000010, "Note: The .pfm implementation is "
+          "experimental.  Here, we are assuming that the original data is "
           "floating-point numbers.");
 
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
-        ojph::param_cod cod = codestream.access_cod();
-        ojph::param_nlt nlt = codestream.access_nlt();
 
         ojph::ui32 num_comps = siz.get_num_components();
         if (num_comps != 3 && num_comps != 1)
           OJPH_ERROR(0x0200000C,
             "The file has %d color components; this cannot be saved to"
-            " a .pfm file\n", num_comps);
+            " a .pfm file", num_comps);
         bool all_same = true;
         ojph::point p = siz.get_downsampling(0);
-        for (ojph::ui32 i = 1; i < siz.get_num_components(); ++i)
-        {
+        for (ojph::ui32 i = 1; i < siz.get_num_components(); ++i) {
           ojph::point p1 = siz.get_downsampling(i);
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
         }
         if (!all_same)
           OJPH_ERROR(0x0200000D,
             "To save an image to ppm, all the components must have the "
-            "same downsampling ratio\n");
+            "same downsampling ratio");
         ojph::ui32 bit_depth[3];
-        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c) {
-          ojph::ui8 bd = 0;
-          bool is = true;
-          ojph::ui8 nl_type;
-          bool result = nlt.get_nonlinear_transform(c, bd, is, nl_type);
-          if (result == false || 
-              nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
-            OJPH_ERROR(0x0200000E,
-              "This codestream is not supported; it does not have an "
-              "NLT segment marker for this component (or no default NLT "
-              "settings) .\n");
-          if (bd != siz.get_bit_depth(c) || is != siz.is_signed(c))
-            OJPH_ERROR(0x0200000F,
-              "There is discrepancy in component %d configuration between "
-              "SIZ marker segment, which specifies bit_depth = %d and "
-              "signedness = %s, and NLT marker segment, which specifies "
-              "bit_depth = %d and signedness = %s.\n", c, 
-              siz.get_bit_depth(c), is != siz.is_signed(c) ? "True" : "False",
-              bd, is ? "True" : "False");
-          bit_depth[c] = bd;
-        }
-        if (!cod.is_reversible())
-          OJPH_ERROR(0x02000010,
-            "This codestream is lossy (not reversible), and we currently "
-            "only support reversible codestreams for .pfm target files. "
-            "This is only temporary and will be changed at some point.\n");
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+          bit_depth[c] = siz.get_bit_depth(c);
         pfm.configure(siz.get_recon_width(0), siz.get_recon_height(0),
           siz.get_num_components(), -1.0f, bit_depth);
         pfm.open(output_filename);

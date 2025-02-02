@@ -70,14 +70,8 @@ else()
   )
   if(EMSCRIPTEN)
     add_custom_command(TARGET test_executables POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_expand_simd>" "./"
-      COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_compress_simd>" "./"
-    )
-    add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ojph_expand>/ojph_expand.wasm" "./"
       COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ojph_compress>/ojph_compress.wasm" "./"
-      COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ojph_expand_simd>/ojph_expand_simd.wasm" "./"
-      COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ojph_compress_simd>/ojph_compress_simd.wasm" "./"
     )
   endif(EMSCRIPTEN)
   if(MSYS)

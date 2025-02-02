@@ -274,7 +274,7 @@ namespace ojph {
         ph_bytes += cur_coded_list->buf_size - cur_coded_list->avail_size;
       }
 
-      return coded ? cb_bytes + ph_bytes : 1;
+      return coded ? cb_bytes + ph_bytes : 1; // 1 for empty packet
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -335,15 +335,6 @@ namespace ojph {
       bb_init(&bb, data_left, file);
       if (may_use_sop)
         bb_skip_sop(&bb);
-
-      if (bands[0].empty && bands[1].empty && bands[2].empty && bands[3].empty)
-      {
-        ui32 bit = 0;
-        bb_read_bit(&bb, bit);
-        bb_terminate(&bb, uses_eph);
-        assert(bit == 0);
-        return;
-      }
 
       bool empty_packet = true;
       for (int s = 0; s < 4; ++s)
@@ -508,12 +499,19 @@ namespace ojph {
           }
         }
       }
+      if (empty_packet)
+      { // all subbands are empty
+        ui32 bit = 0;
+        bb_read_bit(&bb, bit);
+        //assert(bit == 0);
+      }
       bb_terminate(&bb, uses_eph);
       //read codeblock data
       for (int s = 0; s < 4; ++s)
       {
         if (bands[s].empty)
           continue;
+
         ui32 band_width = bands[s].num_blocks.w;
         ui32 width = cb_idxs[s].siz.w;
         ui32 height = cb_idxs[s].siz.h;

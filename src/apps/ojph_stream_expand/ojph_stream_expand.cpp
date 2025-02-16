@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
         OJPH_INFO(0x02000005,
           "Error converting source address: %s", err.data());
       }
-      printf("Listining on %s, port %d\n", t, ntohs(server.sin_port));
+      printf("Listening on %s, port %d\n", t, ntohs(server.sin_port));
     }
 
     // process the source IPv4 address and port
@@ -319,7 +319,7 @@ int main(int argc, char* argv[])
           OJPH_INFO(0x02000004,
             "Error converting source address: %s", err.data());
         }
-        printf("Source mistmatch %s, port %d\n",
+        printf("Source mismatch %s, port %d\n",
           t, ntohs(si_other.sin_port));
         continue;
       }
@@ -353,7 +353,7 @@ int main(int argc, char* argv[])
           ojph::ui32 total_frames = 0, trunc_frames = 0, lost_frames = 0;
           frames_handler.get_stats(total_frames, trunc_frames, lost_frames);
 
-          printf("Total frame %d, tuncated frames %d, lost frames %d, "
+          printf("Total frame %d, truncated frames %d, lost frames %d, "
             "packets lost %d\n",
             total_frames, trunc_frames, lost_frames, lost_packets);
         }

@@ -68,7 +68,7 @@ struct j2k_frame_storer;
 ///////////////////////////////////////////////////////////////////////////////
 
 /*****************************************************************************/
-/** @brief inteprets RTP header and payload, and holds received packets.
+/** @brief interprets RTP header and payload, and holds received packets.
  * 
  *  This object interpret RFC 3550 and draft-ietf-avtcore-rtp-j2k-scl-00.
  *  The implementation is not complete, but it is sufficient for the time 

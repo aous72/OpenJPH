@@ -301,7 +301,7 @@ void frames_handler::push(rtp_packet* p)
   if (p->get_packet_type() != rtp_packet::PT_BODY)
   { // main packet payload
 
-    // The existance of a previous frame means we did not get the marked
+    // The existence of a previous frame means we did not get the marked
     // packet.  Here, we close the frame and move it to processing
     if (in_use) {
       ++trunc_frames;

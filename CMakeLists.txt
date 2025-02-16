@@ -191,11 +191,11 @@ configure_file(
 )
 
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/openjph-configVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
                                  COMPATIBILITY SameMinorVersion)
 
 install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/openjph-configVersion.cmake
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
 )
 

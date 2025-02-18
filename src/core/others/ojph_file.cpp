@@ -311,7 +311,7 @@ namespace ojph {
     }
     else if (origin == OJPH_SEEK_CUR)
     {
-      std::ptrdiff_t bytes_off = cur_ptr - data; bytes_off += offset;
+      si64 bytes_off = (si64)(cur_ptr - data) + offset;
       if (bytes_off >= 0 && (size_t)bytes_off <= size)
       {
         cur_ptr = data + bytes_off;

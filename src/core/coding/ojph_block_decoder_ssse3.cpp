@@ -1725,8 +1725,8 @@ namespace ojph {
               __m128i r = _mm_or_si128(t0, t1);
               r = _mm_shuffle_epi8(r, shuffle_mask);
 
-              dp[0] = _mm_extract_epi16(r, 0);
-              dp[1] = _mm_extract_epi16(r, 1);
+              dp[0] = (ui16)_mm_extract_epi16(r, 0);
+              dp[1] = (ui16)_mm_extract_epi16(r, 1);
             }
             dp[0] = 0; // set an extra entry on the right with 0
           }

@@ -1700,7 +1700,7 @@ namespace ojph {
               __m128i r = _mm_or_si128(t0, t1);
               r = _mm_shuffle_epi8(r, shuffle_mask);
 
-              *(ui32*)dp = _mm_extract_epi32(r, 0);
+              *(ui32*)dp = (ui32)_mm_extract_epi32(r, 0);
             }
             dp[0] = 0; // set an extra entry on the right with 0
           }

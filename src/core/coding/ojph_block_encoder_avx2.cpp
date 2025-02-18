@@ -802,9 +802,20 @@ static __m256i proc_cq2(ui32 x, __m256i *cx_val_vec, __m256i &rho_vec,
     auto lcxp1_vec = _mm256_permutevar8x32_epi32(cx_val_vec[x], right_shift);
     auto tmp = _mm256_permutevar8x32_epi32(lcxp1_vec, right_shift);
 
-    tmp = _mm256_insert_epi64(tmp, _mm_cvtsi128_si64(_mm256_castsi256_si128(cx_val_vec[x + 1])), 3);
+#ifdef OJPH_ARCH_X86_64
+    tmp = _mm256_insert_epi64(tmp, 
+      _mm_cvtsi128_si64(_mm256_castsi256_si128(cx_val_vec[x + 1])), 3);
+#elif (defined OJPH_ARCH_I386)
+    int lsb = _mm_cvtsi128_si32(_mm256_castsi256_si128(cx_val_vec[x + 1]));
+    tmp = _mm256_insert_epi32(tmp, lsb, 6);
+    int msb = _mm_extract_epi32(_mm256_castsi256_si128(cx_val_vec[x + 1]), 1);
+    tmp = _mm256_insert_epi32(tmp, msb, 7);
+#else
+    #error Error unsupport compiler
+#endif
     tmp = _mm256_slli_epi32(tmp, 2);
-    auto tmp1 = _mm256_insert_epi32(lcxp1_vec, _mm_cvtsi128_si32(_mm256_castsi256_si128(cx_val_vec[x + 1])), 7);
+    auto tmp1 = _mm256_insert_epi32(lcxp1_vec, 
+      _mm_cvtsi128_si32(_mm256_castsi256_si128(cx_val_vec[x + 1])), 7);
     tmp = _mm256_add_epi32(tmp1, tmp);
 
     tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(4));

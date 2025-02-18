@@ -212,7 +212,14 @@ namespace ojph {
       _mm_storeu_si128((__m128i*)(p + 48), _mm256_castsi256_si128(v));
       _mm_storeu_si128((__m128i*)(p + 60), _mm256_extracti128_si256(v,1));
       _mm_storeu_si128((__m128i*)(p + 72), _mm256_castsi256_si128(w));
+#ifdef OJPH_ARCH_X86_64      
       *((si64*)(p + 84)) = _mm256_extract_epi64(w, 2);
+#elif (defined OJPH_ARCH_I386)
+      *((si32*)(p + 84)) = _mm256_extract_epi32(w, 4);
+      *((si32*)(p + 88)) = _mm256_extract_epi32(w, 5);
+#else
+      #error Error unsupport compiler
+#endif
       *((si32*)(p + 92)) = _mm256_extract_epi32(w, 6);
 
       // this is an alterative slower implementation

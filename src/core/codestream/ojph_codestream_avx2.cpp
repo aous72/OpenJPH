@@ -38,6 +38,7 @@
 #include <climits>
 #include <immintrin.h>
 #include "ojph_defs.h"
+#include "ojph_arch.h"
 
 namespace ojph {
   namespace local {
@@ -64,7 +65,15 @@ namespace ojph {
       x0 = _mm_or_si128(x0, x1);
       x1 = _mm_shuffle_epi32(x0, 0xEE);   // x1 = x0[2,3,2,3]
       x0 = _mm_or_si128(x0, x1);
-      ui64 t = (ui64)_mm_extract_epi64(x0, 0);
+      ui64 t;
+#ifdef OJPH_ARCH_X86_64
+      t = (ui64)_mm_extract_epi64(x0, 0);
+#elif (defined OJPH_ARCH_I386)
+      t = (ui64)(ui32)_mm_extract_epi32(x0, 0);
+      t |= (ui64)(ui32)_mm_extract_epi32(x0, 1) << 32;
+#else
+      #error Error unsupport compiler
+#endif      
       return t;
     }
 

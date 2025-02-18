@@ -1725,8 +1725,8 @@ namespace ojph {
               __m128i r = _mm_or_si128(t0, t1);
               r = _mm_shuffle_epi8(r, shuffle_mask);
 
-              // _mm_storeu_si32 is not defined, so we use this workaround
-              _mm_store_ss((float*)dp, _mm_castsi128_ps(r));
+              dp[0] = (ui16)_mm_extract_epi16(r, 0);
+              dp[1] = (ui16)_mm_extract_epi16(r, 1);
             }
             dp[0] = 0; // set an extra entry on the right with 0
           }
@@ -1735,7 +1735,7 @@ namespace ojph {
             ui16* dp = sigma + (y >> 2) * mstr;
             __m128i zero = _mm_setzero_si128();
             for (ui32 x = 0; x < width; x += 32, dp += 8)
-              _mm_store_si128((__m128i*)dp, zero);
+              _mm_storeu_si128((__m128i*)dp, zero);
             dp[0] = 0; // set an extra entry on the right with 0
           }
         }

@@ -167,32 +167,6 @@ namespace ojph {
   }
 
   /////////////////////////////////////////////////////////////////////////////
-  static inline ui32 population_count64(ui64 val)
-  {
-  #if defined(OJPH_COMPILER_MSVC)  \
-    && (defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
-    return (ui32)__popcnt64(val);
-  #elif (defined OJPH_COMPILER_GNUC)
-    return (ui32)__builtin_popcountll(val);
-  #else
-    const ui64 k1 = 0x5555555555555555ull;
-    const ui64 k2 = 0x3333333333333333ull;
-    const ui64 k4 = 0x0F0F0F0F0F0F0F0Full;
-    const ui64 kf = 0x0101010101010101ull;
-
-    // put count of each 2 bits into those 2 bits
-    val =  val       - ((val >> 1)  & k1); 
-    // put count of each 4 bits into those 4 bits
-    val = (val & k2) + ((val >> 2)  & k2);
-    // put count of each 8 bits into those 8 bits
-    val = (val       +  (val >> 4)) & k4 ; 
-    // returns 8 most significant bits of x + (x<<8) + (x<<16) + (x<<24) + ...
-    val = (val * kf) >> 56; 
-    return (ui32) val;
-  #endif
-  }  
-
-  /////////////////////////////////////////////////////////////////////////////
 #ifdef OJPH_COMPILER_MSVC
   #pragma intrinsic(_BitScanReverse)
 #endif
@@ -214,15 +188,33 @@ namespace ojph {
   #endif
   }
 
-  /////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////  
 #ifdef OJPH_COMPILER_MSVC
-  #pragma intrinsic(_BitScanReverse64)
+  #if (defined OJPH_ARCH_X86_64)
+    #pragma intrinsic(_BitScanReverse64)
+  #elif (defined OJPH_ARCH_I386)
+    #pragma intrinsic(_BitScanReverse)
+  #else
+    #error Error unsupport MSVC version
+  #endif
 #endif
   static inline ui32 count_leading_zeros(ui64 val)
   {
   #ifdef OJPH_COMPILER_MSVC
     unsigned long result = 0;
-    _BitScanReverse64(&result, val);
+    #ifdef OJPH_ARCH_X86_64
+      _BitScanReverse64(&result, val);
+    #elif (defined OJPH_ARCH_I386)
+      ui32 msb = (ui32)(val >> 32), lsb = (ui32)val;
+      if (msb == 0)
+        _BitScanReverse(&result, lsb);
+      else {
+        _BitScanReverse(&result, msb);
+        result += 32;
+      }
+    #else
+      #error Error unsupport MSVC version
+    #endif
     return 63 ^ (ui32)result;
   #elif (defined OJPH_COMPILER_GNUC)
     return (ui32)__builtin_clzll(val);

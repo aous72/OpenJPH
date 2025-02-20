@@ -165,12 +165,24 @@ endif()
 
 include(GNUInstallDirs)
 
-install(EXPORT openjph-config
+install(EXPORT openjph-targets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
 )
 
-install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/src/openjph-config.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/openjph-config.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
+)
+
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
+                                 COMPATIBILITY SameMinorVersion)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/openjph-config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
+)
 
 if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
   set(PKG_CONFIG_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
@@ -185,20 +197,14 @@ else()
 endif()
 
 configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/pkg-config.pc.cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/openjph.pc.in"
   "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
   @ONLY
 )
 
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
-                                 COMPATIBILITY SameMinorVersion)
-
-install(
-  FILES ${CMAKE_CURRENT_BINARY_DIR}/openjph-config-version.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph
+install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
-
 
 ################################################################################################
 # Testing (OJPH_BUILD_TESTS)
@@ -208,4 +214,3 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND OJPH_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
-

@@ -139,7 +139,7 @@ else()
 endif()
 
 install(TARGETS openjph
-  EXPORT openjph-config
+  EXPORT openjph-targets
 )
 
 install(DIRECTORY common/

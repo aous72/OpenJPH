@@ -50,6 +50,4 @@ add_executable(ojph_compress ${SOURCES})
 target_include_directories(ojph_compress PRIVATE ../common)
 target_link_libraries(ojph_compress PRIVATE openjph $<TARGET_NAME_IF_EXISTS:TIFF::TIFF>)
 
-install(TARGETS ojph_compress
-  EXPORT openjph-config
-)
+install(TARGETS ojph_compress)

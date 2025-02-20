@@ -50,6 +50,4 @@ add_executable(ojph_expand ${SOURCES})
 target_include_directories(ojph_expand PRIVATE ../common)
 target_link_libraries(ojph_expand PRIVATE openjph $<TARGET_NAME_IF_EXISTS:TIFF::TIFF>)
 
-install(TARGETS ojph_expand
-  EXPORT openjph-config
-)
+install(TARGETS ojph_expand)

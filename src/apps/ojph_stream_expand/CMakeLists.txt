@@ -23,6 +23,4 @@ else()
     target_link_libraries(ojph_stream_expand PUBLIC openjph pthread)
 endif(MSVC)
 
-install(TARGETS ojph_stream_expand
-  EXPORT openjph-config
-)
+install(TARGETS ojph_stream_expand)

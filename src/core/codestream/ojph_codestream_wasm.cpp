@@ -111,7 +111,7 @@ namespace ojph {
         sign = wasm_v128_and(sign, m0);
         val = wasm_i32x4_shl(val, shift);
 
-        v128_t c = wasm_i32x4_splat(count);
+        v128_t c = wasm_i32x4_splat((si32)count);
         v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
         v128_t mask = wasm_i32x4_gt(c, idx);
         c = _mm_and_si128(val, mask);
@@ -160,7 +160,7 @@ namespace ojph {
         v128_t ones = wasm_v128_and(sign, one);
         val = wasm_i32x4_add(val, ones);              // 2's complement
 
-        v128_t c = wasm_i32x4_splat(count);
+        v128_t c = wasm_i32x4_splat((si32)count);
         v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
         v128_t mask = wasm_i32x4_gt(c, idx);
         c = _mm_and_si128(val, mask);

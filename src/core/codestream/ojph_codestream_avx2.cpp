@@ -105,7 +105,7 @@ namespace ojph {
         __m256i val = _mm256_abs_epi32(v);
         val = _mm256_slli_epi32(val, (int)shift);
 
-        __m256i c = _mm256_set1_epi32(count);
+        __m256i c = _mm256_set1_epi32((si32)count);
         __m256i idx = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
         __m256i mask = _mm256_cmpgt_epi32(c, idx);
         c = _mm256_and_si256(val, mask);
@@ -148,7 +148,7 @@ namespace ojph {
         __m256i sign = _mm256_and_si256(val, m0); // get sign
         val = _mm256_abs_epi32(val);
 
-        __m256i c = _mm256_set1_epi32(count);
+        __m256i c = _mm256_set1_epi32((si32)count);
         __m256i idx = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
         __m256i mask = _mm256_cmpgt_epi32(c, idx);
         c = _mm256_and_si256(val, mask);

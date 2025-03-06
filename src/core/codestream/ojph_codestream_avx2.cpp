@@ -88,13 +88,29 @@ namespace ojph {
       __m256i m0 = _mm256_set1_epi32(INT_MIN);
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
       __m256i *p = (__m256i*)sp;
-      for (ui32 i = 0; i < count; i += 8, p += 1, dp += 8)
+      for ( ; count >= 8; count -= 8, p += 1, dp += 8)
       {
         __m256i v = _mm256_loadu_si256(p);
         __m256i sign = _mm256_and_si256(v, m0);
         __m256i val = _mm256_abs_epi32(v);
         val = _mm256_slli_epi32(val, (int)shift);
         tmax = _mm256_or_si256(tmax, val);
+        val = _mm256_or_si256(val, sign);
+        _mm256_storeu_si256((__m256i*)dp, val);
+      }
+      if (count)
+      {
+        __m256i v = _mm256_loadu_si256(p);
+        __m256i sign = _mm256_and_si256(v, m0);
+        __m256i val = _mm256_abs_epi32(v);
+        val = _mm256_slli_epi32(val, (int)shift);
+
+        __m256i c = _mm256_set1_epi32((si32)count);
+        __m256i idx = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
+        __m256i mask = _mm256_cmpgt_epi32(c, idx);
+        c = _mm256_and_si256(val, mask);
+        tmax = _mm256_or_si256(tmax, c);
+
         val = _mm256_or_si256(val, sign);
         _mm256_storeu_si256((__m256i*)dp, val);
       }
@@ -113,7 +129,7 @@ namespace ojph {
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
       float *p = (float*)sp;
       
-      for (ui32 i = 0; i < count; i += 8, p += 8, dp += 8)
+      for ( ; count >= 8; count -= 8, p += 8, dp += 8)
       {
         __m256 vf = _mm256_loadu_ps(p);
         vf = _mm256_mul_ps(vf, d);                // multiply
@@ -121,6 +137,23 @@ namespace ojph {
         __m256i sign = _mm256_and_si256(val, m0); // get sign
         val = _mm256_abs_epi32(val);
         tmax = _mm256_or_si256(tmax, val);
+        val = _mm256_or_si256(val, sign);
+        _mm256_storeu_si256((__m256i*)dp, val);
+      }
+      if (count)
+      {
+        __m256 vf = _mm256_loadu_ps(p);
+        vf = _mm256_mul_ps(vf, d);                // multiply
+        __m256i val = _mm256_cvtps_epi32(vf);     // convert to int
+        __m256i sign = _mm256_and_si256(val, m0); // get sign
+        val = _mm256_abs_epi32(val);
+
+        __m256i c = _mm256_set1_epi32((si32)count);
+        __m256i idx = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
+        __m256i mask = _mm256_cmpgt_epi32(c, idx);
+        c = _mm256_and_si256(val, mask);
+        tmax = _mm256_or_si256(tmax, c);
+
         val = _mm256_or_si256(val, sign);
         _mm256_storeu_si256((__m256i*)dp, val);
       }
@@ -178,7 +211,7 @@ namespace ojph {
       __m256i one = _mm256_set1_epi64x(1);
       __m256i tmax = _mm256_loadu_si256((__m256i*)max_val);
       __m256i *p = (__m256i*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
+      for ( ; count >= 4; count -= 4, p += 1, dp += 4)
       {
         __m256i v = _mm256_loadu_si256(p);
         __m256i sign = _mm256_cmpgt_epi64(zero, v);
@@ -188,6 +221,25 @@ namespace ojph {
         sign = _mm256_and_si256(sign, m0);
         val = _mm256_slli_epi64(val, (int)shift);
         tmax = _mm256_or_si256(tmax, val);
+        val = _mm256_or_si256(val, sign);
+        _mm256_storeu_si256((__m256i*)dp, val);
+      }
+      if (count)
+      {
+        __m256i v = _mm256_loadu_si256(p);
+        __m256i sign = _mm256_cmpgt_epi64(zero, v);
+        __m256i val = _mm256_xor_si256(v, sign);  // negate 1's complement
+        __m256i ones = _mm256_and_si256(sign, one);
+        val = _mm256_add_epi64(val, ones);        // 2's complement
+        sign = _mm256_and_si256(sign, m0);
+        val = _mm256_slli_epi64(val, (int)shift);
+
+        __m256i c = _mm256_set1_epi64x(count);
+        __m256i idx = _mm256_set_epi64x(3, 2, 1, 0);
+        __m256i mask = _mm256_cmpgt_epi64(c, idx);
+        c = _mm256_and_si256(val, mask);
+        tmax = _mm256_or_si256(tmax, c);
+
         val = _mm256_or_si256(val, sign);
         _mm256_storeu_si256((__m256i*)dp, val);
       }

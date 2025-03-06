@@ -88,7 +88,7 @@ namespace ojph {
       v128_t one = wasm_i32x4_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
       si32 *p = (si32*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
+      for ( ; count >= 4; count -= 4, p += 4, dp += 4)
       {
         v128_t v = wasm_v128_load(p);
         v128_t sign = wasm_i32x4_lt(v, zero);
@@ -98,6 +98,25 @@ namespace ojph {
         sign = wasm_v128_and(sign, m0);
         val = wasm_i32x4_shl(val, shift);
         tmax = wasm_v128_or(tmax, val);
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
+      }
+      if (count)
+      {
+        v128_t v = wasm_v128_load(p);
+        v128_t sign = wasm_i32x4_lt(v, zero);
+        v128_t val = wasm_v128_xor(v, sign); // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i32x4_add(val, ones);     // 2's complement
+        sign = wasm_v128_and(sign, m0);
+        val = wasm_i32x4_shl(val, shift);
+
+        v128_t c = wasm_i32x4_splat((si32)count);
+        v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
+        v128_t mask = wasm_i32x4_gt(c, idx);
+        c = wasm_v128_and(val, mask);
+        tmax = wasm_v128_or(tmax, c);
+
         val = wasm_v128_or(val, sign);
         wasm_v128_store(dp, val);
       }
@@ -117,7 +136,7 @@ namespace ojph {
       v128_t one = wasm_i32x4_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
       float *p = (float*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
+      for ( ; count >= 4; count -= 4, p += 4, dp += 4)
       {
         v128_t vf = wasm_v128_load(p);
         vf = wasm_f32x4_mul(vf, d);                   // multiply
@@ -127,6 +146,26 @@ namespace ojph {
         v128_t ones = wasm_v128_and(sign, one);
         val = wasm_i32x4_add(val, ones);              // 2's complement
         tmax = wasm_v128_or(tmax, val);
+        sign = wasm_i32x4_shl(sign, 31);
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
+      }
+      if (count)
+      {
+        v128_t vf = wasm_v128_load(p);
+        vf = wasm_f32x4_mul(vf, d);                   // multiply
+        v128_t val = wasm_i32x4_trunc_sat_f32x4(vf);  // convert to signed int
+        v128_t sign = wasm_i32x4_lt(val, zero);       // get sign
+        val = wasm_v128_xor(val, sign);               // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i32x4_add(val, ones);              // 2's complement
+
+        v128_t c = wasm_i32x4_splat((si32)count);
+        v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
+        v128_t mask = wasm_i32x4_gt(c, idx);
+        c = wasm_v128_and(val, mask);
+        tmax = wasm_v128_or(tmax, c);
+
         sign = wasm_i32x4_shl(sign, 31);
         val = wasm_v128_or(val, sign);
         wasm_v128_store(dp, val);
@@ -190,7 +229,7 @@ namespace ojph {
       v128_t one = wasm_i64x2_splat(1);
       v128_t tmax = wasm_v128_load(max_val);
       si64 *p = (si64*)sp;
-      for (ui32 i = 0; i < count; i += 2, p += 2, dp += 2)
+      for ( ; count >= 2; count -= 2, p += 2, dp += 2)
       {
         v128_t v = wasm_v128_load(p);
         v128_t sign = wasm_i64x2_lt(v, zero);
@@ -203,6 +242,24 @@ namespace ojph {
         val = wasm_v128_or(val, sign);
         wasm_v128_store(dp, val);
       }
+      if (count)
+      {
+        v128_t v = wasm_v128_load(p);
+        v128_t sign = wasm_i64x2_lt(v, zero);
+        v128_t val = wasm_v128_xor(v, sign); // negate 1's complement
+        v128_t ones = wasm_v128_and(sign, one);
+        val = wasm_i64x2_add(val, ones);     // 2's complement
+        sign = wasm_v128_and(sign, m0);
+        val = wasm_i64x2_shl(val, shift);
+
+        v128_t c = wasm_i32x4_make((si32)0xFFFFFFFF, (si32)0xFFFFFFFF, 0, 0);
+        c = wasm_v128_and(val, c);
+        tmax = wasm_v128_or(tmax, c);
+
+        val = wasm_v128_or(val, sign);
+        wasm_v128_store(dp, val);
+      }
+
       wasm_v128_store(max_val, tmax);
     }   
 

@@ -87,7 +87,7 @@ namespace ojph {
       __m128i one = _mm_set1_epi32(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
       __m128i *p = (__m128i*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 1, dp += 4)
+      for ( ; count >= 4; count -= 4, p += 1, dp += 4)
       {
         __m128i v = _mm_loadu_si128(p);
         __m128i sign = _mm_cmplt_epi32(v, zero);
@@ -97,6 +97,25 @@ namespace ojph {
         sign = _mm_and_si128(sign, m0);
         val = _mm_slli_epi32(val, (int)shift);
         tmax = _mm_or_si128(tmax, val);
+        val = _mm_or_si128(val, sign);
+        _mm_storeu_si128((__m128i*)dp, val);
+      }
+      if (count)
+      {
+        __m128i v = _mm_loadu_si128(p);
+        __m128i sign = _mm_cmplt_epi32(v, zero);
+        __m128i val = _mm_xor_si128(v, sign); // negate 1's complement
+        __m128i ones = _mm_and_si128(sign, one);
+        val = _mm_add_epi32(val, ones);        // 2's complement
+        sign = _mm_and_si128(sign, m0);
+        val = _mm_slli_epi32(val, (int)shift);
+
+        __m128i c = _mm_set1_epi32((si32)count);
+        __m128i idx = _mm_set_epi32(3, 2, 1, 0);
+        __m128i mask = _mm_cmpgt_epi32(c, idx);
+        c = _mm_and_si128(val, mask);
+        tmax = _mm_or_si128(tmax, c);
+
         val = _mm_or_si128(val, sign);
         _mm_storeu_si128((__m128i*)dp, val);
       }
@@ -116,7 +135,7 @@ namespace ojph {
       __m128i one = _mm_set1_epi32(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
       float *p = (float*)sp;
-      for (ui32 i = 0; i < count; i += 4, p += 4, dp += 4)
+      for ( ; count >= 4; count -= 4, p += 4, dp += 4)
       {
         __m128 vf = _mm_loadu_ps(p);
         vf = _mm_mul_ps(vf, d);                    // multiply
@@ -126,6 +145,26 @@ namespace ojph {
         __m128i ones = _mm_and_si128(sign, one);
         val = _mm_add_epi32(val, ones);            // 2's complement
         tmax = _mm_or_si128(tmax, val);
+        sign = _mm_slli_epi32(sign, 31);
+        val = _mm_or_si128(val, sign);
+        _mm_storeu_si128((__m128i*)dp, val);
+      }
+      if (count)
+      {
+        __m128 vf = _mm_loadu_ps(p);
+        vf = _mm_mul_ps(vf, d);                    // multiply
+        __m128i val = _mm_cvtps_epi32(vf);         // convert to int
+        __m128i sign = _mm_cmplt_epi32(val, zero); // get sign
+        val = _mm_xor_si128(val, sign);            // negate 1's complement
+        __m128i ones = _mm_and_si128(sign, one);
+        val = _mm_add_epi32(val, ones);            // 2's complement
+
+        __m128i c = _mm_set1_epi32((si32)count);
+        __m128i idx = _mm_set_epi32(3, 2, 1, 0);
+        __m128i mask = _mm_cmpgt_epi32(c, idx);
+        c = _mm_and_si128(val, mask);
+        tmax = _mm_or_si128(tmax, c);
+
         sign = _mm_slli_epi32(sign, 31);
         val = _mm_or_si128(val, sign);
         _mm_storeu_si128((__m128i*)dp, val);
@@ -189,7 +228,7 @@ namespace ojph {
       __m128i one = _mm_set1_epi64x(1);
       __m128i tmax = _mm_loadu_si128((__m128i*)max_val);
       __m128i *p = (__m128i*)sp;
-      for (ui32 i = 0; i < count; i += 2, p += 1, dp += 2)
+      for ( ; count >= 2; count -= 2, p += 1, dp += 2)
       {
         __m128i v = _mm_loadu_si128(p);
         __m128i sign = _mm_cmplt_epi32(v, zero);
@@ -200,6 +239,24 @@ namespace ojph {
         sign = _mm_and_si128(sign, m0);
         val = _mm_slli_epi64(val, (int)shift);
         tmax = _mm_or_si128(tmax, val);
+        val = _mm_or_si128(val, sign);
+        _mm_storeu_si128((__m128i*)dp, val);
+      }
+      if (count)
+      {
+        __m128i v = _mm_loadu_si128(p);
+        __m128i sign = _mm_cmplt_epi32(v, zero);
+        sign = _mm_shuffle_epi32(sign, 0xF5);  // sign = sign[1,1,3,3];
+        __m128i val = _mm_xor_si128(v, sign);  // negate 1's complement
+        __m128i ones = _mm_and_si128(sign, one);
+        val = _mm_add_epi64(val, ones);        // 2's complement
+        sign = _mm_and_si128(sign, m0);
+        val = _mm_slli_epi64(val, (int)shift);
+
+        __m128i c = _mm_set_epi32(0, 0, (si32)0xFFFFFFFF, (si32)0xFFFFFFFF);
+        c = _mm_and_si128(val, c);
+        tmax = _mm_or_si128(tmax, c);
+
         val = _mm_or_si128(val, sign);
         _mm_storeu_si128((__m128i*)dp, val);
       }
@@ -222,10 +279,10 @@ namespace ojph {
         __m128i val = _mm_and_si128(v, m1);
         val = _mm_srli_epi64(val, (int)shift);
         __m128i sign = _mm_cmplt_epi32(v, zero);
-        sign = _mm_shuffle_epi32(sign, 0xF5);  // sign = sign[1,1,3,3];
-        val = _mm_xor_si128(val, sign); // negate 1's complement
+        sign = _mm_shuffle_epi32(sign, 0xF5);      // sign = sign[1,1,3,3];
+        val = _mm_xor_si128(val, sign);            // negate 1's complement
         __m128i ones = _mm_and_si128(sign, one);
-        val = _mm_add_epi64(val, ones); // 2's complement
+        val = _mm_add_epi64(val, ones);            // 2's complement
         _mm_storeu_si128((__m128i*)p, val);
       }
     }

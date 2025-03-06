@@ -114,7 +114,7 @@ namespace ojph {
         v128_t c = wasm_i32x4_splat((si32)count);
         v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
         v128_t mask = wasm_i32x4_gt(c, idx);
-        c = _mm_and_si128(val, mask);
+        c = wasm_v128_and(val, mask);
         tmax = wasm_v128_or(tmax, c);
 
         val = wasm_v128_or(val, sign);
@@ -163,7 +163,7 @@ namespace ojph {
         v128_t c = wasm_i32x4_splat((si32)count);
         v128_t idx = wasm_i32x4_make(0, 1, 2, 3);
         v128_t mask = wasm_i32x4_gt(c, idx);
-        c = _mm_and_si128(val, mask);
+        c = wasm_v128_and(val, mask);
         tmax = wasm_v128_or(tmax, c);
 
         sign = wasm_i32x4_shl(sign, 31);
@@ -253,7 +253,7 @@ namespace ojph {
         val = wasm_i64x2_shl(val, shift);
 
         v128_t c = wasm_i32x4_make((si32)0xFFFFFFFF, (si32)0xFFFFFFFF, 0, 0);
-        c = _mm_and_si128(val, c);
+        c = wasm_v128_and(val, c);
         tmax = wasm_v128_or(tmax, c);
 
         val = wasm_v128_or(val, sign);

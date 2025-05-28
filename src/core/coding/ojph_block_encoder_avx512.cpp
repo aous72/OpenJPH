@@ -514,11 +514,8 @@ static void proc_pixel(__m512i *src_vec, ui32 p,
         val_vec[i] = _mm512_add_epi32(src_vec[i], src_vec[i]);
 
         /* val >>= p;  // 2 \mu_p + x */
-#ifndef OJPH_OS_APPLE
         val_vec[i] = _mm512_srli_epi32(val_vec[i], p);
-#else
-        val_vec[i] = _mm512_srli_epi32(val_vec[i], (int)p);
-#endif
+
         /* val &= ~1u; // 2 \mu_p */
         val_vec[i] = _mm512_and_epi32(val_vec[i], _mm512_set1_epi32((int)~1u));
 
@@ -587,11 +584,7 @@ static void proc_pixel(__m512i *src_vec, ui32 p,
         _rho_vec[i] = _mm512_mask_permutexvar_epi32(_rho_vec[i], 0xFF00,
                                                     idx[e_idx], 
                                                     val_vec[o_idx + 2]);
-#ifndef OJPH_OS_APPLE                                                    
         _rho_vec[i] = _mm512_slli_epi32(_rho_vec[i], i);
-#else
-        _rho_vec[i] = _mm512_slli_epi32(_rho_vec[i], (int)i);
-#endif
 
         e_qmax_vec = _mm512_max_epi32(e_qmax_vec, eq_vec[i]);
     }

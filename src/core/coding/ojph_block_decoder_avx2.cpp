@@ -39,6 +39,9 @@
  *  @brief implements a faster HTJ2K block decoder using avx2
  */
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_I386) || defined(OJPH_ARCH_X86_64)
+
 #include <string>
 #include <iostream>
 
@@ -46,7 +49,6 @@
 #include <cstring>
 #include "ojph_block_common.h"
 #include "ojph_block_decoder.h"
-#include "ojph_arch.h"
 #include "ojph_message.h"
 
 #include <immintrin.h>
@@ -2038,3 +2040,5 @@ namespace ojph {
     }
   }
 }
+
+#endif

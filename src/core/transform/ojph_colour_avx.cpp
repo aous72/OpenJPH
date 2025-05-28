@@ -35,10 +35,12 @@
 // Date: 11 October 2019
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_I386) || defined(OJPH_ARCH_X86_64)
+
 #include <cmath>
 
 #include "ojph_defs.h"
-#include "ojph_arch.h"
 #include "ojph_colour.h"
 #include "ojph_colour_local.h"
 
@@ -97,3 +99,5 @@ namespace ojph {
 
   }
 }
+
+#endif

@@ -15,7 +15,10 @@ set(OJPH_IMG_IO_AVX2 "../src/apps/others/ojph_img_io_avx2.cpp")
 
 # if SIMD are not disabled
 if (NOT OJPH_DISABLE_SIMD)
-  if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
+  if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") 
+    OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386")
+    OR MULTI_GEN_X86_64)
+
     if (NOT OJPH_DISABLE_SSE4)
       list(APPEND SOURCES ${OJPH_IMG_IO_SSE41})
     endif()
@@ -30,7 +33,9 @@ if (NOT OJPH_DISABLE_SIMD)
       set_source_files_properties(../src/apps/others/ojph_img_io_sse41.cpp PROPERTIES COMPILE_FLAGS -msse4.1)
       set_source_files_properties(../src/apps/others/ojph_img_io_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
     endif()
-  elseif("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM")
+  endif()
+
+  if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM") OR MULTI_GEN_ARM64)
 
   endif()
 

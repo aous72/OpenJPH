@@ -124,6 +124,9 @@ if (BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 ## include library version/name
+if (NOT MSVC)
+  target_compile_options(openjph PRIVATE -fPIC)
+endif()
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
 target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
 

@@ -14,7 +14,7 @@ jobs:
       matrix:
         include: [
           { system: MacOS,          runner: macos-latest },
-          { system: Ubuntu-20,      runner: ubuntu-20.04 },
+          { system: Ubuntu-22,      runner: ubuntu-22.04 },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
     name: ${{ matrix.system }} Build

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11.0)
+cmake_minimum_required(VERSION 3.12.0)
 
 ## Library name/version
 include(ojph_version.cmake)
@@ -18,6 +18,22 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 include(target_arch.cmake)
 target_architecture(OJPH_TARGET_ARCH)
 message(STATUS "CPU Architecture is ${OJPH_TARGET_ARCH}")
+
+## Building for multi-generation
+# This is useful for when we are building a multi-architecture build, such as when using
+# the -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" build configuration
+if (CMAKE_OSX_ARCHITECTURES)
+  list(FIND CMAKE_OSX_ARCHITECTURES "x86_64" x86_64_index)
+  if (${x86_64_index} GREATER -1)
+    set(MULTI_GEN_X86_64 TRUE)
+  endif()
+  unset(x86_64_index)
+  list(FIND CMAKE_OSX_ARCHITECTURES "arm64" arm64_index)
+  if (${arm64_index} GREATER -1)
+    set(MULTI_GEN_ARM64 TRUE)
+  endif()
+  unset(arm64_index)
+endif()
 
 ## options
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)

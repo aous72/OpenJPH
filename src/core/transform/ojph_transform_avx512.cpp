@@ -35,10 +35,12 @@
 // Date: 13 April 2024
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_X86_64)
+
 #include <cstdio>
 
 #include "ojph_defs.h"
-#include "ojph_arch.h"
 #include "ojph_mem.h"
 #include "ojph_params.h"
 #include "../codestream/ojph_params_local.h"
@@ -1423,3 +1425,5 @@ namespace ojph {
 
   } // !local
 } // !ojph
+
+#endif

@@ -21,7 +21,10 @@ if(EMSCRIPTEN)
   endif()
 else()
   if (NOT OJPH_DISABLE_SIMD)
-    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
+    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") 
+      OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386")
+      OR MULTI_GEN_X86_64)
+
       if (NOT OJPH_DISABLE_SSE4)
         list(APPEND SOURCES ${OJPH_IMG_IO_SSE4})
         source_group("others" FILES ${OJPH_IMG_IO_SSE4})
@@ -38,7 +41,9 @@ else()
         set_source_files_properties(${OJPH_IMG_IO_SSE4} PROPERTIES COMPILE_FLAGS -msse4.1)
         set_source_files_properties(${OJPH_IMG_IO_AVX2} PROPERTIES COMPILE_FLAGS -mavx2)
       endif()
-    elseif ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM")
+    endif()
+
+    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM") OR MULTI_GEN_ARM64)
 
     endif()
 

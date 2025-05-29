@@ -40,7 +40,9 @@ if(EMSCRIPTEN)
   endif()
 else()
   if (NOT OJPH_DISABLE_SIMD)
-    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
+    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") 
+      OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386")
+      OR MULTI_GEN_X86_64)
 
       if (NOT OJPH_DISABLE_SSE)
         list(APPEND SOURCES ${CODESTREAM_SSE} ${TRANSFORM_SSE})
@@ -67,7 +69,7 @@ else()
         source_group("transform" FILES ${TRANSFORM_AVX2})
         source_group("coding" FILES ${CODING_AVX2})
       endif()
-      if ((NOT OJPH_DISABLE_AVX512) AND ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64"))
+      if (NOT OJPH_DISABLE_AVX512)
         list(APPEND SOURCES ${CODING_AVX512} ${TRANSFORM_AVX512})
         source_group("coding" FILES ${CODING_AVX512})
         source_group("transform" FILES ${TRANSFORM_AVX512})
@@ -104,13 +106,13 @@ else()
         set_source_files_properties(transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
         set_source_files_properties(transform/ojph_transform_avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512f)
       endif()
+    endif()
 
-    elseif ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM")
+    if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_ARM") OR MULTI_GEN_ARM64)
 
     endif()
 
   endif()
-
 
 endif()
 
@@ -122,6 +124,9 @@ if (BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 ## include library version/name
+if (NOT MSVC)
+  target_compile_options(openjph PRIVATE -fPIC)
+endif()
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
 target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
 

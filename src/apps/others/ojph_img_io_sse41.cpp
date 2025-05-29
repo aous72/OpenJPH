@@ -35,6 +35,10 @@
 // Date: 23 May 2022
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_I386) \
+  || defined(OJPH_ARCH_X86_64) \
+  || defined(OJPH_ENABLE_WASM_SIMD)
 
 #include <cstdlib>
 #include <cstring>
@@ -505,3 +509,5 @@ namespace ojph {
     }
   }
 }
+
+#endif

@@ -35,11 +35,13 @@
 // Date: 28 August 2019
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_I386) || defined(OJPH_ARCH_X86_64)
+
 #include <cstdio>
 #include <xmmintrin.h>
 
 #include "ojph_defs.h"
-#include "ojph_arch.h"
 #include "ojph_mem.h"
 #include "ojph_params.h"
 #include "../codestream/ojph_params_local.h"
@@ -281,3 +283,5 @@ namespace ojph {
 
   } // !local
 } // !ojph
+
+#endif

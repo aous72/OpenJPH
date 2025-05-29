@@ -34,6 +34,9 @@
 // File: ojph_block_encoder_avx512.cpp
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_X86_64)
+
 #include <cassert>
 #include <cstring>
 #include <cstdint>
@@ -41,7 +44,6 @@
 #include <immintrin.h>
 
 #include "ojph_mem.h"
-#include "ojph_arch.h"
 #include "ojph_block_encoder.h"
 #include "ojph_message.h"
 
@@ -1213,3 +1215,4 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
 } /* namespace local */
 } /* namespace ojph */
 
+#endif

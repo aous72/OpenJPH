@@ -35,6 +35,9 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include "ojph_arch.h"
+#if defined(OJPH_ARCH_I386) || defined(OJPH_ARCH_X86_64)
+
 #include <immintrin.h>
 #include "ojph_defs.h"
 
@@ -51,3 +54,5 @@ namespace ojph {
     }
   }
 }
+
+#endif

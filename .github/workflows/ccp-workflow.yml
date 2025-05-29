@@ -13,6 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include: [
+          { system: MacOS,          runner: macos-latest },
           { system: Ubuntu-22,      runner: ubuntu-22.04 },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
@@ -39,7 +40,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" ..
+      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
       working-directory: build
     - name: build
       run: make

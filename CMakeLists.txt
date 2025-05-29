@@ -27,10 +27,12 @@ if (CMAKE_OSX_ARCHITECTURES)
   if (${x86_64_index} GREATER -1)
     set(MULTI_GEN_X86_64 TRUE)
   endif()
+  unset(x86_64_index)
   list(FIND CMAKE_OSX_ARCHITECTURES "arm64" arm64_index)
   if (${arm64_index} GREATER -1)
     set(MULTI_GEN_ARM64 TRUE)
   endif()
+  unset(arm64_index)
 endif()
 
 ## options

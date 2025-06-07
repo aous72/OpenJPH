@@ -1365,8 +1365,14 @@ namespace ojph {
           // became significant (during the SPP) in bitplane p-1.
           // We store enough for the widest row, containing 1024 columns,
           // which is equivalent to 256 of ui16, since each stores 4 columns.
-          // We add an extra 8 entries, just in case we need more
-          ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
+          // We add an extra 8 entries (16 bytes), just in case we need more
+          ui16 prev_row_sig[256 + 8]; // 528 Bytes
+          {
+            ui64* p = (ui64*)prev_row_sig;
+            for (ui32 x = 0; x < width; x += 16, ++p)
+              *p = 0;
+            *p = 0; // one extra
+          }
 
           frwd_struct32 sigprop;
           frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);

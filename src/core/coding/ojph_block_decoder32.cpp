@@ -833,7 +833,8 @@ namespace ojph {
       // Each entry in UVLC contains u_q
       // One extra row to handle the case of SPP propagating downwards
       // when codeblock width is 4
-      ui16 scratch[8 * 513] = {0};       // 8 kB
+      ui16 scratch[8 * 513];       // 8 kB
+      memset(scratch, 0, sizeof(scratch));
 
       // We need an extra two entries (one inf and one u_q) beyond
       // the last column. 
@@ -1097,7 +1098,8 @@ namespace ojph {
         // Here, we allocate 4 instead of 1 to make the buffer size
         // a multipled of 16 bytes.
         const int v_n_size = 512 + 4;
-        ui32 v_n_scratch[v_n_size] = {0};  // 2+ kB
+        ui32 v_n_scratch[v_n_size];  // 2+ kB
+        memset(v_n_scratch, 0, sizeof(v_n_scratch));
 
         frwd_struct32 magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
@@ -1365,14 +1367,9 @@ namespace ojph {
           // became significant (during the SPP) in bitplane p-1.
           // We store enough for the widest row, containing 1024 columns,
           // which is equivalent to 256 of ui16, since each stores 4 columns.
-          // We add an extra 8 entries (16 bytes), just in case we need more
+          // We add an extra 8 entries (16 bytes), just in case we need more.
           ui16 prev_row_sig[256 + 8]; // 528 Bytes
-          {
-            ui64* p = (ui64*)prev_row_sig;
-            for (ui32 x = 0; x < width; x += 16, ++p)
-              *p = 0;
-            *p = 0; // one extra
-          }
+          memset(prev_row_sig, 0, sizeof(prev_row_sig));
 
           frwd_struct32 sigprop;
           frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);

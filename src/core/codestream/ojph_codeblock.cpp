@@ -3,21 +3,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -53,7 +53,7 @@ namespace ojph {
   {
 
     //////////////////////////////////////////////////////////////////////////
-    void codeblock::pre_alloc(codestream *codestream, const size& nominal, 
+    void codeblock::pre_alloc(codestream *codestream, const size& nominal,
                               ui32 precision)
     {
       mem_fixed_allocator* allocator = codestream->get_allocator();
@@ -61,7 +61,7 @@ namespace ojph {
       assert(byte_alignment / sizeof(ui32) > 1);
       const ui32 f = byte_alignment / sizeof(ui32) - 1;
       ui32 stride = (nominal.w + f) & ~f; // a multiple of 8
-      
+
       if (precision <= 32)
         allocator->pre_alloc_data<ui32>(nominal.h * (size_t)stride, 0);
       else
@@ -114,23 +114,23 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codeblock::push(line_buf *line)
     {
-      // convert to sign and magnitude and keep max_val      
+      // convert to sign and magnitude and keep max_val
       if (precision == BUF32)
       {
         assert(line->flags & line_buf::LFT_32BIT);
         const si32 *sp = line->i32 + line_offset;
         ui32 *dp = buf32 + cur_line * stride;
-        this->codeblock_functions.tx_to_cb32(sp, dp, K_max, delta_inv, 
+        this->codeblock_functions.tx_to_cb32(sp, dp, K_max, delta_inv,
                                              cb_size.w, max_val32);
         ++cur_line;
       }
-      else 
+      else
       {
         assert(precision == BUF64);
         assert(line->flags & line_buf::LFT_64BIT);
         const si64 *sp = line->i64 + line_offset;
         ui64 *dp = buf64 + cur_line * stride;
-        this->codeblock_functions.tx_to_cb64(sp, dp, K_max, delta_inv, 
+        this->codeblock_functions.tx_to_cb64(sp, dp, K_max, delta_inv,
                                              cb_size.w, max_val64);
         ++cur_line;
       }
@@ -148,7 +148,7 @@ namespace ojph {
           assert(coded_cb->missing_msbs > 0);
           assert(coded_cb->missing_msbs < K_max);
           coded_cb->num_passes = 1;
-          
+
           this->codeblock_functions.encode_cb32(buf32, K_max-1, 1,
             cb_size.w, cb_size.h, stride, coded_cb->pass_length,
             elastic, coded_cb->next_coded);
@@ -164,7 +164,7 @@ namespace ojph {
           assert(coded_cb->missing_msbs > 0);
           assert(coded_cb->missing_msbs < K_max);
           coded_cb->num_passes = 1;
-          
+
           this->codeblock_functions.encode_cb64(buf64, K_max-1, 1,
             cb_size.w, cb_size.h, stride, coded_cb->pass_length,
             elastic, coded_cb->next_coded);
@@ -195,18 +195,20 @@ namespace ojph {
         {
           result = this->codeblock_functions.decode_cb32(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-            buf32, coded_cb->missing_msbs, coded_cb->num_passes,
-            coded_cb->pass_length[0], coded_cb->pass_length[1],
-            cb_size.w, cb_size.h, stride, stripe_causal);
+            buf32, coded_cb->missing_msbs + coded_cb->num_phld_passes / 3,
+            coded_cb->num_passes, coded_cb->pass_length[0],
+            coded_cb->pass_length[1], cb_size.w, cb_size.h, stride,
+            stripe_causal);
         }
-        else 
+        else
         {
           assert(precision == BUF64);
           result = this->codeblock_functions.decode_cb64(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
-            buf64, coded_cb->missing_msbs, coded_cb->num_passes,
-            coded_cb->pass_length[0], coded_cb->pass_length[1],
-            cb_size.w, cb_size.h, stride, stripe_causal);
+            buf64, coded_cb->missing_msbs + coded_cb->num_phld_passes / 3,
+            coded_cb->num_passes, coded_cb->pass_length[0],
+            coded_cb->pass_length[1], cb_size.w, cb_size.h, stride,
+            stripe_causal);
         }
 
         if (result == false)
@@ -235,7 +237,7 @@ namespace ojph {
         if (!zero_block)
         {
           const ui32 *sp = buf32 + cur_line * stride;
-          this->codeblock_functions.tx_from_cb32(sp, dp, K_max, delta, 
+          this->codeblock_functions.tx_from_cb32(sp, dp, K_max, delta,
                                                  cb_size.w);
         }
         else
@@ -249,7 +251,7 @@ namespace ojph {
         if (!zero_block)
         {
           const ui64 *sp = buf64 + cur_line * stride;
-          this->codeblock_functions.tx_from_cb64(sp, dp, K_max, delta, 
+          this->codeblock_functions.tx_from_cb64(sp, dp, K_max, delta,
                                                  cb_size.w);
         }
         else

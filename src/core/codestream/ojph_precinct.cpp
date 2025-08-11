@@ -477,40 +477,39 @@ namespace ojph {
 
             num_phld_passes *= 3;
             cp->num_passes = num_passes - num_phld_passes;
+            cp->pass_length[0] = cp->pass_length[1] = 0;
 
-            int bits1 = 3 + 31 - count_leading_zeros(num_phld_passes + 1);
+            int Lblock = 3;
             bit = 1;
             while (bit)
             {
               // add any extra bits here
               if (bb_read_bit(&bb, bit) == false)
               { data_left = 0; throw "error reading from file p8"; }
-              bits1 += bit;
+              Lblock += bit;
             }
 
-            cp->pass_length[0] = cp->pass_length[1] = 0;
-
-            if (bb_read_bits(&bb, bits1, bit) == false)
+            int bits = Lblock + 31 - count_leading_zeros(num_phld_passes + 1);
+            if (bb_read_bits(&bb, bits, bit) == false)
             { data_left = 0; throw "error reading from file p9"; }
-            if (bit < 2) {
+            if (bit < 2)
               throw "The cleanup segment of an HT codeblock cannot contain "
                 "less than 2 bytes";
-            }
-            if (bit >= 65535) {
+            if (bit >= 65535)
               throw "The cleanup segment of an HT codeblock must contain "
                 "less than 65535 bytes";
-            }
             cp->pass_length[0] = bit;
 
             if (cp->num_passes > 1)
             {
-              bits1 += 31 - count_leading_zeros(cp->num_passes - 1);
-              if (bb_read_bits(&bb, bits1, bit) == false)
+              //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
+              // The following is simpler than the above, I think?
+              bits = Lblock + (cp->num_passes > 2 ? 1 : 0);
+              if (bb_read_bits(&bb, bits, bit) == false)
               { data_left = 0; throw "error reading from file p10"; }
-              if (bit >= 2047) {
+              if (bit >= 2047)
                 throw "The refinement segment (SigProp and MagRep passes) of "
                   "an HT codeblock must contain less than 2047 bytes";
-              }
               cp->pass_length[1] = bit;
             }
           }

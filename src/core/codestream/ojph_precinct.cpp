@@ -472,11 +472,13 @@ namespace ojph {
             // producing 1 pass.
 
             // 1 => 1, 2 => 2, 3 => 3, 4 => 1, 5 => 2, 6 => 3
-            cp->num_phld_passes = (num_passes - 1) / 3;
-            cp->num_phld_passes *= 3;
-            cp->num_passes = num_passes - cp->num_phld_passes;
+            ui32 num_phld_passes = (num_passes - 1) / 3;
+            cp->missing_msbs += num_phld_passes;
 
-            int bits1 = 3 + 31 - count_leading_zeros(cp->num_phld_passes + 1);
+            num_phld_passes *= 3;
+            cp->num_passes = num_passes - num_phld_passes;
+
+            int bits1 = 3 + 31 - count_leading_zeros(num_phld_passes + 1);
             bit = 1;
             while (bit)
             {

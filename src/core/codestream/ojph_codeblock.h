@@ -116,7 +116,6 @@ namespace ojph {
     {
       ui32 pass_length[2];
       ui32 num_passes;       // number of passes to be decoded
-      ui32 num_phld_passes;  // number of place holder passes
       ui32 Kmax;
       ui32 missing_msbs;
       coded_lists *next_coded;

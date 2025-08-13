@@ -3,21 +3,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -71,11 +71,11 @@ namespace ojph {
       };
 
     public:
-      static void pre_alloc(codestream *codestream, const size& nominal, 
+      static void pre_alloc(codestream *codestream, const size& nominal,
                             ui32 precision);
       void finalize_alloc(codestream *codestream, subband* parent,
                           const size& nominal, const size& cb_size,
-                          coded_cb_header* coded_cb, ui32 K_max, 
+                          coded_cb_header* coded_cb, ui32 K_max,
                           int tbx0, ui32 precision, ui32 comp_idx);
       void push(line_buf *line);
       void encode(mem_elastic_allocator *elastic);
@@ -115,7 +115,7 @@ namespace ojph {
     struct coded_cb_header
     {
       ui32 pass_length[2];
-      ui32 num_passes;
+      ui32 num_passes;       // number of passes to be decoded
       ui32 Kmax;
       ui32 missing_msbs;
       coded_lists *next_coded;

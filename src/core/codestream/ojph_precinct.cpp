@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -254,7 +254,7 @@ namespace ojph {
               bits2 = 32 - (int)count_leading_zeros(cp->pass_length[1]);
             int bits = ojph_max(bits1, bits2 - extra_bit) - 3;
             bits = ojph_max(bits, 0);
-            bb_put_bits(&bb, 0xFFFFFFFEu, bits+1, 
+            bb_put_bits(&bb, 0xFFFFFFFEu, bits+1,
               elastic, cur_coded_list, ph_bytes);
 
             bb_put_bits(&bb, cp->pass_length[0], bits+3,
@@ -463,37 +463,53 @@ namespace ojph {
             }
             cp->num_passes = num_passes;
 
-            //parse pass lengths
-            //for one pass, one length, but for 2 or 3 passes, two lengths
-            int extra_bit = cp->num_passes > 2 ? 1 : 0;
-            int bits1 = 3;
+            // Parse pass lengths
+            // When number of passes is one, one length.
+            // When number of passes is two or three, two lengths.
+            // When number of passes > 3, we have place holder passes;
+            // In this case, subtract multiples of 3 from the number of
+            // passes; for example, if we have 10 passes, we subtract 9,
+            // producing 1 pass.
+
+            // 1 => 1, 2 => 2, 3 => 3, 4 => 1, 5 => 2, 6 => 3
+            ui32 num_phld_passes = (num_passes - 1) / 3;
+            cp->missing_msbs += num_phld_passes;
+
+            num_phld_passes *= 3;
+            cp->num_passes = num_passes - num_phld_passes;
+            cp->pass_length[0] = cp->pass_length[1] = 0;
+
+            int Lblock = 3;
             bit = 1;
             while (bit)
             {
+              // add any extra bits here
               if (bb_read_bit(&bb, bit) == false)
               { data_left = 0; throw "error reading from file p8"; }
-              bits1 += bit;
+              Lblock += bit;
             }
 
-            if (bb_read_bits(&bb, bits1, bit) == false)
+            int bits = Lblock + 31 - count_leading_zeros(num_phld_passes + 1);
+            if (bb_read_bits(&bb, bits, bit) == false)
             { data_left = 0; throw "error reading from file p9"; }
-            if (bit < 2) { 
+            if (bit < 2)
               throw "The cleanup segment of an HT codeblock cannot contain "
                 "less than 2 bytes";
-            }
-            if (bit >= 65535) {
+            if (bit >= 65535)
               throw "The cleanup segment of an HT codeblock must contain "
                 "less than 65535 bytes";
-            }
             cp->pass_length[0] = bit;
-            if (num_passes > 1)
+
+            if (cp->num_passes > 1)
             {
-              if (bb_read_bits(&bb, bits1 + extra_bit, bit) == false)
+              //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
+              // The following is simpler than the above, I think?
+              bits = Lblock + (cp->num_passes > 2 ? 1 : 0);
+              if (bb_read_bits(&bb, bits, bit) == false)
               { data_left = 0; throw "error reading from file p10"; }
-              if (bit >= 2047) {
+              if (bit >= 2047)
                 throw "The refinement segment (SigProp and MagRep passes) of "
                   "an HT codeblock must contain less than 2047 bytes";
-              }
               cp->pass_length[1] = bit;
             }
           }
@@ -532,7 +548,7 @@ namespace ojph {
                   ui32 t = ojph_min(num_bytes, bb.bytes_left);
                   file->seek(t, infile_base::OJPH_SEEK_CUR);
                   ui32 bytes_read = (ui32)(file->tell() - cur_loc);
-                  cp->pass_length[0] = cp->pass_length[1] = 0; 
+                  cp->pass_length[0] = cp->pass_length[1] = 0;
                   bb.bytes_left -= bytes_read;
                   assert(bytes_read == t || bb.bytes_left == 0);
                 }

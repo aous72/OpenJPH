@@ -695,11 +695,11 @@ static void proc_ms_encode(ms_struct *msp,
         /* cwd = s[i * 4 + 0] & ((1U << m) - 1)
          * cwd_len = m
          */
-        _mm512_storeu_epi32(cwd_len, m_vec[i]);
+        _mm512_storeu_si512(cwd_len, m_vec[i]);
         tmp = _mm512_sllv_epi32(ONE, m_vec[i]);
         tmp = _mm512_sub_epi32(tmp, ONE);
         tmp = _mm512_and_epi32(tmp, s_vec[i]);
-        _mm512_storeu_epi32(cwd, tmp);
+        _mm512_storeu_si512(cwd, tmp);
 
         for (ui32 j = 0; j < 8; ++j) {
             ui32 idx = j * 2;
@@ -1177,8 +1177,8 @@ void ojph_encode_codeblock_avx512(ui32* buf, ui32 missing_msbs,
              * So in the vlc_encode, the tuple will only be scaled by 2.
              */
             tuple_vec = _mm512_srli_epi32(tuple_vec, 4);
-            _mm512_storeu_epi32(tuple, tuple_vec);
-            _mm512_storeu_epi32(u_q, u_q_vec);
+            _mm512_storeu_si512(tuple, tuple_vec);
+            _mm512_storeu_si512(u_q, u_q_vec);
             proc_vlc_encode(&vlc, tuple, u_q, _ignore);
         }
 

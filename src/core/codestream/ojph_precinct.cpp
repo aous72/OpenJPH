@@ -489,7 +489,8 @@ namespace ojph {
               Lblock += bit;
             }
 
-            int bits = Lblock + 31 - count_leading_zeros(num_phld_passes + 1);
+            int bits = Lblock + 31 -
+              (int)count_leading_zeros(num_phld_passes + 1);
             if (bb_read_bits(&bb, bits, bit) == false)
             { data_left = 0; throw "error reading from file p9"; }
             if (bit < 2)

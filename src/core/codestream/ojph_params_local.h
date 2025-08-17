@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -174,9 +174,12 @@ namespace ojph {
       };
 
     public:
-      param_siz()
+      param_siz() { init(); }
+      ~param_siz() { destroy(); }
+
+      void init()
       {
-        Lsiz = Csiz = 0;        
+        Lsiz = Csiz = 0;
         Xsiz = Ysiz = XOsiz = YOsiz = XTsiz = YTsiz = XTOsiz = YTOsiz = 0;
         skipped_resolutions = 0;
         memset(store, 0, sizeof(store));
@@ -185,13 +188,11 @@ namespace ojph {
         dfs = NULL;
         Rsiz = RSIZ_HT_FLAG;
         cptr = store;
-        old_Csiz = 4;
+        old_Csiz = sizeof(store) / sizeof(siz_comp_info);
       }
 
-      ~param_siz()
-      {
-        if (cptr != store) delete[] cptr;
-      }
+      void destroy()
+      { if (cptr != store) { delete[] cptr; cptr = NULL; } }
 
       void set_num_components(ui32 num_comps)
       {
@@ -223,7 +224,7 @@ namespace ojph {
         if (XTsiz == 0 && YTsiz == 0)
         { XTsiz = Xsiz + XOsiz; YTsiz = Ysiz + YOsiz; }
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
-          OJPH_ERROR(0x00040001, 
+          OJPH_ERROR(0x00040001,
             "You cannot set image extent nor tile size to zero");
         if (XTOsiz > XOsiz || YTOsiz > YOsiz)
           OJPH_ERROR(0x00040002,
@@ -261,7 +262,7 @@ namespace ojph {
 
       void set_skipped_resolutions(ui32 skipped_resolutions)
       { this->skipped_resolutions = skipped_resolutions; }
-      
+
       ui32 get_width(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
@@ -269,7 +270,7 @@ namespace ojph {
         ui32 t = ojph_div_ceil(Xsiz, ds) - ojph_div_ceil(XOsiz, ds);
         return t;
       }
-      
+
       ui32 get_height(ui32 comp_num) const
       {
         assert(comp_num < get_num_components());
@@ -331,7 +332,7 @@ namespace ojph {
       cod_SPcod() {
         num_decomp = 5;
         block_width = 4;    // 64
-        block_height = 4;   // 64       
+        block_height = 4;   // 64
         block_style = 0x40; // HT mode
         wavelet_trans = 0;  // reversible 5 / 3
         memset(precinct_size, 0, sizeof(precinct_size));
@@ -346,7 +347,7 @@ namespace ojph {
 
       size get_log_block_dims() const
       { return size(block_width + 2, block_height + 2); }
-      size get_block_dims() const 
+      size get_block_dims() const
       { size t = get_log_block_dims(); return size(1 << t.w, 1 << t.h); }
       size get_log_precinct_size(ui32 res_num) const
       {
@@ -370,9 +371,9 @@ namespace ojph {
     {
       // serves for both COD and COC markers
       friend ::ojph::param_cod;
-      enum default_comp_num : ui16 { 
-        OJPH_COD_UNKNOWN = 65534, 
-        OJPH_COD_DEFAULT = 65535 
+      enum default_comp_num : ui16 {
+        OJPH_COD_UNKNOWN = 65534,
+        OJPH_COD_DEFAULT = 65535
       };
 
       ////////////////////////////////////////
@@ -395,8 +396,12 @@ namespace ojph {
       };
 
     public: // COD_MAIN and COC_MAIN common functions
-      ////////////////////////////////////////
       param_cod(param_cod* top_cod = NULL, ui16 comp_idx = OJPH_COD_DEFAULT)
+      { init(top_cod, comp_idx); }
+      ~param_cod() { destroy(); }
+
+      ////////////////////////////////////////
+      void init(param_cod* top_cod, ui16 comp_idx)
       {
         type = top_cod ? COC_MAIN : COD_MAIN;
         Lcod = 0;
@@ -408,7 +413,7 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
-      ~param_cod() {
+      void destroy() {
         if (next) {
           delete next;
           next = NULL;
@@ -456,9 +461,9 @@ namespace ojph {
             point p1 = siz.get_downsampling(i);
             test_downsampling = test_downsampling
               || (p.x != p1.x || p.y != p1.y);
-            test_bit_depth = test_bit_depth 
+            test_bit_depth = test_bit_depth
               || (bit_depth != siz.get_bit_depth(i));
-            test_signedness = test_signedness 
+            test_signedness = test_signedness
               || (is_signed != siz.is_signed(i));
           }
           if (test_downsampling)
@@ -526,7 +531,7 @@ namespace ojph {
 
       ////////////////////////////////////////
       bool is_employing_color_transform() const
-      { 
+      {
         if (type == COD_MAIN || type == COD_TILE)
           return (SGCod.mc_trans == 1);
         else
@@ -542,7 +547,7 @@ namespace ojph {
 
       ////////////////////////////////////////
       size get_log_precinct_size(ui32 res_num) const
-      { 
+      {
         if (Scod & 1)
           return SPcod.get_log_precinct_size(res_num);
         else
@@ -551,7 +556,7 @@ namespace ojph {
 
       ////////////////////////////////////////
       bool packets_may_use_sop() const
-      { 
+      {
         if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 2) == 2;
         return false;
@@ -559,7 +564,7 @@ namespace ojph {
 
       ////////////////////////////////////////
       bool packets_use_eph() const
-      { 
+      {
         if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 4) == 4;
         return false;
@@ -598,7 +603,7 @@ namespace ojph {
 
     public: // COC_MAIN only functions
       ////////////////////////////////////////
-      bool is_dfs_defined() const 
+      bool is_dfs_defined() const
       { return (SPcod.num_decomp & 0x80) != 0; }
 
       ////////////////////////////////////////
@@ -607,10 +612,10 @@ namespace ojph {
 
       ////////////////////////////////////////
       ui32 get_comp_idx() const
-      { 
-        assert((type == COC_MAIN && comp_idx != OJPH_COD_DEFAULT) || 
+      {
+        assert((type == COC_MAIN && comp_idx != OJPH_COD_DEFAULT) ||
                (type == COD_MAIN && comp_idx == OJPH_COD_DEFAULT));
-        return comp_idx; 
+        return comp_idx;
       }
 
     private:
@@ -642,9 +647,9 @@ namespace ojph {
     {
       // serves for both QCD and QCC markers
       friend ::ojph::param_qcd;
-      enum default_comp_num : ui16 { 
-        OJPH_QCD_UNKNOWN = 65534, 
-        OJPH_QCD_DEFAULT = 65535 
+      enum default_comp_num : ui16 {
+        OJPH_QCD_UNKNOWN = 65534,
+        OJPH_QCD_DEFAULT = 65535
       };
 
       ////////////////////////////////////////
@@ -658,7 +663,11 @@ namespace ojph {
 
     public:
       param_qcd(param_qcd* top_qcd = NULL, ui16 comp_idx = OJPH_QCD_DEFAULT)
-      { 
+      { init(top_qcd, comp_idx); }
+      ~param_qcd() { destroy(); }
+
+      void init(param_qcd* top_qcd, ui16 comp_idx)
+      {
         type = top_qcd ? QCC_MAIN : QCD_MAIN;
         Lqcd = 0;
         Sqcd = 0;
@@ -670,7 +679,8 @@ namespace ojph {
         this->top_qcd = top_qcd;
         this->comp_idx = comp_idx;
       }
-      ~param_qcd() {
+
+      void destroy() {
         if (next)
         {
           delete next;
@@ -700,7 +710,7 @@ namespace ojph {
       ui16 get_comp_idx() const { return comp_idx; }
 
     private:
-      void set_rev_quant(ui32 num_decomps, ui32 bit_depth, 
+      void set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                          bool is_employing_color_transform);
       void set_irrev_quant(ui32 num_decomps);
       ui32 get_largest_Kmax() const;
@@ -745,7 +755,11 @@ namespace ojph {
       using special_comp_num = ojph::param_nlt::special_comp_num;
       using nonlinearity = ojph::param_nlt::nonlinearity;
     public:
-      param_nlt() { 
+      param_nlt() { init(); }
+      ~param_nlt() { destroy(); }
+
+      void init()
+      {
         Lnlt = 6;
         Cnlt = special_comp_num::ALL_COMPS; // default
         BDnlt = 0;
@@ -753,7 +767,8 @@ namespace ojph {
         enabled = false; next = NULL; alloced_next = false;
       }
 
-      ~param_nlt() {
+      void destroy()
+      {
         if (next && alloced_next) {
           delete next;
           alloced_next = false;
@@ -763,7 +778,7 @@ namespace ojph {
 
       void check_validity(param_siz& siz);
       void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
-      bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+      bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth,
                                    bool& is_signed, ui8& nl_type) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);
@@ -785,7 +800,7 @@ namespace ojph {
       bool alloced_next; // true if next was allocated, not just set to an
                          // existing object
 
-      // The top level param_nlt object is not allocated, but as part of 
+      // The top level param_nlt object is not allocated, but as part of
       // codestream, and is used to manage allocated next objects.
       // next holds a list of param_nlt objects, which are managed by the top
       // param_nlt object.
@@ -923,9 +938,10 @@ namespace ojph {
 
     public: // member functions
       param_dfs() { init(); }
-      ~param_dfs() { if (next) delete next; }
-      void init() 
+      ~param_dfs() { destroy(); }
+      void init()
       { Ldfs = Sdfs = Ids = 0; memset(Ddfs, 0, sizeof(Ddfs)); next = NULL; }
+      void destroy() { if (next) delete next; }
       bool read(infile_base *file);
       bool exists() const { return Ldfs != 0; }
 
@@ -986,21 +1002,10 @@ namespace ojph {
 
     public: // member functions
       param_atk() { init(); }
-      ~param_atk() {
-        if (next && alloced_next) {
-          delete next;
-          next = NULL;
-        }
-        if (d != NULL && d != d_store) {
-          delete[] d;
-          init(false);
-        }
-      }
-      bool read(infile_base *file);
-      bool read_coefficient(infile_base *file, float &K);
-      bool read_coefficient(infile_base *file, si16 &K);
-      void init(bool clear_all = true) { 
-        if (clear_all) 
+      ~param_atk() { destroy(); }
+      void init(bool clear_all = true)
+      {
+        if (clear_all)
         {
           Latk = Satk = 0;
           Katk = 0.0f;
@@ -1013,10 +1018,29 @@ namespace ojph {
         }
         d = d_store; max_steps = sizeof(d_store) / sizeof(lifting_step);
       }
+
+      void destroy()
+      {
+        if (next && alloced_next) {
+          delete next;
+          next = NULL;
+        }
+        if (d != NULL && d != d_store) {
+          delete[] d;
+          init(false);
+        }
+      }
+
+      bool read(infile_base *file);
+      bool read_coefficient(infile_base *file, float &K);
+      bool read_coefficient(infile_base *file, si16 &K);
       void init_irv97();
       void init_rev53();
-      void link(param_atk* next) 
-      { assert(this->next == NULL); this->next = next; alloced_next = false; }
+      void link(param_atk* next)
+      {
+        //assert(this->next == NULL);
+        this->next = next; alloced_next = false;
+      }
 
       ui8 get_index() const { return (ui8)(Satk & 0xFF); }
       int get_coeff_type() const { return (Satk >> 8) & 0x7; }
@@ -1025,7 +1049,7 @@ namespace ojph {
       bool is_m_init0() const { return (Satk & 0x2000) == 0; }
       bool is_using_ws_extension() const { return (Satk & 0x4000) != 0; }
       const param_atk* get_atk(int index) const;
-      const lifting_step* get_step(ui32 s) const 
+      const lifting_step* get_step(ui32 s) const
       { assert(s < Natk); return d + s; }
       ui32 get_num_steps() const { return Natk; }
       float get_K() const { return Katk; }

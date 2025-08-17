@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -88,33 +88,53 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
+  mem_elastic_allocator::stores_list*
+  mem_elastic_allocator::allocate(mem_elastic_allocator::stores_list** list,
+                                  ui32 extended_bytes)
+  {
+    ui32 bytes = ojph_max(extended_bytes, chunk_size);
+    if (avail != NULL && avail->orig_size >= bytes)
+    {
+      *list = avail;
+      avail = avail->next_store;
+      (*list)->restart();
+      return *list;
+    }
+    else
+    {
+      ui32 store_bytes = stores_list::eval_store_bytes(bytes);
+      *list = (stores_list*) malloc(store_bytes);
+      total_allocated += store_bytes;
+      return new (*list) stores_list(bytes);
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void mem_elastic_allocator::get_buffer(ui32 needed_bytes, coded_lists* &p)
   {
     ui32 extended_bytes = needed_bytes + (ui32)sizeof(coded_lists);
 
     if (store == NULL)
-    {
-      ui32 bytes = ojph_max(extended_bytes, chunk_size);
-      ui32 store_bytes = stores_list::eval_store_bytes(bytes);
-      store = (stores_list*)malloc(store_bytes);
-      cur_store = store = new (store) stores_list(bytes);
-      total_allocated += store_bytes;
-    }
-
-    if (cur_store->available < extended_bytes)
-    {
-      ui32 bytes = ojph_max(extended_bytes, chunk_size);
-      ui32 store_bytes = stores_list::eval_store_bytes(bytes);
-      cur_store->next_store = (stores_list*)malloc(store_bytes);
-      cur_store = new (cur_store->next_store) stores_list(bytes);
-      total_allocated += store_bytes;
-    }
+      cur_store = store = allocate(&store, extended_bytes);
+    else if (cur_store->available < extended_bytes)
+      cur_store = allocate(&cur_store->next_store, extended_bytes);
 
     p = new (cur_store->data) coded_lists(needed_bytes);
 
     assert(cur_store->available >= extended_bytes);
     cur_store->available -= extended_bytes;
     cur_store->data += extended_bytes;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void mem_elastic_allocator::restart()
+  {
+    // move to the end of avail
+    stores_list** p = &avail;
+    while (*p != NULL)
+      p = &((*p)->next_store);
+    *p = store;
+    cur_store = store = NULL;
   }
 
 }

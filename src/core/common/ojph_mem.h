@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -54,8 +54,8 @@ namespace ojph {
   public:
     mem_fixed_allocator()
     {
-      avail_obj = avail_data = store = NULL;
-      avail_size_obj = avail_size_data = size_obj = size_data = 0;
+      store = NULL; allocated_data = 0;
+      restart();
     }
     ~mem_fixed_allocator()
     {
@@ -76,13 +76,31 @@ namespace ojph {
 
     void alloc()
     {
-      assert(store == NULL);
-      avail_obj = store = malloc(size_data + size_obj);
+      assert(preallocation);
+      if (size_data + size_obj > allocated_data)
+      {
+        // We should be here once only, because, in subsequent, calls we
+        // should have size_data + size_obj <= allocated_data
+        if (store)
+          delete[] store;
+        allocated_data = size_data + size_obj;
+        allocated_data = allocated_data + (allocated_data + 19) / 20; // 5%
+        store = malloc(allocated_data);
+        if (store == NULL)
+          throw "malloc failed";
+      }
+      avail_obj = store;
       avail_data = (ui8*)store + size_obj;
-      if (store == NULL)
-        throw "malloc failed";
       avail_size_obj = size_obj;
       avail_size_data = size_data;
+      preallocation = false;
+    }
+
+    void restart()
+    {
+      avail_obj = avail_data = NULL;
+      avail_size_obj = avail_size_data = size_obj = size_data = 0;
+      preallocation = true;
     }
 
     template<typename T>
@@ -103,7 +121,7 @@ namespace ojph {
     template<typename T, int N>
     void pre_alloc_local(size_t num_ele, ui32 pre_size, size_t& sz)
     {
-      assert(store == NULL);
+      assert(preallocation);
       num_ele = calc_aligned_size<T, N>(num_ele);
       size_t total = (num_ele + pre_size) * sizeof(T);
       total += 2*N - 1;
@@ -115,7 +133,7 @@ namespace ojph {
     T* post_alloc_local(size_t num_ele, ui32 pre_size,
                         size_t& avail_sz, void*& avail_p)
     {
-      assert(store != NULL);
+      assert(!preallocation);
       num_ele = calc_aligned_size<T, N>(num_ele);
       size_t total = (num_ele + pre_size) * sizeof(T);
       total += 2*N - 1;
@@ -129,6 +147,8 @@ namespace ojph {
 
     void *store, *avail_data, *avail_obj;
     size_t size_data, size_obj, avail_size_obj, avail_size_data;
+    size_t allocated_data;
+    bool preallocation;
   };
 
   /////////////////////////////////////////////////////////////////////////////
@@ -198,18 +218,24 @@ namespace ojph {
   public:
     mem_elastic_allocator(ui32 chunk_size)
     : chunk_size(chunk_size)
-    { cur_store = store = NULL; total_allocated = 0; }
+    { cur_store = store = avail = NULL; total_allocated = 0; }
 
     ~mem_elastic_allocator()
     {
-      while (store) {
+      while (store) { // stores in use
         stores_list* t = store->next_store;
         free(store);
         store = t;
       }
+      while (avail) { // available stores
+        stores_list* t = avail->next_store;
+        free(avail);
+        avail = t;
+      }
     }
 
     void get_buffer(ui32 needed_bytes, coded_lists*& p);
+    void restart();
 
   private:
     struct stores_list
@@ -217,19 +243,29 @@ namespace ojph {
       stores_list(ui32 available_bytes)
       {
         this->next_store = NULL;
-        this->available = available_bytes;
-        this->data = (ui8*)this + sizeof(stores_list);
+        this->orig_size = this->available = available_bytes;
+        this->orig_data = this->data = (ui8*)this + sizeof(stores_list);
       }
-      static ui32 eval_store_bytes(ui32 available_bytes) 
+      void restart()
+      {
+        this->next_store = NULL;
+        this->available = this->orig_size;
+        this->data = this->orig_data;
+      }
+      static ui32 eval_store_bytes(ui32 available_bytes)
       { // calculates how many bytes need to be allocated
         return available_bytes + (ui32)sizeof(stores_list);
       }
       stores_list *next_store;
-      ui32 available;
-      ui8* data;
+      ui8 *orig_data, *data;
+      ui32 orig_size, available;
     };
 
-    stores_list *store, *cur_store;
+    stores_list* allocate(stores_list** list, ui32 extended_bytes);
+
+    stores_list *store;
+    stores_list *cur_store;
+    stores_list *avail;
     size_t total_allocated;
     const ui32 chunk_size;
   };

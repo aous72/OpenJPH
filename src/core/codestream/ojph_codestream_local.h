@@ -163,9 +163,8 @@ namespace ojph {
 
     private:  // these are from Part 2 of the standard
       param_dfs dfs;         // downsmapling factor styles
-      param_atk* atk;        // a pointer to atk
-      param_atk atk_store[3];// 0 and 1 are for DWT from Part 1, 2 onward are
-                             // for arbitrary transformation kernels
+      param_atk atk;         // wavelet structure and coefficients
+
     private:
       mem_fixed_allocator *allocator;
       mem_elastic_allocator *elastic_alloc;

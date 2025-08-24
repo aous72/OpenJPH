@@ -99,11 +99,11 @@ namespace ojph {
 
       precinct_scratch_needed_bytes = 0;
 
-      atk = atk_store;
-      atk[0].init_irv97();
-      atk[0].link(atk_store + 1);
-      atk[1].init_rev53();
-      atk[1].link(atk_store + 2);
+      cod.restart();
+      qcd.restart();
+      nlt.restart();
+      dfs.restart();
+      atk.restart();
 
       allocator->restart();
       elastic_alloc->restart();
@@ -548,7 +548,7 @@ namespace ojph {
       //finalize
       siz.check_validity(cod);
       cod.check_validity(siz);
-      cod.update_atk(atk);
+      cod.update_atk(&atk);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
       nlt.check_validity(siz);
@@ -829,7 +829,7 @@ namespace ojph {
         else if (marker_idx == 14)
           dfs.read(file);
         else if (marker_idx == 15)
-          atk[2].read(file);
+          atk.read(file);
         else if (marker_idx == 16)
           nlt.read(file);
         else if (marker_idx == 17)
@@ -838,7 +838,7 @@ namespace ojph {
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
 
-      cod.update_atk(atk);
+      cod.update_atk(&atk);
       siz.link(&cod);
       if (dfs.exists())
         siz.link(&dfs);

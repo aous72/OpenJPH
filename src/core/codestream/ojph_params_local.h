@@ -397,27 +397,17 @@ namespace ojph {
 
     public: // COD_MAIN and COC_MAIN common functions
       param_cod(param_cod* top_cod = NULL, ui16 comp_idx = OJPH_COD_DEFAULT)
-      { init(top_cod, comp_idx); }
+      { avail = NULL; init(top_cod, comp_idx); }
       ~param_cod() { destroy(); }
 
       ////////////////////////////////////////
-      void init(param_cod* top_cod, ui16 comp_idx)
+      void restart()
       {
-        type = top_cod ? COC_MAIN : COD_MAIN;
-        Lcod = 0;
-        Scod = 0;
-        next = NULL;
-        atk = NULL;
-        this->top_cod = top_cod;
-        this->comp_idx = comp_idx;
-      }
-
-      ////////////////////////////////////////
-      void destroy() {
-        if (next) {
-          delete next;
-          next = NULL;
-        }
+        param_cod** p = &avail; // move next to the end of avail
+        while (*p != NULL)
+          p = &((*p)->next);
+        *p = next;
+        this->init(top_cod, OJPH_COD_DEFAULT);
       }
 
       ////////////////////////////////////////
@@ -587,7 +577,7 @@ namespace ojph {
       void read_coc(infile_base* file, ui32 num_comps, param_cod* top_cod);
 
       ////////////////////////////////////////
-      void update_atk(const param_atk* atk);
+      void update_atk(param_atk* atk);
 
       ////////////////////////////////////////
       const param_cod* get_coc(ui32 comp_idx) const;
@@ -619,6 +609,29 @@ namespace ojph {
       }
 
     private:
+      ////////////////////////////////////////
+      void init(param_cod* top_cod, ui16 comp_idx)
+      {
+        type = top_cod ? COC_MAIN : COD_MAIN;
+        Lcod = 0;
+        Scod = 0;
+        next = NULL;
+        atk = NULL;
+        this->top_cod = top_cod;
+        this->comp_idx = comp_idx;
+      }
+
+      ////////////////////////////////////////
+      void destroy() {
+        if (avail)
+          delete avail;
+        if (next) {
+          delete next;
+          next = NULL;
+        }
+      }
+
+    private:
       bool internal_write_coc(outfile_base *file, ui32 num_comps);
 
     ////////////////////////////////////////
@@ -634,6 +647,9 @@ namespace ojph {
     private: // COC only variables
       param_cod* top_cod;   // parent COD structure
       ui16 comp_idx;        // component index of this COC structure
+
+    private: // on restart, already allocated param_cod objs are stored here
+      param_cod* avail;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -663,29 +679,17 @@ namespace ojph {
 
     public:
       param_qcd(param_qcd* top_qcd = NULL, ui16 comp_idx = OJPH_QCD_DEFAULT)
-      { init(top_qcd, comp_idx); }
+      { avail = NULL; init(top_qcd, comp_idx); }
       ~param_qcd() { destroy(); }
 
-      void init(param_qcd* top_qcd, ui16 comp_idx)
+      ////////////////////////////////////////
+      void restart()
       {
-        type = top_qcd ? QCC_MAIN : QCD_MAIN;
-        Lqcd = 0;
-        Sqcd = 0;
-        memset(&SPqcd, 0, sizeof(SPqcd));
-        num_subbands = 0;
-        base_delta = -1.0f;
-        enabled = true;
-        next = NULL;
-        this->top_qcd = top_qcd;
-        this->comp_idx = comp_idx;
-      }
-
-      void destroy() {
-        if (next)
-        {
-          delete next;
-          next = NULL;
-        }
+        param_qcd** p = &avail; // move next to the end of avail
+        while (*p != NULL)
+          p = &((*p)->next);
+        *p = next;
+        this->init(top_qcd, OJPH_QCD_DEFAULT);
       }
 
       void check_validity(const param_siz& siz, const param_cod& cod);
@@ -708,6 +712,33 @@ namespace ojph {
       const param_qcd* get_qcc(ui32 comp_idx) const;
       param_qcd* add_qcc_object(ui32 comp_idx);
       ui16 get_comp_idx() const { return comp_idx; }
+
+    private:
+      ////////////////////////////////////////
+      void init(param_qcd* top_qcd, ui16 comp_idx)
+      {
+        type = top_qcd ? QCC_MAIN : QCD_MAIN;
+        Lqcd = 0;
+        Sqcd = 0;
+        memset(&SPqcd, 0, sizeof(SPqcd));
+        num_subbands = 0;
+        base_delta = -1.0f;
+        enabled = true;
+        next = NULL;
+        this->top_qcd = top_qcd;
+        this->comp_idx = comp_idx;
+      }
+
+      ////////////////////////////////////////
+      void destroy() {
+        if (avail)
+          delete avail;
+        if (next)
+        {
+          delete next;
+          next = NULL;
+        }
+      }
 
     private:
       void set_rev_quant(ui32 num_decomps, ui32 bit_depth,
@@ -740,6 +771,9 @@ namespace ojph {
 
     private: // QCC only variables
       ui16 comp_idx;
+
+    private:  // on restart, already allocated param_qcd objs are stored here
+      param_qcd* avail;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -755,25 +789,17 @@ namespace ojph {
       using special_comp_num = ojph::param_nlt::special_comp_num;
       using nonlinearity = ojph::param_nlt::nonlinearity;
     public:
-      param_nlt() { init(); }
+      param_nlt() { avail = NULL; init(); }
       ~param_nlt() { destroy(); }
 
-      void init()
+      ////////////////////////////////////////
+      void restart()
       {
-        Lnlt = 6;
-        Cnlt = special_comp_num::ALL_COMPS; // default
-        BDnlt = 0;
-        Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
-        enabled = false; next = NULL; alloced_next = false;
-      }
-
-      void destroy()
-      {
-        if (next && alloced_next) {
-          delete next;
-          alloced_next = false;
-          next = NULL;
-        }
+        param_nlt** p = &avail; // move next to the end of avail
+        while (*p != NULL)
+          p = &((*p)->next);
+        *p = next;
+        this->init();
       }
 
       void check_validity(param_siz& siz);
@@ -782,6 +808,28 @@ namespace ojph {
                                    bool& is_signed, ui8& nl_type) const;
       bool write(outfile_base* file) const;
       void read(infile_base* file);
+
+    private:
+      ////////////////////////////////////////
+      void init()
+      {
+        Lnlt = 6;
+        Cnlt = special_comp_num::ALL_COMPS; // default
+        BDnlt = 0;
+        Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
+        enabled = false; next = NULL;
+      }
+
+      ////////////////////////////////////////
+      void destroy()
+      {
+        if (avail)
+          delete avail;
+        if (next) {
+          delete next;
+          next = NULL;
+        }
+      }
 
     private:
       const param_nlt* get_nlt_object(ui32 comp_num) const;
@@ -797,13 +845,14 @@ namespace ojph {
       ui8 Tnlt;          // Type of non-linearity
       bool enabled;      // true if this object is used
       param_nlt* next;   // for chaining NLT markers
-      bool alloced_next; // true if next was allocated, not just set to an
-                         // existing object
 
       // The top level param_nlt object is not allocated, but as part of
       // codestream, and is used to manage allocated next objects.
       // next holds a list of param_nlt objects, which are managed by the top
       // param_nlt object.
+
+    private: // on restart, already allocated param_nlt objs are stored here
+      param_nlt* avail;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -937,11 +986,19 @@ namespace ojph {
       };
 
     public: // member functions
-      param_dfs() { init(); }
+      param_dfs() { avail = NULL; init(); }
       ~param_dfs() { destroy(); }
-      void init()
-      { Ldfs = Sdfs = Ids = 0; memset(Ddfs, 0, sizeof(Ddfs)); next = NULL; }
-      void destroy() { if (next) delete next; }
+
+      ////////////////////////////////////////
+      void restart()
+      {
+        param_dfs** p = &avail; // move next to the end of avail
+        while (*p != NULL)
+          p = &((*p)->next);
+        *p = next;
+        this->init();
+      }
+
       bool read(infile_base *file);
       bool exists() const { return Ldfs != 0; }
 
@@ -954,6 +1011,22 @@ namespace ojph {
                            ui32 subband) const;
       point get_res_downsamp(ui32 skipped_resolutions) const;
 
+    private:
+      ////////////////////////////////////////
+      void init()
+      { Ldfs = Sdfs = Ids = 0; memset(Ddfs, 0, sizeof(Ddfs)); next = NULL; }
+
+      ////////////////////////////////////////
+      void destroy()
+      {
+        if (avail)
+          delete avail;
+        if (next) {
+          delete next;
+          next = NULL;
+        }
+      }
+
     private: // member variables
       ui16 Ldfs;       // length of the segment marker
       ui16 Sdfs;       // index of this DFS marker segment
@@ -961,6 +1034,9 @@ namespace ojph {
       ui8 Ddfs[8];     // a string defining number of decomposition sub-levels
                        // 8 bytes should be enough for 32 levels
       param_dfs* next; // used for linking other dfs segments
+
+    private: // on restart, already allocated param_dfs objs are stored here
+      param_dfs* avail;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -995,52 +1071,37 @@ namespace ojph {
     {
       // Limitations:
       // Arbitrary filters (ARB) are not supported
-      // Up to 6 steps are supported -- more than 6 are not supported
       // Only one coefficient per step -- first order filter
       // Only even-indexed subsequence in first reconstruction step,
       //   m_init = 0 is supported
+    private:
+      enum : ui8 { // this is not a real parameter; it used for debugging
+        OJPH_ATK_TOP = 0,
+        OJPH_ATK_NONTOP = 1
+      };
 
     public: // member functions
-      param_atk() { init(); }
-      ~param_atk() { destroy(); }
-      void init(bool clear_all = true)
-      {
-        if (clear_all)
-        {
-          Latk = Satk = 0;
-          Katk = 0.0f;
-          Natk = 0;
-          d = NULL;
-          max_steps = 0;
-          memset(d_store, 0, sizeof(d_store));
-          next = NULL;
-          alloced_next = false;
-        }
-        d = d_store; max_steps = sizeof(d_store) / sizeof(lifting_step);
+      param_atk(param_atk *top_atk = NULL, ui8 type = OJPH_ATK_TOP) {
+        avail = NULL;
+        d = d_store;
+        max_steps = sizeof(d_store) / sizeof(lifting_step);
+        this->type = type;
+        init(this);
       }
+      ~param_atk() { destroy(); }
 
-      void destroy()
+      ////////////////////////////////////////
+      void restart()
       {
-        if (next && alloced_next) {
-          delete next;
-          next = NULL;
-        }
-        if (d != NULL && d != d_store) {
-          delete[] d;
-          init(false);
-        }
+        assert(type == OJPH_ATK_TOP);
+        param_atk** p = &avail; // move next to the end of avail
+        while (*p != NULL)
+          p = &((*p)->next);
+        *p = next;
+        this->init(this);
       }
 
       bool read(infile_base *file);
-      bool read_coefficient(infile_base *file, float &K);
-      bool read_coefficient(infile_base *file, si16 &K);
-      void init_irv97();
-      void init_rev53();
-      void link(param_atk* next)
-      {
-        //assert(this->next == NULL);
-        this->next = next; alloced_next = false;
-      }
 
       ui8 get_index() const { return (ui8)(Satk & 0xFF); }
       int get_coeff_type() const { return (Satk >> 8) & 0x7; }
@@ -1048,11 +1109,52 @@ namespace ojph {
       bool is_reversible() const { return (Satk & 0x1000) != 0; }
       bool is_m_init0() const { return (Satk & 0x2000) == 0; }
       bool is_using_ws_extension() const { return (Satk & 0x4000) != 0; }
-      const param_atk* get_atk(int index) const;
+      param_atk* get_atk(int index);
       const lifting_step* get_step(ui32 s) const
       { assert(s < Natk); return d + s; }
       ui32 get_num_steps() const { return Natk; }
       float get_K() const { return Katk; }
+
+    private:
+      ////////////////////////////////////////
+      void init(param_atk *top_atk)
+      {
+        Latk = Satk = 0;
+        Katk = 0.0f;
+        Natk = 0;
+        next = NULL;
+        this->top_atk = top_atk;
+        if (d == NULL) {
+          d = d_store;
+          max_steps = sizeof(d_store) / sizeof(lifting_step);
+        }
+        memset(d, 0, max_steps * sizeof(lifting_step));
+      }
+
+      ////////////////////////////////////////
+      void destroy()
+      {
+        assert(type == OJPH_ATK_TOP);
+        if (avail)
+          delete avail;
+        if (next) {
+          delete next;
+          next = NULL;
+        }
+        if (d != NULL && d != d_store) {
+          delete[] d;
+          d = d_store;
+          max_steps = sizeof(d_store) / sizeof(lifting_step);
+        }
+      }
+
+  private:
+      bool read_coefficient(infile_base *file, float &K);
+      bool read_coefficient(infile_base *file, si16 &K);
+
+      void init_irv97();
+      void init_rev53();
+      param_atk* add_object();
 
     private: // member variables
       ui16 Latk;         // structure length
@@ -1064,8 +1166,13 @@ namespace ojph {
       lifting_step d_store[6];   // lifting step coefficient
       param_atk* next;   // used for chaining if more than one atk segment
                          // exist in the codestream
-      bool alloced_next; // true if next was allocated, not just set to an
-                         // existing object
+      ui8 type;          // marker type -- this not a standard type; it is used
+                         // for debugging
+      param_atk* top_atk;// This is the top level atk, from which all atk
+                         // objects are derived
+
+    private: // on restart, already allocated param_atk objs are stored here
+      param_atk* avail;
     };
   } // !local namespace
 } // !ojph namespace

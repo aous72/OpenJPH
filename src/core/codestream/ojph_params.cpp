@@ -1033,7 +1033,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::update_atk(const param_atk* atk)
+    void param_cod::update_atk(param_atk* atk)
     {
       assert(type == COD_MAIN);
       this->atk = atk->get_atk(SPcod.wavelet_trans);
@@ -1083,7 +1083,14 @@ namespace ojph {
       param_cod *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_cod(this, (ui16)comp_idx);
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init(this, (ui16)comp_idx);
+      }
+      else
+        p->next = new param_cod(this, (ui16)comp_idx);
       return p->next;
     }
 
@@ -1733,7 +1740,14 @@ namespace ojph {
       param_qcd *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_qcd(this, (ui16)comp_idx);
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init(this, (ui16)comp_idx);
+      }
+      else
+        p->next = new param_qcd(this, (ui16)comp_idx);
       return p->next;
     }
 
@@ -1946,8 +1960,14 @@ namespace ojph {
         assert(p->Cnlt != comp_num);
         p = p->next;
       }
-      p->next = new param_nlt;
-      p->alloced_next = true;
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init();
+      }
+      else
+        p->next = new param_nlt;
       p = p->next;
       p->Cnlt = (ui16)comp_num;
       return p;
@@ -2243,7 +2263,14 @@ namespace ojph {
         param_dfs* p = this;
         while (p->next != NULL)
           p = p->next;
-        p->next = new param_dfs;
+        if (avail)
+        {
+          p->next = avail;
+          avail = avail->next;
+          p->next->init();
+        }
+        else
+          p->next = new param_dfs;
         p = p->next;
         return p->read(file);
       }
@@ -2285,11 +2312,35 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    const param_atk* param_atk::get_atk(int index) const
+    param_atk* param_atk::get_atk(int index)
     {
-      const param_atk* p = this;
+      assert(type == OJPH_ATK_TOP);
+
+      if (Latk == 0)
+      {
+        // This atk object is not used, initialize it to either 0 (irv97)
+        // or 1 (rev53), and use it.  If index is not 0 nor 1, then index
+        // must have been read from file previously, otherwise it is an
+        // error.
+        if (index == 0) { this->init_irv97(); return this; }
+        else if (index == 1) { this->init_rev53(); return this; }
+      }
+
+      param_atk* p = this;
       while (p && p->get_index() != index)
         p = p->next;
+
+      if (p == NULL && (index == 0 || index == 1))
+      {
+        // The index was not found, add an atk object only if the index is
+        // either 0 or 1
+        p = add_object();
+        if (index == 0)
+          p->init_irv97();
+        else if (index == 1)
+          p->init_rev53();
+      }
+
       return p;
     }
 
@@ -2375,22 +2426,24 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_atk::read(infile_base *file)
     {
-      if (Latk != 0) { // this param_atk is used
-        param_atk *p = this;
-        while (p->next != NULL)
-          p = p->next;
-        p->next = new param_atk;
-        p->alloced_next = true;
-        p = p->next;
-        return p->read(file);
-      }
+      if (Latk != 0) // this param_atk is used
+        return add_object()->read(file);
 
       if (file->read(&Latk, 2) != 2)
         OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter");
       Latk = swap_byte(Latk);
-      if (file->read(&Satk, 2) != 2)
+      ojph::ui16 temp_Satk;
+      if (file->read(&temp_Satk, 2) != 2)
         OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter");
-      Satk = swap_byte(Satk);
+      temp_Satk = swap_byte(temp_Satk);
+      int tmp_idx = temp_Satk & 0xFF;
+      if (tmp_idx == 0 || tmp_idx == 1 || top_atk->get_atk(tmp_idx) != NULL)
+        OJPH_ERROR(0x000500F3, "ATK-Satk parameter sets ATK marker index to "
+          "the illegal value of %d. ATK-Satk should be in (2-255) and, I "
+          "believe, must not be repeated; otherwise, it would be unclear "
+          "what marker segment must be employed when this index is used.",
+          tmp_idx);
+      Satk = temp_Satk;
       if (is_m_init0() == false)  // only even-indexed is supported
         OJPH_ERROR(0x000500E3, "ATK-Satk parameter sets m_init to 1, "
           "requiring odd-indexed subsequence in first reconstruction step, "
@@ -2486,6 +2539,25 @@ namespace ojph {
       d[1].rev.Aatk = -1;
       d[1].rev.Batk = 1;
       d[1].rev.Eatk = 1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_atk* param_atk::add_object()
+    {
+      assert(type == OJPH_ATK_TOP);
+      param_atk *p = this;
+      while (p->next != NULL)
+        p = p->next;
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        assert(p->next->type == OJPH_ATK_NONTOP);
+        p->next->init(this);
+      }
+      else
+        p->next = new param_atk(this, OJPH_ATK_NONTOP);
+      return p->next;
     }
 
   } // !local namespace

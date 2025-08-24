@@ -91,7 +91,7 @@ namespace ojph {
     /**
      *  @brief default constructor
      *
-     *  This object instantiate the actual implementation object
+     *  This function instantiate the actual implementation object
      *  local::codestream, using new.
      *
      */
@@ -100,15 +100,23 @@ namespace ojph {
     /**
      *  @brief default destructor
      *
-     *  This object destroys the internal local::codestream object.
+     *  This function destroys the internal local::codestream object.
      *
      */
     ~codestream();
 
     /**
-     *  @brief default destructor
+     *  @brief Restarts the codestream.
      *
-     *  This object destroys the internal local::codestream object.
+     *  This function restarts the codestream; after this call, the
+     *  codestream object behaves like it has never been used before,
+     *  except that all memory allocations are preserved.  Thus, after
+     *  restart(), there is no need to allocate memory, unless the new
+     *  codestream needs more storage to store codeblocks, or has a
+     *  different structure.
+     *
+     *  restart() is useful if we are decoding multiple codestreams that
+     *  have largely the same structure and byte length.
      *
      */
     void restart();

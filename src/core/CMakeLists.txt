@@ -116,6 +116,17 @@ else()
 
 endif()
 
+## Set debug postfix for different platforms
+if (MSVC)
+  if (NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    set(CMAKE_DEBUG_POSTFIX "d")
+  endif()
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  if (NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    set(CMAKE_DEBUG_POSTFIX "_d")
+  endif()
+endif()
+
 add_library(openjph ${SOURCES})
 
 ## The option BUILD_SHARED_LIBS

@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -57,13 +57,22 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   codestream::~codestream()
   {
-    if (state) delete state;
+    if (state)
+      delete state;
+    state = NULL;
   }
 
   ////////////////////////////////////////////////////////////////////////////
   codestream::codestream()
   {
     state = new local::codestream;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void codestream::restart()
+  {
+    assert(state != NULL);
+    state->restart();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -103,7 +112,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::set_tilepart_divisions(bool at_resolutions, 
+  void codestream::set_tilepart_divisions(bool at_resolutions,
                                           bool at_components)
   {
     ui32 value = 0;
@@ -147,7 +156,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::write_headers(outfile_base *file, 
+  void codestream::write_headers(outfile_base *file,
                                  const comment_exchange* comments,
                                  ui32 num_comments)
   {

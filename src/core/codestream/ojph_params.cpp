@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -368,8 +368,8 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   void param_coc::set_block_dims(ui32 width, ui32 height)
   { ojph::param_cod(state).set_block_dims(width, height); }
-  
-  ////////////////////////////////////////////////////////////////////////////  
+
+  ////////////////////////////////////////////////////////////////////////////
   void param_coc::set_precinct_size(int num_levels, size* precinct_size)
   { ojph::param_cod(state).set_precinct_size(num_levels, precinct_size); }
 
@@ -441,10 +441,10 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  bool param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+  bool param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth,
                                           bool& is_signed, ui8& nl_type) const
   {
-    return state->get_nonlinear_transform(comp_num, bit_depth, is_signed, 
+    return state->get_nonlinear_transform(comp_num, bit_depth, is_signed,
                                           nl_type);
   }
 
@@ -458,25 +458,25 @@ namespace ojph {
 
   //////////////////////////////////////////////////////////////////////////
   void comment_exchange::set_string(const char* str)
-  { 
+  {
     size_t t = strlen(str);
     if (len > 65531)
-      OJPH_ERROR(0x000500C1, 
+      OJPH_ERROR(0x000500C1,
         "COM marker string length cannot be larger than 65531");
-    this->data = str; 
+    this->data = str;
     this->len = (ui16)t;
     this->Rcom = 1;
   }
 
   //////////////////////////////////////////////////////////////////////////
   void comment_exchange::set_data(const char* data, ui16 len)
-  { 
+  {
     if (len > 65531)
-      OJPH_ERROR(0x000500C2, 
+      OJPH_ERROR(0x000500C2,
         "COM marker string length cannot be larger than 65531");
     this->data = data;
-    this->len = len; 
-    this->Rcom = 0; 
+    this->len = len;
+    this->Rcom = 0;
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -693,7 +693,7 @@ namespace ojph {
         OJPH_ERROR(0x00050043, "error reading SIZ marker");
       Rsiz = swap_byte(Rsiz);
       if ((Rsiz & 0x4000) == 0)
-        OJPH_ERROR(0x00050044, 
+        OJPH_ERROR(0x00050044,
           "Rsiz bit 14 is not set (this is not a JPH file)");
       if ((Rsiz & 0x8000) != 0 && (Rsiz & 0xD5F) != 0)
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
@@ -726,13 +726,7 @@ namespace ojph {
       Csiz = swap_byte(Csiz);
       if (Csiz != num_comps)
         OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
-      if (Csiz > old_Csiz)
-      {
-        if (cptr != store)
-          delete[] cptr;
-        cptr = new siz_comp_info[(ui32)num_comps];
-        old_Csiz = Csiz;
-      }
+      set_num_components(Csiz);
       for (int c = 0; c < Csiz; ++c)
       {
         if (file->read(&cptr[c].SSiz, 1) != 1)
@@ -841,7 +835,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     bool param_cod::is_reversible() const
-    { 
+    {
       if (SPcod.wavelet_trans <= 1)
         return get_wavelet_kern() == local::param_cod::DWT_REV53;
       else {
@@ -990,7 +984,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::read_coc(infile_base* file, ui32 num_comps, 
+    void param_cod::read_coc(infile_base* file, ui32 num_comps,
                              param_cod *top_cod)
     {
       assert(type == COC_MAIN);
@@ -1015,7 +1009,7 @@ namespace ojph {
       if (file->read(&Scod, 1) != 1)
         OJPH_ERROR(0x00050124, "error reading COC segment");
       if (Scod & 0xF8)
-        OJPH_WARN(0x00050011, 
+        OJPH_WARN(0x00050011,
           "Unsupported options in Scoc field of the COC segment");
       if (file->read(&SPcod.num_decomp, 1) != 1)
         OJPH_ERROR(0x00050125, "error reading COC segment");
@@ -1039,13 +1033,13 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_cod::update_atk(const param_atk* atk)
+    void param_cod::update_atk(param_atk* atk)
     {
       assert(type == COD_MAIN);
       this->atk = atk->get_atk(SPcod.wavelet_trans);
       if (this->atk == NULL)
         OJPH_ERROR(0x00050131, "A COD segment employs the DWT kernel "
-          "atk = %d, but a corresponding ATK segment cannot be found.", 
+          "atk = %d, but a corresponding ATK segment cannot be found.",
           SPcod.wavelet_trans);
       param_cod *p = next;
       while (p)
@@ -1053,7 +1047,7 @@ namespace ojph {
         p->atk = atk->get_atk(p->SPcod.wavelet_trans);
         if (p->atk == NULL)
           OJPH_ERROR(0x00050132, "A COC segment employs the DWT kernel "
-            "atk = %d, but a corresponding ATK segment cannot be found", 
+            "atk = %d, but a corresponding ATK segment cannot be found",
             SPcod.wavelet_trans);
         p = p->next;
       }
@@ -1089,7 +1083,14 @@ namespace ojph {
       param_cod *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_cod(this, (ui16)comp_idx);
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init(this, (ui16)comp_idx);
+      }
+      else
+        p->next = new param_cod(this, (ui16)comp_idx);
       return p->next;
     }
 
@@ -1122,7 +1123,7 @@ namespace ojph {
         {
           if (get_qcc(c) == this) // no qcc defined for component c
           {
-            const param_cod *p = cod.get_coc(c);          
+            const param_cod *p = cod.get_coc(c);
             if (bit_depth == 0) // first component captured by QCD
             {
               num_decompositions = p->get_num_decompositions();
@@ -1133,7 +1134,7 @@ namespace ojph {
             }
             else
             {
-              all_same = all_same 
+              all_same = all_same
                 && (num_decompositions == p->get_num_decompositions())
                 && (bit_depth == siz.get_bit_depth(c))
                 && (is_signed == siz.is_signed(c))
@@ -1161,7 +1162,7 @@ namespace ojph {
         if (qcd_wavelet_kern == param_cod::DWT_REV53)
           set_rev_quant(qcd_num_decompositions, qcd_bit_depth,
             qcd_component < 3 ? employing_color_transform : false);
-        else if (qcd_wavelet_kern == param_cod::DWT_IRV97) 
+        else if (qcd_wavelet_kern == param_cod::DWT_IRV97)
         {
           if (this->base_delta == -1.0f)
             this->base_delta = 1.0f / (float)(1 << qcd_bit_depth);
@@ -1333,7 +1334,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     ui32 param_qcd::get_MAGB() const
-    { 
+    {
       ui32 B = 0;
 
       const param_qcd *p = this;
@@ -1359,7 +1360,7 @@ namespace ojph {
           }
         else
           assert(0);
-        
+
         p = p->next;
       }
 
@@ -1367,7 +1368,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    float param_qcd::get_irrev_delta(const param_dfs* dfs, 
+    float param_qcd::get_irrev_delta(const param_dfs* dfs,
                                      ui32 num_decompositions,
                                      ui32 resolution, ui32 subband) const
     {
@@ -1384,7 +1385,7 @@ namespace ojph {
           "subband %d when the QCD/QCC marker segment specifies "
           "quantization step sizes for %d subbands only.  To continue "
           "decoding, we are using the step size for subband %d, which can "
-          "produce incorrect results", 
+          "produce incorrect results",
           idx + 1, num_subbands, num_subbands - 1);
         idx = num_subbands - 1;
       }
@@ -1401,7 +1402,7 @@ namespace ojph {
     {
       ui32 comp_idx = cod->get_comp_idx();
       ui32 precision = 0;
-      const param_cod *main = 
+      const param_cod *main =
         cod->get_coc(param_cod::OJPH_COD_DEFAULT);
       if (main->is_employing_color_transform() && comp_idx < 3)
       {
@@ -1413,10 +1414,10 @@ namespace ojph {
       else {
         precision = get_largest_Kmax();
       }
-      // ``precision'' now holds the largest K_max, which excludes the sign 
+      // ``precision'' now holds the largest K_max, which excludes the sign
       // bit.
       // + 1 for the sign bit
-      // + 1 because my block decoder/encoder does not supports up to 30 
+      // + 1 because my block decoder/encoder does not supports up to 30
       //     bits (not 31), so we bump it by one more bit.
       return precision + 1 + 1;
     }
@@ -1441,7 +1442,7 @@ namespace ojph {
           "subband %d when the QCD/QCC marker segment specifies "
           "quantization step sizes for %d subbands only.  To continue "
           "decoding, we are using the step size for subband %d, which can "
-          "produce incorrect results", 
+          "produce incorrect results",
           idx + 1, num_subbands, num_subbands - 1);
         idx = num_subbands - 1;
       }
@@ -1486,8 +1487,8 @@ namespace ojph {
       }
       else
         assert(0);
-      
-      return num_bits + get_num_guard_bits();        
+
+      return num_bits + get_num_guard_bits();
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1611,7 +1612,7 @@ namespace ojph {
         p->enabled = p->comp_idx < num_comps;
         p = p->next;
       }
-    }    
+    }
 
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::read(infile_base *file)
@@ -1633,7 +1634,7 @@ namespace ojph {
       else if ((Sqcd & 0x1F) == 1)
       {
         num_subbands = 0;
-        OJPH_ERROR(0x00050089, 
+        OJPH_ERROR(0x00050089,
           "Scalar derived quantization is not supported yet in QCD marker");
         if (Lqcd != 5)
           OJPH_ERROR(0x00050085, "wrong Lqcd value in QCD marker");
@@ -1688,7 +1689,7 @@ namespace ojph {
       else if ((Sqcd & 0x1F) == 1)
       {
         num_subbands = 0;
-        OJPH_ERROR(0x000500AB, 
+        OJPH_ERROR(0x000500AB,
           "Scalar derived quantization is not supported yet in QCC marker");
         if (Lqcd != offset)
           OJPH_ERROR(0x000500A7, "wrong Lqcc value in QCC marker");
@@ -1710,8 +1711,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    param_qcd* param_qcd::get_qcc(ui32 comp_idx) 
-    { 
+    param_qcd* param_qcd::get_qcc(ui32 comp_idx)
+    {
       // cast object to constant
       const param_qcd* const_p = const_cast<const param_qcd*>(this);
       // call using the constant object, then cast to non-const
@@ -1739,7 +1740,14 @@ namespace ojph {
       param_qcd *p = this;
       while (p->next != NULL)
         p = p->next;
-      p->next = new param_qcd(this, (ui16)comp_idx);
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init(this, (ui16)comp_idx);
+      }
+      else
+        p->next = new param_qcd(this, (ui16)comp_idx);
       return p->next;
     }
 
@@ -1760,7 +1768,7 @@ namespace ojph {
       if (this->enabled && this->Tnlt == nonlinearity::OJPH_NLT_NO_NLT)
         this->enabled = false;
 
-      if (this->enabled && 
+      if (this->enabled &&
           this->Tnlt == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT)
       {
         bool all_same = true;
@@ -1775,16 +1783,16 @@ namespace ojph {
         for (ui32 c = 0; c < num_comps; ++c)
         { // captured by ALL_COMPS
           param_nlt* p = get_nlt_object(c);
-          if (p == NULL || !p->enabled) 
+          if (p == NULL || !p->enabled)
           {
             if (bit_depth != 0)
-            { 
+            {
               // we have seen an undefined component previously
               all_same = all_same && (bit_depth == siz.get_bit_depth(c));
               all_same = all_same && (is_signed == siz.is_signed(c));
             }
             else
-            { 
+            {
               // this is the first component which has not type 3 nlt definition
               bit_depth = siz.get_bit_depth(c);
               is_signed = siz.is_signed(c);
@@ -1797,7 +1805,7 @@ namespace ojph {
           }
         }
 
-        if (all_same && bit_depth != 0) 
+        if (all_same && bit_depth != 0)
         { // all the same, and some components are captured by ALL_COMPS
           this->BDnlt = (ui8)(bit_depth - 1);
           this->BDnlt = (ui8)(this->BDnlt | (is_signed ? 0x80 : 0));
@@ -1812,7 +1820,7 @@ namespace ojph {
             { // captured by ALL_COMPS
               if (p == NULL)
                 p = add_object(c);
-              p->enabled = true;                
+              p->enabled = true;
               p->Tnlt = nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
               p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
               p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
@@ -1820,13 +1828,13 @@ namespace ojph {
           }
         }
       }
-      else { 
+      else {
         // fill NLT segment markers with correct information
         ui32 num_comps = siz.get_num_components();
         for (ui32 c = 0; c < num_comps; ++c)
         { // captured by ALL_COMPS
           param_nlt* p = get_nlt_object(c);
-          if (p != NULL && p->enabled) 
+          if (p != NULL && p->enabled)
           { // can be type 0 or type 3
             p->BDnlt = (ui8)(siz.get_bit_depth(c) - 1);
             p->BDnlt = (ui8)(p->BDnlt | (siz.is_signed(c) ? 0x80 : 0));
@@ -1843,7 +1851,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_nlt::set_nonlinear_transform(ui32 comp_num, ui8 nl_type)
     {
-      if (nl_type != ojph::param_nlt::OJPH_NLT_NO_NLT && 
+      if (nl_type != ojph::param_nlt::OJPH_NLT_NO_NLT &&
           nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT)
       OJPH_ERROR(0x00050171, "Nonliearities other than type 0 "
         "(No Nonlinearity) or type  3 (Binary Binary Complement to Sign "
@@ -1857,7 +1865,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     bool
-    param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth, 
+    param_nlt::get_nonlinear_transform(ui32 comp_num, ui8& bit_depth,
                                        bool& is_signed, ui8& nl_type) const
     {
       assert(Cnlt == special_comp_num::ALL_COMPS);
@@ -1925,8 +1933,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    param_nlt* param_nlt::get_nlt_object(ui32 comp_num) 
-    { 
+    param_nlt* param_nlt::get_nlt_object(ui32 comp_num)
+    {
       // cast object to constant
       const param_nlt* const_p = const_cast<const param_nlt*>(this);
       // call using the constant object, then cast to non-const
@@ -1952,8 +1960,14 @@ namespace ojph {
         assert(p->Cnlt != comp_num);
         p = p->next;
       }
-      p->next = new param_nlt;
-      p->alloced_next = true;
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        p->next->init();
+      }
+      else
+        p->next = new param_nlt;
       p = p->next;
       p->Cnlt = (ui16)comp_num;
       return p;
@@ -2045,7 +2059,7 @@ namespace ojph {
         if (file->read(&Lsot, 2) != 2)
         {
           OJPH_INFO(0x00050091, "error reading SOT marker");
-          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0; 
+          Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
           return false;
         }
         Lsot = swap_byte(Lsot);
@@ -2187,7 +2201,7 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     param_dfs::dfs_dwt_type param_dfs::get_dwt_type(ui32 decomp_level) const
-    { 
+    {
       decomp_level = ojph_min(decomp_level, Ids);
       ui32 d = decomp_level - 1;          // decomp_level starts from 1
       ui32 idx = d >> 2;                  // complete bytes
@@ -2200,7 +2214,7 @@ namespace ojph {
     ui32 param_dfs::get_subband_idx(ui32 num_decompositions, ui32 resolution,
                                     ui32 subband) const
     {
-      assert((resolution == 0 && subband == 0) || 
+      assert((resolution == 0 && subband == 0) ||
               (resolution > 0 && subband > 0 && subband < 4));
 
       ui32 ns[4] = { 0, 3, 1, 1 };
@@ -2249,7 +2263,14 @@ namespace ojph {
         param_dfs* p = this;
         while (p->next != NULL)
           p = p->next;
-        p->next = new param_dfs;
+        if (avail)
+        {
+          p->next = avail;
+          avail = avail->next;
+          p->next->init();
+        }
+        else
+          p->next = new param_dfs;
         p = p->next;
         return p->read(file);
       }
@@ -2270,7 +2291,7 @@ namespace ojph {
       if (l_Ids > max_Ddfs)
         OJPH_INFO(0x000500D5, "The DFS-Ids parameter is %d; while this is "
           "valid, the number is unnessarily large -- you do not need more "
-          "than %d.  Please contact me regarding this issue.", 
+          "than %d.  Please contact me regarding this issue.",
           l_Ids, max_Ddfs);
       Ids = l_Ids < max_Ddfs ? l_Ids : max_Ddfs;
       for (int i = 0; i < Ids; i += 4)
@@ -2291,11 +2312,35 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    const param_atk* param_atk::get_atk(int index) const
+    param_atk* param_atk::get_atk(int index)
     {
-      const param_atk* p = this;
+      assert(type == OJPH_ATK_TOP);
+
+      if (Latk == 0)
+      {
+        // This atk object is not used, initialize it to either 0 (irv97)
+        // or 1 (rev53), and use it.  If index is not 0 nor 1, then index
+        // must have been read from file previously, otherwise it is an
+        // error.
+        if (index == 0) { this->init_irv97(); return this; }
+        else if (index == 1) { this->init_rev53(); return this; }
+      }
+
+      param_atk* p = this;
       while (p && p->get_index() != index)
         p = p->next;
+
+      if (p == NULL && (index == 0 || index == 1))
+      {
+        // The index was not found, add an atk object only if the index is
+        // either 0 or 1
+        p = add_object();
+        if (index == 0)
+          p->init_irv97();
+        else if (index == 1)
+          p->init_rev53();
+      }
+
       return p;
     }
 
@@ -2381,38 +2426,40 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_atk::read(infile_base *file)
     {
-      if (Latk != 0) { // this param_atk is used
-        param_atk *p = this;
-        while (p->next != NULL)
-          p = p->next;
-        p->next = new param_atk;
-        p->alloced_next = true;
-        p = p->next;
-        return p->read(file);
-      }
+      if (Latk != 0) // this param_atk is used
+        return add_object()->read(file);
 
       if (file->read(&Latk, 2) != 2)
-        OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter"); 
+        OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter");
       Latk = swap_byte(Latk);
-      if (file->read(&Satk, 2) != 2)
-        OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter"); 
-      Satk = swap_byte(Satk);
+      ojph::ui16 temp_Satk;
+      if (file->read(&temp_Satk, 2) != 2)
+        OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter");
+      temp_Satk = swap_byte(temp_Satk);
+      int tmp_idx = temp_Satk & 0xFF;
+      if (tmp_idx == 0 || tmp_idx == 1 || top_atk->get_atk(tmp_idx) != NULL)
+        OJPH_ERROR(0x000500F3, "ATK-Satk parameter sets ATK marker index to "
+          "the illegal value of %d. ATK-Satk should be in (2-255) and, I "
+          "believe, must not be repeated; otherwise, it would be unclear "
+          "what marker segment must be employed when this index is used.",
+          tmp_idx);
+      Satk = temp_Satk;
       if (is_m_init0() == false)  // only even-indexed is supported
         OJPH_ERROR(0x000500E3, "ATK-Satk parameter sets m_init to 1, "
           "requiring odd-indexed subsequence in first reconstruction step, "
           "which is not supported yet.");
       if (is_whole_sample() == false)  // ARB filter not supported
         OJPH_ERROR(0x000500E4, "ATK-Satk parameter specified ARB filter, "
-          "which is not supported yet."); 
+          "which is not supported yet.");
       if (is_reversible() && get_coeff_type() >= 2) // reversible & float
         OJPH_ERROR(0x000500E5, "ATK-Satk parameter does not make sense. "
-          "It employs floats with reversible filtering."); 
+          "It employs floats with reversible filtering.");
       if (is_using_ws_extension() == false)  // only sym. ext is supported
         OJPH_ERROR(0x000500E6, "ATK-Satk parameter requires constant "
           "boundary extension, which is not supported yet.");
-      if (is_reversible() == false) 
+      if (is_reversible() == false)
         if (read_coefficient(file, Katk) == false)
-          OJPH_ERROR(0x000500E7, "error reading ATK-Katk parameter"); 
+          OJPH_ERROR(0x000500E7, "error reading ATK-Katk parameter");
       if (file->read(&Natk, 1) != 1)
         OJPH_ERROR(0x000500E8, "error reading ATK-Natk parameter");
       if (Natk > max_steps) {
@@ -2427,9 +2474,9 @@ namespace ojph {
         for (int s = 0; s < Natk; ++s)
         {
           if (file->read(&d[s].rev.Eatk, 1) != 1)
-            OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");           
+            OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");
           if (file->read(&d[s].rev.Batk, 2) != 2)
-            OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");           
+            OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");
           d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
@@ -2492,6 +2539,25 @@ namespace ojph {
       d[1].rev.Aatk = -1;
       d[1].rev.Batk = 1;
       d[1].rev.Eatk = 1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_atk* param_atk::add_object()
+    {
+      assert(type == OJPH_ATK_TOP);
+      param_atk *p = this;
+      while (p->next != NULL)
+        p = p->next;
+      if (avail)
+      {
+        p->next = avail;
+        avail = avail->next;
+        assert(p->next->type == OJPH_ATK_NONTOP);
+        p->next->init(this);
+      }
+      else
+        p->next = new param_atk(this, OJPH_ATK_NONTOP);
+      return p->next;
     }
 
   } // !local namespace

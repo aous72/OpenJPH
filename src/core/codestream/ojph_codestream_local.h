@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -68,23 +68,25 @@ namespace ojph {
     class codestream
     {
       friend ::ojph::codestream;
-      
+
     public:
       codestream();
       ~codestream();
 
+      void restart();
+
       void pre_alloc();
       void finalize_alloc();
 
-      ojph::param_siz access_siz()            //return externally wrapped siz
+      ojph::param_siz access_siz()            // returns externally wrapped siz
       { return ojph::param_siz(&siz); }
-      const param_siz* get_siz() //return internal siz
+      const param_siz* get_siz()              // returns internal siz
       { return &siz; }
-      ojph::param_cod access_cod()            //return externally wrapped cod
+      ojph::param_cod access_cod()            // returns externally wrapped cod
       { return ojph::param_cod(&cod); }
-      const param_cod* get_cod()              //return internal cod
+      const param_cod* get_cod()              // returns internal cod
       { return &cod; }
-      const param_cod* get_coc(ui32 comp_num) //return internal cod
+      const param_cod* get_coc(ui32 comp_num) // returns internal cod
       { return cod.get_coc(comp_num); }
       const param_qcd* access_qcd()
       { return &qcd; }
@@ -150,7 +152,7 @@ namespace ojph {
       int profile;
       ui32 tilepart_div;     // tilepart division value
       bool need_tlm;         // true if tlm markers are needed
-      
+
     private:
       param_siz siz;         // image and tile size
       param_cod cod;         // coding style default
@@ -161,9 +163,8 @@ namespace ojph {
 
     private:  // these are from Part 2 of the standard
       param_dfs dfs;         // downsmapling factor styles
-      param_atk* atk;        // a pointer to atk
-      param_atk atk_store[3];// 0 and 1 are for DWT from Part 1, 2 onward are
-                             // for arbitrary transformation kernels
+      param_atk atk;         // wavelet structure and coefficients
+
     private:
       mem_fixed_allocator *allocator;
       mem_elastic_allocator *elastic_alloc;

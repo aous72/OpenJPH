@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -52,15 +52,35 @@ namespace ojph {
   namespace local
   {
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     codestream::codestream()
     : precinct_scratch(NULL), allocator(NULL), elastic_alloc(NULL)
+    {
+      allocator = new mem_fixed_allocator;
+      elastic_alloc = new mem_elastic_allocator(1048576); // 1 megabyte
+
+      init_colour_transform_functions();
+      init_wavelet_transform_functions();
+
+      restart();
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    codestream::~codestream()
+    {
+      if (allocator)
+        delete allocator;
+      if (elastic_alloc)
+        delete elastic_alloc;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void codestream::restart()
     {
       tiles = NULL;
       lines = NULL;
       comp_size = NULL;
       recon_comp_size = NULL;
-      allocator = NULL;
       outfile = NULL;
       infile = NULL;
 
@@ -79,26 +99,14 @@ namespace ojph {
 
       precinct_scratch_needed_bytes = 0;
 
-      atk = atk_store;
-      atk[0].init_irv97();
-      atk[0].link(atk_store + 1);
-      atk[1].init_rev53();
-      atk[1].link(atk_store + 2);
+      cod.restart();
+      qcd.restart();
+      nlt.restart();
+      dfs.restart();
+      atk.restart();
 
-      allocator = new mem_fixed_allocator;
-      elastic_alloc = new mem_elastic_allocator(1048576); //1 megabyte
-
-      init_colour_transform_functions();
-      init_wavelet_transform_functions();
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    codestream::~codestream()
-    {
-      if (allocator)
-        delete allocator;
-      if (elastic_alloc)
-        delete elastic_alloc;
+      allocator->restart();
+      elastic_alloc->restart();
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -126,10 +134,10 @@ namespace ojph {
         ui32 y1 = y0 + sz.get_tile_size().h; //end of tile
 
         tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
-        tile_rect.siz.h = 
+        tile_rect.siz.h =
           ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
 
-        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds), 
+        recon_tile_rect.org.y = ojph_max(ojph_div_ceil(y0, ds),
           ojph_div_ceil(sz.get_image_offset().y, ds));
         recon_tile_rect.siz.h = ojph_min(ojph_div_ceil(y1, ds),
           ojph_div_ceil(sz.get_image_extent().y, ds))
@@ -142,7 +150,7 @@ namespace ojph {
           ui32 x1 = x0 + sz.get_tile_size().w;
 
           tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
-          tile_rect.siz.w = 
+          tile_rect.siz.w =
             ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
 
           recon_tile_rect.org.x = ojph_max(ojph_div_ceil(x0, ds),
@@ -189,7 +197,7 @@ namespace ojph {
       // (rounding up leaves one extra entry).
       // This exta entry is necessary
       // We need 4 such tables. These tables store
-      // 1. missing msbs and 2. their flags, 
+      // 1. missing msbs and 2. their flags,
       // 3. number of layers and 4. their flags
       precinct_scratch_needed_bytes =
         4 * ((max_ratio * max_ratio * 4 + 2) / 3);
@@ -203,7 +211,7 @@ namespace ojph {
       allocator->alloc();
 
       //precinct scratch buffer
-      precinct_scratch = 
+      precinct_scratch =
         allocator->post_alloc_obj<ui8>(precinct_scratch_needed_bytes);
 
       //get tiles
@@ -220,7 +228,7 @@ namespace ojph {
         ui32 y1 = y0 + sz.get_tile_size().h; //end of tile
 
         tile_rect.org.y = ojph_max(y0, sz.get_image_offset().y);
-        tile_rect.siz.h = 
+        tile_rect.siz.h =
           ojph_min(y1, sz.get_image_extent().y) - tile_rect.org.y;
 
         ui32 offset = 0;
@@ -231,7 +239,7 @@ namespace ojph {
           ui32 x1 = x0 + sz.get_tile_size().w;
 
           tile_rect.org.x = ojph_max(x0, sz.get_image_offset().x);
-          tile_rect.siz.w = 
+          tile_rect.siz.w =
             ojph_min(x1, sz.get_image_extent().x) - tile_rect.org.x;
 
           ui32 tps = 0; // number of tileparts for this tile
@@ -256,7 +264,7 @@ namespace ojph {
         ui32 cw = siz.get_recon_width(i);
         recon_comp_size[i].w = cw;
         recon_comp_size[i].h = siz.get_recon_height(i);
-        lines[i].wrap(allocator->post_alloc_data<si32>(cw, 0), cw, 0);        
+        lines[i].wrap(allocator->post_alloc_data<si32>(cw, 0), cw, 0);
       }
 
       cur_comp = 0;
@@ -525,22 +533,22 @@ namespace ojph {
       if (tilepart_div != OJPH_TILEPART_COMPONENTS)
       {
         tilepart_div = OJPH_TILEPART_COMPONENTS;
-        OJPH_WARN(0x000300B1, 
+        OJPH_WARN(0x000300B1,
           "In BROADCAST profile, tile part divisions at the component level "
           "must be employed, while at the resolution level is not allowed. "
           "This has been corrected.");
-      }    
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void codestream::write_headers(outfile_base *file, 
+    void codestream::write_headers(outfile_base *file,
                                    const comment_exchange* comments,
                                    ui32 num_comments)
     {
       //finalize
       siz.check_validity(cod);
-      cod.check_validity(siz);  
-      cod.update_atk(atk);
+      cod.check_validity(siz);
+      cod.update_atk(&atk);
       qcd.check_validity(siz, cod);
       cap.check_validity(cod, qcd);
       nlt.check_validity(siz);
@@ -550,11 +558,11 @@ namespace ojph {
         check_broadcast_validity();
 
       int po = ojph::param_cod(&cod).get_progression_order();
-      if ((po == OJPH_PO_LRCP || po == OJPH_PO_RLCP) && 
+      if ((po == OJPH_PO_LRCP || po == OJPH_PO_RLCP) &&
            tilepart_div == OJPH_TILEPART_COMPONENTS)
       {
         tilepart_div |= OJPH_TILEPART_RESOLUTIONS;
-        OJPH_INFO(0x00030021, 
+        OJPH_INFO(0x00030021,
           "For LRCP and RLCP progression orders, tilepart divisions at the "
           "component level, means that we have a tilepart for every "
           "resolution and component.\n");
@@ -643,7 +651,7 @@ namespace ojph {
       *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
       *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
       //1 for General use (IS 8859-15:1999 (Latin) values)
-      *(ui16*)(buf + 4) = swap_byte((ui16)(1)); 
+      *(ui16*)(buf + 4) = swap_byte((ui16)(1));
       if (file->write(buf, len) != len)
         OJPH_ERROR(0x00030028, "Error writing to file");
 
@@ -750,7 +758,7 @@ namespace ojph {
           //Skipping CPF marker segment; this should not cause any issues
           skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
         else if (marker_idx == 3)
-        { 
+        {
           cod.read(file);
           received_markers |= 1;
           ojph::param_cod c(&cod);
@@ -760,14 +768,14 @@ namespace ojph {
               "1 quality layer only.  This codestream has %d quality layers",
               num_qlayers);
         }
-        else if (marker_idx == 4) 
+        else if (marker_idx == 4)
         {
           param_cod* p = cod.add_coc_object(param_cod::OJPH_COD_UNKNOWN);
           p->read_coc(file, siz.get_num_components(), &cod);
           if (p->get_comp_idx() >= siz.get_num_components())
             OJPH_INFO(0x00030056, "The codestream carries a COC marker "
               "segment for a component indexed by %d, which is more than the "
-              "allowed index number, since the codestream has %d components", 
+              "allowed index number, since the codestream has %d components",
               p->get_comp_idx(), num_comps);
           param_cod *q = cod.get_coc(p->get_comp_idx());
           if (p != q && p->get_comp_idx() == q->get_comp_idx())
@@ -775,18 +783,18 @@ namespace ojph {
               "segments for one component of index %d",  p->get_comp_idx());
         }
         else if (marker_idx == 5)
-        { 
-          qcd.read(file); 
-          received_markers |= 2; 
+        {
+          qcd.read(file);
+          received_markers |= 2;
         }
         else if (marker_idx == 6)
         {
-          param_qcd* p = qcd.add_qcc_object(param_qcd::OJPH_QCD_UNKNOWN); 
+          param_qcd* p = qcd.add_qcc_object(param_qcd::OJPH_QCD_UNKNOWN);
           p->read_qcc(file, siz.get_num_components());
           if (p->get_comp_idx() >= siz.get_num_components())
             OJPH_ERROR(0x00030054, "The codestream carries a QCC marker "
               "segment for a component indexed by %d, which is more than the "
-              "allowed index number, since the codestream has %d components", 
+              "allowed index number, since the codestream has %d components",
               p->get_comp_idx(), num_comps);
           param_qcd *q = qcd.get_qcc(p->get_comp_idx());
           if (p != q && p->get_comp_idx() == q->get_comp_idx())
@@ -821,7 +829,7 @@ namespace ojph {
         else if (marker_idx == 14)
           dfs.read(file);
         else if (marker_idx == 15)
-          atk[2].read(file);
+          atk.read(file);
         else if (marker_idx == 16)
           nlt.read(file);
         else if (marker_idx == 17)
@@ -830,7 +838,7 @@ namespace ojph {
           OJPH_ERROR(0x00030051, "File ended before finding a tile segment");
       }
 
-      cod.update_atk(atk);
+      cod.update_atk(&atk);
       siz.link(&cod);
       if (dfs.exists())
         siz.link(&dfs);
@@ -849,7 +857,7 @@ namespace ojph {
       if (skipped_res_for_read < skipped_res_for_recon)
         OJPH_ERROR(0x000300A1,
           "skipped_resolution for data %d must be equal or smaller than "
-          " skipped_resolution for reconstruction %d\n", 
+          " skipped_resolution for reconstruction %d\n",
           skipped_res_for_read, skipped_res_for_recon);
       if (skipped_res_for_read > cod.get_num_decompositions())
         OJPH_ERROR(0x000300A2,
@@ -908,7 +916,7 @@ namespace ojph {
             }
 
             bool sod_found = false;
-            ui16 other_tile_part_markers[7] = { SOT, POC, PPT, PLT, COM, 
+            ui16 other_tile_part_markers[7] = { SOT, POC, PPT, PLT, COM,
               NLT, SOD };
             while (true)
             {
@@ -931,7 +939,7 @@ namespace ojph {
                 result = skip_marker(infile, "COM", NULL,
                   OJPH_MSG_LEVEL::NO_MSG, resilient);
               else if (marker_idx == 4)
-                result = skip_marker(infile, "NLT", 
+                result = skip_marker(infile, "NLT",
                   "NLT marker in tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 5)
@@ -1015,7 +1023,7 @@ namespace ojph {
                 result = skip_marker(infile, "COM", NULL,
                   OJPH_MSG_LEVEL::NO_MSG, resilient);
               else if (marker_idx == 9)
-                result = skip_marker(infile, "NLT", 
+                result = skip_marker(infile, "NLT",
                   "PPT marker segment in a tile is not supported yet",
                   OJPH_MSG_LEVEL::WARN, resilient);
               else if (marker_idx == 10)
@@ -1092,7 +1100,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void codestream::set_tilepart_divisions(ui32 value)
     {
-      tilepart_div = value;      
+      tilepart_div = value;
     }
 
     //////////////////////////////////////////////////////////////////////////

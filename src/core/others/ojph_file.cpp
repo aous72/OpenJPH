@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -146,16 +146,16 @@ namespace ojph {
     else if (origin == OJPH_SEEK_CUR)
       offset += tell();
     else if (origin == OJPH_SEEK_END)
-      offset += (si64)buf_size;
+      offset += (si64)used_size;
     else {
-      assert(0); 
+      assert(0);
       return -1;
     }
-    
-    if (offset >= 0)
-      expand_storage((size_t)offset, false);
-    else
+
+    if (offset < 0)  // offset before the start of file
       return -1;
+
+    expand_storage((size_t)offset, false); // See if expansion is needed
 
     cur_ptr = buf + offset;
     return 0;
@@ -198,9 +198,9 @@ namespace ojph {
   /** */
   void mem_outfile::expand_storage(size_t needed_size, bool clear_all)
   {
-    needed_size += (needed_size + 1) >> 1; // x1.5
     if (needed_size > buf_size)
     {
+      needed_size += (needed_size + 1) >> 1; // x1.5
       si64 used_size = tell(); // current used size
 
       if (this->buf)
@@ -210,7 +210,7 @@ namespace ojph {
 
       if (clear_mem && !clear_all) // will be cleared later
         memset(this->buf + buf_size, 0, needed_size - this->buf_size);
-      
+
       this->buf_size = needed_size;
       this->cur_ptr = this->buf + used_size;
     }

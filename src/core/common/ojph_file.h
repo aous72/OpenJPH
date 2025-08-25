@@ -203,6 +203,13 @@ namespace ojph {
      */
     void write_to_file(const char *file_name) const;
 
+    /**
+     *  @brief Call this function to get the used size of the memory file.
+     *
+     *  @return the used size of the memory file.
+     */
+    size_t get_used_size() const { return used_size; }
+
   private:
     /**
      *  @brief This function expands storage by x1.5 needed space.

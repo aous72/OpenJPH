@@ -206,15 +206,15 @@ namespace ojph {
     /**
      *  @brief Call this function to get the used size of the memory file.
      *
-     *  @return the used size of the memory file.
+     *  @return the used size of the memory file in bytes.
      */
     size_t get_used_size() const { return used_size; }
 
     /**
      *  @brief Call this function to get the total buffer size of the memory
-     *         file including unused space.
+     *         file including unused space (this is the allocated memory).
      *
-     *  @return the full size of the memory file.
+     *  @return the full size of the memory file in bytes.
      */
      size_t get_buf_size() const { return buf_size; }
 

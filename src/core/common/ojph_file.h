@@ -210,6 +210,14 @@ namespace ojph {
      */
     size_t get_used_size() const { return used_size; }
 
+    /**
+     *  @brief Call this function to get the total buffer size of the memory
+     *         file including unused space.
+     *
+     *  @return the full size of the memory file.
+     */
+     size_t get_buf_size() const { return buf_size; }
+
   private:
     /**
      *  @brief This function expands storage by x1.5 needed space.

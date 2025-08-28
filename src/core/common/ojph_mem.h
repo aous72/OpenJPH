@@ -81,8 +81,7 @@ namespace ojph {
       {
         // We should be here once only, because, in subsequent, calls we
         // should have size_data + size_obj <= allocated_data
-        if (store)
-          delete[] store;
+        free(store);
         allocated_data = size_data + size_obj;
         allocated_data = allocated_data + (allocated_data + 19) / 20; // 5%
         store = malloc(allocated_data);

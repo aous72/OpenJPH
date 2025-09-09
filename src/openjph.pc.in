@@ -7,4 +7,4 @@ Description: @PROJECT_DESCRIPTION@
 Version: @PROJECT_VERSION@
 Requires: @PKG_CONFIG_REQUIRES@
 Libs: -L${libdir} -lopenjph
-Cflags: -I${includedir}
+Cflags: -I${includedir} -D_FILE_OFFSET_BITS=64

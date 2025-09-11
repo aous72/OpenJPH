@@ -1085,6 +1085,7 @@ namespace ojph {
         avail = NULL;
         d = d_store;
         max_steps = sizeof(d_store) / sizeof(lifting_step);
+        this->top_atk = top_atk;
         this->type = type;
         init(this);
       }
@@ -1162,7 +1163,7 @@ namespace ojph {
       float Katk;        // only for irreversible scaling factor K
       ui8 Natk;          // number of lifting steps
       lifting_step* d;   // pointer to data, initialized to d_store
-      int max_steps;     // maximum number of steps without memory allocation
+      ui32 max_steps;    // maximum number of steps without memory allocation
       lifting_step d_store[6];   // lifting step coefficient
       param_atk* next;   // used for chaining if more than one atk segment
                          // exist in the codestream

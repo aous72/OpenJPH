@@ -202,7 +202,7 @@ namespace ojph {
   {
   #ifdef OJPH_COMPILER_MSVC
     unsigned long result = 0;
-    #ifdef OJPH_ARCH_X86_64
+    #if (defined OJPH_ARCH_X86_64) || (defined OJPH_ARCH_ARM)
       _BitScanReverse64(&result, val);
     #elif (defined OJPH_ARCH_I386)
       ui32 msb = (ui32)(val >> 32), lsb = (ui32)val;

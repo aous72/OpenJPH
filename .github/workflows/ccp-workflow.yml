@@ -1,7 +1,7 @@
 # taken from https://github.com/onqtam/doctest/blob/master/.github/workflows/main.yml
 
 name: C/C++ CI
-on: 
+on:
   push:
   pull_request:
     types: [opened, reopened]
@@ -64,6 +64,24 @@ jobs:
       run: cmake --build . --config Release
       working-directory: build
 
+  build_windows_on_arm:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { system: WindowsOnARM,  runner: windows-11-arm },
+        ]
+    name: ${{ matrix.system }} Build
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: cmake
+      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
+      working-directory: build
+
   test:
     strategy:
       fail-fast: false
@@ -86,7 +104,7 @@ jobs:
     - name: test
       run: ctest --output-on-failure
       working-directory: build
-      
+
   test_windows:
     strategy:
       fail-fast: false
@@ -107,6 +125,28 @@ jobs:
     - name: test
       run: ctest --output-on-failure -C Release
       working-directory: build
+
+  test_windows_on_arm:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { system: WindowsOnARM,  runner: windows-11-arm },
+        ]
+    name: ${{ matrix.system }} Test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: cmake
+      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure -C Release
+      working-directory: build
+
 
 #jobs:
 #  ci:

@@ -43,6 +43,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "ojph_mem.h"
 #include "ojph_file.h"
 #include "ojph_message.h"
 
@@ -110,7 +111,7 @@ namespace ojph {
   mem_outfile::~mem_outfile()
   {
     if (buf)
-      free(buf);
+      ojph_aligned_free(buf);
     is_open = clear_mem = false;
     buf_size = used_size = 0;
     buf = cur_ptr = NULL;
@@ -201,18 +202,27 @@ namespace ojph {
     if (needed_size > buf_size)
     {
       needed_size += (needed_size + 1) >> 1; // x1.5
-      si64 used_size = tell(); // current used size
+      // expand buffer to multiples of (ALIGNED_ALLOC_MASK + 1)
+      needed_size = (needed_size + ALIGNED_ALLOC_MASK) & (~ALIGNED_ALLOC_MASK);
 
-      if (this->buf)
-        this->buf = (ui8*)realloc(this->buf, needed_size);
-      else
-        this->buf = (ui8*)malloc(needed_size);
+      ui8* new_buf;
+      new_buf = (ui8*)ojph_aligned_malloc(ALIGNED_ALLOC_MASK + 1, needed_size);
+      if (new_buf == NULL)
+        OJPH_ERROR(0x00060005, "failed to allocate memory (%zu bytes)",
+          needed_size);
+
+      if (this->buf != NULL)
+      {
+        if (!clear_all)
+          memcpy(new_buf, this->buf, used_size);
+        ojph_aligned_free(this->buf);
+      }
+      this->cur_ptr = new_buf + tell();
+      this->buf = new_buf;
 
       if (clear_mem && !clear_all) // will be cleared later
         memset(this->buf + buf_size, 0, needed_size - this->buf_size);
-
       this->buf_size = needed_size;
-      this->cur_ptr = this->buf + used_size;
     }
     if (clear_all)
       memset(this->buf, 0, this->buf_size);

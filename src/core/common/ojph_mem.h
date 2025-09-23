@@ -49,7 +49,7 @@
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_COMPILER_MSVC
+#ifdef OJPH_OS_WINDOWS
   inline void* ojph_aligned_malloc(size_t alignment, size_t size)
   {
     return _aligned_malloc(size, alignment);

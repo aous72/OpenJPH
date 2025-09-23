@@ -49,23 +49,23 @@
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
-#ifdef OJPH_OS_WINDOWS
-  void* inline ojph_aligned_malloc(size_t alignment, size_t size)
+#ifdef OJPH_COMPILER_MSVC
+  inline void* ojph_aligned_malloc(size_t alignment, size_t size)
   {
     return _aligned_malloc(size, alignment);
   }
 
-  void inline ojph_aligned_free(void* pointer)
+  inline void ojph_aligned_free(void* pointer)
   {
     return _aligned_free(pointer);
   }
 #else
-  void* inline ojph_aligned_malloc(size_t alignment, size_t size)
+  inline void* ojph_aligned_malloc(size_t alignment, size_t size)
   {
     return aligned_alloc(alignment, size);
   }
 
-  void inline ojph_aligned_free(void* pointer)
+  inline void ojph_aligned_free(void* pointer)
   {
     return free(pointer);
   }

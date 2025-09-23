@@ -43,8 +43,7 @@
 #include <cassert>
 #include <cstddef>
 
-#include <stdlib.h>
-
+#include "ojph_mem.h"
 #include "ojph_file.h"
 #include "ojph_message.h"
 
@@ -112,11 +111,7 @@ namespace ojph {
   mem_outfile::~mem_outfile()
   {
     if (buf)
-#ifdef OJPH_OS_WINDOWS
-      _aligned_free(buf);
-#else
-      free(buf);
-#endif
+      ojph_aligned_free(buf);
     is_open = clear_mem = false;
     buf_size = used_size = 0;
     buf = cur_ptr = NULL;
@@ -204,36 +199,30 @@ namespace ojph {
   /** */
   void mem_outfile::expand_storage(size_t needed_size, bool clear_all)
   {
-    ui8 * new_buf = nullptr;
     if (needed_size > buf_size)
     {
       needed_size += (needed_size + 1) >> 1; // x1.5
-      needed_size = (needed_size + 4095) & (~4095); // align to 4096
-      size_t used_size = (size_t)tell(); // current used size
+      // expand buffer to multiples of (ALIGNED_ALLOC_MASK + 1)
+      needed_size = (needed_size + ALIGNED_ALLOC_MASK) & (~ALIGNED_ALLOC_MASK);
 
-#ifdef OJPH_OS_WINDOWS
-      new_buf = (ui8*)_aligned_malloc(4096, needed_size);
-#else
-      new_buf = (ui8*)aligned_alloc(4096, needed_size);
-#endif
-      if (new_buf == nullptr)
-        OJPH_ERROR(0x00060004, "failed to allocate memory (%zu bytes)", needed_size);
+      ui8* new_buf;
+      new_buf = (ui8*)ojph_aligned_malloc(ALIGNED_ALLOC_MASK + 1, needed_size);
+      if (new_buf == NULL)
+        OJPH_ERROR(0x00060005, "failed to allocate memory (%zu bytes)",
+          needed_size);
 
-      if (this->buf != nullptr && this->buf != new_buf && !clear_all){
-        memcpy(new_buf, this->buf, used_size);
-#ifdef OJPH_OS_WINDOWS
-        _aligned_free(this->buf);
-#else
-        free(this->buf);
-#endif
+      if (this->buf != NULL)
+      {
+        if (!clear_all)
+          memcpy(new_buf, this->buf, used_size);
+        ojph_aligned_free(this->buf);
       }
+      this->cur_ptr = new_buf + tell();
       this->buf = new_buf;
 
       if (clear_mem && !clear_all) // will be cleared later
         memset(this->buf + buf_size, 0, needed_size - this->buf_size);
-
       this->buf_size = needed_size;
-      this->cur_ptr = this->buf + used_size;
     }
     if (clear_all)
       memset(this->buf, 0, this->buf_size);

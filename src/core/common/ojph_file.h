@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -84,10 +84,10 @@ namespace ojph {
 
     virtual size_t write(const void *ptr, size_t size) = 0;
     virtual si64 tell() { return 0; }
-    virtual int seek(si64 offset, enum outfile_base::seek origin) 
-    { 
+    virtual int seek(si64 offset, enum outfile_base::seek origin)
+    {
       ojph_unused(offset); ojph_unused(origin);
-      return -1; /* always fail, to remind you to write an implementation */ 
+      return -1; /* always fail, to remind you to write an implementation */
     }
     virtual void flush() {}
     virtual void close() {}
@@ -131,19 +131,19 @@ namespace ojph {
     /**  A destructor */
     ~mem_outfile() override;
 
-    /**  
+    /**
      *  @brief Call this function to open a memory file.
 	   *
      *  This function creates a memory buffer to be used for storing
      *  the generated j2k codestream.
-     * 
+     *
      *  @param initial_size is the initial memory buffer size.
      *         The default value is 2^16.
      *  @param clear_mem if set to true, all allocated memory is reset to 0
      */
     void open(size_t initial_size = 65536, bool clear_mem = false);
 
-    /**  
+    /**
      *  @brief Call this function to write data to the memory file.
 	   *
      *  This function adds new data to the memory file.  The memory buffer
@@ -154,16 +154,16 @@ namespace ojph {
      */
     size_t write(const void *ptr, size_t size) override;
 
-    /** 
-     *  @brief Call this function to know the file size (i.e., number of 
+    /**
+     *  @brief Call this function to know the file size (i.e., number of
      *         bytes used to store the file).
      *
      *  @return the file size.
      */
     si64 tell() override { return cur_ptr - buf; }
 
-    /** 
-     *  @brief Call this function to change write pointer location; the 
+    /**
+     *  @brief Call this function to change write pointer location; the
      *         function can expand file storage.
      *
      *  @return 0 on success, non-zero otherwise (not used).
@@ -176,7 +176,7 @@ namespace ojph {
      */
     void close() override;
 
-    /** 
+    /**
      *  @brief Call this function to access memory file data.
 	   *
      *  It is not recommended to store the returned value because buffer
@@ -186,8 +186,8 @@ namespace ojph {
      */
     const ui8* get_data() { return buf; }
 
-    /** 
-     *  @brief Call this function to access memory file data (for const 
+    /**
+     *  @brief Call this function to access memory file data (for const
      *         objects)
 	   *
      *  This is similar to the above function, except that it can be used
@@ -197,7 +197,7 @@ namespace ojph {
      */
     const ui8* get_data() const { return buf; }
 
-    /** 
+    /**
      *  @brief Call this function to write the memory file data to a file
 	   *
      */
@@ -221,10 +221,10 @@ namespace ojph {
   private:
     /**
      *  @brief This function expands storage by x1.5 needed space.
-     * 
+     *
      *  It sets cur_ptr correctly, and clears the extended area of the
      *  buffer.  It optionally clear the whole buffer
-     * 
+     *
      * @param new_size   New size of the buffer
      * @param clear_all  Set to true to clear whole buffer, not just expansion
      */
@@ -237,6 +237,9 @@ namespace ojph {
     size_t used_size;
     ui8 *buf;
     ui8 *cur_ptr;
+
+  private:
+    static const size_t ALIGNED_ALLOC_MASK = 4096 - 1;
   };
 
   ////////////////////////////////////////////////////////////////////////////

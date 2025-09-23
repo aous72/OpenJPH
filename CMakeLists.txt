@@ -13,7 +13,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ## Target architecture
 # We use the target architecture to help with arranging files in "source_group" commands.
-# The code does not use the results provided by target_arch.cmake, and relies, instead, 
+# The code does not use the results provided by target_arch.cmake, and relies, instead,
 # on its own logic, which matches that in target_arch.cmake, to identify the architecture
 include(target_arch.cmake)
 target_architecture(OJPH_TARGET_ARCH)
@@ -58,8 +58,8 @@ if (DEFINED OJPH_DISABLE_INTEL_SIMD)
                  "which is architecture agnostic. If you do not specify any, the default is "
                  "OJPH_DISABLE_SIMD=OFF.")
   set(OJPH_DISABLE_SIMD ${OJPH_DISABLE_INTEL_SIMD})
-  message(STATUS "OJPH_DISABLE_SIMD is set to ${OJPH_DISABLE_SIMD}")  
-  unset(OJPH_DISABLE_INTEL_SIMD)  
+  message(STATUS "OJPH_DISABLE_SIMD is set to ${OJPH_DISABLE_SIMD}")
+  unset(OJPH_DISABLE_INTEL_SIMD)
 endif()
 if (DEFINED OJPH_ENABLE_INTEL_AVX512)
   message(STATUS "OJPH_ENABLE_INTEL_AVX512 is being deprecated, use \"OJPH_DISABLE_AVX512\" instead."
@@ -69,21 +69,21 @@ if (DEFINED OJPH_ENABLE_INTEL_AVX512)
   else()
     set(OJPH_DISABLE_AVX512 ON)
   endif()
-  message(STATUS "OJPH_DISABLE_AVX512 is set to ${OJPH_DISABLE_AVX512}")  
+  message(STATUS "OJPH_DISABLE_AVX512 is set to ${OJPH_DISABLE_AVX512}")
   unset(OJPH_ENABLE_INTEL_AVX512)
 endif()
 
 ## Setting some of the options if EMSCRIPTEN is the compiler
-# In previous releases, the cmake script used to produce both non-SIMD and 
-# SIMD builds in one go.  At the time of this writing, all interpreters and 
-# compilers of WASM code, such as web-browser and node, support SIMD, therefore 
-# it is time to make the SIMD build the default.  In other words, this cmake 
+# In previous releases, the cmake script used to produce both non-SIMD and
+# SIMD builds in one go.  At the time of this writing, all interpreters and
+# compilers of WASM code, such as web-browser and node, support SIMD, therefore
+# it is time to make the SIMD build the default.  In other words, this cmake
 # script builds only WASM SIMD code by default, if desired, a non-SIMD build
-# can be generated using the OJPH_DISABLE_SIMD option (in this case, the 
+# can be generated using the OJPH_DISABLE_SIMD option (in this case, the
 # WASM SIMD code is not generated).
 # It is worth remembering that the SIMD/non-SIMD issue arose because it is
 # NOT possible to have multiple execution paths in the code, one for non-SIMD
-# and one for SIMD, as we do for CPUs, letting the program select, at run-time, 
+# and one for SIMD, as we do for CPUs, letting the program select, at run-time,
 # the best path to follow.
 if(EMSCRIPTEN)
   set(BUILD_SHARED_LIBS OFF)
@@ -119,16 +119,20 @@ message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 ## C++ version and flags
 # C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
-set(CMAKE_CXX_STANDARD 14)
+if (NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+message(STATUS "C++ Standard is set to ${CMAKE_CXX_STANDARD}")
+
 if (MSVC)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   add_compile_options(
-  -fexceptions 
-  -Wall 
-  -Wextra 
-  -Wconversion 
+  -fexceptions
+  -Wall
+  -Wextra
+  -Wconversion
   -Wunused-parameter
   )
 endif()
@@ -170,6 +174,7 @@ else()
 endif()
 
 ## Build library and applications
+include(GNUInstallDirs)
 add_subdirectory(src/core)
 if (OJPH_BUILD_EXECUTABLES)
   add_subdirectory(src/apps)
@@ -178,8 +183,6 @@ endif()
 ################################################################################################
 # Install
 ################################################################################################
-
-include(GNUInstallDirs)
 
 install(EXPORT openjph-targets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/openjph

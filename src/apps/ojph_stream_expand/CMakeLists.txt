@@ -1,7 +1,7 @@
 ## building ojph_stream_expand
 ##############################
 
-set(CMAKE_CXX_STANDARD 14)
+find_package(Threads)
 
 file(GLOB OJPH_STREAM_EXPAND  "*.cpp" "*.h")
 file(GLOB OJPH_SOCKETS         "../others/ojph_sockets.cpp")
@@ -17,10 +17,9 @@ source_group("common"      FILES ${OJPH_SOCKETS_H} ${OJPH_THREADS_H})
 
 add_executable(ojph_stream_expand ${SOURCES})
 target_include_directories(ojph_stream_expand PRIVATE ../common)
-if (MSVC OR MINGW)
-    target_link_libraries(ojph_stream_expand PUBLIC openjph ws2_32)
-else()
-    target_link_libraries(ojph_stream_expand PUBLIC openjph pthread)
+target_link_libraries(ojph_stream_expand PRIVATE openjph Threads::Threads)
+if(WIN32)
+    target_link_libraries(ojph_stream_expand PRIVATE ws2_32)
 endif()
 
 install(TARGETS ojph_stream_expand)

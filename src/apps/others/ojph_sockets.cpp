@@ -127,7 +127,7 @@ namespace ojph
       --ojph_socket_manager_counter;
       if (ojph_socket_manager_counter == 0)
       {
-      #ifdef _MSC_VER  
+      #ifdef OJPH_OS_WINDOWS  
       	WSACleanup();
       #endif
       }

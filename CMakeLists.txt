@@ -118,9 +118,9 @@ endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 ## C++ version and flags
-# C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
+## C++14 is needed for gtest, the library requires C++17
 if (NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 message(STATUS "C++ Standard is set to ${CMAKE_CXX_STANDARD}")
 

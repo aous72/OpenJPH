@@ -62,7 +62,7 @@ if (MSVC)
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiffxx.dll" DESTINATION "./")
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiffd.dll" DESTINATION "./")
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiffxxd.dll" DESTINATION "./")
-  endif() 
+  endif()
 else()
   add_custom_command(TARGET test_executables POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ojph_expand>" "./"
@@ -78,6 +78,7 @@ else()
     add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/${CMAKE_SHARED_LIBRARY_PREFIX}gtest.dll" "./"
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/${CMAKE_SHARED_LIBRARY_PREFIX}gtest_main.dll" "./"
+      COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openjph>" "./"
     )
   endif()
 endif(MSVC)

@@ -152,27 +152,34 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
-  # # MinGW tests needs debugging, as they are failing to pass in my test
-  # test_MinGW:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: Windows,  runner: windows-latest },
-  #       ]
-  #   name: ${{ matrix.system }} Test
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - name: cmake
-  #     run: cmake -G "MinGW Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-  #     working-directory: build
-  #   - name: build
-  #     run: cmake --build . --config Release
-  #     working-directory: build
-  #   - name: test
-  #     run: ctest --output-on-failure -C Release
-  #     working-directory: build
+  test_msys2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { system: Windows-MSYS2,  runner: windows-latest },
+        ]
+    name: ${{ matrix.system }} Test
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v5
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: git mingw-w64-ucrt-x86_64-gcc
+    - name: cmake
+      run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure -C Release
+      working-directory: build
 
   test_windows_on_arm:
     strategy:

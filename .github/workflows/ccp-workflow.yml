@@ -73,9 +73,6 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2
@@ -161,9 +158,6 @@ jobs:
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2

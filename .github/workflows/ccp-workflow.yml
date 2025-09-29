@@ -20,7 +20,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -38,7 +38,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
       working-directory: build
@@ -56,7 +56,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -64,19 +64,24 @@ jobs:
       run: cmake --build . --config Release
       working-directory: build
 
-  build_mingw:
+  build_msys2:
     strategy:
       fail-fast: false
       matrix:
         include: [
-          { system: Windows-MinGW,  runner: windows-latest },
+          { system: Windows-MSYS2,  runner: windows-latest },
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: git mingw-w64-ucrt-x86_64-gcc
     - name: cmake
-      run: cmake -G "MinGW Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -G "Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -92,7 +97,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -112,7 +117,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
@@ -133,7 +138,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
@@ -155,7 +160,7 @@ jobs:
   #   name: ${{ matrix.system }} Test
   #   runs-on: ${{ matrix.runner }}
   #   steps:
-  #   - uses: actions/checkout@v4
+  #   - uses: actions/checkout@v5
   #   - name: cmake
   #     run: cmake -G "MinGW Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
   #     working-directory: build
@@ -176,7 +181,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build

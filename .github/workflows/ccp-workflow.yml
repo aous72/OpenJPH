@@ -166,10 +166,10 @@ jobs:
         update: true
         install: git mingw-w64-ucrt-x86_64-gcc
     - name: cmake
-      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
       working-directory: build
     - name: build
-      run: cmake --build . --config Release
+      run: make
       working-directory: build
     - name: ls
       run: dir tests

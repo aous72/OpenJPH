@@ -175,7 +175,7 @@ jobs:
       run: dir tests
       working-directory: build
     - name: expand
-      run: ./ojph_expand.exe ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
+      run: ojph_expand ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
       working-directory: build/tests
     - name: test
       run: ctest --output-on-failure -C Release

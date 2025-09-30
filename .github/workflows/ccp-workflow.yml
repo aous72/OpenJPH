@@ -171,6 +171,9 @@ jobs:
     - name: build
       run: cmake --build . --config Release
       working-directory: build
+    - name: ls
+      run: ls -al tests
+      working-directory: build
     - name: test
       run: ctest --output-on-failure -C Release
       working-directory: build

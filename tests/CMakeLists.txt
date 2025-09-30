@@ -57,7 +57,7 @@ if (MSVC)
   add_custom_command(TARGET mse_pae POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy "./\$(Configuration)/mse_pae.exe" "./"
   )
-  if (MSVC AND OJPH_ENABLE_TIFF_SUPPORT)
+  if (OJPH_ENABLE_TIFF_SUPPORT)
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiff.dll" DESTINATION "./")
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiffxx.dll" DESTINATION "./")
       file(COPY "${TIFF_INCLUDE_DIR}\\..\\bin\\tiffd.dll" DESTINATION "./")

@@ -74,7 +74,7 @@ else()
       COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE_DIR:ojph_compress>/ojph_compress.wasm" "./"
     )
   endif(EMSCRIPTEN)
-  if(CYGWIN)
+  if(CYGWIN OR MINGW)
     add_custom_command(TARGET test_executables POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/${CMAKE_SHARED_LIBRARY_PREFIX}gtest.dll" "./"
       COMMAND ${CMAKE_COMMAND} -E copy "../bin/${CMAKE_SHARED_LIBRARY_PREFIX}gtest_main.dll" "./"

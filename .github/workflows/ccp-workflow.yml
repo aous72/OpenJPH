@@ -20,7 +20,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -38,7 +38,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
       working-directory: build
@@ -56,7 +56,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -64,19 +64,24 @@ jobs:
       run: cmake --build . --config Release
       working-directory: build
 
-  build_mingw:
+  build_msys2:
     strategy:
       fail-fast: false
       matrix:
         include: [
-          { system: Windows-MinGW,  runner: windows-latest },
+          { system: Windows-MSYS2,  runner: windows-latest },
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: git mingw-w64-ucrt-x86_64-gcc
     - name: cmake
-      run: cmake -G "MinGW Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -92,7 +97,7 @@ jobs:
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
@@ -112,7 +117,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
@@ -133,7 +138,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
@@ -144,27 +149,39 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
-  # # MinGW tests needs debugging, as they are failing to pass in my test
-  # test_MinGW:
+  # # The code compiles but many tests fail --- Need to be revisited later ---
+  # test_msys2:
   #   strategy:
   #     fail-fast: false
   #     matrix:
   #       include: [
-  #         { system: Windows,  runner: windows-latest },
+  #         { system: Windows-MSYS2,  runner: windows-latest },
   #       ]
   #   name: ${{ matrix.system }} Test
   #   runs-on: ${{ matrix.runner }}
   #   steps:
-  #   - uses: actions/checkout@v4
+  #   - uses: actions/checkout@v5
+  #   - uses: msys2/setup-msys2@v2
+  #     with:
+  #       msystem: UCRT64
+  #       update: true
+  #       install: git mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make
   #   - name: cmake
-  #     run: cmake -G "MinGW Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+  #     run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
   #     working-directory: build
   #   - name: build
-  #     run: cmake --build . --config Release
+  #     run: make -j
   #     working-directory: build
+  #   - name: ls
+  #     run: dir tests
+  #     working-directory: build
+  #   - name: expand
+  #     run: ./ojph_expand.exe -i ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
+  #     working-directory: build/tests
   #   - name: test
   #     run: ctest --output-on-failure -C Release
   #     working-directory: build
+  #     continue-on-error: true
 
   test_windows_on_arm:
     strategy:
@@ -176,7 +193,7 @@ jobs:
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: cmake
       run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
@@ -187,242 +204,3 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
-
-#jobs:
-#  ci:
-#    name: ${{ matrix.name }}
-#    runs-on: ${{ matrix.os }}
-#
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        # Github Actions requires a single row to be added to the build matrix.
-#        # See https://help.github.com/en/articles/workflow-syntax-for-github-actions.
-#        name: [
-#          ubuntu-18.04-gcc-4.8,
-#          ubuntu-18.04-gcc-4.9,
-#          ubuntu-18.04-gcc-5,
-#          ubuntu-18.04-gcc-6,
-#          ubuntu-18.04-gcc-7,
-#          ubuntu-18.04-gcc-8,
-#          ubuntu-18.04-gcc-9,
-#          ubuntu-18.04-clang-3.5,
-#          ubuntu-18.04-clang-3.6,
-#          ubuntu-18.04-clang-3.7,
-#          ubuntu-18.04-clang-3.8,
-#          ubuntu-18.04-clang-3.9,
-#          ubuntu-18.04-clang-4.0,
-#          ubuntu-18.04-clang-5.0,
-#          ubuntu-18.04-clang-6.0,
-#          ubuntu-18.04-clang-7,
-#          ubuntu-18.04-clang-8,
-#          ubuntu-18.04-clang-9,
-#          macOS-10.14-xcode-9.4.1,
-#          macOS-10.14-xcode-10.0,
-#          macOS-10.14-xcode-10.1,
-#          macOS-10.14-xcode-10.2,
-#          macOS-10.14-xcode-10.2.1,
-#          macOS-10.14-xcode-10.3,
-#          macOS-10.14-gcc-7,
-#          macOS-10.14-gcc-8,
-#          macOS-10.14-gcc-9,
-#        ]
-#
-#        include:
-#          - name: ubuntu-18.04-gcc-4.8
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "4.8"
-#
-#          - name: ubuntu-18.04-gcc-4.9
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "4.9"
-#
-#          - name: ubuntu-18.04-gcc-5
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "5"
-#
-#          - name: ubuntu-18.04-gcc-6
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "6"
-#
-#          - name: ubuntu-18.04-gcc-7
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "7"
-#
-#          - name: ubuntu-18.04-gcc-8
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "8"
-#
-#          - name: ubuntu-18.04-gcc-9
-#            os: ubuntu-18.04
-#            compiler: gcc
-#            version: "9"
-#
-#          - name: ubuntu-18.04-clang-3.5
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "3.5"
-#
-#          - name: ubuntu-18.04-clang-3.6
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "3.6"
-#
-#          - name: ubuntu-18.04-clang-3.7
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "3.7"
-#
-#          - name: ubuntu-18.04-clang-3.8
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "3.8"
-#
-#          - name: ubuntu-18.04-clang-3.9
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "3.9"
-#
-#          - name: ubuntu-18.04-clang-4.0
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "4.0"
-#
-#          - name: ubuntu-18.04-clang-5.0
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "5.0"
-#
-#          - name: ubuntu-18.04-clang-6.0
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "6.0"
-#
-#          - name: ubuntu-18.04-clang-7
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "7"
-#
-#          - name: ubuntu-18.04-clang-8
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "8"
-#
-#          - name: ubuntu-18.04-clang-9
-#            os: ubuntu-18.04
-#            compiler: clang
-#            version: "9"
-#
-#          - name: macOS-10.14-xcode-9.4.1
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "9.4.1"
-#
-#          - name: macOS-10.14-xcode-10.0
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "10"
-#
-#          - name: macOS-10.14-xcode-10.1
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "10.1"
-#
-#          - name: macOS-10.14-Xcode-10.2
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "10.2"
-#
-#          - name: macOS-10.14-xcode-10.2.1
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "10.2.1"
-#
-#          - name: macOS-10.14-xcode-10.3
-#            os: macOS-10.14
-#            compiler: xcode
-#            version: "10.3"
-#
-#          - name: macOS-10.14-gcc-7
-#            os: macOS-10.14
-#            compiler: gcc
-#            version: "7"
-#
-#          - name: macOS-10.14-gcc-8
-#            os: macOS-10.14
-#            compiler: gcc
-#            version: "8"
-#
-#          - name: macOS-10.14-gcc-9
-#            os: macOS-10.14
-#            compiler: gcc
-#            version: "9"
-#
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: cmake
-#      run: cmake ..
-#      working-directory: build
-#    - name: build
-#      run: make
-#      working-directory: build
-
-
-
-#  build1:
-#    name: main build for Unix-like
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      matrix:
-#        os: [macos-10.14, macos-latest, ubuntu-16.04, ubuntu-latest]
-#        node: [8]
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: cmake
-#      run: cmake ..
-#      working-directory: build
-#    - name: build
-#      run: make
-#      working-directory: build
-#
-#  build2:
-#    name: main build for Windows
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      matrix:
-#        os: [windows-latest]
-#        node: [8]
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: install visual studio
-#      run: python install.py --clang-completer --ts-completer --msvc=14
-#    - name: cmake
-#      run: cmake -G "Visual Studio 14 2015 Win64" ..
-#      working-directory: build
-#    - name: build
-#      run: cmake --build .
-#      working-directory: build
-#
-#  build3:
-#    name: main build for Windows
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      matrix:
-#        os: [windows-latest]
-#        node: [8]
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: install visual studio
-#      run: python install.py --clang-completer --ts-completer --msvc=14
-#    - name: cmake
-#      run: cmake -G "Visual Studio 15 2017 Win64" ..
-#      working-directory: build
-#    - name: build
-#      run: cmake --build .
-#      working-directory: build

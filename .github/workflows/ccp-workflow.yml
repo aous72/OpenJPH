@@ -171,7 +171,7 @@ jobs:
       with:
         msystem: UCRT64
         update: false
-        pacboy: cc:p cmake:p git:p
+        pacboy: cc:p cmake:p
     - name: cmake
       run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
       working-directory: build

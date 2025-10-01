@@ -73,15 +73,18 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2
       with:
         msystem: UCRT64
-        update: true
-        install: git mingw-w64-ucrt-x86_64-gcc
+        update: false
+        pacboy: cc:p cmake:p libtiff:p
     - name: cmake
-      run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -149,39 +152,34 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
-  # # The code compiles but many tests fail --- Need to be revisited later ---
-  # test_msys2:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: Windows-MSYS2,  runner: windows-latest },
-  #       ]
-  #   name: ${{ matrix.system }} Test
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - uses: msys2/setup-msys2@v2
-  #     with:
-  #       msystem: UCRT64
-  #       update: true
-  #       install: git mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make
-  #   - name: cmake
-  #     run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
-  #     working-directory: build
-  #   - name: build
-  #     run: make -j
-  #     working-directory: build
-  #   - name: ls
-  #     run: dir tests
-  #     working-directory: build
-  #   - name: expand
-  #     run: ./ojph_expand.exe -i ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
-  #     working-directory: build/tests
-  #   - name: test
-  #     run: ctest --output-on-failure -C Release
-  #     working-directory: build
-  #     continue-on-error: true
+  test_msys2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { system: Windows-MSYS2,  runner: windows-latest },
+        ]
+    name: ${{ matrix.system }} Test
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v5
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: false
+        pacboy: cc:p cmake:p
+    - name: cmake
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      working-directory: build
+    - name: build
+      run: cmake --build . --config Release
+      working-directory: build
+    - name: test
+      run: ctest --output-on-failure -C Release
+      working-directory: build
 
   test_windows_on_arm:
     strategy:

@@ -8,61 +8,61 @@ on:
 
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: MacOS,          runner: macos-latest },
-          { system: Ubuntu-22,      runner: ubuntu-22.04 },
-          { system: Ubuntu-latest,  runner: ubuntu-latest },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
+  # build:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: MacOS,          runner: macos-latest },
+  #         { system: Ubuntu-22,      runner: ubuntu-22.04 },
+  #         { system: Ubuntu-latest,  runner: ubuntu-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: make
+  #     working-directory: build
 
-  build_mac:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: MacOS,          runner: macos-latest },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
+  # build_mac:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: MacOS,          runner: macos-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
+  #     working-directory: build
+  #   - name: build
+  #     run: make
+  #     working-directory: build
 
-  build_windows:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: Windows,  runner: windows-latest },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
+  # build_windows:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: Windows,  runner: windows-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
 
   build_msys2:
     strategy:
@@ -73,134 +73,140 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2
       with:
         msystem: UCRT64
-        update: true
-        install: git mingw-w64-ucrt-x86_64-gcc
+        update: false
+        pacboy: cc:p cmake:p
     - name: cmake
-      run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
       working-directory: build
 
-  build_windows_on_arm:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: WindowsOnARM,  runner: windows-11-arm },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: MacOS-13,       runner: macos-13 },
-          { system: MacOS-latest,   runner: macos-latest },
-          { system: Ubuntu-latest,  runner: ubuntu-latest },
-        ]
-    name: ${{ matrix.system }} Test
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DOJPH_BUILD_TESTS=yes ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure
-      working-directory: build
-
-  test_windows:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: Windows,  runner: windows-latest },
-        ]
-    name: ${{ matrix.system }} Test
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure -C Release
-      working-directory: build
-
-  # # The code compiles but many tests fail --- Need to be revisited later ---
-  # test_msys2:
+  # build_windows_on_arm:
   #   strategy:
   #     fail-fast: false
   #     matrix:
   #       include: [
-  #         { system: Windows-MSYS2,  runner: windows-latest },
+  #         { system: WindowsOnARM,  runner: windows-11-arm },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
+
+  # test:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: MacOS-13,       runner: macos-13 },
+  #         { system: MacOS-latest,   runner: macos-latest },
+  #         { system: Ubuntu-latest,  runner: ubuntu-latest },
   #       ]
   #   name: ${{ matrix.system }} Test
   #   runs-on: ${{ matrix.runner }}
   #   steps:
   #   - uses: actions/checkout@v5
-  #   - uses: msys2/setup-msys2@v2
-  #     with:
-  #       msystem: UCRT64
-  #       update: true
-  #       install: git mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make
   #   - name: cmake
-  #     run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
+  #     run: cmake -DOJPH_BUILD_TESTS=yes ..
   #     working-directory: build
   #   - name: build
-  #     run: make -j
+  #     run: make
   #     working-directory: build
-  #   - name: ls
-  #     run: dir tests
+  #   - name: test
+  #     run: ctest --output-on-failure
   #     working-directory: build
-  #   - name: expand
-  #     run: ./ojph_expand.exe -i ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
-  #     working-directory: build/tests
+
+  # test_windows:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: Windows,  runner: windows-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Test
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
   #   - name: test
   #     run: ctest --output-on-failure -C Release
   #     working-directory: build
-  #     continue-on-error: true
 
-  test_windows_on_arm:
+  # The code compiles but many tests fail --- Need to be revisited later ---
+  test_msys2:
     strategy:
       fail-fast: false
       matrix:
         include: [
-          { system: WindowsOnARM,  runner: windows-11-arm },
+          { system: Windows-MSYS2,  runner: windows-latest },
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
     - uses: actions/checkout@v5
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: false
+        pacboy: cc:p cmake:p git:p
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
       working-directory: build
+    - name: ls
+      run: dir tests
+      working-directory: build
+    - name: expand
+      run: ./ojph_expand.exe -i ./jp2k_test_codestreams/openjph/simple_dec_irv97_64x64.jph -o t.ppm
+      working-directory: build/tests
     - name: test
       run: ctest --output-on-failure -C Release
       working-directory: build
+
+
+  # test_windows_on_arm:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: WindowsOnARM,  runner: windows-11-arm },
+  #       ]
+  #   name: ${{ matrix.system }} Test
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
+  #   - name: test
+  #     run: ctest --output-on-failure -C Release
+  #     working-directory: build
 

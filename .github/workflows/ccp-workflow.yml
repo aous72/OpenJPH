@@ -164,7 +164,7 @@ jobs:
       with:
         msystem: UCRT64
         update: true
-        install: git mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-ctest
+        install: git mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make
     - name: cmake
       run: cmake -G "MSYS Makefiles" -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release ..
       working-directory: build

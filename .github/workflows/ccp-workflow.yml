@@ -170,9 +170,9 @@ jobs:
       with:
         msystem: UCRT64
         update: false
-        pacboy: cc:p cmake:p
+        pacboy: cc:p cmake:p python:p
     - name: cmake
-      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release

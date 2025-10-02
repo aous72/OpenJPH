@@ -172,8 +172,12 @@ jobs:
         update: false
         pacboy: cc:p cmake:p python:p
     - name: cmake
-      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
+      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
       working-directory: build
+    - name: ls1
+      run: ls -la ${MINGW_PREFIX}/
+    - name: ls2
+      run: ls -la ${MINGW_PREFIX}/bin/
     - name: build
       run: cmake --build . --config Release
       working-directory: build

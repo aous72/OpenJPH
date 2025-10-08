@@ -276,6 +276,8 @@ namespace ojph {
             "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
             "for component %d", i, num_bits[i], 
             is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
+        if (result == false)
+          nlt_type3[i] = param_nlt::nonlinearity::OJPH_NLT_NO_NLT;
         cur_line[i] = 0;
         reversible[i] = codestream->get_coc(i)->is_reversible();
       }

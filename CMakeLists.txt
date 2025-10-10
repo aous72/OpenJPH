@@ -35,6 +35,23 @@ if (CMAKE_OSX_ARCHITECTURES)
   unset(arm64_index)
 endif()
 
+## Target features
+# Try to detect if the given flag is defined by the compiler.
+include(CheckCXXSourceCompiles)
+function(check_compile_definition FLAG PREFIX)
+  enable_language(CXX)
+
+	check_cxx_source_compiles("
+	#ifndef ${FLAG}
+		#error \"Flag not detected.\"
+	#endif
+	int main() { return 0; }
+	"
+	"${FLAG}_DEFINED")
+
+	set("${PREFIX}${FLAG}_DEFINED" ${${FLAG}_DEFINED} PARENT_SCOPE)
+endfunction()
+
 ## options
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
@@ -147,6 +164,49 @@ endif()
 if (OJPH_DISABLE_SIMD)
   add_compile_definitions(OJPH_DISABLE_SIMD)
 else()
+  check_compile_definition(__SSE__ OJPH_)
+  check_compile_definition(__SSE2__ OJPH_)
+  check_compile_definition(__SSSE3__ OJPH_)
+  check_compile_definition(__SSE4_1__ OJPH_)
+  check_compile_definition(__AVX__ OJPH_)
+  check_compile_definition(__AVX2__ OJPH_)
+  check_compile_definition(__AVX512F__ OJPH_)
+  check_compile_definition(__ARM_NEON__ OJPH_)
+  check_compile_definition(__ARM_NEON OJPH_)
+
+  if(NOT DEFINED OJPH___SSE___DEFINED)
+    message(STATUS "SSE flag not detected, disabling SSE support.")
+    set(OJPH_DISABLE_SSE ON)
+  endif()
+  if(NOT DEFINED OJPH___SSE2___DEFINED)
+    message(STATUS "SSE2 flag not detected, disabling SSE2 support.")
+    set(OJPH_DISABLE_SSE2 ON)
+  endif()
+  if(NOT DEFINED OJPH___SSSE3___DEFINED)
+    message(STATUS "SSSE3 flag not detected, disabling SSSE3 support.")
+    set(OJPH_DISABLE_SSSE3 ON)
+  endif()
+  if(NOT DEFINED OJPH___SSE4_1___DEFINED)
+    message(STATUS "SSE4_1 flag not detected, disabling SSE4 support.")
+    set(OJPH_DISABLE_SSE4 ON)
+  endif()
+  if(NOT DEFINED OJPH___AVX___DEFINED)
+    message(STATUS "AVX flag not detected, disabling AVX support.")
+    set(OJPH_DISABLE_AVX ON)
+  endif()
+  if(NOT DEFINED OJPH___AVX2___DEFINED)
+    message(STATUS "AVX2 flag not detected, disabling AVX2 support.")
+    set(OJPH_DISABLE_AVX2 ON)
+  endif()
+  if(NOT DEFINED OJPH___AVX512F___DEFINED)
+    message(STATUS "AVX512F flag not detected, disabling AVX512 support.")
+    set(OJPH_DISABLE_AVX512 ON)
+  endif()
+  if(NOT DEFINED OJPH___ARM_NEON___DEFINED AND NOT DEFINED OJPH___ARM_NEON_DEFINED)
+    message(STATUS "NEON flag not detected, disabling NEON support.")
+    set(OJPH_DISABLE_NEON ON)
+  endif()
+
   if(OJPH_DISABLE_SSE)
     add_compile_definitions(OJPH_DISABLE_SSE)
   endif()

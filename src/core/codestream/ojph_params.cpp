@@ -2314,7 +2314,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     param_atk* param_atk::get_atk(int index)
     {
-      assert(type == OJPH_ATK_TOP);
+      assert(top_atk == NULL);
 
       if (Latk == 0)
       {
@@ -2345,17 +2345,19 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_atk::read_coefficient(infile_base *file, float &K)
+    bool param_atk::read_coefficient(infile_base *file, float &K, si32& bytes)
     {
       int coeff_type = get_coeff_type();
       if (coeff_type == 0) { // 8bit
         ui8 v;
         if (file->read(&v, 1) != 1) return false;
+        bytes -= 1;
         K = v;
       }
       else if (coeff_type == 1) { // 16bit
         ui16 v;
         if (file->read(&v, 2) != 2) return false;
+        bytes -= 2;
         K = swap_byte(v);
       }
       else if (coeff_type == 2) { // float
@@ -2364,6 +2366,7 @@ namespace ojph {
           ui32 i;
         } v;
         if (file->read(&v.i, 4) != 4) return false;
+        bytes -= 4;
         v.i = swap_byte(v.i);
         K = v.f;
       }
@@ -2373,13 +2376,16 @@ namespace ojph {
           ui64 i;
         } v;
         if (file->read(&v.i, 8) != 8) return false;
+        bytes -= 8;
         v.i = swap_byte(v.i);
         K = (float)v.d;
       }
       else if (coeff_type == 4) { // 128 bit float
         ui64 v, v1;
         if (file->read(&v, 8) != 8) return false;
+        bytes -= 8;
         if (file->read(&v1, 8) != 8) return false; // v1 not needed
+        bytes -= 8;
         v = swap_byte(v);
 
         union {
@@ -2405,17 +2411,19 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_atk::read_coefficient(infile_base *file, si16 &K)
+    bool param_atk::read_coefficient(infile_base *file, si16 &K, si32& bytes)
     {
       int coeff_type = get_coeff_type();
       if (coeff_type == 0) {
         si8 v;
         if (file->read(&v, 1) != 1) return false;
+        bytes -= 1;
         K = v;
       }
       else if (coeff_type == 1) {
         si16 v;
         if (file->read(&v, 2) != 2) return false;
+        bytes -= 2;
         K = (si16)swap_byte((ui16)v);
       }
       else
@@ -2432,16 +2440,19 @@ namespace ojph {
       if (file->read(&Latk, 2) != 2)
         OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter");
       Latk = swap_byte(Latk);
+      si32 bytes = Latk - 2;
       ojph::ui16 temp_Satk;
       if (file->read(&temp_Satk, 2) != 2)
         OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter");
+      bytes -= 2;
       temp_Satk = swap_byte(temp_Satk);
       int tmp_idx = temp_Satk & 0xFF;
-      if (tmp_idx == 0 || tmp_idx == 1 || top_atk->get_atk(tmp_idx) != NULL)
+      if ((top_atk && top_atk->get_atk(tmp_idx) != NULL)
+        || tmp_idx == 0 || tmp_idx == 1)
         OJPH_ERROR(0x000500F3, "ATK-Satk parameter sets ATK marker index to "
           "the illegal value of %d. ATK-Satk should be in (2-255) and, I "
           "believe, must not be repeated; otherwise, it would be unclear "
-          "what marker segment must be employed when this index is used.",
+          "what marker segment must be employed when an index is repeated.",
           tmp_idx);
       Satk = temp_Satk;
       if (is_m_init0() == false)  // only even-indexed is supported
@@ -2458,10 +2469,11 @@ namespace ojph {
         OJPH_ERROR(0x000500E6, "ATK-Satk parameter requires constant "
           "boundary extension, which is not supported yet.");
       if (is_reversible() == false)
-        if (read_coefficient(file, Katk) == false)
+        if (read_coefficient(file, Katk, bytes) == false)
           OJPH_ERROR(0x000500E7, "error reading ATK-Katk parameter");
       if (file->read(&Natk, 1) != 1)
         OJPH_ERROR(0x000500E8, "error reading ATK-Natk parameter");
+      bytes -= 1;
       if (Natk > max_steps) {
         if (d != d_store) // was this allocated -- very unlikely
           delete[] d;
@@ -2475,19 +2487,22 @@ namespace ojph {
         {
           if (file->read(&d[s].rev.Eatk, 1) != 1)
             OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");
+          bytes -= 1;
           if (file->read(&d[s].rev.Batk, 2) != 2)
             OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");
+          bytes -= 2;
           d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
             OJPH_ERROR(0x000500EB, "error reading ATK-LCatk parameter");
+          bytes -= 1;
           if (LCatk == 0)
             OJPH_ERROR(0x000500EC, "Encountered a ATK-LCatk value of zero; "
               "something is wrong.");
           if (LCatk > 1)
             OJPH_ERROR(0x000500ED, "ATK-LCatk value greater than 1; "
               "that is, a multitap filter is not supported");
-          if (read_coefficient(file, d[s].rev.Aatk) == false)
+          if (read_coefficient(file, d[s].rev.Aatk, bytes) == false)
             OJPH_ERROR(0x000500EE, "Error reding ATK-Aatk parameter");
         }
       }
@@ -2498,16 +2513,20 @@ namespace ojph {
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
             OJPH_ERROR(0x000500EF, "error reading ATK-LCatk parameter");
+          bytes -= 1;
           if (LCatk == 0)
             OJPH_ERROR(0x000500F0, "Encountered a ATK-LCatk value of zero; "
               "something is wrong.");
           if (LCatk > 1)
             OJPH_ERROR(0x000500F1, "ATK-LCatk value greater than 1; "
               "that is, a multitap filter is not supported.");
-          if (read_coefficient(file, d[s].irv.Aatk) == false)
+          if (read_coefficient(file, d[s].irv.Aatk, bytes) == false)
             OJPH_ERROR(0x000500F2, "Error reding ATK-Aatk parameter");
         }
       }
+      if (bytes != 0)
+        OJPH_ERROR(0x000500F3, "The length of an ATK marker segment "
+          "(ATK-Latk) is not correct");
 
       return true;
     }
@@ -2544,7 +2563,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     param_atk* param_atk::add_object()
     {
-      assert(type == OJPH_ATK_TOP);
+      assert(top_atk = NULL);
       param_atk *p = this;
       while (p->next != NULL)
         p = p->next;
@@ -2552,12 +2571,12 @@ namespace ojph {
       {
         p->next = avail;
         avail = avail->next;
-        assert(p->next->type == OJPH_ATK_NONTOP);
-        p->next->init(this);
       }
       else
-        p->next = new param_atk(this, OJPH_ATK_NONTOP);
-      return p->next;
+        p->next = new param_atk;
+      p = p->next;
+      p->init(this);
+      return p;
     }
 
   } // !local namespace

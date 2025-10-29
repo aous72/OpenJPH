@@ -1074,32 +1074,50 @@ namespace ojph {
       // Only one coefficient per step -- first order filter
       // Only even-indexed subsequence in first reconstruction step,
       //   m_init = 0 is supported
-    private:
-      enum : ui8 { // this is not a real parameter; it used for debugging
-        OJPH_ATK_TOP = 0,
-        OJPH_ATK_NONTOP = 1
-      };
-
     public: // member functions
-      param_atk(param_atk *top_atk = NULL, ui8 type = OJPH_ATK_TOP) {
-        avail = NULL;
+      param_atk()
+      {
         d = d_store;
         max_steps = sizeof(d_store) / sizeof(lifting_step);
-        this->top_atk = top_atk;
-        this->type = type;
-        init(this);
+        init(NULL);
       }
-      ~param_atk() { destroy(); }
+      ~param_atk()
+      {
+        if (avail) {
+          delete avail;
+          avail = NULL;
+        }
+        if (next) {
+          delete next;
+          next = NULL;
+        }
+        if (d != NULL && d != d_store) {
+          delete[] d;
+          d = d_store;
+          max_steps = sizeof(d_store) / sizeof(lifting_step);
+        }
+      }
 
       ////////////////////////////////////////
       void restart()
       {
-        assert(type == OJPH_ATK_TOP);
+        assert(top_atk == NULL);
+
+        Latk = Satk = 0;
+        Katk = 0.0f;
+        Natk = 0;
+        if (d == NULL || d == d_store) {
+          d = d_store;
+          max_steps = sizeof(d_store) / sizeof(lifting_step);
+        }
+        memset(d, 0, max_steps * sizeof(lifting_step));
+
         param_atk** p = &avail; // move next to the end of avail
         while (*p != NULL)
           p = &((*p)->next);
         *p = next;
-        this->init(this);
+
+        next = NULL;
       }
 
       bool read(infile_base *file);
@@ -1116,42 +1134,25 @@ namespace ojph {
       ui32 get_num_steps() const { return Natk; }
       float get_K() const { return Katk; }
 
-    private:
-      ////////////////////////////////////////
-      void init(param_atk *top_atk)
+  private:
+      /////////////////////////////////////
+      void init(param_atk* top_atk)
       {
         Latk = Satk = 0;
         Katk = 0.0f;
         Natk = 0;
-        next = NULL;
-        this->top_atk = top_atk;
-        if (d == NULL) {
+        if (d == NULL || d == d_store) {
           d = d_store;
           max_steps = sizeof(d_store) / sizeof(lifting_step);
         }
         memset(d, 0, max_steps * sizeof(lifting_step));
+        next = NULL;
+        this->top_atk = top_atk;
+        avail = NULL;
       }
-
-      ////////////////////////////////////////
-      void destroy()
-      {
-        assert(type == OJPH_ATK_TOP);
-        if (avail)
-          delete avail;
-        if (next) {
-          delete next;
-          next = NULL;
-        }
-        if (d != NULL && d != d_store) {
-          delete[] d;
-          d = d_store;
-          max_steps = sizeof(d_store) / sizeof(lifting_step);
-        }
-      }
-
   private:
-      bool read_coefficient(infile_base *file, float &K);
-      bool read_coefficient(infile_base *file, si16 &K);
+      bool read_coefficient(infile_base *file, float &K, si32& bytes);
+      bool read_coefficient(infile_base *file, si16 &K, si32& bytes);
 
       void init_irv97();
       void init_rev53();
@@ -1167,8 +1168,6 @@ namespace ojph {
       lifting_step d_store[6];   // lifting step coefficient
       param_atk* next;   // used for chaining if more than one atk segment
                          // exist in the codestream
-      ui8 type;          // marker type -- this not a standard type; it is used
-                         // for debugging
       param_atk* top_atk;// This is the top level atk, from which all atk
                          // objects are derived
 

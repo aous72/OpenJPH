@@ -9,13 +9,13 @@ include_directories(../src/apps/common)
 include_directories(../src/core/common)
 
 # Configure source files
-set(SOURCES mse_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_arch.cpp")
+set(SOURCES mse_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_mem.c" "../src/core/others/ojph_arch.cpp")
 set(OJPH_IMG_IO_SSE41 "../src/apps/others/ojph_img_io_sse41.cpp")
 set(OJPH_IMG_IO_AVX2 "../src/apps/others/ojph_img_io_avx2.cpp")
 
 # if SIMD are not disabled
 if (NOT OJPH_DISABLE_SIMD)
-  if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") 
+  if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64")
     OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386")
     OR MULTI_GEN_X86_64)
 

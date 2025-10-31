@@ -975,6 +975,18 @@ namespace ojph {
         OJPH_ERROR(0x00050079, "error reading COD segment");
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
         OJPH_ERROR(0x0005007A, "error reading COD segment");
+
+      if (((SPcod.num_decomp & 0x80) == 0 && SPcod.num_decomp > 32)
+        || SPcod.block_width > 8
+        || SPcod.block_height > 8
+        || SPcod.block_width + SPcod.block_height > 8
+        || (SPcod.block_style & 0x40) != 0x40
+        || (SPcod.block_style & 0xB7) != 0x00)
+        OJPH_ERROR(0x0005007D, "wrong settings in a COD-SPcod parameter");
+      if ((SPcod.block_style & 0x40) != 0x40
+        || (SPcod.block_style & 0xB7) != 0x00)
+        OJPH_ERROR(0x0005007E, "unsupported settings in a COD-SPcod parameter");
+
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
@@ -1021,6 +1033,18 @@ namespace ojph {
         OJPH_ERROR(0x00050128, "error reading COC segment");
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
         OJPH_ERROR(0x00050129, "error reading COC segment");
+
+      if (((SPcod.num_decomp & 0x80) == 0 && SPcod.num_decomp > 32)
+        || SPcod.block_width > 8
+        || SPcod.block_height > 8
+        || SPcod.block_width + SPcod.block_height > 8
+        || (SPcod.block_style & 0x40) != 0x40
+        || (SPcod.block_style & 0xB7) != 0x00)
+        OJPH_ERROR(0x0005012C, "wrong settings in a COC-SPcoc parameter");
+      if ((SPcod.block_style & 0x40) != 0x40
+        || (SPcod.block_style & 0xB7) != 0x00)
+        OJPH_ERROR(0x0005012D, "unsupported settings in a COC-SPcoc parameter");
+
       if (Scod & 1)
         for (int i = 0; i <= get_num_decompositions(); ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)

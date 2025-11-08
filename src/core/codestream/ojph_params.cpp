@@ -976,7 +976,7 @@ namespace ojph {
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
         OJPH_ERROR(0x0005007A, "error reading COD segment");
 
-      if (((SPcod.num_decomp & 0x80) == 0 && SPcod.num_decomp > 32)
+      if (get_num_decompositions() > 32
         || SPcod.block_width > 8
         || SPcod.block_height > 8
         || SPcod.block_width + SPcod.block_height > 8
@@ -987,8 +987,9 @@ namespace ojph {
         || (SPcod.block_style & 0xB7) != 0x00)
         OJPH_ERROR(0x0005007E, "unsupported settings in a COD-SPcod parameter");
 
+      ui8 num_decompositions =  get_num_decompositions();
       if (Scod & 1)
-        for (int i = 0; i <= SPcod.num_decomp; ++i)
+        for (int i = 0; i <= num_decompositions; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
             OJPH_ERROR(0x0005007B, "error reading COD segment");
       if (Lcod != 12 + ((Scod & 1) ? 1 + SPcod.num_decomp : 0))
@@ -1034,7 +1035,7 @@ namespace ojph {
       if (file->read(&SPcod.wavelet_trans, 1) != 1)
         OJPH_ERROR(0x00050129, "error reading COC segment");
 
-      if (((SPcod.num_decomp & 0x80) == 0 && SPcod.num_decomp > 32)
+      if (get_num_decompositions() > 32
         || SPcod.block_width > 8
         || SPcod.block_height > 8
         || SPcod.block_width + SPcod.block_height > 8
@@ -1045,13 +1046,14 @@ namespace ojph {
         || (SPcod.block_style & 0xB7) != 0x00)
         OJPH_ERROR(0x0005012D, "unsupported settings in a COC-SPcoc parameter");
 
+      ui8 num_decompositions =  get_num_decompositions();
       if (Scod & 1)
-        for (int i = 0; i <= get_num_decompositions(); ++i)
+        for (int i = 0; i <= num_decompositions; ++i)
           if (file->read(&SPcod.precinct_size[i], 1) != 1)
             OJPH_ERROR(0x0005012A, "error reading COC segment");
       ui32 t = 9;
       t += num_comps < 257 ? 0 : 1;
-      t += (Scod & 1) ? 1 + get_num_decompositions() : 0;
+      t += (Scod & 1) ? 1 + num_decompositions : 0;
       if (Lcod != t)
         OJPH_ERROR(0x0005012B, "error in COC segment length");
     }

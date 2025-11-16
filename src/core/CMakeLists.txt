@@ -139,10 +139,10 @@ set_target_properties(openjph PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
 target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
 
-## Check to see if aligned_alloc or posix_memalign is available
-# We want to the code to compile for C11 and C++11.
+## This is to check if aligned_alloc or posix_memalign is available
+# We want the code to compile for C11 and C++11.
 # std::aligned_alloc is only availabe in C++17.
-# So here we try to see what API is available and adapt the code to support it
+# So here we try to see which API is available and adapt the code to use it
 if (NOT MSVC)
   include(CheckSymbolExists)
   check_symbol_exists(aligned_alloc "stdlib.h" OJPH_ALIGNED_ALLOC_EXISTS)

@@ -6,7 +6,7 @@ project (mse_pae DESCRIPTION "A program to find MSE and peak absolute error betw
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 include_directories(../src/apps/common)
-include_directories(../src/core/common)
+include_directories(../src/core/openjph)
 
 # Configure source files
 set(SOURCES mse_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_mem.c" "../src/core/others/ojph_arch.cpp")

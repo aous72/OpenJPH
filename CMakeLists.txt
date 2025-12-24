@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.12.0)
 include(ojph_version.cmake)
 
 ## project
-project (openjph VERSION ${OPENJPH_VERSION} DESCRIPTION "Open source implementation of JPH" LANGUAGES CXX)
+project (openjph VERSION ${OPENJPH_VERSION} DESCRIPTION "Open source implementation of JPH" LANGUAGES C CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ################################################################################################
@@ -118,6 +118,11 @@ endif()
 message(STATUS "Building ${CMAKE_BUILD_TYPE}")
 
 ## C++ version and flags
+# C11 is needed for aligned_alloc
+if (NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+endif()
+message(STATUS "C Standard is set to ${CMAKE_C_STANDARD}")
 # C++14 is needed for gtest, otherwise, C++11 is sufficient for the library
 if (NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
@@ -127,7 +132,7 @@ message(STATUS "C++ Standard is set to ${CMAKE_CXX_STANDARD}")
 if (MSVC)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND NOT MSVC)
   add_compile_options(
   -fexceptions
   -Wall

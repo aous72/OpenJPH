@@ -716,17 +716,17 @@ namespace ojph {
       }
       com_len = swap_byte(com_len);
       file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
-      if (msg != NULL && msg_level != OJPH_MSG_LEVEL::NO_MSG)
+      if (msg != NULL && msg_level != OJPH_MSG_NO_MSG)
       {
-        if (msg_level == OJPH_MSG_LEVEL::INFO)
+        if (msg_level == OJPH_MSG_INFO)
         {
           OJPH_INFO(0x00030001, "%s", msg);
         }
-        else if (msg_level == OJPH_MSG_LEVEL::WARN)
+        else if (msg_level == OJPH_MSG_WARN)
         {
           OJPH_WARN(0x00030001, "%s", msg);
         }
-        else if (msg_level == OJPH_MSG_LEVEL::ERROR)
+        else if (msg_level == OJPH_MSG_ERROR)
         {
           OJPH_ERROR(0x00030001, "%s", msg);
         }
@@ -753,10 +753,10 @@ namespace ojph {
           cap.read(file);
         else if (marker_idx == 1)
           //Skipping PRF marker segment; this should not cause any issues
-          skip_marker(file, "PRF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
+          skip_marker(file, "PRF", NULL, OJPH_MSG_NO_MSG, false);
         else if (marker_idx == 2)
           //Skipping CPF marker segment; this should not cause any issues
-          skip_marker(file, "CPF", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
+          skip_marker(file, "CPF", NULL, OJPH_MSG_NO_MSG, false);
         else if (marker_idx == 3)
         {
           cod.read(file);
@@ -803,19 +803,19 @@ namespace ojph {
         }
         else if (marker_idx == 7)
           skip_marker(file, "RGN", "RGN is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
+            OJPH_MSG_WARN, false);
         else if (marker_idx == 8)
           skip_marker(file, "POC", "POC is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
+            OJPH_MSG_WARN, false);
         else if (marker_idx == 9)
           skip_marker(file, "PPM", "PPM is not supported yet",
-            OJPH_MSG_LEVEL::WARN, false);
+            OJPH_MSG_WARN, false);
         else if (marker_idx == 10)
           //Skipping TLM marker segment; this should not cause any issues
-          skip_marker(file, "TLM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
+          skip_marker(file, "TLM", NULL, OJPH_MSG_NO_MSG, false);
         else if (marker_idx == 11)
           //Skipping PLM marker segment; this should not cause any issues
-          skip_marker(file, "PLM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
+          skip_marker(file, "PLM", NULL, OJPH_MSG_NO_MSG, false);
         else if (marker_idx == 12)
           //Skipping CRG marker segment;
           skip_marker(file, "CRG", "CRG has been ignored; CRG is related to"
@@ -823,9 +823,9 @@ namespace ojph {
             " with respect to the Y' luma component. Perhaps, it is better"
             " to get the individual components and assemble the samples"
             " according to your needs",
-            OJPH_MSG_LEVEL::INFO, false);
+            OJPH_MSG_INFO, false);
         else if (marker_idx == 13)
-          skip_marker(file, "COM", NULL, OJPH_MSG_LEVEL::NO_MSG, false);
+          skip_marker(file, "COM", NULL, OJPH_MSG_NO_MSG, false);
         else if (marker_idx == 14)
           dfs.read(file);
         else if (marker_idx == 15)
@@ -926,22 +926,22 @@ namespace ojph {
               if (marker_idx == 0)
                 result = skip_marker(infile, "POC",
                   "POC marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 1)
                 result = skip_marker(infile, "PPT",
                   "PPT marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 2)
                 //Skipping PLT marker segment;this should not cause any issues
                 result = skip_marker(infile, "PLT", NULL,
-                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+                  OJPH_MSG_NO_MSG, resilient);
               else if (marker_idx == 3)
                 result = skip_marker(infile, "COM", NULL,
-                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+                  OJPH_MSG_NO_MSG, resilient);
               else if (marker_idx == 4)
                 result = skip_marker(infile, "NLT",
                   "NLT marker in tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 5)
               {
                 sod_found = true;
@@ -990,42 +990,42 @@ namespace ojph {
               if (marker_idx == 0)
                 result = skip_marker(infile, "COD",
                   "COD marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 1)
                 result = skip_marker(infile, "COC",
                   "COC marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 2)
                 result = skip_marker(infile, "QCD",
                   "QCD marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 3)
                 result = skip_marker(infile, "QCC",
                   "QCC marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 4)
                 result = skip_marker(infile, "RGN",
                   "RGN marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 5)
                 result = skip_marker(infile, "POC",
                   "POC marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 6)
                 result = skip_marker(infile, "PPT",
                   "PPT marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 7)
                 //Skipping PLT marker segment;this should not cause any issues
                 result = skip_marker(infile, "PLT", NULL,
-                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+                  OJPH_MSG_NO_MSG, resilient);
               else if (marker_idx == 8)
                 result = skip_marker(infile, "COM", NULL,
-                  OJPH_MSG_LEVEL::NO_MSG, resilient);
+                  OJPH_MSG_NO_MSG, resilient);
               else if (marker_idx == 9)
                 result = skip_marker(infile, "NLT",
                   "PPT marker segment in a tile is not supported yet",
-                  OJPH_MSG_LEVEL::WARN, resilient);
+                  OJPH_MSG_WARN, resilient);
               else if (marker_idx == 10)
               {
                 sod_found = true;

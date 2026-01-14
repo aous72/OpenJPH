@@ -1,4 +1,4 @@
-//***************************************************************************/
+//***************************************************************************;
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
@@ -42,6 +42,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <utility>
 
 #include "ojph_mem.h"
 #include "ojph_file.h"
@@ -116,6 +117,32 @@ namespace ojph {
     buf_size = used_size = 0;
     buf = cur_ptr = NULL;
   }
+
+  /**  */
+  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept : mem_outfile() {
+    std::swap(this->is_open, rhs.is_open);
+    std::swap(this->clear_mem, rhs.clear_mem);
+    std::swap(this->buf_size, rhs.buf_size);
+    std::swap(this->used_size, rhs.used_size);
+    std::swap(this->buf, rhs.buf);
+    std::swap(this->cur_ptr, rhs.cur_ptr);
+  }
+
+  mem_outfile& mem_outfile::operator=(mem_outfile&& rhs) noexcept {
+    // NOTE(geo-ant) this ensures that rhs is in a default-constructed state
+    // and the former resources of this instance get properly dropped.
+    mem_outfile tmp(std::move(rhs));
+
+    std::swap(this->is_open, tmp.is_open);
+    std::swap(this->clear_mem, tmp.clear_mem);
+    std::swap(this->buf_size, tmp.buf_size);
+    std::swap(this->used_size, tmp.used_size);
+    std::swap(this->buf, tmp.buf);
+    std::swap(this->cur_ptr, tmp.cur_ptr);
+
+    return *this;
+  }
+  
 
   /**  */
   void mem_outfile::open(size_t initial_size, bool clear_mem)

@@ -131,6 +131,20 @@ namespace ojph {
     /**  A destructor */
     ~mem_outfile() override;
 
+    mem_outfile(mem_outfile const&) = delete;
+    mem_outfile& operator=(mem_outfile const&) = delete;
+
+    /**
+     * Move construction leaves the moved-from value in default constructed state
+     * and transfers ownership of the internal state to the moved-to instance.
+     **/
+    mem_outfile(mem_outfile &&) noexcept;
+    /**
+     * move assignment with the same ownership transfer semantics as
+     * move construction.
+     **/
+    mem_outfile& operator=(mem_outfile&&) noexcept;
+
     /**
      *  @brief Call this function to open a memory file.
 	   *

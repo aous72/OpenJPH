@@ -735,7 +735,7 @@ namespace ojph {
           OJPH_ERROR(0x00050052, "error reading SIZ marker");
         if (file->read(&cptr[c].YRsiz, 1) != 1)
           OJPH_ERROR(0x00050053, "error reading SIZ marker");
-        if (cptr[c].SSiz == 0 || cptr[c].SSiz > 38)
+        if ((cptr[c].SSiz & 0x7F) > 37)
           OJPH_ERROR(0x00050054, "Wrong SIZ-SSiz value of %d", cptr[c].SSiz);
         if (cptr[c].XRsiz == 0)
           OJPH_ERROR(0x00050055, "Wrong SIZ-XRsiz value of %d", cptr[c].XRsiz);

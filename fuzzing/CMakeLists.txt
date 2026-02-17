@@ -1,0 +1,6 @@
+add_executable(j2c_expand_fuzz_target fuzz_targets/j2c_expand_fuzz_target.cpp)
+
+target_compile_options(j2c_expand_fuzz_target PRIVATE -fsanitize=fuzzer,address)
+target_link_options(j2c_expand_fuzz_target PRIVATE -fsanitize=fuzzer,address)
+target_link_libraries(j2c_expand_fuzz_target PRIVATE openjph)
+

@@ -22,3 +22,16 @@ The standard is available free of charge from [ITU website](https://www.itu.int/
 # Repositories #
 [![Packaging status](https://repology.org/badge/vertical-allrepos/openjph.svg)](https://repology.org/project/openjph/versions)
 
+# Fuzzer Target #
+
+Fuzzer targets can be build using the `ENABLE_FUZZING` build option. The Dockerfile in the `fuzzing directory` allows local testing:
+
+```sh
+podman build -t openjph-fuzz  -f fuzzing/Dockerfile
+podman run -it --rm -v $(pwd):/app/ojph/ openjph-fuzz bash
+image# mkdir /app/build/
+image# cd /app/build/
+image# cmake /app/ojph -DENABLE_FUZZING=ON
+image# make
+image# ./fuzzing/j2c_expand_fuzz_target /app/jp2k_test_codestreams/openjph/*.j2c
+```

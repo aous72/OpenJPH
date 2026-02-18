@@ -243,9 +243,9 @@ endif()
 # Fuzzing
 ################################################################################################
 
-option(ENABLE_FUZZING "Enable fuzzing" OFF)
+option(OJPH_ENABLE_FUZZING "Enable fuzzing" OFF)
 
-if(ENABLE_FUZZING)
+if(OJPH_ENABLE_FUZZING)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR "Fuzzing requires a Clang toolchain.")
   endif()

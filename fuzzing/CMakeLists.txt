@@ -5,6 +5,6 @@ else()
   add_link_options(-fsanitize=fuzzer,address)
 endif()
 
-add_executable(j2c_expand_fuzz_target fuzz_targets/j2c_expand_fuzz_target.cpp)
-target_link_libraries(j2c_expand_fuzz_target PRIVATE openjph)
+add_executable(ojph_expand_fuzz_target fuzz_targets/ojph_expand_fuzz_target.cpp)
+target_link_libraries(ojph_expand_fuzz_target PRIVATE openjph)
 

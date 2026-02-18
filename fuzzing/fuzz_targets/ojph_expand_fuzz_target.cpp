@@ -28,7 +28,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: j2c_expand_fuzz_target.cpp
+// File: ojph_expand_fuzz_target.cpp
 // Author: Pierre-Anthony Lemieux
 // Date: 17 February 2026
 //***************************************************************************/

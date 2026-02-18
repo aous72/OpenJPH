@@ -41,6 +41,7 @@ option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files
 option(OJPH_BUILD_TESTS "Enables building test code" OFF)
 option(OJPH_BUILD_EXECUTABLES "Enables building command line executables" ON)
 option(OJPH_BUILD_STREAM_EXPAND "Enables building ojph_stream_expand executable" OFF)
+option(OJPH_BUILD_FUZZER "Enables building oss-fuzzing target executable" OFF)
 
 option(OJPH_DISABLE_SIMD "Disables the use of SIMD instructions -- agnostic to architectures" OFF)
 option(OJPH_DISABLE_SSE "Disables the use of SSE SIMD instructions and associated files" OFF)
@@ -243,9 +244,7 @@ endif()
 # Fuzzing
 ################################################################################################
 
-option(OJPH_ENABLE_FUZZING "Enable fuzzing" OFF)
-
-if(OJPH_ENABLE_FUZZING)
+if(OJPH_BUILD_FUZZER)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR "Fuzzing requires a Clang toolchain.")
   endif()

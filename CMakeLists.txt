@@ -249,5 +249,7 @@ if(OJPH_BUILD_FUZZER)
     message(FATAL_ERROR "Fuzzing requires a Clang toolchain.")
   endif()
 
+  message(STATUS "Building fuzzer target")
+
   add_subdirectory(fuzzing)
 endif()

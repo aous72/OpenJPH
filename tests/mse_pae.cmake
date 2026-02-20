@@ -9,7 +9,7 @@ include_directories(../src/apps/common)
 include_directories(../src/core/openjph)
 
 # Configure source files
-set(SOURCES mse_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_mem.c" "../src/core/others/ojph_arch.cpp")
+set(SOURCES mse_pae.cpp "../src/apps/others/ojph_img_io.cpp" "../src/core/others/ojph_message.cpp" "../src/core/others/ojph_file.cpp" "../src/core/others/ojph_mem.cpp" "../src/core/others/ojph_mem_c.c" "../src/core/others/ojph_arch.cpp")
 set(OJPH_IMG_IO_SSE41 "../src/apps/others/ojph_img_io_sse41.cpp")
 set(OJPH_IMG_IO_AVX2 "../src/apps/others/ojph_img_io_avx2.cpp")
 

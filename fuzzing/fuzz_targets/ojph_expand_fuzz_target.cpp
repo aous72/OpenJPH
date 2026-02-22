@@ -34,8 +34,10 @@
 //***************************************************************************/
 
 #include <unistd.h>
-#include <stdlib.h>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
 
 #include <ojph_arch.h>
 #include <ojph_file.h>
@@ -94,3 +96,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
   }
   return 0;
 }
+
+#ifdef OJPH_FUZZ_TARGET_MAIN
+int main(int argc, char **argv) {
+  for (int i = 1; i < argc; i++) {
+    FILE *f = fopen(argv[i], "rb");
+    if (!f) { perror(argv[i]); continue; }
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    rewind(f);
+    std::vector<uint8_t> buf(len);
+    fread(buf.data(), 1, len, f);
+    fclose(f);
+    LLVMFuzzerTestOneInput(buf.data(), buf.size());
+  }
+  return 0;
+}
+#endif

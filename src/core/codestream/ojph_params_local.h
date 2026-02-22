@@ -217,6 +217,24 @@ namespace ojph {
         cptr[comp_num].YRsiz = (ui8)downsampling.y;
       }
 
+      void set_tile_size(size s)
+      {
+        if (s.w == 0 || s.h == 0)
+          OJPH_ERROR(0x00040004, "tile size cannot be zero");
+        XTsiz = s.w;
+        YTsiz = s.h;
+      }
+
+      void set_image_offset(point offset)
+      {
+        if ((Xsiz != 0 && offset.x >= Xsiz) ||
+            (Ysiz != 0 && offset.y >= Ysiz))
+          OJPH_ERROR(0x00040005,
+            "image offset must be less than image extent");
+        XOsiz = offset.x;
+        YOsiz = offset.y;
+      }
+
       void check_validity(const param_cod& cod)
       {
         this->cod = &cod;

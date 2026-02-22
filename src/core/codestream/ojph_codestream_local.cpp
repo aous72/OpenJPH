@@ -548,7 +548,8 @@ namespace ojph {
                                    ui32 num_comments)
     {
       //finalize
-      siz.check_validity(cod);
+      siz.set_cod(cod);
+      siz.check_validity();
       cod.check_validity(siz);
       cod.update_atk(&atk);
       qcd.check_validity(siz, cod);

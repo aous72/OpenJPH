@@ -219,46 +219,35 @@ namespace ojph {
 
       void set_image_extent(point dims)
       {
-        if (dims.x == 0 || dims.y == 0)
-          OJPH_ERROR(0x00040007, "image extent cannot be zero");
-        if ((XOsiz != 0 && dims.x <= XOsiz) || (YOsiz != 0 && dims.y <= YOsiz))
-          OJPH_ERROR(0x00040008,
-            "image extent must be greater than image offset");
         Xsiz = dims.x;
         Ysiz = dims.y;
       }
 
       void set_tile_size(size s)
       {
-        if (s.w == 0 || s.h == 0)
-          OJPH_ERROR(0x00040004, "tile size cannot be zero");
         XTsiz = s.w;
         YTsiz = s.h;
       }
 
       void set_image_offset(point offset)
       {
-        if ((Xsiz != 0 && offset.x >= Xsiz) ||
-            (Ysiz != 0 && offset.y >= Ysiz))
-          OJPH_ERROR(0x00040005,
-            "image offset must be less than image extent");
         XOsiz = offset.x;
         YOsiz = offset.y;
       }
 
       void set_tile_offset(point offset)
       {
-        if (offset.x > XOsiz || offset.y > YOsiz)
-          OJPH_ERROR(0x00040006,
-            "tile offset must be no greater than image offset");
         XTOsiz = offset.x;
         YTOsiz = offset.y;
       }
 
-      void check_validity(const param_cod& cod)
+      void set_cod(const param_cod& cod)
       {
         this->cod = &cod;
+      }
 
+      void check_validity()
+      {
         if (XTsiz == 0 && YTsiz == 0)
         { XTsiz = Xsiz + XOsiz; YTsiz = Ysiz + YOsiz; }
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)

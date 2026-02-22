@@ -741,6 +741,8 @@ namespace ojph {
 
       ws_kern_support_needed = (Rsiz & 0x20) != 0;
       dfs_support_needed = (Rsiz & 0x80) != 0;
+
+      check_validity();
     }
 
     //////////////////////////////////////////////////////////////////////////

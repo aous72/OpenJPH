@@ -58,8 +58,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   void param_siz::set_image_extent(point dims)
   {
-    state->Xsiz = dims.x;
-    state->Ysiz = dims.y;
+    state->set_image_extent(dims);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -76,9 +75,8 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   void param_siz::set_tile_offset(point offset)
-  { // WARNING need to check if these are valid
-    state->XTOsiz = offset.x;
-    state->YTOsiz = offset.y;
+  {
+    state->set_tile_offset(offset);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -713,12 +711,12 @@ namespace ojph {
       if (file->read(&t_YTsiz, 4) != 4)
         OJPH_ERROR(0x0005004A, "error reading SIZ marker");
       set_tile_size(size(swap_byte(t_XTsiz), swap_byte(t_YTsiz)));
-      if (file->read(&XTOsiz, 4) != 4)
+      ui32 t_XTOsiz, t_YTOsiz;
+      if (file->read(&t_XTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004B, "error reading SIZ marker");
-      XTOsiz = swap_byte(XTOsiz);
-      if (file->read(&YTOsiz, 4) != 4)
+      if (file->read(&t_YTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004C, "error reading SIZ marker");
-      YTOsiz = swap_byte(YTOsiz);
+      set_tile_offset(point(swap_byte(t_XTOsiz), swap_byte(t_YTOsiz)));
       if (file->read(&Csiz, 2) != 2)
         OJPH_ERROR(0x0005004D, "error reading SIZ marker");
       Csiz = swap_byte(Csiz);

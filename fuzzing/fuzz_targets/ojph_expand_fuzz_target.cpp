@@ -98,17 +98,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 
 #ifdef OJPH_FUZZ_TARGET_MAIN
 int main(int argc, char **argv) {
-  for (int i = 1; i < argc; i++) {
-    FILE *f = fopen(argv[i], "rb");
-    if (!f) { perror(argv[i]); continue; }
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    rewind(f);
-    std::vector<uint8_t> buf(len);
-    fread(buf.data(), 1, len, f);
-    fclose(f);
-    LLVMFuzzerTestOneInput(buf.data(), buf.size());
+  if (argc != 2) {
+    return -1;
   }
+  FILE *f = fopen(argv[1], "rb");
+  if (!f) { return -1; }
+  fseek(f, 0, SEEK_END);
+  long len = ftell(f);
+  if (len < 0) {
+    return -1;
+  }
+  rewind(f);
+  std::vector<uint8_t> buf(len);
+  size_t n = fread(buf.data(), 1, len, f);
+  if(n != static_cast<size_t>(len)) {
+    return -1;
+  }
+  fclose(f);
+  LLVMFuzzerTestOneInput(buf.data(), buf.size());
   return 0;
 }
 #endif

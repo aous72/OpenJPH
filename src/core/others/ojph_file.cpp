@@ -130,6 +130,10 @@ namespace ojph {
 
   /**  */
   mem_outfile& mem_outfile::operator=(mem_outfile&& rhs) noexcept {
+    if (this == &rhs) {
+       return *this;
+    }
+
     this->is_open= rhs.is_open;
     this->clear_mem= rhs.clear_mem;
     this->buf_size= rhs.buf_size;

@@ -103,9 +103,13 @@ namespace ojph {
   /**  */
   mem_outfile::mem_outfile()
   {
-    is_open = clear_mem = false;
-    buf_size = used_size = 0;
-    buf = cur_ptr = NULL;
+    reset(*this);
+  }
+
+  void mem_outfile::reset(mem_outfile& f) noexcept {
+    f.is_open = f.clear_mem = false;
+    f.buf_size = f.used_size = 0;
+    f.buf = f.cur_ptr = nullptr;
   }
 
   /**  */
@@ -117,32 +121,24 @@ namespace ojph {
     buf_size = used_size = 0;
     buf = cur_ptr = NULL;
   }
+  
+  /**  */
+  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept {
+    // NOTE(geo-ant): this invokes move _assignment_ and leaves rhs in default state
+    *this = std::move(rhs);
+  }
 
   /**  */
-  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept : mem_outfile() {
-    std::swap(this->is_open, rhs.is_open);
-    std::swap(this->clear_mem, rhs.clear_mem);
-    std::swap(this->buf_size, rhs.buf_size);
-    std::swap(this->used_size, rhs.used_size);
-    std::swap(this->buf, rhs.buf);
-    std::swap(this->cur_ptr, rhs.cur_ptr);
-  }
-
   mem_outfile& mem_outfile::operator=(mem_outfile&& rhs) noexcept {
-    // NOTE(geo-ant) this ensures that rhs is in a default-constructed state
-    // and the former resources of this instance get properly dropped.
-    mem_outfile tmp(std::move(rhs));
-
-    std::swap(this->is_open, tmp.is_open);
-    std::swap(this->clear_mem, tmp.clear_mem);
-    std::swap(this->buf_size, tmp.buf_size);
-    std::swap(this->used_size, tmp.used_size);
-    std::swap(this->buf, tmp.buf);
-    std::swap(this->cur_ptr, tmp.cur_ptr);
-
+    this->is_open= rhs.is_open;
+    this->clear_mem= rhs.clear_mem;
+    this->buf_size= rhs.buf_size;
+    this->used_size= rhs.used_size;
+    this->buf = rhs.buf;
+    this->cur_ptr= rhs.cur_ptr;
+    reset(rhs);
     return *this;
   }
-  
 
   /**  */
   void mem_outfile::open(size_t initial_size, bool clear_mem)

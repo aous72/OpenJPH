@@ -233,6 +233,14 @@ namespace ojph {
      size_t get_buf_size() const { return buf_size; }
 
   private:
+
+    /** @brief A utility to set an instance's fields to default values.
+     *  
+     *  This function is used in the default constructor as well as
+     *  move constructor and assignment.
+     */
+    static void reset(mem_outfile&) noexcept;
+  
     /**
      *  @brief This function expands storage by x1.5 needed space.
      *

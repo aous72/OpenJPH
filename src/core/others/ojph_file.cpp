@@ -1,4 +1,4 @@
-//***************************************************************************/
+//***************************************************************************;
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
@@ -42,6 +42,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <utility>
 
 #include "ojph_mem.h"
 #include "ojph_file.h"
@@ -95,19 +96,28 @@ namespace ojph {
     fh = NULL;
   }
 
-  //*************************************************************************/
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
   // mem_outfile
-  //*************************************************************************/
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
 
-  /**  */
+  ////////////////////////////////////////////////////////////////////////////
   mem_outfile::mem_outfile()
   {
-    is_open = clear_mem = false;
-    buf_size = used_size = 0;
-    buf = cur_ptr = NULL;
+    reset(*this);
   }
 
-  /**  */
+  ////////////////////////////////////////////////////////////////////////////
+  void mem_outfile::reset(mem_outfile& f) noexcept {
+    f.is_open = f.clear_mem = false;
+    f.buf_size = f.used_size = 0;
+    f.buf = f.cur_ptr = nullptr;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   mem_outfile::~mem_outfile()
   {
     if (buf)
@@ -117,7 +127,29 @@ namespace ojph {
     buf = cur_ptr = NULL;
   }
 
-  /**  */
+  ////////////////////////////////////////////////////////////////////////////
+  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept
+  {
+    reset(*this);
+    std::swap(*this, rhs);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  mem_outfile& mem_outfile::operator=(mem_outfile&& rhs) noexcept
+  {
+    if (this == &rhs)
+       return *this;
+
+    if (this->buf)
+      ojph_aligned_free(this->buf);
+
+    reset(*this);
+    std::swap(*this, rhs);
+
+    return *this;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void mem_outfile::open(size_t initial_size, bool clear_mem)
   {
     assert(this->is_open == false);
@@ -131,12 +163,13 @@ namespace ojph {
     this->cur_ptr = this->buf;
   }
 
-  /**  */
+  ////////////////////////////////////////////////////////////////////////////
   void mem_outfile::close() {
     is_open = false;
     cur_ptr = buf;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
   /** The seek function expands the buffer whenever offset goes beyond
    *  the buffer end
    */
@@ -162,6 +195,7 @@ namespace ojph {
     return 0;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
   /** Whenever the need arises, the buffer is expanded by a factor approx 1.5x
    */
   size_t mem_outfile::write(const void *ptr, size_t new_size)
@@ -183,7 +217,7 @@ namespace ojph {
     return new_size;
   }
 
-  /** */
+  ////////////////////////////////////////////////////////////////////////////
   void mem_outfile::write_to_file(const char *file_name) const
   {
     assert(is_open == false);
@@ -196,7 +230,7 @@ namespace ojph {
     fclose(f);
   }
 
-  /** */
+  ////////////////////////////////////////////////////////////////////////////
   void mem_outfile::expand_storage(size_t needed_size, bool clear_all)
   {
     if (needed_size > buf_size)

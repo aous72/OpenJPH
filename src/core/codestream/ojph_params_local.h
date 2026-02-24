@@ -217,44 +217,20 @@ namespace ojph {
         cptr[comp_num].YRsiz = (ui8)downsampling.y;
       }
 
-      void set_image_extent(point dims)
-      {
-        Xsiz = dims.x;
-        Ysiz = dims.y;
-      }
-
-      void set_tile_size(size s)
-      {
-        XTsiz = s.w;
-        YTsiz = s.h;
-      }
-
-      size get_tile_size() const
-      {
-        return size(XTsiz, YTsiz);
-      }
-
+      void set_image_extent(point dims) { Xsiz = dims.x; Ysiz = dims.y; }
+      point get_image_extent() const { return point(Xsiz, Ysiz); }
+      void set_tile_size(size s) { XTsiz = s.w; YTsiz = s.h; }
+      size get_tile_size() const { return size(XTsiz, YTsiz); }
       void set_image_offset(point offset)
-      {
-        XOsiz = offset.x;
-        YOsiz = offset.y;
-      }
-
+      { XOsiz = offset.x; YOsiz = offset.y; }
       point get_image_offset() const
-      {
-        return point(XOsiz, YOsiz);
-      }
-
+      { return point(XOsiz, YOsiz); }
       void set_tile_offset(point offset)
-      {
-        XTOsiz = offset.x;
-        YTOsiz = offset.y;
-      }
+      { XTOsiz = offset.x; YTOsiz = offset.y; }
+      point get_tile_offset(point offset) const
+      { return point(XTOsiz, YTOsiz); }
 
-      void set_cod(const param_cod& cod)
-      {
-        this->cod = &cod;
-      }
+      void set_cod(const param_cod& cod) { this->cod = &cod; }
 
       void check_validity()
       {

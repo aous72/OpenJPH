@@ -554,7 +554,9 @@ namespace ojph {
       if (tile_size.h == 0 && tile_size.w == 0)
       {
         point img_offset = siz.get_image_offset();
-        siz.set_tile_size(size(tile_size.w + img_offset.x, tile_size.h + img_offset.y));
+        point img_extent = siz.get_image_extent();
+        size t(img_extent.x + img_offset.x, img_extent.y + img_offset.y);
+        siz.set_tile_size(t);
       }
       siz.check_validity();
       cod.check_validity(siz);

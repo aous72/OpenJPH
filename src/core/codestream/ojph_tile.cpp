@@ -416,6 +416,9 @@ namespace ojph {
       if (!employ_color_transform || num_comps == 1)
       {
         line_buf *src_line = comps[comp_num].pull_line();
+        if (src_line == NULL)
+          OJPH_ERROR(0x00030089, "No line available to pull for component %d of tile %d.", 
+            comp_num, sot.get_tile_index());
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (reversible[comp_num])
         {

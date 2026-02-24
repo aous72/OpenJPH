@@ -450,13 +450,19 @@ namespace ojph {
         ui32 comp_width = recon_comp_rects[comp_num].siz.w;
         if (comp_num == 0)
         {
+          line_buf *comp0_line = comps[0].pull_line();
+          line_buf *comp1_line = comps[1].pull_line();
+          line_buf *comp2_line = comps[2].pull_line();
+          if (comp0_line == NULL || comp1_line == NULL || comp2_line == NULL)
+            OJPH_ERROR(0x0003008a, "No line available to pull for component %d of tile %d.", 
+              comp_num, sot.get_tile_index());
           if (reversible[comp_num])
-            rct_backward(comps[0].pull_line(), comps[1].pull_line(),
-              comps[2].pull_line(), lines + 0, lines + 1,
+            rct_backward(comp0_line, comp1_line,
+              comp2_line, lines + 0, lines + 1,
               lines + 2, comp_width);
           else
-            ict_backward(comps[0].pull_line()->f32, comps[1].pull_line()->f32,
-              comps[2].pull_line()->f32, lines[0].f32, lines[1].f32,
+            ict_backward(comp0_line->f32, comp1_line->f32,
+              comp2_line->f32, lines[0].f32, lines[1].f32,
               lines[2].f32, comp_width);
         }
         if (reversible[comp_num])
@@ -465,8 +471,12 @@ namespace ojph {
           line_buf* src_line;
           if (comp_num < 3)
             src_line = lines + comp_num;
-          else
+          else {
             src_line = comps[comp_num].pull_line();
+            if (src_line == NULL)
+              OJPH_ERROR(0x0003008b, "No line available to pull for component %d of tile %d.", 
+                comp_num, sot.get_tile_index());
+          }
           if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
             rev_convert_nlt_type3(src_line, 0, tgt_line, 
               line_offsets[comp_num], shift + 1, comp_width);
@@ -482,7 +492,10 @@ namespace ojph {
           if (comp_num < 3)
             lbp = lines + comp_num;
           else
-            lbp = comps[comp_num].pull_line();            
+            lbp = comps[comp_num].pull_line();
+          if (lbp == NULL)
+            OJPH_ERROR(0x0003008c, "No line available to pull for component %d of tile %d.", 
+              comp_num, sot.get_tile_index());
           if (nlt_type3[comp_num] == type3)
             irv_convert_to_integer_nlt_type3(lbp, tgt_line, 
               line_offsets[comp_num], num_bits[comp_num], 

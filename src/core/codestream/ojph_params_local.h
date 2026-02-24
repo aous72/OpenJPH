@@ -227,7 +227,7 @@ namespace ojph {
       { return point(XOsiz, YOsiz); }
       void set_tile_offset(point offset)
       { XTOsiz = offset.x; YTOsiz = offset.y; }
-      point get_tile_offset(point offset) const
+      point get_tile_offset() const
       { return point(XTOsiz, YTOsiz); }
 
       void set_cod(const param_cod& cod) { this->cod = &cod; }

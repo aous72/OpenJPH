@@ -217,12 +217,47 @@ namespace ojph {
         cptr[comp_num].YRsiz = (ui8)downsampling.y;
       }
 
-      void check_validity(const param_cod& cod)
+      void set_image_extent(point dims)
+      {
+        Xsiz = dims.x;
+        Ysiz = dims.y;
+      }
+
+      void set_tile_size(size s)
+      {
+        XTsiz = s.w;
+        YTsiz = s.h;
+      }
+
+      size get_tile_size() const
+      {
+        return size(XTsiz, YTsiz);
+      }
+
+      void set_image_offset(point offset)
+      {
+        XOsiz = offset.x;
+        YOsiz = offset.y;
+      }
+
+      point get_image_offset() const
+      {
+        return point(XOsiz, YOsiz);
+      }
+
+      void set_tile_offset(point offset)
+      {
+        XTOsiz = offset.x;
+        YTOsiz = offset.y;
+      }
+
+      void set_cod(const param_cod& cod)
       {
         this->cod = &cod;
+      }
 
-        if (XTsiz == 0 && YTsiz == 0)
-        { XTsiz = Xsiz + XOsiz; YTsiz = Ysiz + YOsiz; }
+      void check_validity()
+      {
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
           OJPH_ERROR(0x00040001,
             "You cannot set image extent nor tile size to zero");

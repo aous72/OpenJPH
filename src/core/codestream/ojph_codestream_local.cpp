@@ -548,7 +548,15 @@ namespace ojph {
                                    ui32 num_comments)
     {
       //finalize
-      siz.check_validity(cod);
+      siz.set_cod(cod);
+      // set the tile size if it was not set by the user
+      size tile_size = siz.get_tile_size();
+      if (tile_size.h == 0 && tile_size.w == 0)
+      {
+        point img_offset = siz.get_image_offset();
+        siz.set_tile_size(size(tile_size.w + img_offset.x, tile_size.h + img_offset.y));
+      }
+      siz.check_validity();
       cod.check_validity(siz);
       cod.update_atk(&atk);
       qcd.check_validity(siz, cod);

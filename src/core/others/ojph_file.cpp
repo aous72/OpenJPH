@@ -107,14 +107,19 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   mem_outfile::mem_outfile()
   {
-    reset(*this);
+    is_open = clear_mem = false;
+    buf_size = used_size = 0;
+    buf = cur_ptr = nullptr;
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void mem_outfile::reset(mem_outfile& f) noexcept {
-    f.is_open = f.clear_mem = false;
-    f.buf_size = f.used_size = 0;
-    f.buf = f.cur_ptr = nullptr;
+  void mem_outfile::swap(mem_outfile& other) noexcept {
+    std::swap(this->is_open,other.is_open);
+    std::swap(this->clear_mem,other.clear_mem);
+    std::swap(this->buf_size,other.buf_size);
+    std::swap(this->used_size,other.used_size);
+    std::swap(this->buf,other.buf);
+    std::swap(this->cur_ptr,other.cur_ptr);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -128,24 +133,18 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept
+  mem_outfile::mem_outfile(mem_outfile&& rhs) noexcept: mem_outfile()
   {
-    reset(*this);
-    std::swap(*this, rhs);
+    this->swap(rhs);
   }
 
   ////////////////////////////////////////////////////////////////////////////
   mem_outfile& mem_outfile::operator=(mem_outfile&& rhs) noexcept
   {
-    if (this == &rhs)
-       return *this;
-
-    if (this->buf)
-      ojph_aligned_free(this->buf);
-
-    reset(*this);
-    std::swap(*this, rhs);
-
+    if (this != &rhs) {
+      mem_outfile tmp(std::move(rhs));
+      this->swap(tmp);
+    }
     return *this;
   }
 
@@ -319,6 +318,22 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
 
   ////////////////////////////////////////////////////////////////////////////
+  mem_infile::mem_infile(mem_infile&& rhs) noexcept: mem_infile()
+  {
+    this->swap(rhs);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  mem_infile& mem_infile::operator=(mem_infile&& rhs) noexcept
+  {
+    if (this != &rhs) {
+      mem_infile tmp(std::move(rhs));
+      this->swap(tmp);
+    }
+    return *this;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   void mem_infile::open(const ui8* data, size_t size)
   {
     assert(this->data == NULL);
@@ -376,5 +391,12 @@ namespace ojph {
     return result;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  void mem_infile::swap(mem_infile& other) noexcept
+  {
+    std::swap(this->data,other.data);
+    std::swap(this->cur_ptr,other.cur_ptr);
+    std::swap(this->size,other.size);
+  }
 
 }

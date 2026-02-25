@@ -243,9 +243,9 @@ namespace ojph {
         if (XTsiz + XTOsiz <= XOsiz || YTsiz + YTOsiz <= YOsiz)
           OJPH_ERROR(0x00040003,
             "The top left tile must intersect with the image");
-        if (Xsiz > XOsiz || Ysiz > YOsiz)
+        if (Xsiz <= XOsiz || Ysiz <= YOsiz)
           OJPH_ERROR(0x00040004,
-            "The image extent has to be larger than the image offset");
+            "The image extent must be larger than the image offset");
       }
 
       ui16 get_num_components() const { return Csiz; }

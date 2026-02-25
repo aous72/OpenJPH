@@ -1655,6 +1655,9 @@ namespace ojph {
       if ((Sqcd & 0x1F) == 0)
       {
         num_subbands = (Lqcd - 3);
+        if (num_subbands == 0)
+          OJPH_ERROR(0x0005008A, "QCD marker segment that specifies no "
+            "quantization informtion");
         if (num_subbands > 97 || Lqcd != 3 + num_subbands)
           OJPH_ERROR(0x00050083, "wrong Lqcd value of %d in QCD marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
@@ -1672,6 +1675,9 @@ namespace ojph {
       else if ((Sqcd & 0x1F) == 2)
       {
         num_subbands = (Lqcd - 3) / 2;
+        if (num_subbands == 0)
+          OJPH_ERROR(0x0005008B, "QCD marker segment that specifies no "
+            "quantization informtion");
         if (num_subbands > 97 || Lqcd != 3 + 2 * num_subbands)
           OJPH_ERROR(0x00050086, "wrong Lqcd value of %d in QCD marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
@@ -1710,6 +1716,9 @@ namespace ojph {
       if ((Sqcd & 0x1F) == 0)
       {
         num_subbands = (Lqcd - offset);
+        if (num_subbands == 0)
+          OJPH_ERROR(0x000500AC, "QCC marker segment that specifies no "
+            "quantization informtion");
         if (num_subbands > 97 || Lqcd != offset + num_subbands)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value of %d in QCC marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
@@ -1727,6 +1736,9 @@ namespace ojph {
       else if ((Sqcd & 0x1F) == 2)
       {
         num_subbands = (Lqcd - offset) / 2;
+        if (num_subbands == 0)
+          OJPH_ERROR(0x000500AD, "QCC marker segment that specifies no "
+            "quantization informtion");
         if (num_subbands > 97 || Lqcd != offset + 2 * num_subbands)
           OJPH_ERROR(0x000500A8, "wrong Lqcc value of %d in QCC marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)

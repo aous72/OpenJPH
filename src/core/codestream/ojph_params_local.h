@@ -236,13 +236,16 @@ namespace ojph {
       {
         if (Xsiz == 0 || Ysiz == 0 || XTsiz == 0 || YTsiz == 0)
           OJPH_ERROR(0x00040001,
-            "You cannot set image extent nor tile size to zero");
+            "Image extent and/or tile size cannot be zero");
         if (XTOsiz > XOsiz || YTOsiz > YOsiz)
           OJPH_ERROR(0x00040002,
-            "tile offset has to be smaller than image offset");
+            "Tile offset has to be smaller than the image offset");
         if (XTsiz + XTOsiz <= XOsiz || YTsiz + YTOsiz <= YOsiz)
           OJPH_ERROR(0x00040003,
-            "the top left tile must intersect with the image");
+            "The top left tile must intersect with the image");
+        if (Xsiz > XOsiz || Ysiz > YOsiz)
+          OJPH_ERROR(0x00040004,
+            "The image extent has to be larger than the image offset");
       }
 
       ui16 get_num_components() const { return Csiz; }

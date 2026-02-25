@@ -45,6 +45,7 @@
 #include <type_traits>
 
 #include "ojph_arch.h"
+#include "ojph_message.h"
 
 namespace ojph {
 
@@ -91,7 +92,7 @@ namespace ojph {
         allocated_data = allocated_data + (allocated_data + 19) / 20; // 5%
         store = malloc(allocated_data);
         if (store == NULL)
-          throw "malloc failed";
+          OJPH_ERROR(0x00090001, "malloc failed");
       }
       avail_obj = store;
       avail_data = (ui8*)store + size_obj;

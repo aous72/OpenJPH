@@ -238,5 +238,13 @@ install(FILES "${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc"
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND OJPH_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+################################################################################################
+# Testing and fuzzing (OJPH_BUILD_FUZZER)
+################################################################################################
+
+if(OJPH_BUILD_FUZZER)
   add_subdirectory(fuzzing)
 endif()
+

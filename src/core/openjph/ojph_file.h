@@ -234,12 +234,10 @@ namespace ojph {
 
   private:
 
-    /** @brief A utility to set an instance's fields to default values.
-     *  
-     *  This function is used in the default constructor as well as
-     *  move constructor and assignment.
+    /**
+     * @brief A utility function to swap the contents of two instances
      */
-    static void reset(mem_outfile&) noexcept;
+    void swap(mem_outfile& other) noexcept;
   
     /**
      *  @brief This function expands storage by x1.5 needed space.
@@ -313,6 +311,20 @@ namespace ojph {
     mem_infile() { close(); }
     ~mem_infile() override { }
 
+    mem_infile(mem_infile const&) = delete;
+    mem_infile& operator=(mem_infile const&) = delete;
+
+    /**
+     * Move construction leaves the moved-from value in default constructed state
+     * and transfers ownership of the internal state to the moved-to instance.
+     **/
+    mem_infile(mem_infile &&) noexcept;
+    /**
+     * move assignment with the same ownership transfer semantics as
+     * move construction.
+     **/
+    mem_infile& operator=(mem_infile&&) noexcept;
+
     void open(const ui8* data, size_t size);
 
     //read reads size bytes, returns the number of bytes read
@@ -324,6 +336,9 @@ namespace ojph {
     void close() override { data = cur_ptr = NULL; size = 0; }
 
   private:
+    // swap the contents of two instances
+    void swap(mem_infile&) noexcept;
+
     const ui8 *data, *cur_ptr;
     size_t size;
   };

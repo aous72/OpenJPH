@@ -202,3 +202,21 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
+  build_arm32:
+    name: Linux-ARM32 Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: armv7
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y cmake make g++ libtiff-dev python3
+        run: |
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+          make
+          ctest --output-on-failure

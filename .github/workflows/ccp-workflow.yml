@@ -5,6 +5,18 @@ on:
   push:
   pull_request:
     types: [opened, reopened]
+  workflow_dispatch:
+    inputs:
+      job_to_run:
+        description: 'Select the job to run manually'
+        type: 'choice'
+        options:
+          - 'build_arm32'
+        default: 'build_arm32'
+      log_level:
+        description: 'Log level'
+        required: false
+        default: 'info'
 
 
 jobs:
@@ -205,6 +217,7 @@ jobs:
   build_arm32:
     name: Linux-ARM32 Build
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.job_to_run == 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v2

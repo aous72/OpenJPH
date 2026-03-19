@@ -249,7 +249,7 @@ namespace ojph {
       // Otherwise coded_lists::buf can be 4 mod 8, which causes misalignment
       // on 32-bit architectures. So round sizeof(stores_list) to next
       // multiple of 16.
-      static constexpr ui32 offset16()
+      static constexpr ui32 stores_list_size16()
       {
         return (ui32) ((sizeof (stores_list) + 15u) & ~15u);
       }
@@ -257,7 +257,7 @@ namespace ojph {
       {
         this->next_store = NULL;
         this->orig_size = this->available = available_bytes;
-        this->orig_data = this->data = (ui8*)this + offset16();
+        this->orig_data = this->data = (ui8*)this + stores_list_size16();
       }
       void restart()
       {
@@ -267,7 +267,7 @@ namespace ojph {
       }
       static ui32 eval_store_bytes(ui32 available_bytes)
       { // calculates how many bytes need to be allocated
-        return available_bytes + offset16();
+        return available_bytes + stores_list_size16();
       }
       stores_list *next_store;
       ui8 *orig_data, *data;

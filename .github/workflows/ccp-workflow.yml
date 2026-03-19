@@ -4,7 +4,7 @@ name: C/C++ CI
 on:
   push:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
     inputs:
       job_to_run:
@@ -31,6 +31,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -49,6 +50,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -67,6 +69,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -85,6 +88,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     defaults:
       run:
         shell: msys2 {0}
@@ -111,6 +115,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -131,6 +136,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -152,6 +158,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -173,6 +180,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     defaults:
       run:
         shell: msys2 {0}
@@ -202,6 +210,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -217,7 +226,7 @@ jobs:
   build_arm32:
     name: Linux-ARM32 Build
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.job_to_run == 'build_arm32' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v2

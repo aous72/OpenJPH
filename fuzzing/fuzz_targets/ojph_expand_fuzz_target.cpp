@@ -49,20 +49,50 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
+  // The first 2 bytes are used to control decoder options, exercising
+  // resilience mode, resolution skipping, and planar/interleaved switching.
+  //   byte 0 bit 0: enable resilience (error recovery paths)
+  //   byte 0 bit 1: force planar mode
+  //   byte 0 bit 2: force interleaved mode
+  //   byte 1: number of resolutions to skip (0-7)
+  if (Size < 3)
+    return 0;
+
+  uint8_t opts = Data[0];
+  uint8_t skip_res = Data[1] & 0x07;
+  Data += 2;
+  Size -= 2;
+
+  bool use_resilience = (opts & 0x01) != 0;
+  bool force_planar = (opts & 0x02) != 0;
+  bool force_interleaved = (opts & 0x04) != 0;
+
   try
   {
-
     ojph::mem_infile infile;
     infile.open(reinterpret_cast<const ojph::ui8 *>(Data), Size);
 
     ojph::codestream cs;
+
+    if (use_resilience)
+      cs.enable_resilience();
+
     cs.read_headers(&infile);
+
+    if (skip_res > 0)
+      cs.restrict_input_resolution(skip_res, skip_res);
+
+    if (force_planar)
+      cs.set_planar(true);
+    else if (force_interleaved)
+      cs.set_planar(false);
 
     cs.create();
 
+    ojph::param_siz siz = cs.access_siz();
+
     if (cs.is_planar())
     {
-      ojph::param_siz siz = cs.access_siz();
       for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
       {
         ojph::ui32 height = siz.get_recon_height(c);
@@ -76,7 +106,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
     }
     else
     {
-      ojph::param_siz siz = cs.access_siz();
       ojph::ui32 height = siz.get_recon_height(0);
       for (ojph::ui32 i = 0; i < height; ++i)
       {
@@ -88,6 +117,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
         }
       }
     }
+
+    cs.close();
   }
   catch (const std::exception &e)
   {

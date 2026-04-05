@@ -9,3 +9,6 @@ endif()
 
 add_executable(ojph_expand_fuzz_target fuzz_targets/ojph_expand_fuzz_target.cpp)
 target_link_libraries(ojph_expand_fuzz_target PRIVATE openjph)
+
+add_executable(ojph_compress_fuzz_target fuzz_targets/ojph_compress_fuzz_target.cpp)
+target_link_libraries(ojph_compress_fuzz_target PRIVATE openjph)

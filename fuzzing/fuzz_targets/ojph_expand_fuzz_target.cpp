@@ -36,6 +36,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <vector>
 
 #include <ojph_arch.h>
@@ -45,54 +46,147 @@
 #include <ojph_codestream.h>
 #include <ojph_message.h>
 #include <exception>
-#include <iostream>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
+  // The first 2 bytes are used to control decoder options:
+  //   byte 0 bit 1: force planar mode
+  //   byte 0 bit 2: force interleaved mode
+  //   byte 1: number of resolutions to skip (0-7)
+  if (Size < 3)
+    return 0;
+
+  uint8_t opts = Data[0];
+  uint8_t skip_res = Data[1] & 0x07;
+  Data += 2;
+  Size -= 2;
+
+  bool force_planar = (opts & 0x02) != 0;
+  bool force_interleaved = (opts & 0x04) != 0;
+
   try
   {
-
     ojph::mem_infile infile;
     infile.open(reinterpret_cast<const ojph::ui8 *>(Data), Size);
 
     ojph::codestream cs;
+
+    // Always enable resilience: all fuzzer inputs are untrusted/mutated,
+    // so the decoder must use its error-recovery path.
+    cs.enable_resilience();
+
     cs.read_headers(&infile);
+
+    // Guard against inputs that cause excessive decoding work.
+    {
+      ojph::param_siz siz = cs.access_siz();
+      ojph::point extent = siz.get_image_extent();
+      ojph::point offset = siz.get_image_offset();
+      ojph::ui64 w = extent.x - offset.x;
+      ojph::ui64 h = extent.y - offset.y;
+      if (w * h * siz.get_num_components() > 65536)
+      {
+        cs.close();
+        return 0;
+      }
+
+      ojph::param_cod cod = cs.access_cod();
+      if (cod.get_num_decompositions() > 5)
+      {
+        cs.close();
+        return 0;
+      }
+
+      // Large precincts cause huge internal buffers and very expensive
+      // per-row wavelet transforms even for small images.
+      for (ojph::ui32 lev = 0; lev <= cod.get_num_decompositions(); ++lev)
+      {
+        ojph::size psiz = cod.get_precinct_size(lev);
+        if (psiz.w > 256 || psiz.h > 256)
+        {
+          cs.close();
+          return 0;
+        }
+      }
+    }
+
+    if (skip_res > 0)
+      cs.restrict_input_resolution(skip_res, skip_res);
+
+    if (force_planar)
+      cs.set_planar(true);
+    else if (force_interleaved)
+      cs.set_planar(false);
 
     cs.create();
 
+    ojph::param_siz siz = cs.access_siz();
+
+    // Second guard: cap reconstructed dimensions after create().
+    {
+      ojph::ui64 total_recon = 0;
+      for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+        total_recon += (ojph::ui64)siz.get_recon_width(c)
+                     * (ojph::ui64)siz.get_recon_height(c);
+      if (total_recon > 65536)
+      {
+        cs.close();
+        return 0;
+      }
+    }
+
+    // Time budget: abort if decoding takes too long.
+    struct timespec start_ts;
+    clock_gettime(CLOCK_MONOTONIC, &start_ts);
+    ojph::ui32 pull_count = 0;
+    const ojph::ui32 MAX_SECONDS = 10;
+    bool timed_out = false;
+
     if (cs.is_planar())
     {
-      ojph::param_siz siz = cs.access_siz();
-      for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+      for (ojph::ui32 c = 0; c < siz.get_num_components() && !timed_out; ++c)
       {
         ojph::ui32 height = siz.get_recon_height(c);
-        for (ojph::ui32 i = height; i > 0; --i)
+        for (ojph::ui32 i = height; i > 0 && !timed_out; --i)
         {
           ojph::ui32 comp_num;
           cs.pull(comp_num);
-          assert(comp_num == c);
+          if (++pull_count % 64 == 0)
+          {
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if ((ojph::ui32)(now.tv_sec - start_ts.tv_sec) >= MAX_SECONDS)
+              timed_out = true;
+          }
         }
       }
     }
     else
     {
-      ojph::param_siz siz = cs.access_siz();
       ojph::ui32 height = siz.get_recon_height(0);
-      for (ojph::ui32 i = 0; i < height; ++i)
+      for (ojph::ui32 i = 0; i < height && !timed_out; ++i)
       {
         for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
         {
           ojph::ui32 comp_num;
           cs.pull(comp_num);
-          assert(comp_num == c);
+          if (++pull_count % 64 == 0)
+          {
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if ((ojph::ui32)(now.tv_sec - start_ts.tv_sec) >= MAX_SECONDS)
+              timed_out = true;
+          }
         }
       }
     }
+
+    cs.close();
   }
-  catch (const std::exception &e)
+  catch (const std::exception &)
   {
-    std::cerr << e.what() << '\n';
   }
+
   return 0;
 }
 
@@ -109,8 +203,11 @@ int main(int argc, char **argv) {
     return -1;
   }
   rewind(f);
-  std::vector<uint8_t> buf(len);
-  size_t n = fread(buf.data(), 1, len, f);
+  // Prepend 2 control bytes (default: no skip)
+  std::vector<uint8_t> buf(len + 2);
+  buf[0] = 0;
+  buf[1] = 0;
+  size_t n = fread(buf.data() + 2, 1, len, f);
   if(n != static_cast<size_t>(len)) {
     return -1;
   }

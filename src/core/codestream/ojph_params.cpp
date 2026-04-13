@@ -1411,6 +1411,10 @@ namespace ojph {
       else
         idx = resolution ? (resolution - 1) * 3 + subband : 0;
       if (idx >= num_subbands) {
+        if (num_subbands == 0)
+          OJPH_ERROR(0x00050102, "QCD/QCC marker segment contains no "
+            "quantization step sizes");
+
         OJPH_INFO(0x00050101, "Trying to access quantization step size for "
           "subband %d when the QCD/QCC marker segment specifies "
           "quantization step sizes for %d subbands only.  To continue "
@@ -1468,6 +1472,10 @@ namespace ojph {
       else
         idx = resolution ? (resolution - 1) * 3 + subband : 0;
       if (idx >= num_subbands) {
+        if (num_subbands == 0)
+          OJPH_ERROR(0x00050112, "QCD/QCC marker segment contains no "
+            "quantization step sizes");
+
         OJPH_INFO(0x00050111, "Trying to access quantization step size for "
           "subband %d when the QCD/QCC marker segment specifies "
           "quantization step sizes for %d subbands only.  To continue "

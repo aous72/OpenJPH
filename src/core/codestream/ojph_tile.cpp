@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cmath>
+#include <exception>
 
 #include "ojph_mem.h"
 #include "ojph_params.h"
@@ -906,12 +907,19 @@ namespace ojph {
           assert(0);
 
       }
-      catch (const char *error)
+      catch (const std::exception& error)
       {
         if (resilient)
-          OJPH_INFO(0x00030092, "%s", error)
+          OJPH_INFO(0x00030092, "%s", error.what())
         else
-          OJPH_ERROR(0x00030092, "%s", error)
+          OJPH_ERROR(0x00030092, "%s", error.what())
+      }
+      catch (...)
+      {
+        if (resilient)
+          OJPH_INFO(0x00030092, "Unknown exception while parsing tile header")
+        else
+          OJPH_ERROR(0x00030092, "Unknown exception while parsing tile header")
       }
       file->seek((si64)tile_end_location, infile_base::OJPH_SEEK_SET);
     }

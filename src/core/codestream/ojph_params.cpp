@@ -1216,8 +1216,8 @@ namespace ojph {
             qcd_component < 3 ? employing_color_transform : false);
         else if (qcd_wavelet_kern == param_cod::DWT_IRV97)
         {
-          if (this->base_delta == -1.0f)
-            this->base_delta = 1.0f / (float)(1 << qcd_bit_depth);
+          if (this->base_delta < 0)
+            this->base_delta = powf(2.0f, -static_cast<float>(qcd_bit_depth));
           set_irrev_quant(qcd_num_decompositions);
         }
         else
@@ -1250,8 +1250,8 @@ namespace ojph {
               c < 3 ? employing_color_transform : false);
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f)
-              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            if (qp->base_delta < 0)
+              qp->base_delta = powf(2.0f,  -static_cast<float>(bit_depth));
             qp->set_irrev_quant(num_decompositions);
           }
           else
@@ -1275,8 +1275,8 @@ namespace ojph {
               c < 3 ? employing_color_transform : false);
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f)
-              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            if (qp->base_delta < 0)
+              qp->base_delta = powf(2.0f, -static_cast<float>(bit_depth));
             qp->set_irrev_quant(num_decompositions);
           }
           else

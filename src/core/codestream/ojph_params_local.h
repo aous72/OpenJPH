@@ -736,7 +736,7 @@ namespace ojph {
         Sqcd = 0;
         memset(&SPqcd, 0, sizeof(SPqcd));
         num_subbands = 0;
-        base_delta = -1.0f;
+        base_delta = top_qcd ? top_qcd->base_delta : -1.0f;
         enabled = true;
         next = NULL;
         this->top_qcd = top_qcd;

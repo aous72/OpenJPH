@@ -43,6 +43,20 @@ target_link_libraries(
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 
+# configure codestream API tests (links against the openjph library)
+add_executable(
+  test_codestream_api
+  test_codestream_api.cpp
+)
+
+target_link_libraries(
+  test_codestream_api
+  openjph
+  GTest::gtest_main
+)
+
+gtest_add_tests(TARGET test_codestream_api)
+
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy "../bin/\$(Configuration)/gtest.dll" "./"

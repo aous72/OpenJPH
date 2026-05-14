@@ -1216,8 +1216,10 @@ namespace ojph {
             qcd_component < 3 ? employing_color_transform : false);
         else if (qcd_wavelet_kern == param_cod::DWT_IRV97)
         {
-          if (this->base_delta == -1.0f)
-            this->base_delta = 1.0f / (float)(1 << qcd_bit_depth);
+          if (this->base_delta == -1.0f) {
+            ui32 t = ojph_min(16, qcd_bit_depth);
+            this->base_delta = 1.0f / (float)(1 << t);
+          }
           set_irrev_quant(qcd_num_decompositions);
         }
         else
@@ -1250,8 +1252,16 @@ namespace ojph {
               c < 3 ? employing_color_transform : false);
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f)
-              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            if (qp->base_delta == -1.0f) {
+              if (qcd_wavelet_kern == param_cod::DWT_IRV97) {
+                assert(this->base_delta != -1.0f);
+                qp->base_delta = this->base_delta;
+              }
+              else {
+                ui32 t = ojph_min(16, qcd_bit_depth);
+                qp->base_delta = 1.0f / (float)(1 << t);
+              }
+            }
             qp->set_irrev_quant(num_decompositions);
           }
           else
@@ -1275,8 +1285,16 @@ namespace ojph {
               c < 3 ? employing_color_transform : false);
           else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
           {
-            if (qp->base_delta == -1.0f)
-              qp->base_delta = 1.0f / (float)(1 << bit_depth);
+            if (qp->base_delta == -1.0f) {
+              if (qcd_wavelet_kern == param_cod::DWT_IRV97) {
+                assert(this->base_delta != -1.0f);
+                qp->base_delta = this->base_delta;
+              }
+              else {
+                ui32 t = ojph_min(16, qcd_bit_depth);
+                qp->base_delta = 1.0f / (float)(1 << t);
+              }
+            }
             qp->set_irrev_quant(num_decompositions);
           }
           else

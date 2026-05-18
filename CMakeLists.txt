@@ -105,7 +105,9 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.24.0")
   endif()
 endif()
 
-## Added by Michael Smith
+## Set build flags for AddressSanitizer (ASAN) 
+# these are used when the user sets -DCMAKE_BUILD_TYPE=asan i.e ("cmake .. -DCMAKE_BUILD_TYPE=asan")
+# setting flags for specific build types is documented here: https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_FLAGS_CONFIG.html
 set(CMAKE_CXX_FLAGS_ASAN
   "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O1"
   CACHE STRING "Flags used by the C++ compiler during AddressSanitizer builds."

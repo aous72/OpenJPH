@@ -135,11 +135,11 @@ if (MSVC)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND NOT MSVC)
   add_compile_options(
-  -fexceptions
-  -Wall
-  -Wextra
-  -Wconversion
-  -Wunused-parameter
+  $<$<COMPILE_LANGUAGE:C,CXX>:-fexceptions>
+  $<$<COMPILE_LANGUAGE:C,CXX>:-Wall>
+  $<$<COMPILE_LANGUAGE:C,CXX>:-Wextra>
+  $<$<COMPILE_LANGUAGE:C,CXX>:-Wconversion>
+  $<$<COMPILE_LANGUAGE:C,CXX>:-Wunused-parameter>
   )
 endif()
 if (EMSCRIPTEN)

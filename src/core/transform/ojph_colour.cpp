@@ -5,6 +5,7 @@
 // Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2026, Osamu Watanabe
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -174,6 +175,22 @@ namespace ojph {
           rct_backward = avx2_rct_backward;
         }
       #endif // !OJPH_DISABLE_AVX2
+
+      #if (defined(OJPH_ARCH_X86_64) && !defined(OJPH_DISABLE_AVX512))
+        if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX512)
+        {
+          rev_convert = avx512_rev_convert;
+          rev_convert_nlt_type3 = avx512_rev_convert_nlt_type3;
+          irv_convert_to_integer = avx512_irv_convert_to_integer;
+          irv_convert_to_float = avx512_irv_convert_to_float;
+          irv_convert_to_integer_nlt_type3 =
+            avx512_irv_convert_to_integer_nlt_type3;
+          irv_convert_to_float_nlt_type3 =
+            avx512_irv_convert_to_float_nlt_type3;
+          rct_forward = avx512_rct_forward;
+          rct_backward = avx512_rct_backward;
+        }
+      #endif // !OJPH_DISABLE_AVX512
 
     #elif defined(OJPH_ARCH_ARM)
 

@@ -5,6 +5,7 @@
 // Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2026, Osamu Watanabe
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -252,6 +253,35 @@ namespace ojph {
     val |= (val << 8);
     val |= (val << 16);
     return 32 - population_count(val);
+  #endif
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
+  #pragma intrinsic(_BitScanForward64)
+#endif
+  static inline ui32 count_trailing_zeros(ui64 val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    unsigned long result = 0;
+    #if (defined OJPH_ARCH_X86_64) || (defined OJPH_ARCH_ARM)
+      _BitScanForward64(&result, val);
+    #elif (defined OJPH_ARCH_I386)
+      ui32 lsb = (ui32)val, msb = (ui32)(val >> 32);
+      if (lsb != 0)
+        _BitScanForward(&result, lsb);
+      else {
+        _BitScanForward(&result, msb);
+        result += 32;
+      }
+    #endif
+    return (ui32)result;
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (ui32)__builtin_ctzll(val);
+  #else
+    if ((ui32)val != 0)
+      return count_trailing_zeros((ui32)val);
+    return 32 + count_trailing_zeros((ui32)(val >> 32));
   #endif
   }
 

@@ -5,7 +5,8 @@
 // Copyright (c) 2019, Aous Naman 
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+// Copyright (c) 2026, Osamu Watanabe
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -80,6 +81,8 @@ namespace ojph {
                              float delta_inv, ui32 count, ui32* max_val);
     void avx2_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui32* max_val);
+    void avx512_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
+                               float delta_inv, ui32 count, ui32* max_val);
     void  gen_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui32* max_val);
     void sse2_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
@@ -239,6 +242,8 @@ namespace ojph {
           encode_cb32 = ojph_encode_codeblock_avx512;
           bool result = initialize_block_encoder_tables_avx512();
           assert(result); ojph_unused(result);
+          if (reversible)
+            tx_to_cb32 = avx512_rev_tx_to_cb32;
         }
       #endif // !OJPH_DISABLE_AVX512
 

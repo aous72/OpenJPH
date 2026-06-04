@@ -180,7 +180,7 @@ namespace ojph {
       {
         ui64 v = *sp++;
         float val = (float)(v & LLONG_MAX) * delta;
-        *p++ = (v & LLONG_MIN) != 0 ? -val : val;
+        *p++ = (v & (ui64)LLONG_MIN) ? -val : val;
       }
     }
 

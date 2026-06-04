@@ -2649,7 +2649,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     param_atk* param_atk::add_object()
     {
-      assert(top_atk = NULL);
+      assert(top_atk == NULL);
       param_atk *p = this;
       while (p->next != NULL)
         p = p->next;

@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -124,8 +124,10 @@ namespace ojph {
                                float delta, ui32 count);
     void avx2_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
+    void gen_irv_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
+                              float delta, ui32 count);
     void wasm_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
-                               float delta, ui32 count);                               
+                               float delta, ui32 count);
 
     void codeblock_fun::init(bool reversible) {
 
@@ -155,11 +157,11 @@ namespace ojph {
       else
       {
         tx_to_cb64 = NULL;
-        tx_from_cb64 = NULL;
+        tx_from_cb64 = gen_irv_tx_from_cb64;
       }
       encode_cb64 = ojph_encode_codeblock64;
       bool result = initialize_block_encoder_tables();
-      assert(result); ojph_unused(result);      
+      assert(result); ojph_unused(result);
 
   #ifndef OJPH_DISABLE_SIMD
 
@@ -190,7 +192,7 @@ namespace ojph {
           else
           {
             tx_to_cb64 = NULL;
-            tx_from_cb64 = NULL;
+            tx_from_cb64 = gen_irv_tx_from_cb64;
           }
         }
       #endif // !OJPH_DISABLE_SSE2
@@ -229,7 +231,7 @@ namespace ojph {
           else
           {
             tx_to_cb64 = NULL;
-            tx_from_cb64 = NULL;
+            tx_from_cb64 = gen_irv_tx_from_cb64;
           }
         }
       #endif // !OJPH_DISABLE_AVX2
@@ -243,7 +245,7 @@ namespace ojph {
       #endif // !OJPH_DISABLE_AVX512
 
     #elif defined(OJPH_ARCH_ARM)
-    
+
     #endif // !(defined(OJPH_ARCH_X86_64) || defined(OJPH_ARCH_I386))
 
   #endif // !OJPH_DISABLE_SIMD
@@ -273,11 +275,11 @@ namespace ojph {
       else
       {
         tx_to_cb64 = NULL;
-        tx_from_cb64 = NULL;
+        tx_from_cb64 = gen_irv_tx_from_cb64;
       }
       encode_cb64 = ojph_encode_codeblock64;
       bool result = initialize_block_encoder_tables();
-      assert(result); ojph_unused(result);      
+      assert(result); ojph_unused(result);
 
 #endif // !OJPH_ENABLE_WASM_SIMD
 

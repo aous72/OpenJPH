@@ -267,6 +267,35 @@ namespace ojph {
   #endif
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
+  #pragma intrinsic(_BitScanForward64)
+#endif
+  static inline ui32 count_trailing_zeros(ui64 val)
+  {
+  #ifdef OJPH_COMPILER_MSVC
+    unsigned long result = 0;
+    #if (defined OJPH_ARCH_X86_64) || (defined OJPH_ARCH_ARM)
+      _BitScanForward64(&result, val);
+    #elif (defined OJPH_ARCH_I386)
+      ui32 lsb = (ui32)val, msb = (ui32)(val >> 32);
+      if (lsb != 0)
+        _BitScanForward(&result, lsb);
+      else {
+        _BitScanForward(&result, msb);
+        result += 32;
+      }
+    #endif
+    return (ui32)result;
+  #elif (defined OJPH_COMPILER_GNUC)
+    return (ui32)__builtin_ctzll(val);
+  #else
+    if ((ui32)val != 0)
+      return count_trailing_zeros((ui32)val);
+    return 32 + count_trailing_zeros((ui32)(val >> 32));
+  #endif
+  }
+
   ////////////////////////////////////////////////////////////////////////////
   static inline si32 ojph_round(float val)
   {

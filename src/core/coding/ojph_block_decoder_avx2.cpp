@@ -6,6 +6,7 @@
 // Copyright (c) 2022, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2022, The University of New South Wales, Australia
 // Copyright (c) 2024, Intel Corporation
+// Copyright (c) 2026, Osamu Watanabe
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -727,30 +728,20 @@ namespace ojph {
       assert(num_bits > 0 && num_bits <= msp->bits && num_bits < 128);
       msp->bits -= num_bits;
 
-      __m128i *p = (__m128i*)(msp->tmp + ((num_bits >> 3) & 0x18));
+      __m256i *p = (__m256i*)(msp->tmp + ((num_bits >> 3) & 0x18));
       num_bits &= 63;
 
-      __m128i v0, v1, c0, c1, t;
-      v0 = _mm_loadu_si128(p);
-      v1 = _mm_loadu_si128(p + 1);
+      __m256i v = _mm256_loadu_si256(p);
+      __m256i shifted = _mm256_srlv_epi64(v, _mm256_set1_epi64x(num_bits));
 
-      // shift right by num_bits
-      c0 = _mm_srl_epi64(v0, _mm_set1_epi64x(num_bits));
-      t = _mm_srli_si128(v0, 8);
-      t = _mm_sll_epi64(t, _mm_set1_epi64x(64 - num_bits));
-      c0 = _mm_or_si128(c0, t);
-      t = _mm_slli_si128(v1, 8);
-      t = _mm_sll_epi64(t, _mm_set1_epi64x(64 - num_bits));
-      c0 = _mm_or_si128(c0, t);
+      __m256i carry_src = _mm256_permute4x64_epi64(v, 0x39);
+      carry_src = _mm256_blend_epi32(carry_src,
+                                      _mm256_setzero_si256(), 0xC0);
+      __m256i carry = _mm256_sllv_epi64(carry_src,
+                                         _mm256_set1_epi64x(64 - num_bits));
 
-      _mm_storeu_si128((__m128i*)msp->tmp, c0);
-
-      c1 = _mm_srl_epi64(v1, _mm_set1_epi64x(num_bits));
-      t = _mm_srli_si128(v1, 8);
-      t = _mm_sll_epi64(t, _mm_set1_epi64x(64 - num_bits));
-      c1 = _mm_or_si128(c1, t);
-
-      _mm_storeu_si128((__m128i*)msp->tmp + 1, c1);
+      _mm256_storeu_si256((__m256i*)msp->tmp,
+                          _mm256_or_si256(shifted, carry));
     }
 
     //************************************************************************/
@@ -784,7 +775,8 @@ namespace ojph {
      *  @param vn       used for handling E values (stores v_n values)
      *  @return __m256i decoded two quads
      */
-    static inline __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
+    OJPH_FORCE_INLINE
+    __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
         __m256i row = _mm256_setzero_si256();
 
         // we keeps e_k, e_1, and rho in w2
@@ -815,13 +807,30 @@ namespace ojph {
 
             __m128i ms_vec0 = _mm_setzero_si128();
             __m128i ms_vec1 = _mm_setzero_si128();
-            if (total_mn1) {
-                ms_vec0 = frwd_fetch<0xFF>(magsgn);
-                frwd_advance(magsgn, (ui32)total_mn1);
+            ui32 total_mn = (ui32)(total_mn1 + total_mn2);
+            if (total_mn1 > 0 && total_mn2 > 0
+                && total_mn1 < 64 && total_mn < 128)
+            {
+                __m128i ms_all = frwd_fetch<0xFF>(magsgn);
+                ms_vec0 = ms_all;
+                __m128i sh = _mm_set1_epi64x(total_mn1);
+                ms_vec1 = _mm_srl_epi64(ms_all, sh);
+                __m128i cross = _mm_srli_si128(ms_all, 8);
+                cross = _mm_sll_epi64(cross,
+                            _mm_set1_epi64x(64 - total_mn1));
+                ms_vec1 = _mm_or_si128(ms_vec1, cross);
+                frwd_advance(magsgn, total_mn);
             }
-            if (total_mn2) {
-                ms_vec1 = frwd_fetch<0xFF>(magsgn);
-                frwd_advance(magsgn, (ui32)total_mn2);
+            else
+            {
+                if (total_mn1) {
+                    ms_vec0 = frwd_fetch<0xFF>(magsgn);
+                    frwd_advance(magsgn, (ui32)total_mn1);
+                }
+                if (total_mn2) {
+                    ms_vec1 = frwd_fetch<0xFF>(magsgn);
+                    frwd_advance(magsgn, (ui32)total_mn2);
+                }
             }
 
             __m256i ms_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ms_vec0), ms_vec1, 0x1);
@@ -898,7 +907,8 @@ namespace ojph {
      *  @return __m128i decoded quad
      */
 
-    static inline __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
+    OJPH_FORCE_INLINE
+    __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
 
         __m256i w0;     // workers
         __m256i insig;  // lanes hold FF's if samples are insignificant
@@ -945,13 +955,30 @@ namespace ojph {
 
             __m128i ms_vec0 = _mm_setzero_si128();
             __m128i ms_vec1 = _mm_setzero_si128();
-            if (total_mn1) {
-                ms_vec0 = frwd_fetch<0xFF>(magsgn);
-                frwd_advance(magsgn, (ui32)total_mn1);
+            ui32 total_mn = (ui32)(total_mn1 + total_mn2);
+            if (total_mn1 > 0 && total_mn2 > 0
+                && total_mn1 < 64 && total_mn < 128)
+            {
+                __m128i ms_all = frwd_fetch<0xFF>(magsgn);
+                ms_vec0 = ms_all;
+                __m128i sh = _mm_set1_epi64x(total_mn1);
+                ms_vec1 = _mm_srl_epi64(ms_all, sh);
+                __m128i cross = _mm_srli_si128(ms_all, 8);
+                cross = _mm_sll_epi64(cross,
+                            _mm_set1_epi64x(64 - total_mn1));
+                ms_vec1 = _mm_or_si128(ms_vec1, cross);
+                frwd_advance(magsgn, total_mn);
             }
-            if (total_mn2) {
-                ms_vec1 = frwd_fetch<0xFF>(magsgn);
-                frwd_advance(magsgn, (ui32)total_mn2);
+            else
+            {
+                if (total_mn1) {
+                    ms_vec0 = frwd_fetch<0xFF>(magsgn);
+                    frwd_advance(magsgn, (ui32)total_mn1);
+                }
+                if (total_mn2) {
+                    ms_vec1 = frwd_fetch<0xFF>(magsgn);
+                    frwd_advance(magsgn, (ui32)total_mn2);
+                }
             }
 
             __m256i ms_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ms_vec0), ms_vec1, 0x1);
@@ -1065,377 +1092,157 @@ namespace ojph {
      *  @param [in]   stride is the decoded codeblock buffer stride
      *  @param [in]   stripe_causal is true for stripe causal mode
      */
-    bool ojph_decode_codeblock_avx2(ui8* coded_data, ui32* decoded_data,
-                                    ui32 missing_msbs, ui32 num_passes,
-                                    ui32 lengths1, ui32 lengths2,
-                                    ui32 width, ui32 height, ui32 stride,
-                                    bool stripe_causal)
+    //************************************************************************/
+    /** @brief Step-2 MagSgn decode for the 16-bit (4-quad) path.
+     *
+     *  Outlined into its own function so that decode_four_quad16 can be
+     *  force-inlined here without inflating register pressure in the
+     *  much larger ojph_decode_codeblock_avx2 (which also hosts the
+     *  mutually-exclusive 32-bit step-2 path). Returns false on a
+     *  precision-overflow error, true otherwise.
+     */
+    OJPH_NO_INLINE
+    bool decode_cb_step2_16bit(ui16* scratch, ui32* decoded_data,
+                               ui8* coded_data, ui32 width, ui32 height,
+                               ui32 stride, ui32 sstr, ui32 p, ui32 mmsbp2,
+                               int lcup, int scup)
     {
-      static bool insufficient_precision = false;
-      static bool modify_code = false;
-      static bool truncate_spp_mrp = false;
+        // reduce bitplane by 16 because we now have 16 bits instead of 32
+        p -= 16;
 
-      if (num_passes > 1 && lengths2 == 0)
-      {
-        OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
-                              "one coding pass, but zero length for "
-                              "2nd and potential 3rd pass.");
-        num_passes = 1;
-      }
-
-      if (num_passes > 3)
-      {
-        OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
-                              "This codeblocks has %d passes.",
-                              num_passes);
-        return false;
-      }
-
-      if (missing_msbs > 30) // p < 0
-      {
-        if (insufficient_precision == false)
-        {
-          insufficient_precision = true;
-          OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
-                                "codeblock. This message will not be "
-                                "displayed again.");
-        }
-        return false;
-      }
-      else if (missing_msbs == 30) // p == 0
-      { // not enough precision to decode and set the bin center to 1
-        if (modify_code == false) {
-          modify_code = true;
-          OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
-                                "pass. The code can be modified to support "
-                                "this case. This message will not be "
-                                "displayed again.");
-        }
-         return false;         // 32 bits are not enough to decode this
-       }
-      else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
-      {
-        if (num_passes > 1) {
-          num_passes = 1;
-          if (truncate_spp_mrp == false) {
-            truncate_spp_mrp = true;
-            OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
-                                  "nor MagRef passes; both will be skipped. "
-                                  "This message will not be displayed "
-                                  "again.");
-          }
-        }
-      }
-      ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
-      // There is a way to handle the case of p == 0, but a different path
-      // is required
-
-      if (lengths1 < 2)
-      {
-        OJPH_WARN(0x00010006, "Wrong codeblock length.");
-        return false;
-      }
-
-      // read scup and fix the bytes there
-      int lcup, scup;
-      lcup = (int)lengths1;  // length of CUP
-      //scup is the length of MEL + VLC
-      scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
-      if (scup < 2 || scup > lcup || scup > 4079) //something is wrong
-        return false;
-
-      // The temporary storage scratch holds two types of data in an
-      // interleaved fashion. The interleaving allows us to use one
-      // memory pointer.
-      // We have one entry for a decoded VLC code, and one entry for UVLC.
-      // Entries are 16 bits each, corresponding to one quad,
-      // but since we want to use XMM registers of the SSE family
-      // of SIMD; we allocated 16 bytes or more per quad row; that is,
-      // the width is no smaller than 16 bytes (or 8 entries), and the
-      // height is 512 quads
-      // Each VLC entry contains, in the following order, starting
-      // from MSB
-      // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
-      // Each entry in UVLC contains u_q
-      // One extra row to handle the case of SPP propagating downwards
-      // when codeblock width is 4
-      ui16 scratch[8 * 513] = {0};          // 8+ kB
-
-      // We need an extra two entries (one inf and one u_q) beyond
-      // the last column.
-      // If the block width is 4 (2 quads), then we use sstr of 8
-      // (enough for 4 quads). If width is 8 (4 quads) we use
-      // sstr is 16 (enough for 8 quads). For a width of 16 (8
-      // quads), we use 24 (enough for 12 quads).
-      ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
-
-      assert((stride & 0x3) == 0);
-
-      ui32 mmsbp2 = missing_msbs + 2;
-
-      // The cleanup pass is decoded in two steps; in step one,
-      // the VLC and MEL segments are decoded, generating a record that
-      // has 2 bytes per quad. The 2 bytes contain, u, rho, e^1 & e^k.
-      // This information should be sufficient for the next step.
-      // In step 2, we decode the MagSgn segment.
-
-      // step 1 decoding VLC and MEL segments
-      {
-        // init structures
-        dec_mel_st mel;
-        mel_init(&mel, coded_data, lcup, scup);
-        rev_struct vlc;
-        rev_init(&vlc, coded_data, lcup, scup);
-
-        int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
-                                     // data represented as runs of 0 events
-                                     // See mel_decode description
-
-        ui32 vlc_val;
-        ui32 c_q = 0;
-        ui16 *sp = scratch;
-        //initial quad row
-        for (ui32 x = 0; x < width; sp += 4)
-        {
-          // decode VLC
-          /////////////
-
-          // first quad
-          vlc_val = rev_fetch(&vlc);
-
-          //decode VLC using the context c_q and the head of VLC bitstream
-          ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
-
-          // if context is zero, use one MEL event
-          if (c_q == 0) //zero context
-          {
-            run -= 2; //subtract 2, since events number if multiplied by 2
-
-            // Is the run terminated in 1? if so, use decoded VLC code,
-            // otherwise, discard decoded data, since we will decoded again
-            // using a different context
-            t0 = (run == -1) ? t0 : 0;
-
-            // is run -1 or -2? this means a run has been consumed
-            if (run < 0)
-              run = mel_get_run(&mel);  // get another run
-          }
-          //run -= (c_q == 0) ? 2 : 0;
-          //t0 = (c_q != 0 || run == -1) ? t0 : 0;
-          //if (run < 0)
-          //  run = mel_get_run(&mel);  // get another run
-          sp[0] = t0;
-          x += 2;
-
-          // prepare context for the next quad; eqn. 1 in ITU T.814
-          c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
-
-          //remove data from vlc stream (0 bits are removed if vlc is not used)
-          vlc_val = rev_advance(&vlc, t0 & 0x7);
-
-          //second quad
-          ui16 t1 = 0;
-
-          //decode VLC using the context c_q and the head of VLC bitstream
-          t1 = vlc_tbl0[c_q + (vlc_val & 0x7F)];
-
-          // if context is zero, use one MEL event
-          if (c_q == 0 && x < width) //zero context
-          {
-            run -= 2; //subtract 2, since events number if multiplied by 2
-
-            // if event is 0, discard decoded t1
-            t1 = (run == -1) ? t1 : 0;
-
-            if (run < 0) // have we consumed all events in a run
-              run = mel_get_run(&mel); // if yes, then get another run
-          }
-          t1 = x < width ? t1 : 0;
-          //run -= (c_q == 0 && x < width) ? 2 : 0;
-          //t1 = (c_q != 0 || run == -1) ? t1 : 0;
-          //if (run < 0)
-          //  run = mel_get_run(&mel);  // get another run
-          sp[2] = t1;
-          x += 2;
-
-          //prepare context for the next quad, eqn. 1 in ITU T.814
-          c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
-
-          //remove data from vlc stream, if qinf is not used, cwdlen is 0
-          vlc_val = rev_advance(&vlc, t1 & 0x7);
-
-          // decode u
-          /////////////
-          // uvlc_mode is made up of u_offset bits from the quad pair
-          ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
-          if (uvlc_mode == 0xc0)// if both u_offset are set, get an event from
-          {                     // the MEL run of events
-            run -= 2; //subtract 2, since events number if multiplied by 2
-
-            uvlc_mode += (run == -1) ? 0x40 : 0; // increment uvlc_mode by
-                                                 // is 0x40
-
-            if (run < 0)//if run is consumed (run is -1 or -2), get another run
-              run = mel_get_run(&mel);
-          }
-          //run -= (uvlc_mode == 0xc0) ? 2 : 0;
-          //uvlc_mode += (uvlc_mode == 0xc0 && run == -1) ? 0x40 : 0;
-          //if (run < 0)
-          //  run = mel_get_run(&mel);  // get another run
-
-          //decode uvlc_mode to get u for both quads
-          ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
-          //remove total prefix length
-          vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
-          uvlc_entry >>= 3;
-          //extract suffixes for quad 0 and 1
-          ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
-          vlc_val = rev_advance(&vlc, len);
-          ojph_unused(vlc_val); //static code analysis: unused value
-          uvlc_entry >>= 4;
-          // quad 0 length
-          len = uvlc_entry & 0x7; // quad 0 suffix length
-          uvlc_entry >>= 3;
-          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len))); //kap. 1
-          sp[1] = u_q;
-          u_q = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
-          sp[3] = u_q;
-        }
-        sp[0] = sp[1] = 0;
-
-        //non initial quad rows
-        for (ui32 y = 2; y < height; y += 2)
-        {
-          c_q = 0;                                // context
-          ui16 *sp = scratch + (y >> 1) * sstr;   // this row of quads
-
-          for (ui32 x = 0; x < width; sp += 4)
-          {
-            // decode VLC
-            /////////////
-
-            // sigma_q (n, ne, nf)
-            c_q |= ((sp[0 - (si32)sstr] & 0xA0U) << 2);
-            c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
-
-            // first quad
-            vlc_val = rev_fetch(&vlc);
-
-            //decode VLC using the context c_q and the head of VLC bitstream
-            ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];
-
-            // if context is zero, use one MEL event
-            if (c_q == 0) //zero context
-            {
-              run -= 2; //subtract 2, since events number is multiplied by 2
-
-              // Is the run terminated in 1? if so, use decoded VLC code,
-              // otherwise, discard decoded data, since we will decoded again
-              // using a different context
-              t0 = (run == -1) ? t0 : 0;
-
-              // is run -1 or -2? this means a run has been consumed
-              if (run < 0)
-                run = mel_get_run(&mel);  // get another run
-            }
-            //run -= (c_q == 0) ? 2 : 0;
-            //t0 = (c_q != 0 || run == -1) ? t0 : 0;
-            //if (run < 0)
-            //  run = mel_get_run(&mel);  // get another run
-            sp[0] = t0;
-            x += 2;
-
-            // prepare context for the next quad; eqn. 2 in ITU T.814
-            // sigma_q (w, sw)
-            c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
-            // sigma_q (nw)
-            c_q |= sp[0 - (si32)sstr] & 0x80;
-            // sigma_q (n, ne, nf)
-            c_q |= ((sp[2 - (si32)sstr] & 0xA0U) << 2);
-            c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
-
-            //remove data from vlc stream (0 bits are removed if vlc is unused)
-            vlc_val = rev_advance(&vlc, t0 & 0x7);
-
-            //second quad
-            ui16 t1 = 0;
-
-            //decode VLC using the context c_q and the head of VLC bitstream
-            t1 = vlc_tbl1[ c_q + (vlc_val & 0x7F)];
-
-            // if context is zero, use one MEL event
-            if (c_q == 0 && x < width) //zero context
-            {
-              run -= 2; //subtract 2, since events number if multiplied by 2
-
-              // if event is 0, discard decoded t1
-              t1 = (run == -1) ? t1 : 0;
-
-              if (run < 0) // have we consumed all events in a run
-                run = mel_get_run(&mel); // if yes, then get another run
-            }
-            t1 = x < width ? t1 : 0;
-            //run -= (c_q == 0 && x < width) ? 2 : 0;
-            //t1 = (c_q != 0 || run == -1) ? t1 : 0;
-            //if (run < 0)
-            //  run = mel_get_run(&mel);  // get another run
-            sp[2] = t1;
-            x += 2;
-
-            // partial c_q, will be completed when we process the next quad
-            // sigma_q (w, sw)
-            c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
-            // sigma_q (nw)
-            c_q |= sp[2 - (si32)sstr] & 0x80;
-
-            //remove data from vlc stream, if qinf is not used, cwdlen is 0
-            vlc_val = rev_advance(&vlc, t1 & 0x7);
-
-            // decode u
-            /////////////
-            // uvlc_mode is made up of u_offset bits from the quad pair
-            ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
-            ui32 uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
-            //remove total prefix length
-            vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
-            uvlc_entry >>= 3;
-            //extract suffixes for quad 0 and 1
-            ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-            ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
-            vlc_val = rev_advance(&vlc, len);
-            ojph_unused(vlc_val); //static code analysis: unused value
-            uvlc_entry >>= 4;
-            // quad 0 length
-            len = uvlc_entry & 0x7; // quad 0 suffix length
-            uvlc_entry >>= 3;
-            ui16 u_q = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
-            sp[1] = u_q;
-            u_q = (ui16)((uvlc_entry >> 3) + (tmp >> len)); // u_q
-            sp[3] = u_q;
-          }
-          sp[0] = sp[1] = 0;
-        }
-      }
-
-      // step2 we decode magsgn
-      // mmsbp2 equals K_max + 1 (we decode up to K_max bits + 1 sign bit)
-      // The 32 bit path decode 16 bits data, for which one would think
-      // 16 bits are enough, because we want to put in the center of the
-      // bin.
-      // If you have mmsbp2 equals 16 bit, and reversible coding, and
-      // no bitplanes are missing, then we can decoding using the 16 bit
-      // path, but we are not doing this here.
-      if (mmsbp2 >= 16)
-      {
-        // We allocate a scratch row for storing v_n values.
-        // We have 512 quads horizontally.
-        // We may go beyond the last entry by up to 4 entries.
-        // Here we allocate additional 8 entries.
-        // There are two rows in this structure, the bottom
-        // row is used to store processed entries.
         const int v_n_size = 512 + 16;
-        ui32 v_n_scratch[2 * v_n_size] = {0}; // 4+ kB
+#ifdef __MINGW64__
+        ui16 v_n_scratch[v_n_size] = {0};
+        ui32 v_n_scratch_32[v_n_size] = {0};
+#else
+        ui16 v_n_scratch[v_n_size];
+        memset(v_n_scratch + (width >> 1) + 4, 0, 8 * sizeof(ui16));
+        ui32 v_n_scratch_32[v_n_size];
+#endif
+
+        frwd_struct_avx2 magsgn;
+        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
+
+        {
+          ui16 *sp = scratch;
+          ui16 *vp = v_n_scratch;
+          ui32 *dp = decoded_data;
+          vp[0] = 2; // for easy calculation of emax
+
+          for (ui32 x = 0; x < width; x += 8, sp += 8, vp += 4, dp += 8) {
+              ////process four quads
+              __m128i inf_u_q = _mm_loadu_si128((__m128i*)sp);
+              __m128i U_q = _mm_srli_epi32(inf_u_q, 16);
+              __m128i w = _mm_cmpgt_epi32(U_q, _mm_set1_epi32((int)mmsbp2));
+              if (!_mm_testz_si128(w, w)) {
+                  return false;
+              }
+
+              __m128i vn = _mm_set1_epi16(2);
+              __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
+
+              w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
+              _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
+
+              __m256i  w0 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1, 0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1));
+              __m256i  w1 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1, 0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1));
+
+              _mm256_storeu_si256((__m256i*)dp, w0);
+              _mm256_storeu_si256((__m256i*)(dp + stride), w1);
+          }
+        }
+
+        for (ui32 y = 2; y < height; y += 2) {
+          {
+            // perform 15 - count_leading_zeros(*vp) here
+            ui16 *vp = v_n_scratch;
+            ui32 *vp_32 = v_n_scratch_32;
+
+            ui16* sp = scratch + (y >> 1) * sstr;
+            const __m256i avx_mmsbp2 = _mm256_set1_epi32((int)mmsbp2);
+            const __m256i avx_31 = _mm256_set1_epi32(31);
+            const __m256i avx_f0 = _mm256_set1_epi32(0xF0);
+            const __m256i avx_1 = _mm256_set1_epi32(1);
+            const __m256i avx_0 = _mm256_setzero_si256();
+
+            for (ui32 x = 0; x <= width; x += 16, vp += 8, sp += 16, vp_32 += 8) {
+              __m128i v = _mm_loadu_si128((__m128i*)vp);
+              __m128i v_p1 = _mm_loadu_si128((__m128i*)(vp + 1));
+              v = _mm_or_si128(v, v_p1);
+
+              __m256i v_avx = _mm256_cvtepu16_epi32(v);
+              v_avx = avx2_lzcnt_epi32(v_avx);
+              v_avx = _mm256_sub_epi32(avx_31, v_avx);
+
+              __m256i inf_u_q = _mm256_loadu_si256((__m256i*)sp);
+              __m256i gamma = _mm256_and_si256(inf_u_q, avx_f0);
+              __m256i w0 = _mm256_sub_epi32(gamma, avx_1);
+              gamma = _mm256_and_si256(gamma, w0);
+              gamma = _mm256_cmpeq_epi32(gamma, avx_0);
+
+              v_avx = _mm256_andnot_si256(gamma, v_avx);
+              v_avx = _mm256_max_epi32(v_avx, avx_1);
+
+              inf_u_q = _mm256_srli_epi32(inf_u_q, 16);
+              v_avx = _mm256_add_epi32(inf_u_q, v_avx);
+
+              w0 = _mm256_cmpgt_epi32(v_avx, avx_mmsbp2);
+              if (!_mm256_testz_si256(w0, w0)) {
+                  return false;
+              }
+
+              _mm256_storeu_si256((__m256i*)vp_32, v_avx);
+            }
+          }
+
+          ui16 *vp = v_n_scratch;
+          ui32* vp_32 = v_n_scratch_32;
+          ui16 *sp = scratch + (y >> 1) * sstr;
+          ui32 *dp = decoded_data + y * stride;
+          vp[0] = 2; // for easy calculation of emax
+
+          for (ui32 x = 0; x < width; x += 8, sp += 8, vp += 4, dp += 8, vp_32 += 4) {
+            ////process four quads
+              __m128i inf_u_q = _mm_loadu_si128((__m128i*)sp);
+              __m128i U_q = _mm_loadu_si128((__m128i*)vp_32);
+
+            __m128i vn = _mm_set1_epi16(2);
+            __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
+
+            __m128i w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
+            _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
+
+            __m256i  w0 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1, 0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1));
+            __m256i  w1 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1, 0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1));
+
+            _mm256_storeu_si256((__m256i*)dp, w0);
+            _mm256_storeu_si256((__m256i*)(dp + stride), w1);
+          }
+        }
+        return true;
+    }
+
+    //************************************************************************/
+    /** @brief Step-2 MagSgn decode for the 32-bit (2-quad) path.
+     *
+     *  Outlined for the same reason as decode_cb_step2_16bit: it keeps the
+     *  always-inlined decode_two_quad32_avx2 kernel in its own register
+     *  allocation scope, isolated from step-1 and from the 16-bit path.
+     *  Returns false on a precision-overflow error, true otherwise.
+     */
+    OJPH_NO_INLINE
+    bool decode_cb_step2_32bit(ui16* scratch, ui32* decoded_data,
+                               ui8* coded_data, ui32 width, ui32 height,
+                               ui32 stride, ui32 sstr, ui32 p, ui32 mmsbp2,
+                               int lcup, int scup)
+    {
+        const int v_n_size = 512 + 16;
+#ifdef __MINGW64__
+        ui32 v_n_scratch[2 * v_n_size] = {0};
+#else
+        ui32 v_n_scratch[2 * v_n_size];
+        memset(v_n_scratch + (width >> 1) + 2, 0, 14 * sizeof(ui32));
+#endif
 
         frwd_struct_avx2 magsgn;
         frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
@@ -1537,128 +1344,22 @@ namespace ojph {
             _mm_storeu_si128((__m128i*)vp, w0);
           }
         }
-      }
-      else {
+        return true;
+    }
 
-        // reduce bitplane by 16 because we now have 16 bits instead of 32
-        p -= 16;
-
-        // We allocate a scratch row for storing v_n values.
-        // We have 512 quads horizontally.
-        // We may go beyond the last entry by up to 8 entries.
-        // Therefore we allocate additional 8 entries.
-        // There are two rows in this structure, the bottom
-        // row is used to store processed entries.
-        const int v_n_size = 512 + 16;
-        ui16 v_n_scratch[v_n_size] = {0}; // 1+ kB
-        ui32 v_n_scratch_32[v_n_size] = {0}; // 2+ kB
-
-        frwd_struct_avx2 magsgn;
-        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
-
-        {
-          ui16 *sp = scratch;
-          ui16 *vp = v_n_scratch;
-          ui32 *dp = decoded_data;
-          vp[0] = 2; // for easy calculation of emax
-
-          for (ui32 x = 0; x < width; x += 8, sp += 8, vp += 4, dp += 8) {
-              ////process four quads
-              __m128i inf_u_q = _mm_loadu_si128((__m128i*)sp);
-              __m128i U_q = _mm_srli_epi32(inf_u_q, 16);
-              __m128i w = _mm_cmpgt_epi32(U_q, _mm_set1_epi32((int)mmsbp2));
-              if (!_mm_testz_si128(w, w)) {
-                  return false;
-              }
-
-              __m128i vn = _mm_set1_epi16(2);
-              __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
-
-              w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
-              _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
-
-              __m256i  w0 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1, 0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1));
-              __m256i  w1 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1, 0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1));
-
-              _mm256_storeu_si256((__m256i*)dp, w0);
-              _mm256_storeu_si256((__m256i*)(dp + stride), w1);
-          }
-        }
-
-        for (ui32 y = 2; y < height; y += 2) {
-          {
-            // perform 15 - count_leading_zeros(*vp) here
-            ui16 *vp = v_n_scratch;
-            ui32 *vp_32 = v_n_scratch_32;
-
-            ui16* sp = scratch + (y >> 1) * sstr;
-            const __m256i avx_mmsbp2 = _mm256_set1_epi32((int)mmsbp2);
-            const __m256i avx_31 = _mm256_set1_epi32(31);
-            const __m256i avx_f0 = _mm256_set1_epi32(0xF0);
-            const __m256i avx_1 = _mm256_set1_epi32(1);
-            const __m256i avx_0 = _mm256_setzero_si256();
-
-            for (ui32 x = 0; x <= width; x += 16, vp += 8, sp += 16, vp_32 += 8) {
-              __m128i v = _mm_loadu_si128((__m128i*)vp);
-              __m128i v_p1 = _mm_loadu_si128((__m128i*)(vp + 1));
-              v = _mm_or_si128(v, v_p1);
-
-              __m256i v_avx = _mm256_cvtepu16_epi32(v);
-              v_avx = avx2_lzcnt_epi32(v_avx);
-              v_avx = _mm256_sub_epi32(avx_31, v_avx);
-
-              __m256i inf_u_q = _mm256_loadu_si256((__m256i*)sp);
-              __m256i gamma = _mm256_and_si256(inf_u_q, avx_f0);
-              __m256i w0 = _mm256_sub_epi32(gamma, avx_1);
-              gamma = _mm256_and_si256(gamma, w0);
-              gamma = _mm256_cmpeq_epi32(gamma, avx_0);
-
-              v_avx = _mm256_andnot_si256(gamma, v_avx);
-              v_avx = _mm256_max_epi32(v_avx, avx_1);
-
-              inf_u_q = _mm256_srli_epi32(inf_u_q, 16);
-              v_avx = _mm256_add_epi32(inf_u_q, v_avx);
-
-              w0 = _mm256_cmpgt_epi32(v_avx, avx_mmsbp2);
-              if (!_mm256_testz_si256(w0, w0)) {
-                  return false;
-              }
-
-              _mm256_storeu_si256((__m256i*)vp_32, v_avx);
-            }
-          }
-
-          ui16 *vp = v_n_scratch;
-          ui32* vp_32 = v_n_scratch_32;
-          ui16 *sp = scratch + (y >> 1) * sstr;
-          ui32 *dp = decoded_data + y * stride;
-          vp[0] = 2; // for easy calculation of emax
-
-          for (ui32 x = 0; x < width; x += 8, sp += 8, vp += 4, dp += 8, vp_32 += 4) {
-            ////process four quads
-              __m128i inf_u_q = _mm_loadu_si128((__m128i*)sp);
-              __m128i U_q = _mm_loadu_si128((__m128i*)vp_32);
-
-            __m128i vn = _mm_set1_epi16(2);
-            __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
-
-            __m128i w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
-            _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
-
-            __m256i  w0 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1, 0x0D0C, -1, 0x0908, -1, 0x0504, -1, 0x0100, -1));
-            __m256i  w1 = _mm256_shuffle_epi8(row, _mm256_set_epi16(0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1, 0x0F0E, -1, 0x0B0A, -1, 0x0706, -1, 0x0302, -1));
-
-            _mm256_storeu_si256((__m256i*)dp, w0);
-            _mm256_storeu_si256((__m256i*)(dp + stride), w1);
-          }
-        }
-
-        // increase bitplane back by 16 because we need to process 32 bits
-        p += 16;
-      }
-
-      if (num_passes > 1)
-      {
+    //************************************************************************/
+    /** @brief Significance-Propagation and Magnitude-Refinement passes.
+     *
+     *  Outlined from ojph_decode_codeblock_avx2 so the (lossless cleanup-only)
+     *  common path does not pay the register-allocation cost of this ~375-line
+     *  block. Only runs when num_passes > 1.
+     */
+    OJPH_NO_INLINE
+    void decode_cb_spp_mrp(ui16* scratch, ui32* decoded_data, ui8* coded_data,
+                           ui32 width, ui32 height, ui32 stride, ui32 sstr,
+                           ui32 p, ui32 num_passes, ui32 lengths1,
+                           ui32 lengths2, bool stripe_causal)
+    {
         // We use scratch again, we can divide it into multiple regions
         // sigma holds all the significant samples, and it cannot
         // be modified after it is set.  it will be used during the
@@ -2034,7 +1735,411 @@ namespace ojph {
             }
           }
         }
+    }
+
+    //************************************************************************/
+    /** @brief Step-1: decode the VLC and MEL segments into the scratch buffer.
+     *
+     *  Outlined so the serial scalar VLC/MEL chain gets its own register
+     *  allocation, isolated from the step-2 / SPP-MRP code paths.
+     */
+    OJPH_NO_INLINE
+    void decode_cb_step1_vlc(ui16* scratch, ui8* coded_data, int lcup,
+                             int scup, ui32 width, ui32 height, ui32 sstr)
+    {
+        // init structures
+        dec_mel_st mel;
+        mel_init(&mel, coded_data, lcup, scup);
+        rev_struct vlc;
+        rev_init(&vlc, coded_data, lcup, scup);
+
+        int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
+                                     // data represented as runs of 0 events
+                                     // See mel_decode description
+
+        ui32 vlc_val;
+        ui32 c_q = 0;
+        ui16 *sp = scratch;
+        //initial quad row
+        for (ui32 x = 0; x < width; sp += 4)
+        {
+          // decode VLC
+          /////////////
+
+          // first quad
+          vlc_val = rev_fetch(&vlc);
+
+          //decode VLC using the context c_q and the head of VLC bitstream
+          ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
+
+          // if context is zero, use one MEL event
+          if (c_q == 0) //zero context
+          {
+            run -= 2; //subtract 2, since events number if multiplied by 2
+
+            // Is the run terminated in 1? if so, use decoded VLC code,
+            // otherwise, discard decoded data, since we will decoded again
+            // using a different context
+            t0 = (run == -1) ? t0 : 0;
+
+            // is run -1 or -2? this means a run has been consumed
+            if (run < 0)
+              run = mel_get_run(&mel);  // get another run
+          }
+          //run -= (c_q == 0) ? 2 : 0;
+          //t0 = (c_q != 0 || run == -1) ? t0 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
+          sp[0] = t0;
+          x += 2;
+
+          // prepare context for the next quad; eqn. 1 in ITU T.814
+          c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
+
+          //remove data from vlc stream (0 bits are removed if vlc is not used)
+          vlc_val = rev_advance(&vlc, t0 & 0x7);
+
+          //second quad
+          ui16 t1 = 0;
+
+          //decode VLC using the context c_q and the head of VLC bitstream
+          t1 = vlc_tbl0[c_q + (vlc_val & 0x7F)];
+
+          // if context is zero, use one MEL event
+          if (c_q == 0 && x < width) //zero context
+          {
+            run -= 2; //subtract 2, since events number if multiplied by 2
+
+            // if event is 0, discard decoded t1
+            t1 = (run == -1) ? t1 : 0;
+
+            if (run < 0) // have we consumed all events in a run
+              run = mel_get_run(&mel); // if yes, then get another run
+          }
+          t1 = x < width ? t1 : 0;
+          //run -= (c_q == 0 && x < width) ? 2 : 0;
+          //t1 = (c_q != 0 || run == -1) ? t1 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
+          sp[2] = t1;
+          x += 2;
+
+          //prepare context for the next quad, eqn. 1 in ITU T.814
+          c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
+
+          //remove data from vlc stream, if qinf is not used, cwdlen is 0
+          vlc_val = rev_advance(&vlc, t1 & 0x7);
+
+          // decode u
+          /////////////
+          // uvlc_mode is made up of u_offset bits from the quad pair
+          ui32 uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
+          if (uvlc_mode == 0xc0)// if both u_offset are set, get an event from
+          {                     // the MEL run of events
+            run -= 2; //subtract 2, since events number if multiplied by 2
+
+            uvlc_mode += (run == -1) ? 0x40 : 0; // increment uvlc_mode by
+                                                 // is 0x40
+
+            if (run < 0)//if run is consumed (run is -1 or -2), get another run
+              run = mel_get_run(&mel);
+          }
+          //run -= (uvlc_mode == 0xc0) ? 2 : 0;
+          //uvlc_mode += (uvlc_mode == 0xc0 && run == -1) ? 0x40 : 0;
+          //if (run < 0)
+          //  run = mel_get_run(&mel);  // get another run
+
+          //decode uvlc_mode to get u for both quads
+          ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
+          //remove total prefix length
+          vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+          uvlc_entry >>= 3;
+          //extract suffixes for quad 0 and 1
+          ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
+          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
+          vlc_val = rev_advance(&vlc, len);
+          ojph_unused(vlc_val); //static code analysis: unused value
+          uvlc_entry >>= 4;
+          // quad 0 length
+          len = uvlc_entry & 0x7; // quad 0 suffix length
+          uvlc_entry >>= 3;
+          ui16 u_q = (ui16)(1 + (uvlc_entry&7) + (tmp&~(0xFFU<<len))); //kap. 1
+          sp[1] = u_q;
+          u_q = (ui16)(1 + (uvlc_entry >> 3) + (tmp >> len));  //kappa == 1
+          sp[3] = u_q;
+        }
+        sp[0] = sp[1] = 0;
+
+        //non initial quad rows
+        for (ui32 y = 2; y < height; y += 2)
+        {
+          c_q = 0;                                // context
+          ui16 *sp = scratch + (y >> 1) * sstr;   // this row of quads
+
+          for (ui32 x = 0; x < width; sp += 4)
+          {
+            // decode VLC
+            /////////////
+
+            // sigma_q (n, ne, nf)
+            c_q |= ((sp[0 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
+
+            // first quad
+            vlc_val = rev_fetch(&vlc);
+
+            //decode VLC using the context c_q and the head of VLC bitstream
+            ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];
+
+            // if context is zero, use one MEL event
+            if (c_q == 0) //zero context
+            {
+              run -= 2; //subtract 2, since events number is multiplied by 2
+
+              // Is the run terminated in 1? if so, use decoded VLC code,
+              // otherwise, discard decoded data, since we will decoded again
+              // using a different context
+              t0 = (run == -1) ? t0 : 0;
+
+              // is run -1 or -2? this means a run has been consumed
+              if (run < 0)
+                run = mel_get_run(&mel);  // get another run
+            }
+            //run -= (c_q == 0) ? 2 : 0;
+            //t0 = (c_q != 0 || run == -1) ? t0 : 0;
+            //if (run < 0)
+            //  run = mel_get_run(&mel);  // get another run
+            sp[0] = t0;
+            x += 2;
+
+            // prepare context for the next quad; eqn. 2 in ITU T.814
+            // sigma_q (w, sw)
+            c_q = ((t0 & 0x40U) << 2) | ((t0 & 0x80U) << 1);
+            // sigma_q (nw)
+            c_q |= sp[0 - (si32)sstr] & 0x80;
+            // sigma_q (n, ne, nf)
+            c_q |= ((sp[2 - (si32)sstr] & 0xA0U) << 2);
+            c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
+
+            //remove data from vlc stream (0 bits are removed if vlc is unused)
+            vlc_val = rev_advance(&vlc, t0 & 0x7);
+
+            //second quad
+            ui16 t1 = 0;
+
+            //decode VLC using the context c_q and the head of VLC bitstream
+            t1 = vlc_tbl1[ c_q + (vlc_val & 0x7F)];
+
+            // if context is zero, use one MEL event
+            if (c_q == 0 && x < width) //zero context
+            {
+              run -= 2; //subtract 2, since events number if multiplied by 2
+
+              // if event is 0, discard decoded t1
+              t1 = (run == -1) ? t1 : 0;
+
+              if (run < 0) // have we consumed all events in a run
+                run = mel_get_run(&mel); // if yes, then get another run
+            }
+            t1 = x < width ? t1 : 0;
+            //run -= (c_q == 0 && x < width) ? 2 : 0;
+            //t1 = (c_q != 0 || run == -1) ? t1 : 0;
+            //if (run < 0)
+            //  run = mel_get_run(&mel);  // get another run
+            sp[2] = t1;
+            x += 2;
+
+            // partial c_q, will be completed when we process the next quad
+            // sigma_q (w, sw)
+            c_q = ((t1 & 0x40U) << 2) | ((t1 & 0x80U) << 1);
+            // sigma_q (nw)
+            c_q |= sp[2 - (si32)sstr] & 0x80;
+
+            //remove data from vlc stream, if qinf is not used, cwdlen is 0
+            vlc_val = rev_advance(&vlc, t1 & 0x7);
+
+            // decode u using wide UVLC table
+            /////////////
+            ui32 uvlc_mode = (((t0 >> 3) & 1) | (((t1 >> 3) & 1) << 1));
+            ui32 uvlc_entry =
+              uvlc_tbl1_wide[(uvlc_mode << 10) | (vlc_val & 0x3FF)];
+            ui32 total_bits = uvlc_entry & 0x1F;
+            if (total_bits < 0x1F) {
+              sp[1] = (ui16)((uvlc_entry >> 5) & 0xFF);
+              sp[3] = (ui16)((uvlc_entry >> 13) & 0xFF);
+              vlc_val = rev_advance(&vlc, total_bits);
+              ojph_unused(vlc_val);
+            } else {
+              uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
+              uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
+              vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+              uvlc_entry >>= 3;
+              ui32 len = uvlc_entry & 0xF;
+              ui32 tmp = vlc_val & ((1 << len) - 1);
+              vlc_val = rev_advance(&vlc, len);
+              ojph_unused(vlc_val);
+              uvlc_entry >>= 4;
+              len = uvlc_entry & 0x7;
+              uvlc_entry >>= 3;
+              sp[1] = (ui16)((uvlc_entry & 7) + (tmp & ~(0xFFU << len)));
+              sp[3] = (ui16)((uvlc_entry >> 3) + (tmp >> len));
+            }
+          }
+          sp[0] = sp[1] = 0;
+        }
+    }
+
+    bool ojph_decode_codeblock_avx2(ui8* coded_data, ui32* decoded_data,
+                                    ui32 missing_msbs, ui32 num_passes,
+                                    ui32 lengths1, ui32 lengths2,
+                                    ui32 width, ui32 height, ui32 stride,
+                                    bool stripe_causal)
+    {
+      static bool insufficient_precision = false;
+      static bool modify_code = false;
+      static bool truncate_spp_mrp = false;
+
+      if (num_passes > 1 && lengths2 == 0)
+      {
+        OJPH_WARN(0x00010001, "A malformed codeblock that has more than "
+                              "one coding pass, but zero length for "
+                              "2nd and potential 3rd pass.");
+        num_passes = 1;
       }
+
+      if (num_passes > 3)
+      {
+        OJPH_WARN(0x00010002, "We do not support more than 3 coding passes; "
+                              "This codeblocks has %d passes.",
+                              num_passes);
+        return false;
+      }
+
+      if (missing_msbs > 30) // p < 0
+      {
+        if (insufficient_precision == false)
+        {
+          insufficient_precision = true;
+          OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
+                                "codeblock. This message will not be "
+                                "displayed again.");
+        }
+        return false;
+      }
+      else if (missing_msbs == 30) // p == 0
+      { // not enough precision to decode and set the bin center to 1
+        if (modify_code == false) {
+          modify_code = true;
+          OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
+                                "pass. The code can be modified to support "
+                                "this case. This message will not be "
+                                "displayed again.");
+        }
+         return false;         // 32 bits are not enough to decode this
+       }
+      else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
+      {
+        if (num_passes > 1) {
+          num_passes = 1;
+          if (truncate_spp_mrp == false) {
+            truncate_spp_mrp = true;
+            OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
+                                  "nor MagRef passes; both will be skipped. "
+                                  "This message will not be displayed "
+                                  "again.");
+          }
+        }
+      }
+      ui32 p = 30 - missing_msbs; // The least significant bitplane for CUP
+      // There is a way to handle the case of p == 0, but a different path
+      // is required
+
+      if (lengths1 < 2)
+      {
+        OJPH_WARN(0x00010006, "Wrong codeblock length.");
+        return false;
+      }
+
+      // read scup and fix the bytes there
+      int lcup, scup;
+      lcup = (int)lengths1;  // length of CUP
+      //scup is the length of MEL + VLC
+      scup = (((int)coded_data[lcup-1]) << 4) + (coded_data[lcup-2] & 0xF);
+      if (scup < 2 || scup > lcup || scup > 4079) //something is wrong
+        return false;
+
+      // The temporary storage scratch holds two types of data in an
+      // interleaved fashion. The interleaving allows us to use one
+      // memory pointer.
+      // We have one entry for a decoded VLC code, and one entry for UVLC.
+      // Entries are 16 bits each, corresponding to one quad,
+      // but since we want to use XMM registers of the SSE family
+      // of SIMD; we allocated 16 bytes or more per quad row; that is,
+      // the width is no smaller than 16 bytes (or 8 entries), and the
+      // height is 512 quads
+      // Each VLC entry contains, in the following order, starting
+      // from MSB
+      // e_k (4bits), e_1 (4bits), rho (4bits), useless for step 2 (4bits)
+      // Each entry in UVLC contains u_q
+      // One extra row to handle the case of SPP propagating downwards
+      // when codeblock width is 4
+      // We need an extra two entries (one inf and one u_q) beyond
+      // the last column.
+      // If the block width is 4 (2 quads), then we use sstr of 8
+      // (enough for 4 quads). If width is 8 (4 quads) we use
+      // sstr is 16 (enough for 8 quads). For a width of 16 (8
+      // quads), we use 24 (enough for 12 quads).
+      ui32 sstr = ((width + 2u) + 7u) & ~7u; // multiples of 8
+
+#ifdef __MINGW64__
+      ui16 scratch[8 * 513] = {0};
+#else
+      ui16 scratch[8 * 513];
+      ui32 quad_rows = (height + 1u) >> 1;
+      size_t scratch_zero = (size_t)(quad_rows + 1) * sstr;
+      if (scratch_zero > 8 * 513) scratch_zero = 8 * 513;
+      memset(scratch, 0, scratch_zero * sizeof(ui16));
+#endif
+
+      assert((stride & 0x3) == 0);
+
+      ui32 mmsbp2 = missing_msbs + 2;
+
+      // The cleanup pass is decoded in two steps; in step one,
+      // the VLC and MEL segments are decoded, generating a record that
+      // has 2 bytes per quad. The 2 bytes contain, u, rho, e^1 & e^k.
+      // This information should be sufficient for the next step.
+      // In step 2, we decode the MagSgn segment.
+
+      // step 1: decode VLC and MEL segments into scratch
+      decode_cb_step1_vlc(scratch, coded_data, lcup, scup, width, height, sstr);
+
+      // step2 we decode magsgn
+      // mmsbp2 equals K_max + 1 (we decode up to K_max bits + 1 sign bit)
+      // The 32 bit path decode 16 bits data, for which one would think
+      // 16 bits are enough, because we want to put in the center of the
+      // bin.
+      // If you have mmsbp2 equals 16 bit, and reversible coding, and
+      // no bitplanes are missing, then we can decoding using the 16 bit
+      // path, but we are not doing this here.
+      if (mmsbp2 >= 16)
+      {
+        if (!decode_cb_step2_32bit(scratch, decoded_data, coded_data,
+                                   width, height, stride, sstr, p, mmsbp2,
+                                   lcup, scup))
+          return false;
+      }
+      else {
+        if (!decode_cb_step2_16bit(scratch, decoded_data, coded_data,
+                                   width, height, stride, sstr, p, mmsbp2,
+                                   lcup, scup))
+          return false;
+      }
+
+      if (num_passes > 1)
+        decode_cb_spp_mrp(scratch, decoded_data, coded_data, width, height,
+                          stride, sstr, p, num_passes, lengths1, lengths2,
+                          stripe_causal);
 
       return true;
     }

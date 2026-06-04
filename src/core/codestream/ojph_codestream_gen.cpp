@@ -35,6 +35,8 @@
 // Date: 15 May 2022
 //***************************************************************************/
 
+#include <climits>
+
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 

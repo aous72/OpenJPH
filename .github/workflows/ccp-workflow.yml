@@ -140,7 +140,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -DOJPH_BUILD_TESTS=yes ..
+      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
     - name: build
       run: make
@@ -192,7 +192,7 @@ jobs:
         update: false
         pacboy: cc:p cmake:p python:p
     - name: cmake
-      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
+      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release

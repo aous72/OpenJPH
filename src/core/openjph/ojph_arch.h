@@ -5,6 +5,7 @@
 // Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2026, Osamu Watanabe
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -61,6 +62,17 @@
 
 #ifdef OJPH_COMPILER_MSVC
 #include <intrin.h>
+#endif
+
+  /////////////////////////////////////////////////////////////////////////////
+  // portable force-inline / no-inline function qualifiers
+  /////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_COMPILER_MSVC
+  #define OJPH_FORCE_INLINE static __forceinline
+  #define OJPH_NO_INLINE    static __declspec(noinline)
+#else
+  #define OJPH_FORCE_INLINE static inline __attribute__((always_inline))
+  #define OJPH_NO_INLINE    static __attribute__((noinline))
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////

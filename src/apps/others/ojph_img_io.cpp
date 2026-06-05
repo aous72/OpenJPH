@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -96,13 +96,13 @@ namespace ojph {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
-                               const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1,
+                               const line_buf *ln2, void *dp,
                                ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
     ojph_unused(ln2);
-    
+
     int max_val = (1 << bit_depth) - 1;
     const si32 *sp = ln0->i32;
     ui8* p = (ui8 *)dp;
@@ -115,8 +115,8 @@ namespace ojph {
     }
   }
 
-  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
-                               const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1,
+                               const line_buf *ln2, void *dp,
                                ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
@@ -142,8 +142,8 @@ namespace ojph {
     }
   }
 
-  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
@@ -160,8 +160,8 @@ namespace ojph {
     }
   }
 
-  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
@@ -187,8 +187,8 @@ namespace ojph {
     }
   }
 
-  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count)
   {
     ojph_unused(ln1);
@@ -205,8 +205,8 @@ namespace ojph {
     }
   }
 
-  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count)
   {
     int max_val = (1<<bit_depth) - 1;
@@ -327,7 +327,7 @@ namespace ojph {
   {
     if (alloc_p == NULL)
       return;
-      
+
     if (bytes_per_sample == 1)
       temp_buf = alloc_p->post_alloc_data<ui8>(num_comps * (size_t)width, 0);
     else
@@ -393,7 +393,7 @@ namespace ojph {
       {
         if (strncmp(".ppm", filename + len - 4, 4) == 0)
         {
-          filename[len - 2] = 'g'; 
+          filename[len - 2] = 'g';
           OJPH_WARN(0x03000021, "file was renamed %s\n", filename);
         }
         if (strncmp(".PPM", filename + len - 4, 4) == 0)
@@ -457,17 +457,17 @@ namespace ojph {
     bytes_per_sample = 1 + (bit_depth > 8 ? 1 : 0);
     samples_per_line = num_components * width;
     bytes_per_line = bytes_per_sample * samples_per_line;
-    
+
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     if (bytes_per_sample == 1) {
-      if (num_components == 1) 
+      if (num_components == 1)
         converter = gen_cvrt_32b1c_to_8ub1c;
       else
         converter = gen_cvrt_32b3c_to_8ub3c;
     }
     else {
-      if (num_components == 1) 
+      if (num_components == 1)
         converter = gen_cvrt_32b1c_to_16ub1c_be;
       else
         converter = gen_cvrt_32b3c_to_16ub3c_be;
@@ -480,13 +480,13 @@ namespace ojph {
       #ifndef OJPH_DISABLE_SSE4
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_SSE41) {
           if (bytes_per_sample == 1) {
-            if (num_components == 1) 
+            if (num_components == 1)
               converter = sse41_cvrt_32b1c_to_8ub1c;
             else
               converter = sse41_cvrt_32b3c_to_8ub3c;
           }
           else {
-            if (num_components == 1) 
+            if (num_components == 1)
               converter = sse41_cvrt_32b1c_to_16ub1c_be;
             else
               converter = sse41_cvrt_32b3c_to_16ub3c_be;
@@ -497,13 +497,13 @@ namespace ojph {
       #ifndef OJPH_DISABLE_AVX2
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
           if (bytes_per_sample == 1) {
-            if (num_components == 1) 
+            if (num_components == 1)
               converter = avx2_cvrt_32b1c_to_8ub1c;
             else
               converter = avx2_cvrt_32b3c_to_8ub3c;
           }
           else {
-            if (num_components == 1) 
+            if (num_components == 1)
               converter = avx2_cvrt_32b1c_to_16ub1c_be;
             else
               { } // did not find an implementation better than sse41
@@ -520,18 +520,18 @@ namespace ojph {
 #else // OJPH_ENABLE_WASM_SIMD
 
     if (bytes_per_sample == 1) {
-      if (num_components == 1) 
+      if (num_components == 1)
         converter = sse41_cvrt_32b1c_to_8ub1c;
       else
         converter = sse41_cvrt_32b3c_to_8ub3c;
     }
     else {
-      if (num_components == 1) 
+      if (num_components == 1)
         converter = sse41_cvrt_32b1c_to_16ub1c_be;
       else
         converter = sse41_cvrt_32b3c_to_16ub3c_be;
     }
-  
+
 #endif // !OJPH_ENABLE_WASM_SIMD
   }
 
@@ -594,7 +594,7 @@ namespace ojph {
     if (fscanf(fh, "%d %d", &width, &height) != 2)
     {
       close();
-      OJPH_ERROR(0x03000054, 
+      OJPH_ERROR(0x03000054,
         "Error reading width and height in file %s", filename);
     }
     eat_white_spaces(fh);
@@ -655,14 +655,14 @@ namespace ojph {
     if (comp_num == 0)
     {
       si64 loc = start_of_data;
-      loc += (size_t)(height-1 - cur_line) * (size_t)num_comps 
+      loc += (size_t)(height-1 - cur_line) * (size_t)num_comps
            * (size_t)width * sizeof(float);
       if (ojph_fseek(fh, loc, SEEK_SET) != 0)
       {
         close();
         OJPH_ERROR(0x03000061, "Error seeking in file %s", fname);
       }
-      size_t result = 
+      size_t result =
         fread(temp_buf, sizeof(float), (size_t)num_comps * (size_t)width, fh);
       if (result != (size_t)num_comps * (size_t)width)
       {
@@ -685,7 +685,7 @@ namespace ojph {
       sp.f = temp_buf + comp_num;
       dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps) 
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
         {
           si32 s = *sp.s;
           s >>= shift;
@@ -731,7 +731,7 @@ namespace ojph {
       OJPH_ERROR(0x03000071,
         "Unable to open file %s for writing", filename);
     int result = //the number of written characters
-      fprintf(fh, "P%c\n%d %d\n%f\n", 
+      fprintf(fh, "P%c\n%d %d\n%f\n",
         num_components > 1 ? 'F' : 'f', width, height, scale);
     if (result == 0)
       OJPH_ERROR(0x03000072, "error writing to file %s", filename);
@@ -743,7 +743,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void pfm_out::configure(ui32 width, ui32 height, ui32 num_components, 
+  void pfm_out::configure(ui32 width, ui32 height, ui32 num_components,
                           float scale, ui32* bit_depth)
   {
     assert(fh == NULL); //configure before opening
@@ -816,7 +816,7 @@ namespace ojph {
     fname = filename;
 
     ui32 tiff_width = 0;
-    ui32 tiff_height = 0; 
+    ui32 tiff_height = 0;
     TIFFGetField(tiff_handle, TIFFTAG_IMAGEWIDTH, &tiff_width);
     TIFFGetField(tiff_handle, TIFFTAG_IMAGELENGTH, &tiff_height);
 
@@ -824,9 +824,9 @@ namespace ojph {
     ui16 tiff_samples_per_pixel = 0;
     TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
     TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
-    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel 
+    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel
     // image - set to 1
-    tiff_samples_per_pixel = 
+    tiff_samples_per_pixel =
       (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
 
     ui16 tiff_planar_configuration = 0;
@@ -854,7 +854,7 @@ namespace ojph {
     if (NULL == line_buffer)
       OJPH_ERROR(0x03000092, "Unable to allocate %d bytes for line_buffer[] "
         "for file %s", bytes_per_line, filename);
-      
+
     cur_line = 0;
 
     // Error on known incompatilbe input formats
@@ -862,7 +862,7 @@ namespace ojph {
     {
       OJPH_ERROR(0x03000093, "\nTIFF IO is currently limited"
         " to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \n"
-        "input file = %s has TIFFTAG_BITSPERSAMPLE=%d", 
+        "input file = %s has TIFFTAG_BITSPERSAMPLE=%d",
         filename, tiff_bits_per_sample);
     }
 
@@ -872,13 +872,13 @@ namespace ojph {
         "without tiles. \nInput file %s has been detected as tiled", filename);
     }
 
-    if(PHOTOMETRIC_RGB != tiff_photometric && 
+    if(PHOTOMETRIC_RGB != tiff_photometric &&
        PHOTOMETRIC_MINISBLACK != tiff_photometric )
     {
       OJPH_ERROR(0x03000095, "\nTIFF IO is currently limited to "
         "TIFFTAG_PHOTOMETRIC=PHOTOMETRIC_MINISBLACK=%d and "
         "PHOTOMETRIC_RGB=%d. \nInput file %s has been detected "
-        "TIFFTAG_PHOTOMETRIC=%d", 
+        "TIFFTAG_PHOTOMETRIC=%d",
       PHOTOMETRIC_MINISBLACK, PHOTOMETRIC_RGB, filename, tiff_photometric);
     }
 
@@ -898,26 +898,26 @@ namespace ojph {
     for (ui32 comp_num = 0; comp_num < num_comps; comp_num++)
       bit_depth[comp_num] = tiff_bits_per_sample;
 
-    // allocate intermediate linebuffers to hold a line of a single component 
+    // allocate intermediate linebuffers to hold a line of a single component
     // of image data
-    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && 
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE &&
         bytes_per_sample == 1)
     {
-      line_buffer_for_planar_support_uint8 = 
+      line_buffer_for_planar_support_uint8 =
         (uint8_t*)calloc(width, sizeof(uint8_t));
       if (NULL == line_buffer_for_planar_support_uint8)
         OJPH_ERROR(0x03000097, "Unable to allocate %d bytes for "
-          "line_buffer_for_planar_support_uint8[] for file %s", 
+          "line_buffer_for_planar_support_uint8[] for file %s",
           width * sizeof(uint8_t), filename);
     }
-    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && 
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE &&
         bytes_per_sample == 2)
     {
-      line_buffer_for_planar_support_uint16 = 
+      line_buffer_for_planar_support_uint16 =
         (uint16_t*)calloc(width, sizeof(uint16_t));
       if (NULL == line_buffer_for_planar_support_uint16)
         OJPH_ERROR(0x03000098, "Unable to allocate %d bytes for "
-          "line_buffer_for_planar_support_uint16[] for file %s", 
+          "line_buffer_for_planar_support_uint16[] for file %s",
           width * sizeof(uint16_t), filename);
     }
   }
@@ -937,7 +937,7 @@ namespace ojph {
 
       if (bd > 32 || bd < 1)
       {
-        OJPH_ERROR(0x030000A2, 
+        OJPH_ERROR(0x030000A2,
           "bit_depth = %d, this must be an integer from 1-32", bd);
       }
       this->bit_depth[i] = bd;
@@ -950,7 +950,7 @@ namespace ojph {
     assert(bytes_per_line != 0 && tiff_handle != 0 && comp_num < num_comps);
     assert((ui32)line->size >= width);
 
-    // do a read from the file if this is the first component and therefore 
+    // do a read from the file if this is the first component and therefore
     // the first time trying to access this line
     if (PLANARCONFIG_SEPARATE == planar_configuration && 0 == comp_num )
     {
@@ -958,32 +958,32 @@ namespace ojph {
       {
         if (bytes_per_sample == 1)
         {
-          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8, 
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8,
             cur_line, (ui16)color);
           ui32 x = color;
-          uint8_t* line_buffer_of_interleaved_components = 
+          uint8_t* line_buffer_of_interleaved_components =
             (uint8_t*)line_buffer;
           for (ui32 i = 0; i < width; i++, x += num_comps)
           {
-            line_buffer_of_interleaved_components[x] = 
+            line_buffer_of_interleaved_components[x] =
               line_buffer_for_planar_support_uint8[i];
           }
         }
         else if (bytes_per_sample == 2)
         {
-          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16, 
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16,
             cur_line, (ui16)color);
           ui32 x = color;
           ui16* line_buffer_of_interleaved_components = (ui16*)line_buffer;
           for (ui32 i = 0; i < width; i++, x += num_comps)
           {
-            line_buffer_of_interleaved_components[x] = 
+            line_buffer_of_interleaved_components[x] =
               line_buffer_for_planar_support_uint16[i];
           }
         }
       }
       cur_line++;
-      
+
     }
     else if (planar_configuration == PLANARCONFIG_CONTIG && 0 == comp_num)
     {
@@ -1047,7 +1047,7 @@ namespace ojph {
         for (ui32 i = width; i > 0; --i, sp += num_comps)
           *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
       }
-      
+
     }
 
     return width;
@@ -1113,10 +1113,10 @@ namespace ojph {
     else if (num_components == 2)
     {
       TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
-      // possible values are EXTRASAMPLE_UNSPECIFIED = 0; 
+      // possible values are EXTRASAMPLE_UNSPECIFIED = 0;
       // EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
-      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; 
-      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, 
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA };
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1,
         &extra_samples_description);
     }
     else if (num_components == 3)
@@ -1126,18 +1126,18 @@ namespace ojph {
     else if (num_components == 4)
     {
       TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
-      // possible values are EXTRASAMPLE_UNSPECIFIED = 0; 
+      // possible values are EXTRASAMPLE_UNSPECIFIED = 0;
       // EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
-      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; 
-      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, 
+      const ui16 extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA };
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1,
         &extra_samples_description);
     }
-      
+
     TIFFSetField(tiff_handle, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
     TIFFSetField(tiff_handle, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
     //TIFFSetField(tiff_handle, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
     TIFFSetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, height);
-    
+
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1160,7 +1160,7 @@ namespace ojph {
     bytes_per_sample = (max_bitdepth + 7) / 8;  // round up
     if (bytes_per_sample > 2)
     {
-      // TIFF output is currently limited to files with max_bitdepth = 16, 
+      // TIFF output is currently limited to files with max_bitdepth = 16,
       // the decoded data will be truncated to 16 bits
       bytes_per_sample = 2;
     }
@@ -1173,7 +1173,7 @@ namespace ojph {
   ui32 tif_out::write(const line_buf* line, ui32 comp_num)
   {
     assert(tiff_handle);
-    
+
     if (bytes_per_sample == 1)
     {
       int max_val = (1 << bit_depth_of_data[comp_num]) - 1;
@@ -1200,7 +1200,7 @@ namespace ojph {
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
-          // shift the decoded data so the data's MSB is aligned with the 
+          // shift the decoded data so the data's MSB is aligned with the
           // 8 bit MSB
           *dp = (ui8)((val & bit_mask) << bits_to_shift);
         }
@@ -1215,12 +1215,12 @@ namespace ojph {
           int val = *sp++;
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
-          // shift the decoded data so the data's MSB is aligned with the 
+          // shift the decoded data so the data's MSB is aligned with the
           // 8 bit MSB
           *dp = (ui8)((val >> bits_to_shift) & bit_mask);
         }
       }
-      
+
     }
     else if(bytes_per_sample == 2)
     {
@@ -1250,7 +1250,7 @@ namespace ojph {
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
 
-          // shift the decoded data so the data's MSB is aligned with the 
+          // shift the decoded data so the data's MSB is aligned with the
           // 16 bit MSB
           *dp = (ui16)((val & bit_mask) << bits_to_shift);
         }
@@ -1266,14 +1266,14 @@ namespace ojph {
           val = val >= 0 ? val : 0;
           val = val <= max_val ? val : max_val;
 
-          // shift the decoded data so the data's MSB is aligned with the 
+          // shift the decoded data so the data's MSB is aligned with the
           // 16 bit MSB
           *dp = (ui16)((val >> bits_to_shift) & bit_mask);
         }
       }
-      
+
     }
-      // write scanline when the last component is reached 
+      // write scanline when the last component is reached
       if (comp_num == num_components-1)
       {
         int result = TIFFWriteScanline(tiff_handle, buffer, cur_line++);
@@ -1425,7 +1425,7 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void yuv_out::configure(ui32 bit_depth, ui32 num_components, 
+  void yuv_out::configure(ui32 bit_depth, ui32 num_components,
                           ui32* comp_width)
   {
     assert(fh == NULL);
@@ -1636,7 +1636,7 @@ namespace ojph {
     this->bit_depth = bit_depth;
     this->width = width;
 
-    if (is_signed) { 
+    if (is_signed) {
       upper_val = ((si64)1 << (bit_depth - 1));
       lower_val = -((si64)1 << (bit_depth - 1));
     } else {
@@ -1656,7 +1656,7 @@ namespace ojph {
     assert(fh);
     assert(comp_num == 0);
 
-    if (is_signed) 
+    if (is_signed)
     {
       if (bytes_per_sample > 3)
       {
@@ -1717,7 +1717,7 @@ namespace ojph {
           OJPH_ERROR(0x03000154, "unable to write to file %s", fname);
       }
     }
-    else 
+    else
     {
       if (bytes_per_sample > 3)
       {
@@ -1790,7 +1790,7 @@ namespace ojph {
   //
   //
   ////////////////////////////////////////////////////////////////////////////
-  
+
   ////////////////////////////////////////////////////////////////////////////
 
   void dpx_in::open(const char* filename)
@@ -1818,7 +1818,7 @@ namespace ojph {
     }
     else if (dpx_magic_number == be2le(magic_number))
     {
-      // magic number is a match after bytes swapping - 
+      // magic number is a match after bytes swapping -
       // the data read from this file needs byte swapping
       is_byte_swapping_necessary = true;
     }
@@ -1827,12 +1827,12 @@ namespace ojph {
       close();
       OJPH_ERROR(0x03000163, "Error reading file %s - this does not appear "
         "to be a valid DPX file.  It has magic number = 0x%08X.  The magic "
-        "number of a DPX file is 0x%08X.", filename, magic_number, 
+        "number of a DPX file is 0x%08X.", filename, magic_number,
         dpx_magic_number);
     }
 
     // read offset to data
-    if (fread(&offset_to_image_data_in_bytes, sizeof(ui32), 1, file_handle) 
+    if (fread(&offset_to_image_data_in_bytes, sizeof(ui32), 1, file_handle)
         != 1)
     {
       close();
@@ -1847,7 +1847,7 @@ namespace ojph {
       OJPH_ERROR(0x03000165, "Error reading file %s", filename);
     }
     // read image file size in bytes
-    if (fread(&total_image_file_size_in_bytes, sizeof(ui32), 1, file_handle) 
+    if (fread(&total_image_file_size_in_bytes, sizeof(ui32), 1, file_handle)
         != 1)
     {
       close();
@@ -1855,7 +1855,7 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       total_image_file_size_in_bytes = be2le(total_image_file_size_in_bytes);
-    
+
     // seek to image info header
     if (fseek(file_handle,768, SEEK_SET) != 0)
     {
@@ -1873,7 +1873,7 @@ namespace ojph {
       image_orientation = be2le(image_orientation);
 
     // read number of image elements
-    if (fread(&number_of_image_elements, sizeof(uint16_t), 1, file_handle) 
+    if (fread(&number_of_image_elements, sizeof(uint16_t), 1, file_handle)
         != 1)
     {
       close();
@@ -1908,7 +1908,7 @@ namespace ojph {
     }
 
     // read data sign for image element
-    if (fread(&data_sign_for_image_element_1, sizeof(ui32), 1, file_handle) 
+    if (fread(&data_sign_for_image_element_1, sizeof(ui32), 1, file_handle)
         != 1)
     {
       close();
@@ -1941,7 +1941,7 @@ namespace ojph {
     }
 
     // read colorimetric specification
-    if (fread(&colormetric_specification_for_image_element_1, sizeof(uint8_t), 
+    if (fread(&colormetric_specification_for_image_element_1, sizeof(uint8_t),
         1, file_handle) != 1)
     {
       close();
@@ -1949,7 +1949,7 @@ namespace ojph {
     }
 
     // read bit depth
-    if (fread(&bitdepth_for_image_element_1, sizeof(uint8_t), 1, file_handle) 
+    if (fread(&bitdepth_for_image_element_1, sizeof(uint8_t), 1, file_handle)
         != 1)
     {
       close();
@@ -1957,7 +1957,7 @@ namespace ojph {
     }
 
     // read packing
-    if (fread(&packing_for_image_element_1, sizeof(uint16_t), 1, file_handle) 
+    if (fread(&packing_for_image_element_1, sizeof(uint16_t), 1, file_handle)
         != 1)
     {
       close();
@@ -1967,7 +1967,7 @@ namespace ojph {
       packing_for_image_element_1 = be2le(packing_for_image_element_1);
 
     // read encoding
-    if (fread(&encoding_for_image_element_1, sizeof(uint16_t), 1, file_handle) 
+    if (fread(&encoding_for_image_element_1, sizeof(uint16_t), 1, file_handle)
         != 1)
     {
       close();
@@ -1975,16 +1975,16 @@ namespace ojph {
     }
     if (is_byte_swapping_necessary)
       encoding_for_image_element_1 = be2le(encoding_for_image_element_1);
-      
+
     // read offset to data
-    if (fread(&offset_to_data_for_image_element_1, sizeof(ui32), 1, 
+    if (fread(&offset_to_data_for_image_element_1, sizeof(ui32), 1,
               file_handle) != 1)
     {
       close();
       OJPH_ERROR(0x03000176, "Error reading file %s", filename);
     }
     if (is_byte_swapping_necessary)
-      offset_to_data_for_image_element_1 = 
+      offset_to_data_for_image_element_1 =
         be2le(offset_to_data_for_image_element_1);
 
     // set to starting point of image data
@@ -2005,7 +2005,7 @@ namespace ojph {
       subsampling[c] = point(1,1);
     }
 
-    // handle DPX image data packing in file 
+    // handle DPX image data packing in file
     ui32 number_of_samples_per_32_bit_word = 32 / bitdepth_for_image_element_1;
     number_of_samples_per_line = width * num_comps;
     number_of_32_bit_words_per_line =
@@ -2018,15 +2018,15 @@ namespace ojph {
     line_buffer = malloc(number_of_32_bit_words_per_line * sizeof(ui32) );
     if (NULL == line_buffer)
       OJPH_ERROR(0x03000178, "Unable to allocate %d bytes for line_buffer[] "
-        "for file %s", 
+        "for file %s",
         number_of_32_bit_words_per_line * sizeof(ui32), filename);
 
     // allocate line_buffer_16bit_samples to hold a line of image data in memory
-    line_buffer_16bit_samples = 
+    line_buffer_16bit_samples =
       (ui16*) malloc((size_t)width * num_comps * sizeof(ui16));
     if (NULL == line_buffer_16bit_samples)
       OJPH_ERROR(0x03000179, "Unable to allocate %d bytes for "
-        "line_buffer_16bit_samples[] for file %s", 
+        "line_buffer_16bit_samples[] for file %s",
         (size_t)width * num_comps * sizeof(ui16), filename);
 
     cur_line = 0;
@@ -2043,7 +2043,7 @@ namespace ojph {
     // read from file if trying to read the first component
     if (0 == comp_num)
     {
-      if (fread(line_buffer, sizeof(ui32), number_of_32_bit_words_per_line, 
+      if (fread(line_buffer, sizeof(ui32), number_of_32_bit_words_per_line,
           file_handle) != number_of_32_bit_words_per_line)
       {
         close();
@@ -2070,23 +2070,23 @@ namespace ojph {
         }
       }
 
-      // extract samples from 32bit words from file read into 
+      // extract samples from 32bit words from file read into
       // RGB ordered buffer
       ui32 word_index = 0;
-      if (10 == bitdepth_for_image_element_1 && 3 == num_comps 
+      if (10 == bitdepth_for_image_element_1 && 3 == num_comps
           && packing_for_image_element_1 == 1)
       {
         ui32* line_buffer_ptr = (ui32*)line_buffer;
         for (ui32 i = 0; i < number_of_samples_per_line; i += 3)
         {
           // R
-          line_buffer_16bit_samples[i + 0] = 
+          line_buffer_16bit_samples[i + 0] =
             (ui16) ((line_buffer_ptr[word_index] & 0xFFC00000) >> 22);
           // G
-          line_buffer_16bit_samples[i + 1] = 
+          line_buffer_16bit_samples[i + 1] =
             (ui16) ((line_buffer_ptr[word_index] & 0x003FF000) >> 12);
           // B
-          line_buffer_16bit_samples[i + 2] = 
+          line_buffer_16bit_samples[i + 2] =
             (ui16) ((line_buffer_ptr[word_index] & 0x00000FFC) >>  2);
           word_index++;
         }
@@ -2104,15 +2104,15 @@ namespace ojph {
         OJPH_ERROR(0x03000182, "file %s uses DPX image formats that are not "
           "yet supported by this software\n bitdepth_for_image_element_1 = "
           "%d\n num_comps=%d\npacking_for_image_element_1=%d\n "
-          "descriptor_for_image_element_1=%d", fname, 
-          bitdepth_for_image_element_1, num_comps, 
+          "descriptor_for_image_element_1=%d", fname,
+          bitdepth_for_image_element_1, num_comps,
           packing_for_image_element_1, descriptor_for_image_element_1);
       }
-      
+
       cur_line++;
     }
 
-    // copy sample data from the unpacked line buffer into a 
+    // copy sample data from the unpacked line buffer into a
     // single-component buffer to be used by the openjph core
     const ui16* sp = (ui16*)line_buffer_16bit_samples + comp_num;
     si32* dp = line->i32;
@@ -2122,4 +2122,4 @@ namespace ojph {
     return width;
   }
 
-} 
+}

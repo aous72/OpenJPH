@@ -283,6 +283,15 @@ namespace ojph {
     const ui32 chunk_size;
   };
 
+  /////////////////////////////////////////////////////////////////////////////
+  typedef void (*img_conversion_fun)(const line_buf *ln0, const line_buf *ln1,
+                                     const line_buf *ln2, void *dp,
+                                     ui32 bit_depth, ui32 count);
+
+  img_conversion_fun select_to_line_buf_conv_fun(
+    ui32 src_bit_depth, ui32 num_components, bool is_little_endian);
+  img_conversion_fun select_from_line_buf_conv_fun(
+    ui32 dst_bit_depth, ui32 num_components, bool is_little_endian);
 
 }
 

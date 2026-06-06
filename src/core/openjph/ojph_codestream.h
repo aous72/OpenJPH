@@ -254,6 +254,28 @@ namespace ojph {
 
     line_buf* exchange(line_buf* line, ui32& next_component);
 
+
+    /**
+     *  @brief A convenience wrapper around exchange() that encodes a complete
+     *         image in one call.  Rather than pushing one row at a time, the
+     *         caller supplies pre-allocated buffers for all components and this
+     *         function iterates over every row and component internally,
+     *         delegating to exchange(line_buf*, ui32&). Must be called after
+     *         write_headers() and before flush().
+     *
+     *  @param component_bufs An array of pointers, one per image component,
+     *                        each pointing to the start of that component's
+     *                        pixel data.
+     *  @param row_strides An array of byte offsets, one per component, from the
+     *                     start of one row to the start of the next row within
+     *                     component_bufs[c].
+     *  @param sample_strides An array of byte offsets, one per component, from
+     *                        one sample to the next sample within a row.
+     *  @param sample_widths An array of sample bit-depths, one per component.
+     *                       Each value must be 8, 16, or 32.
+     */
+    void send_image(void* component_bufs[], uint32_t row_strides[], uint32_t sample_strides[], uint8_t sample_widths[]);
+
     /**
      * @brief This is the last call to a writing (encoding) codestream.
      *        This will write encoded bitstream data to the file.  This

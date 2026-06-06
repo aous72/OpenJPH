@@ -214,4 +214,88 @@ namespace ojph {
     return state->exchange(line, next_component);
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  void codestream::send_image(void* component_bufs[], uint32_t row_strides[], uint32_t sample_strides[], uint8_t sample_widths[]) {
+    ojph::ui32 next_comp;
+    ojph::line_buf* cur_line = this->exchange(NULL, next_comp);
+    ojph::param_siz siz = this->access_siz();
+    if (this->is_planar())
+    {
+      for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+      {
+        ojph::point p = siz.get_downsampling(c);
+        ojph::ui32 height = ojph_div_ceil(siz.get_image_extent().y, p.y);
+        height -= ojph_div_ceil(siz.get_image_offset().y, p.y);
+        ojph::ui32 width = ojph_div_ceil(siz.get_image_extent().x, p.x);
+        width -= ojph_div_ceil(siz.get_image_offset().x, p.x);
+        uint8_t* cur_row = (uint8_t*) component_bufs[c];
+        for (ojph::ui32 i = height; i > 0; --i)
+        {
+          uint8_t* cur_sample = cur_row;
+          switch (sample_widths[c]) {
+            case 8:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint8_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+              }
+              break;
+            case 16:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint16_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+
+              }
+              break;
+            case 32:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint32_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+              }
+              break;
+            default:
+              OJPH_ERROR(0x000300A1, "Sample widths must be 8, 16 or 32");
+          }
+          cur_row += row_strides[c];
+          cur_line = this->exchange(cur_line, next_comp);
+        }
+      }
+    }
+    else
+    {
+      ojph::ui32 height = siz.get_image_extent().y - siz.get_image_offset().y; 
+      ojph::ui32 width = siz.get_image_extent().x - siz.get_image_offset().x;
+      for (ojph::ui32 i = 0; i < height; ++i)
+      {
+        for (ojph::ui32 c = 0; c < siz.get_num_components(); ++c)
+        {
+          uint8_t* cur_sample = (uint8_t*) component_bufs[c] + i * row_strides[c];
+          switch (sample_widths[c]) {
+            case 8:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint8_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+              }
+              break;
+            case 16:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint16_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+
+              }
+              break;
+            case 32:
+              for (ojph::ui32 j = 0; j < width; ++j) {
+                cur_line->i32[j] = *(uint32_t*)cur_sample;
+                cur_sample = cur_sample + sample_strides[c];
+              }
+              break;
+            default:
+              OJPH_ERROR(0x000300A1, "Sample widths must be 8, 16 or 32");
+          }
+          cur_line = this->exchange(cur_line, next_comp);
+        }
+      }
+    }
+  }
+
 }

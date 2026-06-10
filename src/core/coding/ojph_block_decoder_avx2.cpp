@@ -272,314 +272,6 @@ namespace ojph {
       return t; // return run
     }
 
-    //************************************************************************/
-    /** @brief A structure for reading and unstuffing a segment that grows
-     *         backward, such as VLC and MRP
-     */
-    struct rev_struct {
-      rev_struct() : data(NULL), tmp(0), bits(0), size(0), unstuff(false)
-      {}
-      //storage
-      ui8* data;     //!<pointer to where to read data
-      ui64 tmp;	     //!<temporary buffer of read data
-      ui32 bits;     //!<number of bits stored in tmp
-      int size;      //!<number of bytes left
-      bool unstuff;  //!<true if the last byte is more than 0x8F
-                     //!<then the current byte is unstuffed if it is 0x7F
-    };
-
-    //************************************************************************/
-    /** @brief Read and unstuff data from a backwardly-growing segment
-     *
-     *  This reader can read up to 8 bytes from before the VLC segment.
-     *  Care must be taken not read from unreadable memory, causing a
-     *  segmentation fault.
-     *
-     *  Note that there is another subroutine rev_read_mrp that is slightly
-     *  different.  The other one fills zeros when the buffer is exhausted.
-     *  This one basically does not care if the bytes are consumed, because
-     *  any extra data should not be used in the actual decoding.
-     *
-     *  Unstuffing is needed to prevent sequences more than 0xFF8F from
-     *  appearing in the bits stream; since we are reading backward, we keep
-     *  watch when a value larger than 0x8F appears in the bitstream.
-     *  If the byte following this is 0x7F, we unstuff this byte (ignore the
-     *  MSB of that byte, which should be 0).
-     *
-     *  @param [in]  vlcp is a pointer to rev_struct structure
-     */
-    static inline
-    void rev_read(rev_struct *vlcp)
-    {
-      //process 4 bytes at a time
-      if (vlcp->bits > 32)  // if there are more than 32 bits in tmp, then
-        return;             // reading 32 bits can overflow vlcp->tmp
-      ui32 val = 0;
-      //the next line (the if statement) needs to be tested first
-      if (vlcp->size > 3)  // if there are more than 3 bytes left in VLC
-      {
-        // (vlcp->data - 3) move pointer back to read 32 bits at once
-        val = *(ui32*)(vlcp->data - 3); // then read 32 bits
-        vlcp->data -= 4;          // move data pointer back by 4
-        vlcp->size -= 4;          // reduce available byte by 4
-      }
-      else if (vlcp->size > 0)
-      { // 4 or less
-        int i = 24;
-        while (vlcp->size > 0) {
-          ui32 v = *vlcp->data--; // read one byte at a time
-          val |= (v << i);        // put byte in its correct location
-          --vlcp->size;
-          i -= 8;
-        }
-      }
-
-      __m128i tmp_vec = _mm_set1_epi32((int32_t)val);
-      tmp_vec = _mm_srlv_epi32(tmp_vec, _mm_setr_epi32(24, 16, 8, 0));
-      tmp_vec = _mm_and_si128(tmp_vec, _mm_set1_epi32(0xff));
-
-      __m128i unstuff_vec = _mm_cmpgt_epi32(tmp_vec, _mm_set1_epi32(0x8F));
-      bool unstuff_next = _mm_extract_epi32(unstuff_vec, 3);
-      unstuff_vec = _mm_slli_si128(unstuff_vec, 4);
-      unstuff_vec = _mm_insert_epi32(unstuff_vec, vlcp->unstuff * 0xffffffff, 0);
-
-      __m128i val_7f = _mm_set1_epi32(0x7F);
-      __m128i this_byte_7f = _mm_cmpeq_epi32(_mm_and_si128(tmp_vec, val_7f), val_7f);
-      unstuff_vec = _mm_and_si128(unstuff_vec, this_byte_7f);
-      unstuff_vec = _mm_srli_epi32(unstuff_vec, 31);
-
-      __m128i inc_sum = _mm_sub_epi32(_mm_set1_epi32(8), unstuff_vec);
-      inc_sum = _mm_add_epi32(inc_sum, _mm_bslli_si128(inc_sum, 4));
-      inc_sum = _mm_add_epi32(inc_sum, _mm_bslli_si128(inc_sum, 8));
-      ui32 total_bits = (ui32)_mm_extract_epi32(inc_sum, 3);
-
-      __m128i final_shift = _mm_slli_si128(inc_sum, 4);
-      tmp_vec = _mm_sllv_epi32(tmp_vec, final_shift);
-      tmp_vec = _mm_or_si128(tmp_vec, _mm_bsrli_si128(tmp_vec, 8));
-
-      ui64 tmp = (ui32)_mm_cvtsi128_si32(tmp_vec) | (ui32)_mm_extract_epi32(tmp_vec, 1);
-
-      vlcp->unstuff = unstuff_next;
-      vlcp->tmp |= tmp << vlcp->bits;
-      vlcp->bits += total_bits;
-    }
-
-    //************************************************************************/
-    /** @brief Initiates the rev_struct structure and reads a few bytes to
-     *         move the read address to multiple of 4
-     *
-     *  There is another similar rev_init_mrp subroutine.  The difference is
-     *  that this one, rev_init, discards the first 12 bits (they have the
-     *  sum of the lengths of VLC and MEL segments), and first unstuff depends
-     *  on first 4 bits.
-     *
-     *  @param [in]  vlcp is a pointer to rev_struct structure
-     *  @param [in]  data is a pointer to byte at the start of the cleanup pass
-     *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
-     *  @param [in]  scup is the length of MEL+VLC segments
-     */
-    static inline
-    void rev_init(rev_struct *vlcp, ui8* data, int lcup, int scup)
-    {
-      //first byte has only the upper 4 bits
-      vlcp->data = data + lcup - 2;
-
-      //size can not be larger than this, in fact it should be smaller
-      vlcp->size = scup - 2;
-
-      ui32 d = *vlcp->data--; // read one byte (this is a half byte)
-      vlcp->tmp = d >> 4;    // both initialize and set
-      vlcp->bits = 4 - ((vlcp->tmp & 7) == 7); //check standard
-      vlcp->unstuff = (d | 0xF) > 0x8F; //this is useful for the next byte
-
-      //This code is designed for an architecture that read address should
-      // align to the read size (address multiple of 4 if read size is 4)
-      //These few lines take care of the case where data is not at a multiple
-      // of 4 boundary. It reads 1,2,3 up to 4 bytes from the VLC bitstream.
-      // To read 32 bits, read from (vlcp->data - 3)
-      int num = 1 + (int)(intptr_t(vlcp->data) & 0x3);
-      int tnum = num < vlcp->size ? num : vlcp->size;
-      for (int i = 0; i < tnum; ++i) {
-        ui64 d;
-        d = *vlcp->data--;  // read one byte and move read pointer
-        //check if the last byte was >0x8F (unstuff == true) and this is 0x7F
-        ui32 d_bits = 8 - ((vlcp->unstuff && ((d & 0x7F) == 0x7F)) ? 1 : 0);
-        vlcp->tmp |= d << vlcp->bits; // move data to vlcp->tmp
-        vlcp->bits += d_bits;
-        vlcp->unstuff = d > 0x8F; // for next byte
-      }
-      vlcp->size -= tnum;
-      rev_read(vlcp);  // read another 32 buts
-    }
-
-    //************************************************************************/
-    /** @brief Retrieves 32 bits from the head of a rev_struct structure
-     *
-     *  By the end of this call, vlcp->tmp must have no less than 33 bits
-     *
-     *  @param [in]  vlcp is a pointer to rev_struct structure
-     */
-    static inline
-    ui32 rev_fetch(rev_struct *vlcp)
-    {
-      if (vlcp->bits < 32)  // if there are less then 32 bits, read more
-      {
-        rev_read(vlcp);     // read 32 bits, but unstuffing might reduce this
-        if (vlcp->bits < 32)// if there is still space in vlcp->tmp for 32 bits
-          rev_read(vlcp);   // read another 32
-      }
-      return (ui32)vlcp->tmp; // return the head (bottom-most) of vlcp->tmp
-    }
-
-    //************************************************************************/
-    /** @brief Consumes num_bits from a rev_struct structure
-     *
-     *  @param [in]  vlcp is a pointer to rev_struct structure
-     *  @param [in]  num_bits is the number of bits to be removed
-     */
-    static inline
-    ui32 rev_advance(rev_struct *vlcp, ui32 num_bits)
-    {
-      assert(num_bits <= vlcp->bits); // vlcp->tmp must have more than num_bits
-      vlcp->tmp >>= num_bits;         // remove bits
-      vlcp->bits -= num_bits;         // decrement the number of bits
-      return (ui32)vlcp->tmp;
-    }
-
-    //************************************************************************/
-    /** @brief Reads and unstuffs from rev_struct
-     *
-     *  This is different than rev_read in that this fills in zeros when the
-     *  the available data is consumed.  The other does not care about the
-     *  values when all data is consumed.
-     *
-     *  See rev_read for more information about unstuffing
-     *
-     *  @param [in]  mrp is a pointer to rev_struct structure
-     */
-    static inline
-    void rev_read_mrp(rev_struct *mrp)
-    {
-      //process 4 bytes at a time
-      if (mrp->bits > 32)
-        return;
-      ui32 val = 0;
-      if (mrp->size > 3) // If there are 3 byte or more
-      { // (mrp->data - 3) move pointer back to read 32 bits at once
-        val = *(ui32*)(mrp->data - 3); // read 32 bits
-        mrp->data -= 4;                // move back pointer
-        mrp->size -= 4;                // reduce count
-      }
-      else if (mrp->size > 0)
-      {
-        int i = 24;
-        while (mrp->size > 0) {
-          ui32 v = *mrp->data--; // read one byte at a time
-          val |= (v << i);       // put byte in its correct location
-          --mrp->size;
-          i -= 8;
-        }
-      }
-
-      //accumulate in tmp, and keep count in bits
-      ui32 bits, tmp = val >> 24;
-
-      //test if the last byte > 0x8F (unstuff must be true) and this is 0x7F
-      bits = 8 - ((mrp->unstuff && (((val >> 24) & 0x7F) == 0x7F)) ? 1 : 0);
-      bool unstuff = (val >> 24) > 0x8F;
-
-      //process the next byte
-      tmp |= ((val >> 16) & 0xFF) << bits;
-      bits += 8 - ((unstuff && (((val >> 16) & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = ((val >> 16) & 0xFF) > 0x8F;
-
-      tmp |= ((val >> 8) & 0xFF) << bits;
-      bits += 8 - ((unstuff && (((val >> 8) & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = ((val >> 8) & 0xFF) > 0x8F;
-
-      tmp |= (val & 0xFF) << bits;
-      bits += 8 - ((unstuff && ((val & 0x7F) == 0x7F)) ? 1 : 0);
-      unstuff = (val & 0xFF) > 0x8F;
-
-      mrp->tmp |= (ui64)tmp << mrp->bits; // move data to mrp pointer
-      mrp->bits += bits;
-      mrp->unstuff = unstuff;             // next byte
-    }
-
-    //************************************************************************/
-    /** @brief Initialized rev_struct structure for MRP segment, and reads
-     *         a number of bytes such that the next 32 bits read are from
-     *         an address that is a multiple of 4. Note this is designed for
-     *         an architecture that read size must be compatible with the
-     *         alignment of the read address
-     *
-     *  There is another similar subroutine rev_init.  This subroutine does
-     *  NOT skip the first 12 bits, and starts with unstuff set to true.
-     *
-     *  @param [in]  mrp is a pointer to rev_struct structure
-     *  @param [in]  data is a pointer to byte at the start of the cleanup pass
-     *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
-     *  @param [in]  len2 is the length of SPP+MRP segments
-     */
-    static inline
-    void rev_init_mrp(rev_struct *mrp, ui8* data, int lcup, int len2)
-    {
-      mrp->data = data + lcup + len2 - 1;
-      mrp->size = len2;
-      mrp->unstuff = true;
-      mrp->bits = 0;
-      mrp->tmp = 0;
-
-      //This code is designed for an architecture that read address should
-      // align to the read size (address multiple of 4 if read size is 4)
-      //These few lines take care of the case where data is not at a multiple
-      // of 4 boundary.  It reads 1,2,3 up to 4 bytes from the MRP stream
-      int num = 1 + (int)(intptr_t(mrp->data) & 0x3);
-      for (int i = 0; i < num; ++i) {
-        ui64 d;
-        //read a byte, 0 if no more data
-        d = (mrp->size-- > 0) ? *mrp->data-- : 0;
-        //check if unstuffing is needed
-        ui32 d_bits = 8 - ((mrp->unstuff && ((d & 0x7F) == 0x7F)) ? 1 : 0);
-        mrp->tmp |= d << mrp->bits; // move data to vlcp->tmp
-        mrp->bits += d_bits;
-        mrp->unstuff = d > 0x8F; // for next byte
-      }
-      rev_read_mrp(mrp);
-    }
-
-    //************************************************************************/
-    /** @brief Retrieves 32 bits from the head of a rev_struct structure
-     *
-     *  By the end of this call, mrp->tmp must have no less than 33 bits
-     *
-     *  @param [in]  mrp is a pointer to rev_struct structure
-     */
-    static inline
-    ui32 rev_fetch_mrp(rev_struct *mrp)
-    {
-      if (mrp->bits < 32) // if there are less than 32 bits in mrp->tmp
-      {
-        rev_read_mrp(mrp);    // read 30-32 bits from mrp
-        if (mrp->bits < 32)   // if there is a space of 32 bits
-          rev_read_mrp(mrp);  // read more
-      }
-      return (ui32)mrp->tmp;  // return the head of mrp->tmp
-    }
-
-    //************************************************************************/
-    /** @brief Consumes num_bits from a rev_struct structure
-     *
-     *  @param [in]  mrp is a pointer to rev_struct structure
-     *  @param [in]  num_bits is the number of bits to be removed
-     */
-    inline ui32 rev_advance_mrp(rev_struct *mrp, ui32 num_bits)
-    {
-      assert(num_bits <= mrp->bits); // we must not consume more than mrp->bits
-      mrp->tmp >>= num_bits;  // discard the lowest num_bits bits
-      mrp->bits -= num_bits;
-      return (ui32)mrp->tmp;  // return data after consumption
-    }
 
     //************************************************************************/
     /** @brief De-stuffs a forward-growing bitstream into a flat buffer
@@ -713,6 +405,203 @@ namespace ojph {
       ui64 v;
       memcpy(&v, dbuf + off, 8);
       return v >> (pos & 7);
+    }
+
+    //************************************************************************/
+    /** @brief Branchless refill of a register-resident bit window
+     *
+     *  Loads 8 bytes from a destuffed buffer and inserts whole bytes
+     *  above the bits remaining in the window, leaving 56 to 63 valid
+     *  bits.  Because the inserted bits land above the remaining ones,
+     *  consumers of the low bits need not wait for the load, keeping it
+     *  off the critical dependency chain.  The pointer advances by at
+     *  most 8 bytes per call, and in total by no more than the consumed
+     *  bit count divided by 8, plus 8.
+     *
+     *  @param [in,out]  val is the bit window; its low bits are valid
+     *  @param [in,out]  bits is the number of valid bits in val
+     *  @param [in,out]  ptr is the read position in the destuffed buffer
+     */
+    OJPH_FORCE_INLINE
+    void drefill(ui64& val, ui32& bits, const ui8*& ptr)
+    {
+      ui64 v;
+      memcpy(&v, ptr, 8);
+      val |= v << bits;
+      ptr += (63 - bits) >> 3;
+      bits |= 56;
+    }
+
+    //************************************************************************/
+    /** @brief Consumes bits from a window refilled by drefill
+     *
+     *  @param [in,out]  val is the bit window
+     *  @param [in,out]  bits is the number of valid bits in val
+     *  @param [in]      num_bits is the number of bits to consume
+     */
+    OJPH_FORCE_INLINE
+    void dconsume(ui64& val, ui32& bits, ui32 num_bits)
+    {
+      val >>= num_bits;
+      bits -= num_bits;
+    }
+
+    //************************************************************************/
+    /** @brief De-stuffs a backward-growing bitstream into a flat buffer
+     *
+     *  This replicates the bit production of the rev_struct bitstream
+     *  reader used by the other block decoders, for both its VLC and MRP
+     *  variants: reading backward from p, a byte contributes only 7 bits
+     *  (its MSB -- guaranteed 0 by the encoder -- is OR'ed with the
+     *  following bit) when the byte after it in memory is greater than
+     *  0x8F and its own low 7 bits are all 1s.  Bits beyond the end of
+     *  the data read as 0s, matching both readers.  The first byte is
+     *  processed with the caller-provided unstuff state; after that the
+     *  state always equals (p[1] > 0x8F), so the fast path can detect
+     *  stuffing with a pairwise byte comparison within the segment.
+     *
+     *  Writes at most cap + 1 destuffed bytes followed by 64 bytes of
+     *  zero padding; dst must have room for cap + 65 bytes.  cap must be
+     *  no smaller than the maximum number of bits the decoder can consume
+     *  divided by 8, so clipping the data at cap loses no decodable bits.
+     *
+     *  @param [in]  p is a pointer to the last byte of the segment, where
+     *               backward reading starts
+     *  @param [in]  size is the number of bytes in the segment
+     *  @param [in]  unstuff is the initial unstuffing state
+     *  @param [in]  acc holds bits produced by initialization, low nb bits
+     *  @param [in]  nb is the number of valid bits in acc; less than 8
+     *  @param [in]  dst is the output buffer, of at least cap + 65 bytes
+     *  @param [in]  cap is the maximum number of destuffed bytes to write
+     *  @return ui32 clamp offset for dfetch/dfetch64; bytes at or beyond
+     *               this offset hold no stream bits (they read as 0s)
+     */
+    static inline
+    ui32 destuff_rev(const ui8* p, int size, bool unstuff,
+                     ui64 acc, ui32 nb, ui8* dst, ui32 cap)
+    {
+      ui8* o = dst;
+      ui8* o_end = dst + cap;
+
+      // process the first byte with the caller-provided unstuff state;
+      // afterwards the state is implied by the byte at p[1], which the
+      // fast path checks vectorially (and which stays inside the segment)
+      if (size > 0 && o < o_end)
+      {
+        ui32 d = *p--;
+        --size;
+        acc |= (ui64)d << nb;
+        nb += 8 - ((unstuff && ((d & 0x7F) == 0x7F)) ? 1u : 0u);
+        unstuff = d > 0x8F;
+        if (nb >= 8) { *o++ = (ui8)acc; acc >>= 8; nb -= 8; }
+      }
+
+      // fast path; 16 source bytes at a time when none needs unstuffing
+      while (size >= 16 && o + 24 <= o_end)
+      {
+        __m128i v = _mm_loadu_si128((const __m128i*)(p - 15));
+        __m128i nx = _mm_loadu_si128((const __m128i*)(p - 14));
+        __m128i is7f = _mm_cmpeq_epi8(
+            _mm_and_si128(v, _mm_set1_epi8(0x7F)), _mm_set1_epi8(0x7F));
+        // le8f is 0xFF where the byte after (in memory) is <= 0x8F
+        __m128i le8f = _mm_cmpeq_epi8(
+            _mm_subs_epu8(nx, _mm_set1_epi8((char)0x8F)),
+            _mm_setzero_si128());
+        __m128i stuff = _mm_andnot_si128(le8f, is7f);
+        if (!_mm_testz_si128(stuff, stuff))
+        { // process these 16 bytes one at a time
+          for (int i = 0; i < 16; ++i) {
+            ui32 d = *p--;
+            acc |= (ui64)d << nb;
+            nb += 8 - ((unstuff && ((d & 0x7F) == 0x7F)) ? 1u : 0u);
+            unstuff = d > 0x8F;
+            if (nb >= 8) { *o++ = (ui8)acc; acc >>= 8; nb -= 8; }
+          }
+          size -= 16;
+          continue;
+        }
+        __m128i r = _mm_shuffle_epi8(v,
+            _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7,
+                         8, 9, 10, 11, 12, 13, 14, 15)); // reverse bytes
+        ui64 v0 = (ui64)_mm_cvtsi128_si64(r);
+        ui64 v1 = (ui64)_mm_extract_epi64(r, 1);
+        ui64 w0 = acc | (v0 << nb);
+        ui64 w1 = (v1 << nb) | (nb ? (v0 >> (64 - nb)) : 0);
+        memcpy(o, &w0, 8);
+        memcpy(o + 8, &w1, 8);
+        acc = nb ? (v1 >> (64 - nb)) : 0;
+        o += 16;
+        p -= 16;
+        size -= 16;
+        unstuff = p[1] > 0x8F;
+      }
+      // tail; one byte at a time
+      while (size > 0 && o < o_end)
+      {
+        ui32 d = *p--;
+        --size;
+        acc |= (ui64)d << nb;
+        nb += 8 - ((unstuff && ((d & 0x7F) == 0x7F)) ? 1u : 0u);
+        unstuff = d > 0x8F;
+        if (nb >= 8) { *o++ = (ui8)acc; acc >>= 8; nb -= 8; }
+      }
+      // the bits above nb are already 0 = fill; pad with zero bytes
+      *o = (ui8)acc;
+      __m256i z = _mm256_setzero_si256();
+      _mm256_storeu_si256((__m256i*)(o + 1), z);
+      _mm256_storeu_si256((__m256i*)(o + 33), z);
+      return (ui32)(o - dst) + 1;
+    }
+
+    //************************************************************************/
+    /** @brief De-stuffs the VLC segment into a flat buffer
+     *
+     *  Performs the same initialization rev_init does -- the first byte
+     *  contributes only its upper 4 bits (3 bits if its lower 3 bits are
+     *  all 1s) -- then de-stuffs the remaining scup - 2 bytes backward;
+     *  see destuff_rev.
+     *
+     *  @param [in]  data is a pointer to byte at the start of the cleanup
+     *               pass
+     *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
+     *  @param [in]  scup is the length of MEL+VLC segments
+     *  @param [in]  dst is the output buffer, of at least cap + 65 bytes
+     *  @param [in]  cap is the maximum number of destuffed bytes to write
+     *  @return ui32 clamp offset for dfetch64
+     */
+    static inline
+    ui32 destuff_vlc(const ui8* data, int lcup, int scup,
+                     ui8* dst, ui32 cap)
+    {
+      const ui8* p = data + lcup - 2;
+      ui32 d = *p; // first byte, only the upper 4 bits are used
+      ui64 acc = d >> 4;
+      ui32 nb = 4 - ((acc & 7) == 7); // check standard
+      bool unstuff = (d | 0xF) > 0x8F;
+      return destuff_rev(p - 1, scup - 2, unstuff, acc, nb, dst, cap);
+    }
+
+    //************************************************************************/
+    /** @brief De-stuffs the MRP segment into a flat buffer
+     *
+     *  Performs the same initialization rev_init_mrp does -- reading
+     *  starts at the last byte of the SPP+MRP segments with the unstuff
+     *  state set -- then de-stuffs backward; see destuff_rev.
+     *
+     *  @param [in]  data is a pointer to byte at the start of the cleanup
+     *               pass
+     *  @param [in]  lcup is the length of MagSgn+MEL+VLC segments
+     *  @param [in]  len2 is the length of SPP+MRP segments
+     *  @param [in]  dst is the output buffer, of at least cap + 65 bytes
+     *  @param [in]  cap is the maximum number of destuffed bytes to write
+     *  @return ui32 clamp offset for dfetch64
+     */
+    static inline
+    ui32 destuff_mrp(const ui8* data, int lcup, int len2,
+                     ui8* dst, ui32 cap)
+    {
+      return destuff_rev(data + lcup + len2 - 1, len2, true, 0, 0,
+                         dst, cap);
     }
 
     //************************************************************************/
@@ -1562,8 +1451,13 @@ namespace ojph {
         // We perform Magnitude Refinement Pass here
         if (num_passes > 2)
         {
-          rev_struct magref;
-          rev_init_mrp(&magref, coded_data, (int)lengths1, (int)lengths2);
+          // de-stuff the MRP segment; consumption is at most 1 bit per
+          // sample = 512 bytes, so 1024 bytes always suffice
+          const ui32 mrp_cap = 1024;
+          ui8 mrp_buf[mrp_cap + 72];
+          ui32 mrp_limit = destuff_mrp(coded_data, (int)lengths1,
+                                       (int)lengths2, mrp_buf, mrp_cap);
+          ui32 mrp_pos = 0;
 
           for (ui32 y = 0; y < height; y += 4)
           {
@@ -1573,7 +1467,7 @@ namespace ojph {
             {
               //Process one entry from sigma array at a time
               // Each nibble (4 bits) in the sigma array represents 4 rows,
-              ui32 cwd = rev_fetch_mrp(&magref); // get 32 bit data
+              ui64 cwd = dfetch64(mrp_buf, mrp_limit, mrp_pos);
               ui16 sig = *cur_sig++; // 16 bit that will be processed now
               int total_bits = 0;
               if (sig) // if any of the 32 bits are set
@@ -1644,7 +1538,7 @@ namespace ojph {
                 }
               }
               // consume data according to the number of bits set
-              rev_advance_mrp(&magref, (ui32)total_bits);
+              mrp_pos += (ui32)total_bits;
             }
           }
         }
@@ -1663,14 +1557,21 @@ namespace ojph {
         // init structures
         dec_mel_st mel;
         mel_init(&mel, coded_data, lcup, scup);
-        rev_struct vlc;
-        rev_init(&vlc, coded_data, lcup, scup);
+
+        // de-stuff the VLC segment; its size is at most scup - 1 < 4095
+        // bytes (scup is a 12-bit value), and consumption per quad pair is
+        // at most 7 + 7 + 30 bits, so 4096 bytes always suffice
+        const ui32 vlc_cap = 4096;
+        ui8 vlc_buf[vlc_cap + 72];
+        destuff_vlc(coded_data, lcup, scup, vlc_buf, vlc_cap);
+        const ui8* vlc_ptr = vlc_buf;
+        ui32 vlc_bits = 0;
 
         int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
                                      // data represented as runs of 0 events
                                      // See mel_decode description
 
-        ui32 vlc_val;
+        ui64 vlc_val = 0;
         ui32 c_q = 0;
         ui16 *sp = scratch;
         //initial quad row
@@ -1680,7 +1581,7 @@ namespace ojph {
           /////////////
 
           // first quad
-          vlc_val = rev_fetch(&vlc);
+          drefill(vlc_val, vlc_bits, vlc_ptr);
 
           //decode VLC using the context c_q and the head of VLC bitstream
           ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
@@ -1710,7 +1611,7 @@ namespace ojph {
           c_q = ((t0 & 0x10U) << 3) | ((t0 & 0xE0U) << 2);
 
           //remove data from vlc stream (0 bits are removed if vlc is not used)
-          vlc_val = rev_advance(&vlc, t0 & 0x7);
+          dconsume(vlc_val, vlc_bits, t0 & 0x7u);
 
           //second quad
           ui16 t1 = 0;
@@ -1741,7 +1642,7 @@ namespace ojph {
           c_q = ((t1 & 0x10U) << 3) | ((t1 & 0xE0U) << 2);
 
           //remove data from vlc stream, if qinf is not used, cwdlen is 0
-          vlc_val = rev_advance(&vlc, t1 & 0x7);
+          dconsume(vlc_val, vlc_bits, t1 & 0x7u);
 
           // decode u
           /////////////
@@ -1765,13 +1666,12 @@ namespace ojph {
           //decode uvlc_mode to get u for both quads
           ui32 uvlc_entry = uvlc_tbl0[uvlc_mode + (vlc_val & 0x3F)];
           //remove total prefix length
-          vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+          dconsume(vlc_val, vlc_bits, uvlc_entry & 0x7u);
           uvlc_entry >>= 3;
           //extract suffixes for quad 0 and 1
           ui32 len = uvlc_entry & 0xF;           //suffix length for 2 quads
-          ui32 tmp = vlc_val & ((1 << len) - 1); //suffix value for 2 quads
-          vlc_val = rev_advance(&vlc, len);
-          ojph_unused(vlc_val); //static code analysis: unused value
+          ui32 tmp = (ui32)vlc_val & ((1u << len) - 1); //suffix value, 2 quads
+          dconsume(vlc_val, vlc_bits, len);
           uvlc_entry >>= 4;
           // quad 0 length
           len = uvlc_entry & 0x7; // quad 0 suffix length
@@ -1799,7 +1699,7 @@ namespace ojph {
             c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
 
             // first quad
-            vlc_val = rev_fetch(&vlc);
+            drefill(vlc_val, vlc_bits, vlc_ptr);
 
             //decode VLC using the context c_q and the head of VLC bitstream
             ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];
@@ -1835,7 +1735,7 @@ namespace ojph {
             c_q |= ((sp[4 - (si32)sstr] & 0x20U) << 4);
 
             //remove data from vlc stream (0 bits are removed if vlc is unused)
-            vlc_val = rev_advance(&vlc, t0 & 0x7);
+            dconsume(vlc_val, vlc_bits, t0 & 0x7u);
 
             //second quad
             ui16 t1 = 0;
@@ -1869,7 +1769,7 @@ namespace ojph {
             c_q |= sp[2 - (si32)sstr] & 0x80;
 
             //remove data from vlc stream, if qinf is not used, cwdlen is 0
-            vlc_val = rev_advance(&vlc, t1 & 0x7);
+            dconsume(vlc_val, vlc_bits, t1 & 0x7u);
 
             // decode u using wide UVLC table
             /////////////
@@ -1880,17 +1780,15 @@ namespace ojph {
             if (total_bits < 0x1F) {
               sp[1] = (ui16)((uvlc_entry >> 5) & 0xFF);
               sp[3] = (ui16)((uvlc_entry >> 13) & 0xFF);
-              vlc_val = rev_advance(&vlc, total_bits);
-              ojph_unused(vlc_val);
+              dconsume(vlc_val, vlc_bits, total_bits);
             } else {
               uvlc_mode = ((t0 & 0x8U) << 3) | ((t1 & 0x8U) << 4);
               uvlc_entry = uvlc_tbl1[uvlc_mode + (vlc_val & 0x3F)];
-              vlc_val = rev_advance(&vlc, uvlc_entry & 0x7);
+              dconsume(vlc_val, vlc_bits, uvlc_entry & 0x7u);
               uvlc_entry >>= 3;
               ui32 len = uvlc_entry & 0xF;
-              ui32 tmp = vlc_val & ((1 << len) - 1);
-              vlc_val = rev_advance(&vlc, len);
-              ojph_unused(vlc_val);
+              ui32 tmp = (ui32)vlc_val & ((1u << len) - 1);
+              dconsume(vlc_val, vlc_bits, len);
               uvlc_entry >>= 4;
               len = uvlc_entry & 0x7;
               uvlc_entry >>= 3;

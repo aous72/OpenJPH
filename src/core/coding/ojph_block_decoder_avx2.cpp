@@ -582,187 +582,137 @@ namespace ojph {
     }
 
     //************************************************************************/
-    /** @brief State structure for reading and unstuffing of forward-growing
-     *         bitstreams; these are: MagSgn and SPP bitstreams
-     */
-    struct frwd_struct_avx2 {
-      const ui8* data;  //!<pointer to bitstream
-      ui8 tmp[48];      //!<temporary buffer of read data + 16 extra
-      ui32 bits;        //!<number of bits stored in tmp
-      ui32 unstuff;     //!<1 if a bit needs to be unstuffed from next byte
-      int size;         //!<size of data
-    };
-
-    //************************************************************************/
-    /** @brief Read and unstuffs 16 bytes from forward-growing bitstream
+    /** @brief De-stuffs a forward-growing bitstream into a flat buffer
      *
-     *  A template is used to accommodate a different requirement for
-     *  MagSgn and SPP bitstreams; in particular, when MagSgn bitstream is
-     *  consumed, 0xFF's are fed, while when SPP is exhausted 0's are fed in.
-     *  X controls this value.
+     *  This replicates, in one pass, the bit production of the frwd_struct
+     *  bitstream reader used by the other block decoders: a byte following
+     *  a 0xFF byte contributes only 7 bits (its MSB -- guaranteed 0 by the
+     *  encoder -- is OR'ed with the following bit), and bits beyond the
+     *  end of the data
+     *  read as X (1s for MagSgn, 0s for SPP).  With the stream flattened,
+     *  bits for any quad can be fetched at an absolute bit position (see
+     *  dfetch), removing the serial fetch/advance state from the decode
+     *  loops.
      *
-     *  Unstuffing prevent sequences that are more than 0xFF7F from appearing
-     *  in the compressed sequence.  So whenever a value of 0xFF is coded, the
-     *  MSB of the next byte is set 0 and must be ignored during decoding.
+     *  Writes at most cap + 1 destuffed bytes followed by 64 bytes of
+     *  padding; dst must have room for cap + 65 bytes.  cap must be
+     *  no smaller than the maximum number of bits the decoder can consume
+     *  divided by 8, so clipping the data at cap loses no decodable bits.
      *
-     *  Reading can go beyond the end of buffer by up to 16 bytes.
-     *
-     *  @tparam       X is the value fed in when the bitstream is exhausted
-     *  @param  [in]  msp is a pointer to frwd_struct_avx2 structure
-     *
+     *  @tparam      X is the value fed in when the bitstream is exhausted
+     *  @param [in]  src is a pointer to the start of the bitstream data
+     *  @param [in]  size is the number of bytes in the bitstream data
+     *  @param [in]  dst is the output buffer, of at least cap + 65 bytes
+     *  @param [in]  cap is the maximum number of destuffed bytes to write
+     *  @return ui32 clamp offset for dfetch; bytes at or beyond this
+     *               offset hold no stream bits (they read as X)
      */
     template<int X>
     static inline
-    void frwd_read(frwd_struct_avx2 *msp)
+    ui32 destuff_frwd(const ui8* src, int size, ui8* dst, ui32 cap)
     {
-      assert(msp->bits <= 128);
+      if (size < 0)
+        size = 0;
+      ui8* o = dst;
+      ui8* o_end = dst + cap;
+      const ui8* s = src;
+      const ui8* s_end = src + size;
+      ui64 acc = 0;       // partial output byte, low nb bits are valid
+      ui32 nb = 0;        // number of valid bits in acc; always < 8
+      bool prev_ff = false;
 
-      __m128i offset, val, validity, all_xff;
-      val = _mm_loadu_si128((__m128i*)msp->data);
-      int bytes = msp->size >= 16 ? 16 : msp->size;
-      validity = _mm_set1_epi8((char)bytes);
-      msp->data += bytes;
-      msp->size -= bytes;
-      int bits = 128;
-      offset = _mm_set_epi64x(0x0F0E0D0C0B0A0908,0x0706050403020100);
-      validity = _mm_cmpgt_epi8(validity, offset);
-      all_xff = _mm_set1_epi8(-1);
-      if (X == 0xFF) // the compiler should remove this if statement
+      // fast path; 16 source bytes at a time when they contain no 0xFF
+      while (s + 16 <= s_end && o + 24 <= o_end)
       {
-        __m128i t = _mm_xor_si128(validity, all_xff); // complement
-        val = _mm_or_si128(t, val); // fill with 0xFF
+        __m128i v = _mm_loadu_si128((const __m128i*)s);
+        int ff = _mm_movemask_epi8(_mm_cmpeq_epi8(v, _mm_set1_epi8(-1)));
+        if (ff != 0 || prev_ff)
+        { // process these 16 bytes one at a time
+          for (int i = 0; i < 16; ++i) {
+            ui8 b = *s++;
+            acc |= (ui64)b << nb;
+            nb += prev_ff ? 7u : 8u;
+            prev_ff = (b == 0xFFu);
+            if (nb >= 8) { *o++ = (ui8)acc; acc >>= 8; nb -= 8; }
+          }
+          continue;
+        }
+        ui64 v0, v1;
+        memcpy(&v0, s, 8);
+        memcpy(&v1, s + 8, 8);
+        ui64 w0 = acc | (v0 << nb);
+        ui64 w1 = (v1 << nb) | (nb ? (v0 >> (64 - nb)) : 0);
+        memcpy(o, &w0, 8);
+        memcpy(o + 8, &w1, 8);
+        acc = nb ? (v1 >> (64 - nb)) : 0;
+        o += 16;
+        s += 16;
       }
-      else if (X == 0)
-        val = _mm_and_si128(validity, val); // fill with zeros
-      else
-        assert(0);
-
-      __m128i ff_bytes;
-      ff_bytes = _mm_cmpeq_epi8(val, all_xff);
-      ff_bytes = _mm_and_si128(ff_bytes, validity);
-      ui32 flags = (ui32)_mm_movemask_epi8(ff_bytes);
-      flags <<= 1; // unstuff following byte
-      ui32 next_unstuff = flags >> 16;
-      flags |= msp->unstuff;
-      flags &= 0xFFFF;
-      while (flags)
-      { // bit unstuffing occurs on average once every 256 bytes
-        // therefore it is not an issue if it is a bit slow
-        // here we process 16 bytes
-        --bits; // consuming one stuffing bit
-
-        ui32 loc = 31 - count_leading_zeros(flags);
-        flags ^= 1 << loc;
-
-        __m128i m, t, c;
-        t = _mm_set1_epi8((char)loc);
-        m = _mm_cmpgt_epi8(offset, t);
-
-        t = _mm_and_si128(m, val);  // keep bits at locations larger than loc
-        c = _mm_srli_epi64(t, 1);   // 1 bits left
-        t = _mm_srli_si128(t, 8);   // 8 bytes left
-        t = _mm_slli_epi64(t, 63);  // keep the MSB only
-        t = _mm_or_si128(t, c);     // combine the above 3 steps
-
-        val = _mm_or_si128(t, _mm_andnot_si128(m, val));
-      }
-
-      // combine with earlier data
-      assert(msp->bits >= 0 && msp->bits <= 128);
-      int cur_bytes = msp->bits >> 3;
-      int cur_bits = msp->bits & 7;
-      __m128i b1, b2;
-      b1 = _mm_sll_epi64(val, _mm_set1_epi64x(cur_bits));
-      b2 = _mm_slli_si128(val, 8);  // 8 bytes right
-      b2 = _mm_srl_epi64(b2, _mm_set1_epi64x(64-cur_bits));
-      b1 = _mm_or_si128(b1, b2);
-      b2 = _mm_loadu_si128((__m128i*)(msp->tmp + cur_bytes));
-      b2 = _mm_or_si128(b1, b2);
-      _mm_storeu_si128((__m128i*)(msp->tmp + cur_bytes), b2);
-
-      int consumed_bits = bits < 128 - cur_bits ? bits : 128 - cur_bits;
-      cur_bytes = (msp->bits + (ui32)consumed_bits + 7) >> 3; // round up
-      int upper = _mm_extract_epi16(val, 7);
-      upper >>= consumed_bits - 128 + 16;
-      msp->tmp[cur_bytes] = (ui8)upper; // copy byte
-
-      msp->bits += (ui32)bits;
-      msp->unstuff = next_unstuff;   // next unstuff
-      assert(msp->unstuff == 0 || msp->unstuff == 1);
-    }
-
-    //************************************************************************/
-    /** @brief Initialize frwd_struct_avx2 struct and reads some bytes
-     *
-     *  @tparam      X is the value fed in when the bitstream is exhausted.
-     *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct_avx2
-     *  @param [in]  data is a pointer to the start of data
-     *  @param [in]  size is the number of byte in the bitstream
-     */
-    template<int X>
-    static inline
-    void frwd_init(frwd_struct_avx2 *msp, const ui8* data, int size)
-    {
-      msp->data = data;
-      _mm_storeu_si128((__m128i *)msp->tmp, _mm_setzero_si128());
-      _mm_storeu_si128((__m128i *)msp->tmp + 1, _mm_setzero_si128());
-      _mm_storeu_si128((__m128i *)msp->tmp + 2, _mm_setzero_si128());
-
-      msp->bits = 0;
-      msp->unstuff = 0;
-      msp->size = size;
-
-      frwd_read<X>(msp); // read 128 bits more
-    }
-
-    //************************************************************************/
-    /** @brief Consume num_bits bits from the bitstream of frwd_struct_avx2
-     *
-     *  @param [in]  msp is a pointer to frwd_struct_avx2
-     *  @param [in]  num_bits is the number of bit to consume
-     */
-    static inline
-    void frwd_advance(frwd_struct_avx2 *msp, ui32 num_bits)
-    {
-      assert(num_bits > 0 && num_bits <= msp->bits && num_bits < 128);
-      msp->bits -= num_bits;
-
-      __m256i *p = (__m256i*)(msp->tmp + ((num_bits >> 3) & 0x18));
-      num_bits &= 63;
-
-      __m256i v = _mm256_loadu_si256(p);
-      __m256i shifted = _mm256_srlv_epi64(v, _mm256_set1_epi64x(num_bits));
-
-      __m256i carry_src = _mm256_permute4x64_epi64(v, 0x39);
-      carry_src = _mm256_blend_epi32(carry_src,
-                                      _mm256_setzero_si256(), 0xC0);
-      __m256i carry = _mm256_sllv_epi64(carry_src,
-                                         _mm256_set1_epi64x(64 - num_bits));
-
-      _mm256_storeu_si256((__m256i*)msp->tmp,
-                          _mm256_or_si256(shifted, carry));
-    }
-
-    //************************************************************************/
-    /** @brief Fetches 32 bits from the frwd_struct_avx2 bitstream
-     *
-     *  @tparam      X is the value fed in when the bitstream is exhausted.
-     *               See frwd_read regarding the template
-     *  @param [in]  msp is a pointer to frwd_struct_avx2
-     */
-    template<int X>
-    static inline
-    __m128i frwd_fetch(frwd_struct_avx2 *msp)
-    {
-      if (msp->bits <= 128)
+      // tail; one byte at a time
+      while (s < s_end && o < o_end)
       {
-        frwd_read<X>(msp);
-        if (msp->bits <= 128) //need to test
-          frwd_read<X>(msp);
+        ui8 b = *s++;
+        acc |= (ui64)b << nb;
+        nb += prev_ff ? 7u : 8u;
+        prev_ff = (b == 0xFFu);
+        if (nb >= 8) { *o++ = (ui8)acc; acc >>= 8; nb -= 8; }
       }
-      __m128i t = _mm_loadu_si128((__m128i*)msp->tmp);
-      return t;
+      // fill the bits above nb with X, and pad with X bytes
+      ui32 fill = (X == 0xFF) ? (0xFFu << nb) : 0;
+      *o = (ui8)((ui32)acc | fill);
+      __m256i pad = _mm256_set1_epi8((char)X);
+      _mm256_storeu_si256((__m256i*)(o + 1), pad);
+      _mm256_storeu_si256((__m256i*)(o + 33), pad);
+      return (ui32)(o - dst) + 1;
+    }
+
+    //************************************************************************/
+    /** @brief Fetches 128 bits from a destuffed MagSgn buffer
+     *
+     *  Returns the 128 bits starting at bit position pos of the buffer
+     *  produced by destuff_frwd.  Unlike a stateful bitstream reader,
+     *  this carries no
+     *  serial state; fetches at independent positions can execute out of
+     *  order.  The byte offset is clamped to limit so that positions past
+     *  the end of the stream read as 1s without leaving the buffer.
+     *
+     *  @param [in]  dbuf is the destuffed MagSgn buffer
+     *  @param [in]  limit is the clamp offset returned by destuff_frwd
+     *  @param [in]  pos is the absolute bit position to fetch from
+     */
+    OJPH_FORCE_INLINE
+    __m128i dfetch(const ui8* dbuf, ui32 limit, ui32 pos)
+    {
+      ui32 off = pos >> 3;
+      off = off < limit ? off : limit;
+      const ui8* p = dbuf + off;
+      __m128i v = _mm_loadu_si128((const __m128i*)p);
+      __m128i w = _mm_loadu_si128((const __m128i*)(p + 8));
+      int k = (int)(pos & 7);
+      __m128i r = _mm_srl_epi64(v, _mm_cvtsi32_si128(k));
+      __m128i c = _mm_sll_epi64(w, _mm_cvtsi32_si128(64 - k));
+      return _mm_or_si128(r, c);
+    }
+
+    //************************************************************************/
+    /** @brief Fetches at least 57 bits from a destuffed bitstream
+     *
+     *  Scalar counterpart of dfetch; returns the bits starting at bit
+     *  position pos of a buffer produced by destuff_frwd, in the lower
+     *  bits of the result.  Bits above 64 - (pos & 7) are garbage.
+     *
+     *  @param [in]  dbuf is the destuffed bitstream buffer
+     *  @param [in]  limit is the clamp offset returned by destuff_frwd
+     *  @param [in]  pos is the absolute bit position to fetch from
+     */
+    OJPH_FORCE_INLINE
+    ui64 dfetch64(const ui8* dbuf, ui32 limit, ui32 pos)
+    {
+      ui32 off = pos >> 3;
+      off = off < limit ? off : limit;
+      ui64 v;
+      memcpy(&v, dbuf + off, 8);
+      return v >> (pos & 7);
     }
 
     //************************************************************************/
@@ -776,7 +726,9 @@ namespace ojph {
      *  @return __m256i decoded two quads
      */
     OJPH_FORCE_INLINE
-    __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
+    __m256i decode_two_quad32_avx2(__m256i inf_u_q, __m256i U_q,
+                                   const ui8* dbuf, ui32 limit, ui32& pos,
+                                   ui32 p, __m128i& vn) {
         __m256i row = _mm256_setzero_si256();
 
         // we keeps e_k, e_1, and rho in w2
@@ -802,36 +754,12 @@ namespace ojph {
             __m256i inc_sum = m_n; // inclusive scan
             inc_sum = _mm256_add_epi32(inc_sum, _mm256_bslli_epi128(inc_sum, 4));
             inc_sum = _mm256_add_epi32(inc_sum, _mm256_bslli_epi128(inc_sum, 8));
-            int total_mn1 = _mm256_extract_epi16(inc_sum, 6);
-            int total_mn2 = _mm256_extract_epi16(inc_sum, 14);
+            ui32 total_mn1 = (ui32)_mm256_extract_epi16(inc_sum, 6);
+            ui32 total_mn2 = (ui32)_mm256_extract_epi16(inc_sum, 14);
 
-            __m128i ms_vec0 = _mm_setzero_si128();
-            __m128i ms_vec1 = _mm_setzero_si128();
-            ui32 total_mn = (ui32)(total_mn1 + total_mn2);
-            if (total_mn1 > 0 && total_mn2 > 0
-                && total_mn1 < 64 && total_mn < 128)
-            {
-                __m128i ms_all = frwd_fetch<0xFF>(magsgn);
-                ms_vec0 = ms_all;
-                __m128i sh = _mm_set1_epi64x(total_mn1);
-                ms_vec1 = _mm_srl_epi64(ms_all, sh);
-                __m128i cross = _mm_srli_si128(ms_all, 8);
-                cross = _mm_sll_epi64(cross,
-                            _mm_set1_epi64x(64 - total_mn1));
-                ms_vec1 = _mm_or_si128(ms_vec1, cross);
-                frwd_advance(magsgn, total_mn);
-            }
-            else
-            {
-                if (total_mn1) {
-                    ms_vec0 = frwd_fetch<0xFF>(magsgn);
-                    frwd_advance(magsgn, (ui32)total_mn1);
-                }
-                if (total_mn2) {
-                    ms_vec1 = frwd_fetch<0xFF>(magsgn);
-                    frwd_advance(magsgn, (ui32)total_mn2);
-                }
-            }
+            __m128i ms_vec0 = dfetch(dbuf, limit, pos);
+            __m128i ms_vec1 = dfetch(dbuf, limit, pos + total_mn1);
+            pos += total_mn1 + total_mn2;
 
             __m256i ms_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ms_vec0), ms_vec1, 0x1);
 
@@ -908,7 +836,9 @@ namespace ojph {
      */
 
     OJPH_FORCE_INLINE
-    __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q, frwd_struct_avx2* magsgn, ui32 p, __m128i& vn) {
+    __m256i decode_four_quad16(const __m128i inf_u_q, __m128i U_q,
+                               const ui8* dbuf, ui32 limit, ui32& pos,
+                               ui32 p, __m128i& vn) {
 
         __m256i w0;     // workers
         __m256i insig;  // lanes hold FF's if samples are insignificant
@@ -949,37 +879,13 @@ namespace ojph {
             inc_sum = _mm256_add_epi16(inc_sum, _mm256_bslli_epi128(inc_sum, 2));
             inc_sum = _mm256_add_epi16(inc_sum, _mm256_bslli_epi128(inc_sum, 4));
             inc_sum = _mm256_add_epi16(inc_sum, _mm256_bslli_epi128(inc_sum, 8));
-            int total_mn1 = _mm256_extract_epi16(inc_sum, 7);
-            int total_mn2 = _mm256_extract_epi16(inc_sum, 15);
+            ui32 total_mn1 = (ui32)_mm256_extract_epi16(inc_sum, 7);
+            ui32 total_mn2 = (ui32)_mm256_extract_epi16(inc_sum, 15);
             __m256i ex_sum = _mm256_bslli_epi128(inc_sum, 2); // exclusive scan
 
-            __m128i ms_vec0 = _mm_setzero_si128();
-            __m128i ms_vec1 = _mm_setzero_si128();
-            ui32 total_mn = (ui32)(total_mn1 + total_mn2);
-            if (total_mn1 > 0 && total_mn2 > 0
-                && total_mn1 < 64 && total_mn < 128)
-            {
-                __m128i ms_all = frwd_fetch<0xFF>(magsgn);
-                ms_vec0 = ms_all;
-                __m128i sh = _mm_set1_epi64x(total_mn1);
-                ms_vec1 = _mm_srl_epi64(ms_all, sh);
-                __m128i cross = _mm_srli_si128(ms_all, 8);
-                cross = _mm_sll_epi64(cross,
-                            _mm_set1_epi64x(64 - total_mn1));
-                ms_vec1 = _mm_or_si128(ms_vec1, cross);
-                frwd_advance(magsgn, total_mn);
-            }
-            else
-            {
-                if (total_mn1) {
-                    ms_vec0 = frwd_fetch<0xFF>(magsgn);
-                    frwd_advance(magsgn, (ui32)total_mn1);
-                }
-                if (total_mn2) {
-                    ms_vec1 = frwd_fetch<0xFF>(magsgn);
-                    frwd_advance(magsgn, (ui32)total_mn2);
-                }
-            }
+            __m128i ms_vec0 = dfetch(dbuf, limit, pos);
+            __m128i ms_vec1 = dfetch(dbuf, limit, pos + total_mn1);
+            pos += total_mn1 + total_mn2;
 
             __m256i ms_vec = _mm256_inserti128_si256(_mm256_castsi128_si256(ms_vec0), ms_vec1, 0x1);
 
@@ -1008,29 +914,25 @@ namespace ojph {
             d0 = _mm256_or_si256(d0, d1);
 
             // find location of e_k and mask
-            __m256i shift, t0, t1, Uq0, Uq1;
+            __m256i shift;
             __m256i ones = _mm256_set1_epi16(1);
             __m256i twos = _mm256_set1_epi16(2);
-            __m256i U_q_m1 = _mm256_sub_epi32(U_q_avx, ones);
-            Uq0 = _mm256_and_si256(U_q_m1, _mm256_set_epi32(0, 0, 0, 0x1F, 0, 0, 0, 0x1F));
-            Uq1 = _mm256_bsrli_epi128(U_q_m1, 14);
+            // shift = (2 - e_k) << (U_q - 1); AVX2 has no _mm256_sllv_epi16,
+            // so the variable shift is emulated with a pshufb power-of-two
+            // lookup and a 16-bit multiply.  U_q - 1 <= 14 in this path;
+            // for U_q == 0 the lookup indices have their MSB set, so pshufb
+            // returns 0, the same shift value the former uniform 16-bit
+            // shift emulation produced (it shifted by 31)
+            __m256i kq = _mm256_sub_epi16(U_q_avx, ones);
+            __m256i idx = _mm256_or_si256(kq,
+                _mm256_slli_epi16(_mm256_sub_epi16(kq,
+                                            _mm256_set1_epi16(8)), 8));
+            const __m256i pow2_tbl = _mm256_setr_epi8(
+                1, 2, 4, 8, 16, 32, 64, (char)128, 0, 0, 0, 0, 0, 0, 0, 0,
+                1, 2, 4, 8, 16, 32, 64, (char)128, 0, 0, 0, 0, 0, 0, 0, 0);
+            __m256i pow2 = _mm256_shuffle_epi8(pow2_tbl, idx);
             w0 = _mm256_sub_epi16(twos, w0);
-            t0 = _mm256_and_si256(w0, _mm256_set_epi64x(0, -1, 0, -1));
-            t1 = _mm256_and_si256(w0, _mm256_set_epi64x(-1, 0, -1, 0));
-            {//no _mm256_sllv_epi16 in avx2
-                __m128i t_0_sse = _mm256_castsi256_si128(t0);
-                t_0_sse = _mm_sll_epi16(t_0_sse, _mm256_castsi256_si128(Uq0));
-                __m128i t_1_sse = _mm256_extracti128_si256(t0 , 0x1);
-                t_1_sse = _mm_sll_epi16(t_1_sse, _mm256_extracti128_si256(Uq0, 0x1));
-                t0 = _mm256_inserti128_si256(_mm256_castsi128_si256(t_0_sse), t_1_sse, 0x1);
-
-                t_0_sse = _mm256_castsi256_si128(t1);
-                t_0_sse = _mm_sll_epi16(t_0_sse, _mm256_castsi256_si128(Uq1));
-                t_1_sse = _mm256_extracti128_si256(t1, 0x1);
-                t_1_sse = _mm_sll_epi16(t_1_sse, _mm256_extracti128_si256(Uq1, 0x1));
-                t1 = _mm256_inserti128_si256(_mm256_castsi128_si256(t_0_sse), t_1_sse, 0x1);
-            }
-            shift = _mm256_or_si256(t0, t1);
+            shift = _mm256_mullo_epi16(w0, pow2);
             ms_vec = _mm256_and_si256(d0, _mm256_sub_epi16(shift, ones));
 
             // next e_1
@@ -1120,8 +1022,11 @@ namespace ojph {
         ui32 v_n_scratch_32[v_n_size];
 #endif
 
-        frwd_struct_avx2 magsgn;
-        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
+        // maximum consumable MagSgn bits: 4096 samples x (mmsbp2 < 16) bits
+        const ui32 dbuf_cap = 4096 * 15 / 8;
+        ui8 dbuf[dbuf_cap + 72];
+        ui32 limit = destuff_frwd<0xFF>(coded_data, lcup - scup, dbuf, dbuf_cap);
+        ui32 pos = 0;
 
         {
           ui16 *sp = scratch;
@@ -1139,7 +1044,7 @@ namespace ojph {
               }
 
               __m128i vn = _mm_set1_epi16(2);
-              __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
+              __m256i row = decode_four_quad16(inf_u_q, U_q, dbuf, limit, pos, p, vn);
 
               w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
               _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
@@ -1207,7 +1112,7 @@ namespace ojph {
               __m128i U_q = _mm_loadu_si128((__m128i*)vp_32);
 
             __m128i vn = _mm_set1_epi16(2);
-            __m256i row = decode_four_quad16(inf_u_q, U_q, &magsgn, p, vn);
+            __m256i row = decode_four_quad16(inf_u_q, U_q, dbuf, limit, pos, p, vn);
 
             __m128i w = _mm_cvtsi32_si128(*(unsigned short const*)(vp));
             _mm_storeu_si128((__m128i*)vp, _mm_or_si128(w, vn));
@@ -1244,8 +1149,11 @@ namespace ojph {
         memset(v_n_scratch + (width >> 1) + 2, 0, 14 * sizeof(ui32));
 #endif
 
-        frwd_struct_avx2 magsgn;
-        frwd_init<0xFF>(&magsgn, coded_data, lcup - scup);
+        // maximum consumable MagSgn bits: 4096 samples x (mmsbp2 <= 32) bits
+        const ui32 dbuf_cap = 4096 * 32 / 8;
+        ui8 dbuf[dbuf_cap + 72];
+        ui32 limit = destuff_frwd<0xFF>(coded_data, lcup - scup, dbuf, dbuf_cap);
+        ui32 pos = 0;
 
         const __m256i avx_mmsbp2 = _mm256_set1_epi32((int)mmsbp2);
 
@@ -1268,7 +1176,7 @@ namespace ojph {
                 return false;
             }
 
-            __m256i row = decode_two_quad32_avx2(inf_u_q, U_q, &magsgn, p, vn);
+            __m256i row = decode_two_quad32_avx2(inf_u_q, U_q, dbuf, limit, pos, p, vn);
             row = _mm256_permutevar8x32_epi32(row, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7));
             _mm_store_si128((__m128i*)dp, _mm256_castsi256_si128(row));
             _mm_store_si128((__m128i*)(dp + stride), _mm256_extracti128_si256(row, 0x1));
@@ -1334,7 +1242,7 @@ namespace ojph {
             __m256i U_q = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(vp + v_n_size)));
             U_q = _mm256_permutevar8x32_epi32(U_q, _mm256_setr_epi32(0, 0, 0, 0, 1, 1, 1, 1));
 
-            __m256i row = decode_two_quad32_avx2(inf_u_q, U_q,  &magsgn, p, vn);
+            __m256i row = decode_two_quad32_avx2(inf_u_q, U_q, dbuf, limit, pos, p, vn);
             row = _mm256_permutevar8x32_epi32(row, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7));
             _mm_store_si128((__m128i*)dp, _mm256_castsi256_si128(row));
             _mm_store_si128((__m128i*)(dp + stride), _mm256_extracti128_si256(row, 0x1));
@@ -1430,8 +1338,13 @@ namespace ojph {
           // We add an extra 8 entries, just in case we need more
           ui16 prev_row_sig[256 + 8] = {0}; // 528 Bytes
 
-          frwd_struct_avx2 sigprop;
-          frwd_init<0>(&sigprop, coded_data + lengths1, (int)lengths2);
+          // maximum consumable SPP bits: 4096 samples x 2 bits (one
+          // significance bit and one sign bit per sample)
+          const ui32 spp_cap = 4096 * 2 / 8;
+          ui8 spp_buf[spp_cap + 72];
+          ui32 spp_limit = destuff_frwd<0>(coded_data + lengths1,
+                                           (int)lengths2, spp_buf, spp_cap);
+          ui32 spp_pos = 0;
 
           for (ui32 y = 0; y < height; y += 4)
           {
@@ -1496,8 +1409,7 @@ namespace ojph {
               ui32 new_sig = mbr;
               if (new_sig)
               {
-                __m128i cwd_vec = frwd_fetch<0>(&sigprop);
-                ui32 cwd = (ui32)_mm_extract_epi16(cwd_vec, 0);
+                ui64 cwd = dfetch64(spp_buf, spp_limit, spp_pos);
 
                 ui32 cnt = 0;
                 ui32 col_mask = 0xFu;
@@ -1559,7 +1471,8 @@ namespace ojph {
 
                 if (new_sig)
                 {
-                  cwd |= (ui32)_mm_extract_epi16(cwd_vec, 1) << (16 - cnt);
+                  // the sign bits sit right after the cnt consumed bits
+                  // of cwd; no reassembly is needed
 
                   // Spread new_sig, such that each bit is in one byte with a
                   // value of 0 if new_sig bit is 0, and 0xFF if new_sig is 1
@@ -1585,7 +1498,7 @@ namespace ojph {
 
                   // Spread cwd, such that each bit is in one byte
                   // with a value of 0 or 1.
-                  cwd_vec = _mm_set1_epi16((si16)cwd);
+                  __m128i cwd_vec = _mm_set1_epi16((si16)cwd);
                   cwd_vec = _mm_shuffle_epi8(cwd_vec,
                     _mm_set_epi8(1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0));
                   cwd_vec = _mm_and_si128(cwd_vec,
@@ -1628,7 +1541,7 @@ namespace ojph {
                     m = _mm_add_epi32(m, _mm_set1_epi32(1));
                   }
                 }
-                frwd_advance(&sigprop, cnt);
+                spp_pos += cnt;
               }
 
               new_sig |= cs;

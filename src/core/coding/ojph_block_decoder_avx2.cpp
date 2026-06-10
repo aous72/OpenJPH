@@ -101,7 +101,7 @@ namespace ojph {
 
       ui32 val = 0xFFFFFFFF;       // feed in 0xFF if buffer is exhausted
       if (melp->size > 4) {        // if there is data in the MEL segment
-        val = *(ui32*)melp->data;  // read 32 bits from MEL data
+        memcpy(&val, melp->data, 4);  // read 32 bits from MEL data
         melp->data += 4;           // advance pointer
         melp->size -= 4;           // reduce counter
       }
@@ -414,21 +414,27 @@ namespace ojph {
      *  above the bits remaining in the window, leaving 56 to 63 valid
      *  bits.  Because the inserted bits land above the remaining ones,
      *  consumers of the low bits need not wait for the load, keeping it
-     *  off the critical dependency chain.  The pointer advances by at
-     *  most 8 bytes per call, and in total by no more than the consumed
-     *  bit count divided by 8, plus 8.
+     *  off the critical dependency chain.  The read offset is clamped to
+     *  limit so that, when consumption overruns the stream (truncated
+     *  codeblocks), reads come from the zero padding -- the bytes there
+     *  are exactly the fill the stream would produce -- instead of from
+     *  uninitialized buffer memory.
      *
      *  @param [in,out]  val is the bit window; its low bits are valid
      *  @param [in,out]  bits is the number of valid bits in val
-     *  @param [in,out]  ptr is the read position in the destuffed buffer
+     *  @param [in,out]  off is the read offset in the destuffed buffer
+     *  @param [in]      dbuf is the destuffed bitstream buffer
+     *  @param [in]      limit is the clamp offset returned by destuff_vlc
      */
     OJPH_FORCE_INLINE
-    void drefill(ui64& val, ui32& bits, const ui8*& ptr)
+    void drefill(ui64& val, ui32& bits, ui32& off,
+                 const ui8* dbuf, ui32 limit)
     {
       ui64 v;
-      memcpy(&v, ptr, 8);
+      ui32 o = off < limit ? off : limit;
+      memcpy(&v, dbuf + o, 8);
       val |= v << bits;
-      ptr += (63 - bits) >> 3;
+      off += (63 - bits) >> 3;
       bits |= 56;
     }
 
@@ -1200,7 +1206,8 @@ namespace ojph {
               __m128i r = _mm_or_si128(t0, t1);
               r = _mm_shuffle_epi8(r, shuffle_mask);
 
-              *(ui32*)dp = (ui32)_mm_extract_epi32(r, 0);
+              ui32 t = (ui32)_mm_extract_epi32(r, 0);
+              memcpy(dp, &t, 4);
             }
             dp[0] = 0; // set an extra entry on the right with 0
           }
@@ -1272,13 +1279,14 @@ namespace ojph {
               // We need data for at least 5 columns out of 8.
               // Therefore loading 32 bits is easier than loading 16 bits
               // twice.
-              ui32 ps = *(ui32*)prev_sig;
-              ui32 ns = *(ui32*)(cur_sig + mstr);
+              ui32 ps, ns, cs;
+              memcpy(&ps, prev_sig, 4);
+              memcpy(&ns, cur_sig + mstr, 4);
               ui32 u = (ps & 0x88888888) >> 3; // the row on top
               if (!stripe_causal)
                 u |= (ns & 0x11111111) << 3;   // the row below
 
-              ui32 cs = *(ui32*)cur_sig;
+              memcpy(&cs, cur_sig, 4);
               // vertical integration
               ui32 mbr =  cs;                // this sig. info.
               mbr |= (cs & 0x77777777) << 1; //above neighbors
@@ -1563,8 +1571,9 @@ namespace ojph {
         // at most 7 + 7 + 30 bits, so 4096 bytes always suffice
         const ui32 vlc_cap = 4096;
         ui8 vlc_buf[vlc_cap + 72];
-        destuff_vlc(coded_data, lcup, scup, vlc_buf, vlc_cap);
-        const ui8* vlc_ptr = vlc_buf;
+        ui32 vlc_limit = destuff_vlc(coded_data, lcup, scup,
+                                     vlc_buf, vlc_cap);
+        ui32 vlc_off = 0;
         ui32 vlc_bits = 0;
 
         int run = mel_get_run(&mel); // decode runs of events from MEL bitstrm
@@ -1581,7 +1590,7 @@ namespace ojph {
           /////////////
 
           // first quad
-          drefill(vlc_val, vlc_bits, vlc_ptr);
+          drefill(vlc_val, vlc_bits, vlc_off, vlc_buf, vlc_limit);
 
           //decode VLC using the context c_q and the head of VLC bitstream
           ui16 t0 = vlc_tbl0[ c_q + (vlc_val & 0x7F) ];
@@ -1699,7 +1708,7 @@ namespace ojph {
             c_q |= ((sp[2 - (si32)sstr] & 0x20U) << 4);
 
             // first quad
-            drefill(vlc_val, vlc_bits, vlc_ptr);
+            drefill(vlc_val, vlc_bits, vlc_off, vlc_buf, vlc_limit);
 
             //decode VLC using the context c_q and the head of VLC bitstream
             ui16 t0 = vlc_tbl1[ c_q + (vlc_val & 0x7F) ];

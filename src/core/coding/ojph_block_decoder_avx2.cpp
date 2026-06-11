@@ -529,8 +529,15 @@ namespace ojph {
         __m128i r = _mm_shuffle_epi8(v,
             _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7,
                          8, 9, 10, 11, 12, 13, 14, 15)); // reverse bytes
+#ifdef OJPH_ARCH_X86_64
         ui64 v0 = (ui64)_mm_cvtsi128_si64(r);
         ui64 v1 = (ui64)_mm_extract_epi64(r, 1);
+#else // 32-bit x86 lacks the 64-bit extract intrinsics
+        ui64 v0 = (ui32)_mm_cvtsi128_si32(r)
+                | ((ui64)(ui32)_mm_extract_epi32(r, 1) << 32);
+        ui64 v1 = (ui32)_mm_extract_epi32(r, 2)
+                | ((ui64)(ui32)_mm_extract_epi32(r, 3) << 32);
+#endif
         ui64 w0 = acc | (v0 << nb);
         ui64 w1 = (v1 << nb) | (nb ? (v0 >> (64 - nb)) : 0);
         memcpy(o, &w0, 8);

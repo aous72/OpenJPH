@@ -274,8 +274,8 @@ namespace ojph {
           OJPH_ERROR(0x000300A1, "Mismatch between Ssiz (bit_depth = %d, "
             "is_signed = %s) from SIZ marker segment, and BDnlt "
             "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
-            "for component %d", i, num_bits[i],
-            is_signed[i] ? "True" : "False", bd, is ? "True" : "False");
+            "for component %d", num_bits[i],
+            is_signed[i] ? "True" : "False", bd, is ? "True" : "False", i);
         if (result == false)
           nlt_type3[i] = param_nlt::nonlinearity::OJPH_NLT_NO_NLT;
         cur_line[i] = 0;

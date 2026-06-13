@@ -135,6 +135,7 @@ namespace ojph {
 
       // Default path, no acceleration.  We may change this later
       decode_cb32 = ojph_decode_codeblock32;
+      decode_cb32_batch = NULL; // set only by ISAs that provide a batch path
       find_max_val32 = gen_find_max_val32;
       mem_clear = gen_mem_clear;
       if (reversible) {

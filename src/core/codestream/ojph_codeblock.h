@@ -82,6 +82,10 @@ namespace ojph {
       void recreate(const size& cb_size, coded_cb_header* coded_cb);
 
       void decode();
+      // Decode a whole subband row of codeblocks. Uses the batched (N-way
+      // interleaved) block decoder when the active ISA provides one, else
+      // decodes each block individually.
+      static void decode_row(codeblock* blocks, ui32 count);
       void pull_line(line_buf *line);
 
     private:

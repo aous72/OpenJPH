@@ -223,6 +223,85 @@ namespace ojph {
         zero_block = true;
     }
 
+    //////////////////////////////////////////////////////////////////////////
+    void codeblock::decode_row(codeblock* blocks, ui32 count)
+    {
+      if (count == 0)
+        return;
+
+      // No batched path (the active ISA provides none, or 64-bit codeblocks):
+      // decode each block individually, preserving the exact 1-way behaviour.
+      codeblock_fun& f = blocks[0].codeblock_functions;
+      if (f.decode_cb32_batch == NULL || blocks[0].precision != BUF32)
+      {
+        for (ui32 i = 0; i < count; ++i)
+          blocks[i].decode();
+        return;
+      }
+
+      // Gather the decodable blocks of this row into parallel arrays and hand
+      // them to the batched decoder in windows. All blocks in a subband row
+      // share height (cb_size.h) and stride; only width and the coded data
+      // differ. Zero blocks (no coded passes) are marked directly and left
+      // out of the batch.
+      const ui32 WIN = 64;
+      ui8*  coded[WIN];
+      ui32* dec[WIN];
+      ui32  mmsb[WIN], npass[WIN], len1[WIN], len2[WIN], wid[WIN], orig[WIN];
+      bool  res[WIN];
+
+      const ui32 height = blocks[0].cb_size.h;
+      const ui32 stride = blocks[0].stride;
+      const bool sc     = blocks[0].stripe_causal;
+      ui32 filled = 0;
+
+      for (ui32 i = 0; i <= count; ++i)
+      {
+        if (i < count)
+        {
+          codeblock& cb = blocks[i];
+          coded_cb_header* cc = cb.coded_cb;
+          if (cc->pass_length[0] > 0 && cc->num_passes > 0 &&
+              cc->next_coded != NULL)
+          {
+            coded[filled] = cc->next_coded->buf +
+                            coded_cb_header::prefix_buf_size;
+            dec[filled]   = cb.buf32;
+            mmsb[filled]  = cc->missing_msbs;
+            npass[filled] = cc->num_passes;
+            len1[filled]  = cc->pass_length[0];
+            len2[filled]  = cc->pass_length[1];
+            wid[filled]   = cb.cb_size.w;
+            orig[filled]  = i;
+            ++filled;
+          }
+          else
+            cb.zero_block = true;
+        }
+
+        // Flush when the window is full or at the end of the row.
+        if (filled == WIN || (i == count && filled > 0))
+        {
+          f.decode_cb32_batch(filled, coded, dec, mmsb, npass, len1, len2,
+                              wid, height, stride, sc, res);
+          for (ui32 j = 0; j < filled; ++j)
+          {
+            if (!res[j])
+            {
+              codeblock& cb = blocks[orig[j]];
+              if (cb.resilient == true) {
+                OJPH_INFO(0x000300A2, "Error decoding a codeblock.");
+                cb.zero_block = true;
+              }
+              else
+                OJPH_ERROR(0x000300A2, "Error decoding a codeblock.");
+            }
+          }
+          filled = 0;
+        }
+      }
+    }
+
 
     //////////////////////////////////////////////////////////////////////////
     void codeblock::pull_line(line_buf *line)

@@ -74,6 +74,14 @@ namespace ojph {
       ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
       ui32 width, ui32 height, ui32 stride, bool stripe_causal);
 
+    // define the batched (multi-codeblock) decoder function signature
+    typedef void (*cb_decoder_batch_fun32)(ui32 n,
+      ui8* const* coded_data, ui32* const* decoded_data,
+      const ui32* missing_msbs, const ui32* num_passes,
+      const ui32* lengths1, const ui32* lengths2,
+      const ui32* widths, ui32 height, ui32 stride,
+      bool stripe_causal, bool* results);
+
     typedef bool (*cb_decoder_fun64)(ui8* coded_data, ui64* decoded_data,
       ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
       ui32 width, ui32 height, ui32 stride, bool stripe_causal);
@@ -112,6 +120,9 @@ namespace ojph {
       // a pointer to the decoder function
       cb_decoder_fun32 decode_cb32;
       cb_decoder_fun64 decode_cb64;
+
+      // optional batched 32-bit decoder (NULL if the active ISA has none)
+      cb_decoder_batch_fun32 decode_cb32_batch;
 
       // a pointer to the encoder function
       cb_encoder_fun32 encode_cb32;

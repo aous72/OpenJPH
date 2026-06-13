@@ -5,7 +5,8 @@
 // Copyright (c) 2019, Aous Naman 
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+// Copyright (c) 2026, Osamu Watanabe
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -143,8 +144,12 @@ namespace ojph {
                           osxsave_avail && ((xcr_val & 0xE0) == 0xE0);
                         bool avx512f_avail = (avx2_abcd[1] & 0x10000) != 0;
                         bool avx512cd_avail = (avx2_abcd[1] & 0x10000000) != 0;
-                        bool avx512_avail = 
-                          zmm_avail && avx512f_avail && avx512cd_avail;
+                        bool avx512bw_avail = (avx2_abcd[1] & 0x40000000) != 0;
+                        bool avx512vl_avail =
+                          (avx2_abcd[1] & 0x80000000u) != 0;
+                        bool avx512_avail = zmm_avail && avx512f_avail
+                          && avx512cd_avail && avx512bw_avail
+                          && avx512vl_avail;
                         if (avx512_avail)
                           level = X86_CPU_EXT_LEVEL_AVX512;
                       }

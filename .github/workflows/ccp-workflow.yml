@@ -84,7 +84,8 @@ jobs:
       fail-fast: false
       matrix:
         include: [
-          { system: Windows-MSYS2,  runner: windows-latest },
+          { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
+          { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
@@ -96,7 +97,7 @@ jobs:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2
       with:
-        msystem: UCRT64
+        msystem: ${{ matrix.msystem }}
         update: false
         pacboy: cc:p cmake:p libtiff:p
     - name: cmake
@@ -140,7 +141,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -DOJPH_BUILD_TESTS=yes ..
+      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=yes ..
       working-directory: build
     - name: build
       run: make
@@ -176,7 +177,8 @@ jobs:
       fail-fast: false
       matrix:
         include: [
-          { system: Windows-MSYS2,  runner: windows-latest },
+          { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
+          { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
         ]
     name: ${{ matrix.system }} Test
     runs-on: ${{ matrix.runner }}
@@ -188,11 +190,11 @@ jobs:
     - uses: actions/checkout@v5
     - uses: msys2/setup-msys2@v2
       with:
-        msystem: UCRT64
+        msystem: ${{ matrix.msystem }}
         update: false
         pacboy: cc:p cmake:p python:p
     - name: cmake
-      run: cmake -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
+      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release

@@ -211,6 +211,7 @@ namespace ojph {
       #ifndef OJPH_DISABLE_AVX2
         if (get_cpu_ext_level() >= X86_CPU_EXT_LEVEL_AVX2) {
           decode_cb32 = ojph_decode_codeblock_avx2;
+          decode_cb32_batch = ojph_decode_codeblock_avx2_batch;
           find_max_val32 = avx2_find_max_val32;
           if (reversible) {
             tx_to_cb32 = avx2_rev_tx_to_cb32;

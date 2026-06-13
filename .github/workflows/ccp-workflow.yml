@@ -73,7 +73,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -119,7 +119,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+      run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -162,7 +162,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release
@@ -214,7 +214,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -G "Visual Studio 17 2022" -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+      run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
     - name: build
       run: cmake --build . --config Release

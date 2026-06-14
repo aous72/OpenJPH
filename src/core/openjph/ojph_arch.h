@@ -70,9 +70,13 @@
 #ifdef OJPH_COMPILER_MSVC
   #define OJPH_FORCE_INLINE static __forceinline
   #define OJPH_NO_INLINE    static __declspec(noinline)
+  // MSVC has no GCC-style loop-unroll pragma; leave it to the optimizer
+  #define OJPH_UNROLL
 #else
   #define OJPH_FORCE_INLINE static inline __attribute__((always_inline))
   #define OJPH_NO_INLINE    static __attribute__((noinline))
+  // fully unroll a short, compile-time-bounded loop (GCC/Clang)
+  #define OJPH_UNROLL       _Pragma("GCC unroll 8")
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////

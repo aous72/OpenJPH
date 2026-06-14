@@ -182,15 +182,25 @@ namespace ojph {
         allocator->pre_alloc_obj<param_tlm::Ttlm_Ptlm_pair>(num_tileparts);
 
       //precinct scratch buffer
-      ui32 num_decomps = cod.get_num_decompositions();
-      size log_cb = cod.get_log_block_dims();
-
+      // The precinct scratch is shared by all components, but each component
+      // may override the codeblock/precinct geometry via a COC marker.  The
+      // per-component tag-tree storage (resolution.cpp) is derived from that
+      // component's effective params, so size the shared buffer from the
+      // largest ratio across every component (the main COD and all COC
+      // overrides).  Sizing from the COD alone under-reserves the buffer for
+      // any component whose COC declares a smaller codeblock than the COD.
       size ratio;
-      for (ui32 r = 0; r <= num_decomps; ++r)
+      for (ui32 c = 0; c < num_comps; ++c)
       {
-        size log_PP = cod.get_log_precinct_size(r);
-        ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
-        ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
+        const param_cod* cdp = cod.get_coc(c);
+        ui32 num_decomps = cdp->get_num_decompositions();
+        size log_cb = cdp->get_log_block_dims();
+        for (ui32 r = 0; r <= num_decomps; ++r)
+        {
+          size log_PP = cdp->get_log_precinct_size(r);
+          ratio.w = ojph_max(ratio.w, log_PP.w - ojph_min(log_cb.w, log_PP.w));
+          ratio.h = ojph_max(ratio.h, log_PP.h - ojph_min(log_cb.h, log_PP.h));
+        }
       }
       ui32 max_ratio = ojph_max(ratio.w, ratio.h);
       max_ratio = 1 << max_ratio;

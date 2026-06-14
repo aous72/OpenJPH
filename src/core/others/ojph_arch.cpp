@@ -229,7 +229,38 @@ namespace ojph {
 
     #endif
 
-  #else // architectures other than Intel/AMD and ARM
+  #elif defined(OJPH_ARCH_PPC64LE)
+
+    #if defined(OJPH_OS_LINUX)
+
+      #include <sys/auxv.h>
+      #include <asm/cputable.h>
+
+      bool init_cpu_ext_level(int& level) {
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        unsigned long hwcap2 = getauxval(AT_HWCAP2);
+        level = PPC_CPU_EXT_LEVEL_GENERIC;
+        if ((hwcap & PPC_FEATURE_HAS_VSX) &&
+            (hwcap2 & PPC_FEATURE2_ARCH_3_00)) {
+          level = PPC_CPU_EXT_LEVEL_ARCH_3_00;
+        #ifdef PPC_FEATURE2_ARCH_3_1
+          if (hwcap2 & PPC_FEATURE2_ARCH_3_1)
+            level = PPC_CPU_EXT_LEVEL_ARCH_3_1;
+        #endif
+        }
+        return true;
+      }
+
+    #else // !OJPH_OS_LINUX
+
+      bool init_cpu_ext_level(int& level) {
+        level = PPC_CPU_EXT_LEVEL_GENERIC;
+        return true;
+      }
+
+    #endif
+
+  #else // architectures other than Intel/AMD, ARM, and PPC64LE
 
   ////////////////////////////////////////////////////////////////////////////
   bool init_cpu_ext_level(int& level) {

@@ -226,7 +226,7 @@ jobs:
       working-directory: build
 
   test_arm32:
-    name: Linux-ARM32 Build
+    name: Linux-ARM32 Build and Test
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_arm32' }}
     steps:

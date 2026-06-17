@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -186,12 +186,12 @@ namespace ojph {
 
     void open(const char* filename);
     virtual ui32 read(const line_buf* line, ui32 comp_num);
-    void close() { 
-      if (tiff_handle) { 
-        TIFFClose(tiff_handle); 
-        tiff_handle = NULL; 
-      } 
-      fname = NULL; 
+    void close() {
+      if (tiff_handle) {
+        TIFFClose(tiff_handle);
+        tiff_handle = NULL;
+      }
+      fname = NULL;
     }
 
     size get_size() { assert(tiff_handle); return size(width, height); }
@@ -230,7 +230,7 @@ namespace ojph {
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
-  // A simple DPX file reader supporting commonly used 10bit and 16bit formats  
+  // A simple DPX file reader supporting commonly used 10bit and 16bit formats
   // DPX is an uncompressed file format used by the motion picture industry
   // DPX is standardized by SMPTE ST 268-1:2014
   //
@@ -510,61 +510,63 @@ namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
   // Accelerators (defined in ojph_img_io_*)
-  typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1, 
-                                 const line_buf *ln2, void *dp, 
+  typedef void (*conversion_fun)(const line_buf *ln0, const line_buf *ln1,
+                                 const line_buf *ln2, void *dp,
                                  ui32 bit_depth, ui32 count);
 
-  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
-                               const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1,
+                               const line_buf *ln2, void *dp,
                                ui32 bit_depth, ui32 count);
-  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
-                               const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1,
+                               const line_buf *ln2, void *dp,
                                ui32 bit_depth, ui32 count);
+
   #if 0 // these two functions are not used in the current implementation
-  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count);
-  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count);
   #endif
-  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+
+  void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count);
-  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
-                                   const line_buf *ln2, void *dp, 
+  void gen_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1,
+                                   const line_buf *ln2, void *dp,
                                    ui32 bit_depth, ui32 count);
 
-  void sse41_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
-                                 const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1,
+                                 const line_buf *ln2, void *dp,
                                  ui32 bit_depth, ui32 count);
-  void sse41_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
-                                 const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1,
+                                 const line_buf *ln2, void *dp,
                                  ui32 bit_depth, ui32 count);
-  void sse41_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
-                                     const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1,
+                                     const line_buf *ln2, void *dp,
                                      ui32 bit_depth, ui32 count);
-  void sse41_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1, 
-                                     const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b3c_to_16ub3c_le(const line_buf *ln0, const line_buf *ln1,
+                                     const line_buf *ln2, void *dp,
                                      ui32 bit_depth, ui32 count);
-  void sse41_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
-                                     const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1,
+                                     const line_buf *ln2, void *dp,
                                      ui32 bit_depth, ui32 count);
-  void sse41_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1, 
-                                     const line_buf *ln2, void *dp, 
+  void sse41_cvrt_32b3c_to_16ub3c_be(const line_buf *ln0, const line_buf *ln1,
+                                     const line_buf *ln2, void *dp,
                                      ui32 bit_depth, ui32 count);
 
-  void avx2_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1, 
-                                const line_buf *ln2, void *dp, 
+  void avx2_cvrt_32b1c_to_8ub1c(const line_buf *ln0, const line_buf *ln1,
+                                const line_buf *ln2, void *dp,
                                 ui32 bit_depth, ui32 count);
-  void avx2_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1, 
-                                const line_buf *ln2, void *dp, 
+  void avx2_cvrt_32b3c_to_8ub3c(const line_buf *ln0, const line_buf *ln1,
+                                const line_buf *ln2, void *dp,
                                 ui32 bit_depth, ui32 count);
-  void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
-                                    const line_buf *ln2, void *dp, 
+  void avx2_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1,
+                                    const line_buf *ln2, void *dp,
                                     ui32 bit_depth, ui32 count);
-  void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
-                                    const line_buf *ln2, void *dp, 
+  void avx2_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1,
+                                    const line_buf *ln2, void *dp,
                                     ui32 bit_depth, ui32 count);
 
   ////////////////////////////////////////////////////////////////////////////
@@ -612,7 +614,7 @@ namespace ojph {
     }
 
     void open(char* filename);
-    void configure(ui32 width, ui32 height, ui32 num_components, 
+    void configure(ui32 width, ui32 height, ui32 num_components,
                    ui32 bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }
@@ -667,12 +669,12 @@ namespace ojph {
     void configure(ui32 width, ui32 height, ui32 num_components,
       ui32 *bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
-    virtual void close() { 
-      if (tiff_handle) { 
-        TIFFClose(tiff_handle); 
-        tiff_handle = NULL; 
-      } 
-      fname = NULL; 
+    virtual void close() {
+      if (tiff_handle) {
+        TIFFClose(tiff_handle);
+        tiff_handle = NULL;
+      }
+      fname = NULL;
     }
 
   private:
@@ -682,7 +684,7 @@ namespace ojph {
 
     const char* fname;
     ui32 width, height, num_components;
-    ui32 bit_depth_of_data[4]; 
+    ui32 bit_depth_of_data[4];
     ui32 bytes_per_sample;
     ui8* buffer;
     size_t buffer_size;
@@ -798,7 +800,7 @@ namespace ojph {
     }
 
     void open(char* filename);
-    void configure(ui32 width, ui32 height, ui32 num_components, 
+    void configure(ui32 width, ui32 height, ui32 num_components,
                    float scale, ui32* bit_depth);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close() { if(fh) { fclose(fh); fh = NULL; } fname = NULL; }

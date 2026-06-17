@@ -362,8 +362,8 @@ namespace ojph {
   // so that the compiler can remove the branches for the other byte order.
   // __BYTE_ORDER__ is a predefined macro that describes the target
   // architecture, not the machine running the compiler, so it is also
-  // correct when cross-compiling.  
-  // All MSVC targets (x86, x64, ARM64 Windows) are little endian. 
+  // correct when cross-compiling.
+  // All MSVC targets (x86, x64, ARM64 Windows) are little endian.
 #if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
   constexpr bool is_machine_little_endian = false;
 #elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
@@ -382,6 +382,7 @@ namespace ojph {
   }
   const bool is_machine_little_endian = check_if_machine_is_little_endian();
 #endif
+
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 --> 2 1 on big-endian machines
   static inline ui16 swap_bytes_if_be(ui16 t)

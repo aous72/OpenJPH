@@ -267,7 +267,7 @@ static inline v128_t vsx_i64x2_extend_low_i32x4(v128_t a)
   //   __builtin_shufflevector(v, v, 0, 1), vsx_v_i64);
 
   // Unpacks and sign-extends elements 0 and 1 on Little Endian
-  return (v128_t)vec_unpackl((vector int)a);
+  return (v128_t)vec_unpackl((vsx_v_i32)a);
 }
 static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 {
@@ -276,36 +276,36 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
   //   __builtin_shufflevector(v, v, 2, 3), vsx_v_i64);
 
   // Unpacks and sign-extends elements 2 and 3 on Little Endian
-  return (v128_t)vec_unpackh((vector int)a);
+  return (v128_t)vec_unpackh((vsx_v_i32)a);
 }
 
 //---------------------------------------------------------------------------
 // shuffles (immediate lane indices; 0..N-1 from a, N..2N-1 from b)
 //---------------------------------------------------------------------------
-// #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7,             \
-//                                  c8,c9,c10,c11,c12,c13,c14,c15)      \
-//   ((v128_t)__builtin_shufflevector((vsx_v_u8)(a), (vsx_v_u8)(b),     \
+// #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7,
+//                                  c8,c9,c10,c11,c12,c13,c14,c15)
+//   ((v128_t)__builtin_shufflevector((vsx_v_u8)(a), (vsx_v_u8)(b),
 //     c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15))
-// #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7)             \
-//   ((v128_t)__builtin_shufflevector((vsx_v_i16)(a), (vsx_v_i16)(b),   \
+// #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7)
+//   ((v128_t)__builtin_shufflevector((vsx_v_i16)(a), (vsx_v_i16)(b),
 //     c0,c1,c2,c3,c4,c5,c6,c7))
-// #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3)                         \
-//   ((v128_t)__builtin_shufflevector((vsx_v_i32)(a), (vsx_v_i32)(b),   \
+// #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3)
+//   ((v128_t)__builtin_shufflevector((vsx_v_i32)(a), (vsx_v_i32)(b),
 //     c0,c1,c2,c3))
-// #define vsx_i64x2_shuffle(a, b, c0,c1)                               \
+// #define vsx_i64x2_shuffle(a, b, c0,c1)
 //   ((v128_t)__builtin_shufflevector((vsx_v_i64)(a), (vsx_v_i64)(b), c0,c1))
 
 // 8-bit Shuffle (Maps direct element indices to raw byte indices)
 #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
                                  c8,c9,c10,c11,c12,c13,c14,c15) \
-  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vector unsigned char){ \
+  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vsx_v_u8){ \
     (c0), (c1), (c2), (c3), (c4), (c5), (c6), (c7), \
     (c8), (c9), (c10),(c11),(c12),(c13),(c14),(c15) \
   }))
 
 // 16-bit Shuffle (Multiplies element index by 2 to get byte offsets)
 #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7) \
-  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vector unsigned char){ \
+  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vsx_v_u8){ \
     (c0)*2, (c0)*2+1,  (c1)*2, (c1)*2+1, \
     (c2)*2, (c2)*2+1,  (c3)*2, (c3)*2+1, \
     (c4)*2, (c4)*2+1,  (c5)*2, (c5)*2+1, \
@@ -314,7 +314,7 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 
 // 32-bit Shuffle (Multiplies element index by 4 to get byte offsets)
 #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3) \
-  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vector unsigned char){ \
+  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vsx_v_u8){ \
     (c0)*4, (c0)*4+1, (c0)*4+2, (c0)*4+3, \
     (c1)*4, (c1)*4+1, (c1)*4+2, (c1)*4+3, \
     (c2)*4, (c2)*4+1, (c2)*4+2, (c2)*4+3, \
@@ -323,7 +323,7 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 
 // 64-bit Shuffle (Multiplies element index by 8 to get byte offsets)
 #define vsx_i64x2_shuffle(a, b, c0,c1) \
-  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vector unsigned char){ \
+  ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), (vsx_v_u8){ \
     (c0)*8, (c0)*8+1, (c0)*8+2, (c0)*8+3,  \
     (c0)*8+4, (c0)*8+5, (c0)*8+6, (c0)*8+7, \
     (c1)*8, (c1)*8+1, (c1)*8+2, (c1)*8+3,  \

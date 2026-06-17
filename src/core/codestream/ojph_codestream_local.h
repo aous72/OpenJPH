@@ -40,7 +40,6 @@
 #define OJPH_CODESTREAM_LOCAL_H
 
 #include "ojph_defs.h"
-#include "ojph_arch.h"
 #include "ojph_params_local.h"
 
 namespace ojph {
@@ -55,6 +54,11 @@ namespace ojph {
   namespace local {
 
     /////////////////////////////////////////////////////////////////////////
+    static inline
+    ui16 swap_byte(ui16 t)
+    {
+      return (ui16)((t << 8) | (t >> 8));
+    }
 
     //////////////////////////////////////////////////////////////////////////
     //defined elsewhere

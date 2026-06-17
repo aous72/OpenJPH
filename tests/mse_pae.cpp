@@ -40,8 +40,6 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <cctype>
-
-#include "ojph_arch.h"
 #include "ojph_img_io.h"
 #include "ojph_mem.h"
 
@@ -407,10 +405,8 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j) {
-          si16 v = *sp++;
-          *dp++ = (si16)swap_bytes_if_be((ui16)v);
-        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
       }
       fclose(f);
       delete[] buffer;
@@ -432,10 +428,8 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j) {
-          si32 v = *sp++;
-          *dp++ = (si32)swap_bytes_if_be((ui32)v);
-        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
       }
       fclose(f);
       delete[] buffer;
@@ -483,10 +477,8 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j) {
-          ui16 v = *sp++;
-          *dp++ = (si32)swap_bytes_if_be(v);
-        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = *sp++;
       }
       fclose(f);
       delete[] buffer;
@@ -508,10 +500,8 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j) {
-          ui32 v = *sp++;
-          *dp++ = (si32)swap_bytes_if_be(v);
-        }
+        for (ui32 j = s.w * s.h; j > 0; --j)
+          *dp++ = (si32)*sp++;
       }
       fclose(f);
       delete[] buffer;

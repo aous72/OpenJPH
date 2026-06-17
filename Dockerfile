@@ -1,9 +1,9 @@
-FROM ubuntu:26.04
+FROM ubuntu:focal
 
 RUN apt-get update
 
 # disable interactive install 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND noninteractive
 
 # install developement tools
 RUN apt-get -y install cmake
@@ -13,16 +13,14 @@ RUN apt-get -y install libtiff-dev
 # install developement debugging tools
 RUN apt-get -y install valgrind
 
-# compile OpenJPH
+# OpenJPH
 WORKDIR /usr/src/openjph/
 COPY . .
 WORKDIR /usr/src/openjph/build
-RUN rm -R * || true
-RUN cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=ON ../ 
+RUN cmake -DCMAKE_BUILD_TYPE=Release ../
 RUN make
-# install OpenJPH
-RUN make install
-RUN ldconfig
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/src/openjph/bin
+ENV PATH=$PATH:/usr/src/openjph/bin
 
 # finalize docker environment
 WORKDIR /usr/src/openjph

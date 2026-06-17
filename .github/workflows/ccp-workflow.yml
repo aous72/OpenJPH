@@ -277,7 +277,7 @@ jobs:
     - uses: uraimo/run-on-arch-action@v3
       with:
         arch: ppc64le
-        distro: ubuntu22.04
+        distro: ubuntu_latest
         githubToken: ${{ github.token }}
         install: |
           apt-get update -q -y

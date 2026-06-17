@@ -107,7 +107,7 @@ namespace ojph {
 
       ui32 val = 0xFFFFFFFF;       // feed in 0xFF if buffer is exhausted
       if (melp->size > 4) {        // if there is data in the MEL segment
-        val = *(ui32*)melp->data;  // read 32 bits from MEL data
+        memcpy(&val, melp->data, sizeof(val)); // read 32 bits from MEL data
         melp->data += 4;           // advance pointer
         melp->size -= 4;           // reduce counter
       }
@@ -325,7 +325,7 @@ namespace ojph {
       if (vlcp->size > 3)  // if there are more than 3 bytes left in VLC
       {
         // (vlcp->data - 3) move pointer back to read 32 bits at once
-        val = *(ui32*)(vlcp->data - 3); // then read 32 bits
+        memcpy(&val, vlcp->data - 3, sizeof(val)); // then read 32 bits
         vlcp->data -= 4;          // move data pointer back by 4
         vlcp->size -= 4;          // reduce available byte by 4
       }
@@ -468,7 +468,7 @@ namespace ojph {
       ui32 val = 0;
       if (mrp->size > 3) // If there are 3 byte or more
       { // (mrp->data - 3) move pointer back to read 32 bits at once
-        val = *(ui32*)(mrp->data - 3); // read 32 bits
+        memcpy(&val, mrp->data - 3, sizeof(val)); // read 32 bits
         mrp->data -= 4;                // move back pointer
         mrp->size -= 4;                // reduce count
       }
@@ -1933,13 +1933,13 @@ namespace ojph {
               // We need data for at least 5 columns out of 8.
               // Therefore loading 32 bits is easier than loading 16 bits
               // twice.
-              ui32 ps = *(ui32*)prev_sig;
-              ui32 ns = *(ui32*)(cur_sig + mstr);
+              ui32 ps; memcpy(&ps, prev_sig, sizeof(ps));
+              ui32 ns; memcpy(&ns, cur_sig + mstr, sizeof(ns));
               ui32 u = (ps & 0x88888888) >> 3; // the row on top
               if (!stripe_causal)
                 u |= (ns & 0x11111111) << 3;   // the row below
 
-              ui32 cs = *(ui32*)cur_sig;
+              ui32 cs; memcpy(&cs, cur_sig, sizeof(cs));
               // vertical integration
               ui32 mbr =  cs;                // this sig. info.
               mbr |= (cs & 0x77777777) << 1; //above neighbors

@@ -40,6 +40,7 @@
 #ifndef OJPH_ARCH_H
 #define OJPH_ARCH_H
 
+#include <cstring>
 #include <cstdio>
 #include <cstdint>
 #include <cmath>
@@ -467,8 +468,11 @@ namespace ojph {
   // result, irrespective of the machine's endianness
   static inline ui32 load_le_ui32(const ui8 *p)
   {
-    if (is_machine_little_endian)
-      return *(const ui32 *)p;
+    if (is_machine_little_endian) {
+      ui32 val;
+      std::memcpy(&val, p, sizeof(val));
+      return val;
+    }
     else
       return (ui32)p[0] | ((ui32)p[1] << 8)
         | ((ui32)p[2] << 16) | ((ui32)p[3] << 24);
@@ -480,8 +484,11 @@ namespace ojph {
   // of the machine's endianness
   static inline ui32 load_le_ui16x2(const ui16 *p)
   {
-    if (is_machine_little_endian)
-      return *(const ui32 *)p;
+    if (is_machine_little_endian) {
+      ui32 val;
+      std::memcpy(&val, p, sizeof(val));
+      return val;
+    }
     else
       return (ui32)p[0] | ((ui32)p[1] << 16);
   }

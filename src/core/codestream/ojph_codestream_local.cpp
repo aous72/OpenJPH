@@ -640,7 +640,7 @@ namespace ojph {
       this->pre_alloc();
       this->finalize_alloc();
 
-      ui16 t = swap_byte(JP2K_MARKER::SOC);
+      ui16 t = swap_bytes_if_le(JP2K_MARKER::SOC);
       if (file->write(&t, 2) != 2)
         OJPH_ERROR(0x00030022, "Error writing to file");
 
@@ -670,24 +670,24 @@ namespace ojph {
         OJPH_INT_TO_STRING(OPENJPH_VERSION_MINOR) "."
         OJPH_INT_TO_STRING(OPENJPH_VERSION_PATCH) ".";
       size_t len = strlen(buf);
-      *(ui16*)buf = swap_byte(JP2K_MARKER::COM);
-      *(ui16*)(buf + 2) = swap_byte((ui16)(len - 2));
+      *(ui16*)buf = swap_bytes_if_le(JP2K_MARKER::COM);
+      *(ui16*)(buf + 2) = swap_bytes_if_le((ui16)(len - 2));
       //1 for General use (IS 8859-15:1999 (Latin) values)
-      *(ui16*)(buf + 4) = swap_byte((ui16)(1));
+      *(ui16*)(buf + 4) = swap_bytes_if_le((ui16)(1));
       if (file->write(buf, len) != len)
         OJPH_ERROR(0x00030028, "Error writing to file");
 
       if (comments != NULL) {
         for (ui32 i = 0; i < num_comments; ++i)
         {
-          t = swap_byte(JP2K_MARKER::COM);
+          t = swap_bytes_if_le(JP2K_MARKER::COM);
           if (file->write(&t, 2) != 2)
             OJPH_ERROR(0x00030029, "Error writing to file");
-          t = swap_byte((ui16)(comments[i].len + 4));
+          t = swap_bytes_if_le((ui16)(comments[i].len + 4));
           if (file->write(&t, 2) != 2)
             OJPH_ERROR(0x0003002A, "Error writing to file");
           //1 for General use (IS 8859-15:1999 (Latin) values)
-          t = swap_byte(comments[i].Rcom);
+          t = swap_bytes_if_le(comments[i].Rcom);
           if (file->write(&t, 2) != 2)
             OJPH_ERROR(0x0003002B, "Error writing to file");
           if (file->write(comments[i].data, comments[i].len)!=comments[i].len)
@@ -736,7 +736,7 @@ namespace ojph {
         else
           OJPH_ERROR(0x00030041, "error reading marker");
       }
-      com_len = swap_byte(com_len);
+      com_len = swap_bytes_if_le(com_len);
       file->seek(com_len - 2, infile_base::OJPH_SEEK_CUR);
       if (msg != NULL && msg_level != OJPH_MSG_NO_MSG)
       {
@@ -1151,7 +1151,7 @@ namespace ojph {
       }
       for (si32 i = 0; i < repeat; ++i)
         tiles[i].flush(outfile);
-      ui16 t = swap_byte(JP2K_MARKER::EOC);
+      ui16 t = swap_bytes_if_le(JP2K_MARKER::EOC);
       if (!outfile->write(&t, 2))
         OJPH_ERROR(0x00030071, "Error writing to file");
     }

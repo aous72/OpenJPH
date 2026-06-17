@@ -244,3 +244,21 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
           make
           ctest --output-on-failure
+  test_s390x:
+    name: Linux-s390x (big-endian) Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: uraimo/run-on-arch-action@v3
+      with:
+        arch: s390x
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y cmake make g++ libtiff-dev python3
+        run: |
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+          make
+          ctest --output-on-failure

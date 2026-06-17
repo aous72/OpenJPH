@@ -357,6 +357,117 @@ namespace ojph {
     return reinterpret_cast<T *>(p);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Determine the byte order of the target at compile time when possible,
+  // so that the compiler can remove the branches for the other byte order.
+  // __BYTE_ORDER__ is a predefined macro that describes the target
+  // architecture, not the machine running the compiler, so it is also
+  // correct when cross-compiling.  
+  // All MSVC targets (x86, x64, ARM64 Windows) are little endian. 
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  constexpr bool is_machine_little_endian = false;
+#elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  constexpr bool is_machine_little_endian = true;
+#elif defined(OJPH_COMPILER_MSVC)
+  constexpr bool is_machine_little_endian = true;
+#else
+  // fallback in case macro __BYTE_ORDER__ is not defined
+  // If the first byte in memory is 0x01, the machine is Little Endian.
+  // If the first byte in memory is 0x00, the machine is Big Endian.
+  static bool check_if_machine_is_little_endian()
+  {
+    const uint16_t n = 0x0001;
+    bool is_machine_little_endian = (*((uint8_t *)&n) == 0x01);
+    return is_machine_little_endian;
+  }
+  const bool is_machine_little_endian = check_if_machine_is_little_endian();
+#endif
+  ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 --> 2 1 on big-endian machines
+  static inline ui16 swap_bytes_if_be(ui16 t)
+  {
+    if (is_machine_little_endian)
+      return t;
+    else
+      return (ui16)((t << 8) | (t >> 8));
+  }
+  ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 --> 2 1 on little-endian machines
+  static inline ui16 swap_bytes_if_le(ui16 t)
+  {
+    if (is_machine_little_endian)
+      return (ui16)((t << 8) | (t >> 8));
+    else
+      return t;
+  }
+  ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 3 4 --> 4 3 2 1 on big-endian machines
+  static inline ui32 swap_bytes_if_be(ui32 t)
+  {
+    if (is_machine_little_endian)
+      return t;
+    else
+    {
+      ui32 u = swap_bytes_if_be((ui16)(t & 0xFFFFu));
+      u <<= 16;
+      u |= swap_bytes_if_be((ui16)(t >> 16));
+      return u;
+    }
+  }
+  ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 3 4 --> 4 3 2 1 on little-endian machines
+  static inline ui32 swap_bytes_if_le(ui32 t)
+  {
+    if (is_machine_little_endian)
+    {
+      ui32 u = swap_bytes_if_le((ui16)(t & 0xFFFFu));
+      u <<= 16;
+      u |= swap_bytes_if_le((ui16)(t >> 16));
+      return u;
+    }
+    else
+      return t;
+  }
+  ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 3 4 5 6 7 8 --> 8 7 6 5 4 3 2 1 on little-endian machines
+  static inline ui64 swap_bytes_if_le(ui64 t)
+  {
+    if (is_machine_little_endian)
+    {
+      ui64 u =
+        swap_bytes_if_le((ui32)(t & 0xFFFFFFFFu));
+      u <<= 32;
+      u |= swap_bytes_if_le((ui32)(t >> 32));
+      return u;
+    }
+    else
+      return t;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // loads 4 bytes from p as a little-endian 32-bit integer; that is, the
+  // byte at the lowest address goes into the least-significant byte of the
+  // result, irrespective of the machine's endianness
+  static inline ui32 load_le_ui32(const ui8 *p)
+  {
+    if (is_machine_little_endian)
+      return *(const ui32 *)p;
+    else
+      return (ui32)p[0] | ((ui32)p[1] << 8)
+        | ((ui32)p[2] << 16) | ((ui32)p[3] << 24);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // loads two consecutive ui16 values from p, placing the one at the lower
+  // address in the least-significant 16 bits of the result, irrespective
+  // of the machine's endianness
+  static inline ui32 load_le_ui16x2(const ui16 *p)
+  {
+    if (is_machine_little_endian)
+      return *(const ui32 *)p;
+    else
+      return (ui32)p[0] | ((ui32)p[1] << 16);
+  }
 }
 
 #endif // !OJPH_ARCH_H

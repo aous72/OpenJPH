@@ -270,6 +270,14 @@ jobs:
 
   test_powerpc64le:
     name: Linux-ppc64le Build and Test
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { dist: ubuntu22.04 },
+          { dist: ubuntu24.04 },
+          { dist: ubuntu_latest },
+        ]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_ppc64le' }}
     steps:
@@ -277,7 +285,7 @@ jobs:
     - uses: uraimo/run-on-arch-action@v3
       with:
         arch: ppc64le
-        distro: ubuntu24.04
+        distro: ${{ matrix.dist }}
         githubToken: ${{ github.token }}
         install: |
           apt-get update -q -y

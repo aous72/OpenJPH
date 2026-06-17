@@ -326,18 +326,6 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 // shuffles (immediate lane indices; 0..N-1 from a, N..2N-1 from b)
 //---------------------------------------------------------------------------
 
-// Helper macro for GCC-compatible shuffles
-#if defined(__GNUC__) && !defined(__clang__)
-// For GCC, use vec_perm with a constant vector
-#define VSX_SHUFFLE(type, a, b, ...) \
-  ({ \
-    type _a = (a); \
-    type _b = (b); \
-    const unsigned char __attribute__((__vector_size__(16))) _mask = { __VA_ARGS__ }; \
-    (type)vec_perm(_a, _b, _mask); \
-  })
-#endif
-
 #if defined(__clang__)
 #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
                                  c8,c9,c10,c11,c12,c13,c14,c15) \
@@ -356,60 +344,91 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
   ((v128_t)__builtin_shufflevector((vsx_v_i64)(a), (vsx_v_i64)(b), c0,c1))
 
 #elif defined(__GNUC__)
-// GCC implementations using vec_perm
-// For 8-bit elements, indices are direct byte positions
+// Helper inline functions for GCC instead of macros with compound statements
+static inline v128_t vsx_i8x16_shuffle_impl(v128_t a, v128_t b,
+    unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3,
+    unsigned char c4, unsigned char c5, unsigned char c6, unsigned char c7,
+    unsigned char c8, unsigned char c9, unsigned char c10, unsigned char c11,
+    unsigned char c12, unsigned char c13, unsigned char c14, unsigned char c15)
+{
+  vsx_v_u8 va = (vsx_v_u8)a;
+  vsx_v_u8 vb = (vsx_v_u8)b;
+  const unsigned char __attribute__((__vector_size__(16))) mask = {
+    c0, c1, c2, c3, c4, c5, c6, c7,
+    c8, c9, c10, c11, c12, c13, c14, c15
+  };
+  return (v128_t)vec_perm(va, vb, mask);
+}
+
+static inline v128_t vsx_i16x8_shuffle_impl(v128_t a, v128_t b,
+    int c0, int c1, int c2, int c3, int c4, int c5, int c6, int c7)
+{
+  vsx_v_i16 va = (vsx_v_i16)a;
+  vsx_v_i16 vb = (vsx_v_i16)b;
+  const unsigned char __attribute__((__vector_size__(16))) mask = {
+    (unsigned char)(((c0)&0x7)*2), (unsigned char)(((c0)&0x7)*2+1),
+    (unsigned char)(((c1)&0x7)*2), (unsigned char)(((c1)&0x7)*2+1),
+    (unsigned char)(((c2)&0x7)*2), (unsigned char)(((c2)&0x7)*2+1),
+    (unsigned char)(((c3)&0x7)*2), (unsigned char)(((c3)&0x7)*2+1),
+    (unsigned char)(((c4)&0x7)*2+16), (unsigned char)(((c4)&0x7)*2+1+16),
+    (unsigned char)(((c5)&0x7)*2+16), (unsigned char)(((c5)&0x7)*2+1+16),
+    (unsigned char)(((c6)&0x7)*2+16), (unsigned char)(((c6)&0x7)*2+1+16),
+    (unsigned char)(((c7)&0x7)*2+16), (unsigned char)(((c7)&0x7)*2+1+16)
+  };
+  return (v128_t)vec_perm(va, vb, mask);
+}
+
+static inline v128_t vsx_i32x4_shuffle_impl(v128_t a, v128_t b,
+    int c0, int c1, int c2, int c3)
+{
+  vsx_v_i32 va = (vsx_v_i32)a;
+  vsx_v_i32 vb = (vsx_v_i32)b;
+  const unsigned char __attribute__((__vector_size__(16))) mask = {
+    (unsigned char)(((c0)&0x3)*4), (unsigned char)(((c0)&0x3)*4+1),
+    (unsigned char)(((c0)&0x3)*4+2), (unsigned char)(((c0)&0x3)*4+3),
+    (unsigned char)(((c1)&0x3)*4), (unsigned char)(((c1)&0x3)*4+1),
+    (unsigned char)(((c1)&0x3)*4+2), (unsigned char)(((c1)&0x3)*4+3),
+    (unsigned char)(((c2)&0x3)*4+16), (unsigned char)(((c2)&0x3)*4+1+16),
+    (unsigned char)(((c2)&0x3)*4+2+16), (unsigned char)(((c2)&0x3)*4+3+16),
+    (unsigned char)(((c3)&0x3)*4+16), (unsigned char)(((c3)&0x3)*4+1+16),
+    (unsigned char)(((c3)&0x3)*4+2+16), (unsigned char)(((c3)&0x3)*4+3+16)
+  };
+  return (v128_t)vec_perm(va, vb, mask);
+}
+
+static inline v128_t vsx_i64x2_shuffle_impl(v128_t a, v128_t b,
+    int c0, int c1)
+{
+  vsx_v_i64 va = (vsx_v_i64)a;
+  vsx_v_i64 vb = (vsx_v_i64)b;
+  const unsigned char __attribute__((__vector_size__(16))) mask = {
+    (unsigned char)(((c0)&0x1)*8), (unsigned char)(((c0)&0x1)*8+1),
+    (unsigned char)(((c0)&0x1)*8+2), (unsigned char)(((c0)&0x1)*8+3),
+    (unsigned char)(((c0)&0x1)*8+4), (unsigned char)(((c0)&0x1)*8+5),
+    (unsigned char)(((c0)&0x1)*8+6), (unsigned char)(((c0)&0x1)*8+7),
+    (unsigned char)(((c1)&0x1)*8+16), (unsigned char)(((c1)&0x1)*8+1+16),
+    (unsigned char)(((c1)&0x1)*8+2+16), (unsigned char)(((c1)&0x1)*8+3+16),
+    (unsigned char)(((c1)&0x1)*8+4+16), (unsigned char)(((c1)&0x1)*8+5+16),
+    (unsigned char)(((c1)&0x1)*8+6+16), (unsigned char)(((c1)&0x1)*8+7+16)
+  };
+  return (v128_t)vec_perm(va, vb, mask);
+}
+
+// Macro wrappers that call the inline functions
 #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
                                  c8,c9,c10,c11,c12,c13,c14,c15) \
-  VSX_SHUFFLE(vsx_v_u8, (a), (b), c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15)
+  vsx_i8x16_shuffle_impl((a), (b), c0,c1,c2,c3,c4,c5,c6,c7, \
+                                  c8,c9,c10,c11,c12,c13,c14,c15)
 
-// For 16-bit elements, need to duplicate indices for big-endian byte order
-// This assumes big-endian ordering (default on POWER)
 #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7) \
-  ({ \
-    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
-      (unsigned char)(((c0)&0x7)*2), (unsigned char)(((c0)&0x7)*2+1), \
-      (unsigned char)(((c1)&0x7)*2), (unsigned char)(((c1)&0x7)*2+1), \
-      (unsigned char)(((c2)&0x7)*2), (unsigned char)(((c2)&0x7)*2+1), \
-      (unsigned char)(((c3)&0x7)*2), (unsigned char)(((c3)&0x7)*2+1), \
-      (unsigned char)(((c4)&0x7)*2+16), (unsigned char)(((c4)&0x7)*2+1+16), \
-      (unsigned char)(((c5)&0x7)*2+16), (unsigned char)(((c5)&0x7)*2+1+16), \
-      (unsigned char)(((c6)&0x7)*2+16), (unsigned char)(((c6)&0x7)*2+1+16), \
-      (unsigned char)(((c7)&0x7)*2+16), (unsigned char)(((c7)&0x7)*2+1+16) \
-    }; \
-    (vsx_v_i16)vec_perm((vsx_v_i16)(a), (vsx_v_i16)(b), _mask); \
-  })
+  vsx_i16x8_shuffle_impl((a), (b), c0,c1,c2,c3,c4,c5,c6,c7)
 
-// For 32-bit elements, need to expand indices for big-endian byte order
 #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3) \
-  ({ \
-    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
-      (unsigned char)(((c0)&0x3)*4), (unsigned char)(((c0)&0x3)*4+1), \
-      (unsigned char)(((c0)&0x3)*4+2), (unsigned char)(((c0)&0x3)*4+3), \
-      (unsigned char)(((c1)&0x3)*4), (unsigned char)(((c1)&0x3)*4+1), \
-      (unsigned char)(((c1)&0x3)*4+2), (unsigned char)(((c1)&0x3)*4+3), \
-      (unsigned char)(((c2)&0x3)*4+16), (unsigned char)(((c2)&0x3)*4+1+16), \
-      (unsigned char)(((c2)&0x3)*4+2+16), (unsigned char)(((c2)&0x3)*4+3+16), \
-      (unsigned char)(((c3)&0x3)*4+16), (unsigned char)(((c3)&0x3)*4+1+16), \
-      (unsigned char)(((c3)&0x3)*4+2+16), (unsigned char)(((c3)&0x3)*4+3+16) \
-    }; \
-    (vsx_v_i32)vec_perm((vsx_v_i32)(a), (vsx_v_i32)(b), _mask); \
-  })
+  vsx_i32x4_shuffle_impl((a), (b), c0,c1,c2,c3)
 
-// For 64-bit elements, expand indices for big-endian byte order
 #define vsx_i64x2_shuffle(a, b, c0,c1) \
-  ({ \
-    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
-      (unsigned char)(((c0)&0x1)*8), (unsigned char)(((c0)&0x1)*8+1), \
-      (unsigned char)(((c0)&0x1)*8+2), (unsigned char)(((c0)&0x1)*8+3), \
-      (unsigned char)(((c0)&0x1)*8+4), (unsigned char)(((c0)&0x1)*8+5), \
-      (unsigned char)(((c0)&0x1)*8+6), (unsigned char)(((c0)&0x1)*8+7), \
-      (unsigned char)(((c1)&0x1)*8+16), (unsigned char)(((c1)&0x1)*8+1+16), \
-      (unsigned char)(((c1)&0x1)*8+2+16), (unsigned char)(((c1)&0x1)*8+3+16), \
-      (unsigned char)(((c1)&0x1)*8+4+16), (unsigned char)(((c1)&0x1)*8+5+16), \
-      (unsigned char)(((c1)&0x1)*8+6+16), (unsigned char)(((c1)&0x1)*8+7+16) \
-    }; \
-    (vsx_v_i64)vec_perm((vsx_v_i64)(a), (vsx_v_i64)(b), _mask); \
-  })
+  vsx_i64x2_shuffle_impl((a), (b), c0,c1)
+
 #endif
 
 //---------------------------------------------------------------------------

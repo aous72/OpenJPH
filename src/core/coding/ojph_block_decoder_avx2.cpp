@@ -1789,7 +1789,7 @@ namespace ojph {
 
             // decode u using wide UVLC table
             /////////////
-            ui32 uvlc_mode = (((t0 >> 3) & 1) | (((t1 >> 3) & 1) << 1));
+            ui32 uvlc_mode = (((t0 >> 3) & 1u) | (((t1 >> 3) & 1u) << 1));
             ui32 uvlc_entry =
               uvlc_tbl1_wide[(uvlc_mode << 10) | (vlc_val & 0x3FF)];
             ui32 total_bits = uvlc_entry & 0x1F;

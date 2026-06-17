@@ -13,6 +13,7 @@ on:
         options:
           - 'test_arm32'
           - 'test_s390x'
+          - 'test_ppc64le'
         default: 'test_arm32'
       log_level:
         description: 'Log level'
@@ -32,7 +33,7 @@ jobs:
   #       ]
   #   name: ${{ matrix.system }} Build
   #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
   #   steps:
   #   - uses: actions/checkout@v5
   #   - name: cmake
@@ -51,7 +52,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -70,7 +71,7 @@ jobs:
   #       ]
   #   name: ${{ matrix.system }} Build
   #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
   #   steps:
   #   - uses: actions/checkout@v5
   #   - name: cmake
@@ -90,7 +91,7 @@ jobs:
   #       ]
   #   name: ${{ matrix.system }} Build
   #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
   #   defaults:
   #     run:
   #       shell: msys2 {0}
@@ -117,7 +118,7 @@ jobs:
   #       ]
   #   name: ${{ matrix.system }} Build
   #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
   #   steps:
   #   - uses: actions/checkout@v5
   #   - name: cmake
@@ -139,7 +140,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -161,7 +162,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -184,7 +185,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
     defaults:
       run:
         shell: msys2 {0}
@@ -214,7 +215,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -256,6 +257,26 @@ jobs:
     - uses: uraimo/run-on-arch-action@v3
       with:
         arch: s390x
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y cmake make g++ libtiff-dev python3
+        run: |
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+          make
+          ctest --output-on-failure
+
+  test_powerpc64le:
+    name: Linux-ppc64le Build and Test
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_ppc64le' }}
+    steps:
+    - uses: actions/checkout@v5
+    - uses: uraimo/run-on-arch-action@v3
+      with:
+        arch: ppc64le
         distro: ubuntu22.04
         githubToken: ${{ github.token }}
         install: |

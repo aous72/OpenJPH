@@ -53,6 +53,8 @@
 #include <altivec.h>
 #include <cstring>
 
+#include "ojph_defs.h"
+
 // altivec.h leaks these context-sensitive keywords as macros under GNU C;
 // they break standard headers and the codebase (e.g. std::vector)
 #undef vector
@@ -280,17 +282,17 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 //---------------------------------------------------------------------------
 // shuffles (immediate lane indices; 0..N-1 from a, N..2N-1 from b)
 //---------------------------------------------------------------------------
-// #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
-//                                  c8,c9,c10,c11,c12,c13,c14,c15) \
-//   ((v128_t)__builtin_shufflevector((vsx_v_u8)(a), (vsx_v_u8)(b), \
+// #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7,             \
+//                                  c8,c9,c10,c11,c12,c13,c14,c15)      \
+//   ((v128_t)__builtin_shufflevector((vsx_v_u8)(a), (vsx_v_u8)(b),     \
 //     c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15))
-// #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7) \
-//   ((v128_t)__builtin_shufflevector((vsx_v_i16)(a), (vsx_v_i16)(b), \
+// #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7)             \
+//   ((v128_t)__builtin_shufflevector((vsx_v_i16)(a), (vsx_v_i16)(b),   \
 //     c0,c1,c2,c3,c4,c5,c6,c7))
-// #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3) \
-//   ((v128_t)__builtin_shufflevector((vsx_v_i32)(a), (vsx_v_i32)(b), \
+// #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3)                         \
+//   ((v128_t)__builtin_shufflevector((vsx_v_i32)(a), (vsx_v_i32)(b),   \
 //     c0,c1,c2,c3))
-// #define vsx_i64x2_shuffle(a, b, c0,c1) \
+// #define vsx_i64x2_shuffle(a, b, c0,c1)                               \
 //   ((v128_t)__builtin_shufflevector((vsx_v_i64)(a), (vsx_v_i64)(b), c0,c1))
 
 // 8-bit Shuffle (Maps direct element indices to raw byte indices)

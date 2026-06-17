@@ -294,40 +294,123 @@ static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 //---------------------------------------------------------------------------
 static inline v128_t vsx_i64x2_extend_low_i32x4(v128_t a)
 {
-    vsx_v_i32 v = (vsx_v_i32)a;
-    return (v128_t)vec_mergeh(v, (vsx_v_i32){0, 0, 0, 0});
+#if defined(__clang__)
+  vsx_v_i32 v = (vsx_v_i32)a;
+  return (v128_t)__builtin_convertvector(
+    __builtin_shufflevector(v, v, 0, 1), vsx_v_i64);
+#elif defined(__GNUC__)
+  vsx_v_i32 v = (vsx_v_i32)a;
+  // Use vec_unpackl for widening (sign extend)
+  return (v128_t)vec_unpackl(v);
+#else
+  #error "Unsupported compiler"
+#endif
 }
 
 static inline v128_t vsx_i64x2_extend_high_i32x4(v128_t a)
 {
-    vsx_v_i32 v = (vsx_v_i32)a;
-    return (v128_t)vec_mergel(v, (vsx_v_i32){0, 0, 0, 0});
+#if defined(__clang__)
+  vsx_v_i32 v = (vsx_v_i32)a;
+  return (v128_t)__builtin_convertvector(
+    __builtin_shufflevector(v, v, 2, 3), vsx_v_i64);
+#elif defined(__GNUC__)
+  vsx_v_i32 v = (vsx_v_i32)a;
+  // Use vec_unpackh for widening (sign extend)
+  return (v128_t)vec_unpackh(v);
+#else
+  #error "Unsupported compiler"
+#endif
 }
 
 //---------------------------------------------------------------------------
 // shuffles (immediate lane indices; 0..N-1 from a, N..2N-1 from b)
 //---------------------------------------------------------------------------
+
+// Helper macro for GCC-compatible shuffles
+#if defined(__GNUC__) && !defined(__clang__)
+// For GCC, use vec_perm with a constant vector
+#define VSX_SHUFFLE(type, a, b, ...) \
+  ({ \
+    type _a = (a); \
+    type _b = (b); \
+    const unsigned char __attribute__((__vector_size__(16))) _mask = { __VA_ARGS__ }; \
+    (type)vec_perm(_a, _b, _mask); \
+  })
+#endif
+
+#if defined(__clang__)
 #define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
                                  c8,c9,c10,c11,c12,c13,c14,c15) \
-    ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), \
-        (vsx_v_u8){c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15}))
+  ((v128_t)__builtin_shufflevector((vsx_v_u8)(a), (vsx_v_u8)(b), \
+    c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15))
 
 #define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7) \
-    ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), \
-        (vsx_v_u8){c0*2,c0*2+1,c1*2,c1*2+1,c2*2,c2*2+1,c3*2,c3*2+1, \
-                   c4*2,c4*2+1,c5*2,c5*2+1,c6*2,c6*2+1,c7*2,c7*2+1}))
+  ((v128_t)__builtin_shufflevector((vsx_v_i16)(a), (vsx_v_i16)(b), \
+    c0,c1,c2,c3,c4,c5,c6,c7))
 
 #define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3) \
-    ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), \
-        (vsx_v_u8){c0*4,c0*4+1,c0*4+2,c0*4+3, \
-                   c1*4,c1*4+1,c1*4+2,c1*4+3, \
-                   c2*4,c2*4+1,c2*4+2,c2*4+3, \
-                   c3*4,c3*4+1,c3*4+2,c3*4+3}))
+  ((v128_t)__builtin_shufflevector((vsx_v_i32)(a), (vsx_v_i32)(b), \
+    c0,c1,c2,c3))
 
 #define vsx_i64x2_shuffle(a, b, c0,c1) \
-    ((v128_t)vec_perm((vsx_v_u8)(a), (vsx_v_u8)(b), \
-        (vsx_v_u8){c0*8,c0*8+1,c0*8+2,c0*8+3,c0*8+4,c0*8+5,c0*8+6,c0*8+7, \
-                   c1*8,c1*8+1,c1*8+2,c1*8+3,c1*8+4,c1*8+5,c1*8+6,c1*8+7}))
+  ((v128_t)__builtin_shufflevector((vsx_v_i64)(a), (vsx_v_i64)(b), c0,c1))
+
+#elif defined(__GNUC__)
+// GCC implementations using vec_perm
+// For 8-bit elements, indices are direct byte positions
+#define vsx_i8x16_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7, \
+                                 c8,c9,c10,c11,c12,c13,c14,c15) \
+  VSX_SHUFFLE(vsx_v_u8, (a), (b), c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15)
+
+// For 16-bit elements, need to duplicate indices for big-endian byte order
+// This assumes big-endian ordering (default on POWER)
+#define vsx_i16x8_shuffle(a, b, c0,c1,c2,c3,c4,c5,c6,c7) \
+  ({ \
+    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
+      (unsigned char)(((c0)&0x7)*2), (unsigned char)(((c0)&0x7)*2+1), \
+      (unsigned char)(((c1)&0x7)*2), (unsigned char)(((c1)&0x7)*2+1), \
+      (unsigned char)(((c2)&0x7)*2), (unsigned char)(((c2)&0x7)*2+1), \
+      (unsigned char)(((c3)&0x7)*2), (unsigned char)(((c3)&0x7)*2+1), \
+      (unsigned char)(((c4)&0x7)*2+16), (unsigned char)(((c4)&0x7)*2+1+16), \
+      (unsigned char)(((c5)&0x7)*2+16), (unsigned char)(((c5)&0x7)*2+1+16), \
+      (unsigned char)(((c6)&0x7)*2+16), (unsigned char)(((c6)&0x7)*2+1+16), \
+      (unsigned char)(((c7)&0x7)*2+16), (unsigned char)(((c7)&0x7)*2+1+16) \
+    }; \
+    (vsx_v_i16)vec_perm((vsx_v_i16)(a), (vsx_v_i16)(b), _mask); \
+  })
+
+// For 32-bit elements, need to expand indices for big-endian byte order
+#define vsx_i32x4_shuffle(a, b, c0,c1,c2,c3) \
+  ({ \
+    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
+      (unsigned char)(((c0)&0x3)*4), (unsigned char)(((c0)&0x3)*4+1), \
+      (unsigned char)(((c0)&0x3)*4+2), (unsigned char)(((c0)&0x3)*4+3), \
+      (unsigned char)(((c1)&0x3)*4), (unsigned char)(((c1)&0x3)*4+1), \
+      (unsigned char)(((c1)&0x3)*4+2), (unsigned char)(((c1)&0x3)*4+3), \
+      (unsigned char)(((c2)&0x3)*4+16), (unsigned char)(((c2)&0x3)*4+1+16), \
+      (unsigned char)(((c2)&0x3)*4+2+16), (unsigned char)(((c2)&0x3)*4+3+16), \
+      (unsigned char)(((c3)&0x3)*4+16), (unsigned char)(((c3)&0x3)*4+1+16), \
+      (unsigned char)(((c3)&0x3)*4+2+16), (unsigned char)(((c3)&0x3)*4+3+16) \
+    }; \
+    (vsx_v_i32)vec_perm((vsx_v_i32)(a), (vsx_v_i32)(b), _mask); \
+  })
+
+// For 64-bit elements, expand indices for big-endian byte order
+#define vsx_i64x2_shuffle(a, b, c0,c1) \
+  ({ \
+    const unsigned char __attribute__((__vector_size__(16))) _mask = { \
+      (unsigned char)(((c0)&0x1)*8), (unsigned char)(((c0)&0x1)*8+1), \
+      (unsigned char)(((c0)&0x1)*8+2), (unsigned char)(((c0)&0x1)*8+3), \
+      (unsigned char)(((c0)&0x1)*8+4), (unsigned char)(((c0)&0x1)*8+5), \
+      (unsigned char)(((c0)&0x1)*8+6), (unsigned char)(((c0)&0x1)*8+7), \
+      (unsigned char)(((c1)&0x1)*8+16), (unsigned char)(((c1)&0x1)*8+1+16), \
+      (unsigned char)(((c1)&0x1)*8+2+16), (unsigned char)(((c1)&0x1)*8+3+16), \
+      (unsigned char)(((c1)&0x1)*8+4+16), (unsigned char)(((c1)&0x1)*8+5+16), \
+      (unsigned char)(((c1)&0x1)*8+6+16), (unsigned char)(((c1)&0x1)*8+7+16) \
+    }; \
+    (vsx_v_i64)vec_perm((vsx_v_i64)(a), (vsx_v_i64)(b), _mask); \
+  })
+#endif
 
 //---------------------------------------------------------------------------
 // swizzle: runtime byte-table lookup; lanes with index > 15 give 0

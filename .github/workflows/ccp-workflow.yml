@@ -11,8 +11,9 @@ on:
         description: 'Select the job to run manually'
         type: 'choice'
         options:
-          - 'build_arm32'
-        default: 'build_arm32'
+          - 'test_arm32'
+          - 'test_s390x'
+        default: 'test_arm32'
       log_level:
         description: 'Log level'
         required: false

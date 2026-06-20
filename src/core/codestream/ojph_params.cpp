@@ -1134,6 +1134,65 @@ namespace ojph {
       ui32 num_comps = siz.get_num_components();
       trim_non_existing_components(num_comps);
 
+      // initialize QCD based on the first component that is (a) associated with
+      // COD and (b) does not have a COC, or the first component othewise.
+
+      ui32 qcd_comp = 0;
+      for (ui32 c = 0; c < num_comps; ++c)
+      {
+        if (cod.get_coc(c) == &cod && get_qcc(c) == this)
+        {
+          qcd_comp = c;
+          break;
+        }
+      }
+
+      this->make_quant_steps(
+        cod.is_employing_color_transform(),
+        cod.get_num_decompositions(),
+        siz.get_bit_depth(qcd_comp),
+        siz.is_signed(qcd_comp),
+        cod.get_wavelet_kern()
+      );
+/*
+      this->is_color_trans = cod.is_employing_color_transform();
+      this->num_decomps = cod.get_num_decompositions();
+      this->bit_depth = siz.get_bit_depth(qcd_comp);
+      this->is_signed = siz.is_signed(qcd_comp);
+      this->wavelet_kern = cod.get_wavelet_kern();
+      this->num_subbands = 1 + 3 * this->num_decomps;
+*/
+      // create a QCC for every component that (a) cannot use QCD and (b)
+      // does not already have a QCC
+      for (ui32 c = 0; c < num_comps; ++c)
+      {
+        param_qcd *qcc = this->get_qcc(c);
+
+        if (qcc == this)
+        {
+          const param_cod *coc = cod.get_coc(c);
+
+          if (! this->is_qcc_needed(
+            coc->is_employing_color_transform(),
+            coc->get_num_decompositions(),
+            siz.get_bit_depth(c),
+            siz.is_signed(c),
+            coc->get_wavelet_kern()
+          ))
+          continue;
+
+          qcc = this->add_qcc_object(c);
+        }
+
+        qcc->make_quant_steps(
+            cod.is_employing_color_transform(),
+            cod.get_num_decompositions(),
+            siz.get_bit_depth(qcd_comp),
+            siz.is_signed(qcd_comp),
+            cod.get_wavelet_kern()
+          );
+      }
+
       // first check that all the component captured by QCD have the same
       // bit_depth and signedness
       bool all_same = true;

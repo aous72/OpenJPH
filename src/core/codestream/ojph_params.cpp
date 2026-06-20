@@ -1147,193 +1147,78 @@ namespace ojph {
         }
       }
 
-      this->make_quant_steps(
-        cod.is_employing_color_transform(),
-        cod.get_num_decompositions(),
-        siz.get_bit_depth(qcd_comp),
-        siz.is_signed(qcd_comp),
-        cod.get_wavelet_kern()
-      );
-/*
-      this->is_color_trans = cod.is_employing_color_transform();
-      this->num_decomps = cod.get_num_decompositions();
-      this->bit_depth = siz.get_bit_depth(qcd_comp);
-      this->is_signed = siz.is_signed(qcd_comp);
-      this->wavelet_kern = cod.get_wavelet_kern();
-      this->num_subbands = 1 + 3 * this->num_decomps;
-*/
-      // create a QCC for every component that (a) cannot use QCD and (b)
-      // does not already have a QCC
+      this->make_quant_steps(qcd_comp, cod, siz);
+
+      // initialize every QCC, creating one for every component that (a) cannot
+      // use QCD and (b) does not already have a QCC
       for (ui32 c = 0; c < num_comps; ++c)
       {
         param_qcd *qcc = this->get_qcc(c);
+        const param_cod *coc = cod.get_coc(c);
 
         if (qcc == this)
         {
-          const param_cod *coc = cod.get_coc(c);
-
-          if (! this->is_qcc_needed(
-            coc->is_employing_color_transform(),
-            coc->get_num_decompositions(),
-            siz.get_bit_depth(c),
-            siz.is_signed(c),
-            coc->get_wavelet_kern()
-          ))
-          continue;
+          // no QCC specified for the component, one is created only if QCD cannot be used
+          if (!this->is_qcc_needed(c, *coc, siz))
+            continue;
 
           qcc = this->add_qcc_object(c);
+          qcc->set_delta(this->base_delta);
         }
 
-        qcc->make_quant_steps(
-            cod.is_employing_color_transform(),
-            cod.get_num_decompositions(),
-            siz.get_bit_depth(qcd_comp),
-            siz.is_signed(qcd_comp),
-            cod.get_wavelet_kern()
-          );
+        qcc->make_quant_steps(c, *coc, siz);
       }
+    }
 
-      // first check that all the component captured by QCD have the same
-      // bit_depth and signedness
-      bool all_same = true;
-      bool other_comps_exist = false;
-      ui32 first_comp = 0xFFFF; // an impossible component
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::make_quant_steps(ui32 comp_num, const param_cod &cod, const param_siz &siz)
+    {
+      if (this->is_init)
+        OJPH_ERROR(0x00040001, "Quantization step sizes already initialized.");
+
+      this->is_init = true;
+
+      this->num_decomps = cod.get_num_decompositions();
+      this->bit_depth = siz.get_bit_depth(comp_num);
+      this->is_signed = siz.is_signed(comp_num);
+      this->is_color_trans = cod.is_employing_color_transform();
+      this->wavelet_kern = cod.get_wavelet_kern();
+      this->num_subbands = 1 + 3 * this->num_decomps;
+
+      if (this->wavelet_kern == param_cod::DWT_REV53)
+        this->set_rev_quant(this->num_decomps, this->bit_depth,
+                            comp_num < 3 ? this->is_color_trans : false);
+      else if (this->wavelet_kern == param_cod::DWT_IRV97)
       {
-        ui32 num_decompositions = 0;
-        ui32 bit_depth = 0;
-        bool is_signed = false;
-        ui32 wavelet_kern = param_cod::DWT_IRV97;
-
-        for (ui32 c = 0; c < num_comps; ++c)
+        if (this->base_delta == -1.0f)
         {
-          if (get_qcc(c) == this) // no qcc defined for component c
+          if (this->wavelet_kern == param_cod::DWT_IRV97)
           {
-            const param_cod *p = cod.get_coc(c);
-            if (bit_depth == 0) // first component captured by QCD
-            {
-              num_decompositions = p->get_num_decompositions();
-              bit_depth = siz.get_bit_depth(c);
-              is_signed = siz.is_signed(c);
-              wavelet_kern = p->get_wavelet_kern();
-              first_comp = c;
-            }
-            else
-            {
-              all_same = all_same
-                && (num_decompositions == p->get_num_decompositions())
-                && (bit_depth == siz.get_bit_depth(c))
-                && (is_signed == siz.is_signed(c))
-                && (wavelet_kern == p->get_wavelet_kern());
-            }
+            assert(this->base_delta != -1.0f);
+            this->base_delta = this->base_delta;
           }
           else
-            other_comps_exist = true;
-        }
-      }
-
-      // configure QCD according COD
-      ui32 qcd_num_decompositions;
-      ui32 qcd_bit_depth;
-      bool qcd_is_signed;
-      ui32 qcd_wavelet_kern;
-      {
-        ui32 qcd_component = first_comp != 0xFFFF ? first_comp : 0;
-        bool employing_color_transform = cod.is_employing_color_transform();
-        qcd_num_decompositions = cod.get_num_decompositions();
-        qcd_bit_depth = siz.get_bit_depth(qcd_component);
-        qcd_is_signed = siz.is_signed(qcd_component);
-        qcd_wavelet_kern = cod.get_wavelet_kern();
-        this->num_subbands = 1 + 3 * qcd_num_decompositions;
-        if (qcd_wavelet_kern == param_cod::DWT_REV53)
-          set_rev_quant(qcd_num_decompositions, qcd_bit_depth,
-            qcd_component < 3 ? employing_color_transform : false);
-        else if (qcd_wavelet_kern == param_cod::DWT_IRV97)
-        {
-          if (this->base_delta == -1.0f) {
-            ui32 t = ojph_min(16, qcd_bit_depth);
+          {
+            ui32 t = ojph_min(16, bit_depth);
             this->base_delta = 1.0f / (float)(1 << t);
           }
-          set_irrev_quant(qcd_num_decompositions);
         }
-        else
-          assert(0);
+        this->set_irrev_quant(this->num_decomps);
       }
+    }
 
-      // if not all the same and captured by QCD, then create QCC for them
-      if (!all_same)
-      {
-        bool employing_color_transform = cod.is_employing_color_transform();
-        for (ui32 c = 0; c < num_comps; ++c)
-        {
-          const param_cod *cp = cod.get_coc(c);
-          if (qcd_num_decompositions == cp->get_num_decompositions()
-              && qcd_bit_depth == siz.get_bit_depth(c)
-              && qcd_is_signed == siz.is_signed(c)
-              && qcd_wavelet_kern == cp->get_wavelet_kern())
-            continue; // captured by QCD
+    //////////////////////////////////////////////////////////////////////////
+    bool param_qcd::is_qcc_needed(ui32 comp_num, const param_cod &cod, const param_siz &siz)
+    {
+      if (! this->is_init)
+        OJPH_ERROR(0x00040001, "Quantization step sizes not initialized.");
 
-          // Does not match QCD, must have QCC
-          param_qcd *qp = get_qcc(c);
-          if (qp == this) // no QCC was defined, create QCC
-            qp = this->add_qcc_object(c);
+      return this->num_decomps != cod.get_num_decompositions() ||
+              this->bit_depth != siz.get_bit_depth(comp_num) ||
+              this->is_signed != siz.is_signed(comp_num) ||
+              this->is_color_trans != cod.is_employing_color_transform() ||
+              this->wavelet_kern != cod.get_wavelet_kern();
 
-          ui32 num_decompositions = cp->get_num_decompositions();
-          qp->num_subbands = 1 + 3 * num_decompositions;
-          ui32 bit_depth = siz.get_bit_depth(c);
-          if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
-            qp->set_rev_quant(num_decompositions, bit_depth,
-              c < 3 ? employing_color_transform : false);
-          else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
-          {
-            if (qp->base_delta == -1.0f) {
-              if (qcd_wavelet_kern == param_cod::DWT_IRV97) {
-                assert(this->base_delta != -1.0f);
-                qp->base_delta = this->base_delta;
-              }
-              else {
-                ui32 t = ojph_min(16, qcd_bit_depth);
-                qp->base_delta = 1.0f / (float)(1 << t);
-              }
-            }
-            qp->set_irrev_quant(num_decompositions);
-          }
-          else
-            assert(0);
-        }
-      }
-      else if (other_comps_exist) // Some are captured by QCD
-      {
-        bool employing_color_transform = cod.is_employing_color_transform();
-        for (ui32 c = 0; c < num_comps; ++c)
-        {
-          param_qcd *qp = get_qcc(c);
-          if (qp == this) // if captured by QCD continue
-            continue;
-          const param_cod *cp = cod.get_coc(c);
-          ui32 num_decompositions = cp->get_num_decompositions();
-          qp->num_subbands = 1 + 3 * num_decompositions;
-          ui32 bit_depth = siz.get_bit_depth(c);
-          if (cp->get_wavelet_kern() == param_cod::DWT_REV53)
-            qp->set_rev_quant(num_decompositions, bit_depth,
-              c < 3 ? employing_color_transform : false);
-          else if (cp->get_wavelet_kern() == param_cod::DWT_IRV97)
-          {
-            if (qp->base_delta == -1.0f) {
-              if (qcd_wavelet_kern == param_cod::DWT_IRV97) {
-                assert(this->base_delta != -1.0f);
-                qp->base_delta = this->base_delta;
-              }
-              else {
-                ui32 t = ojph_min(16, qcd_bit_depth);
-                qp->base_delta = 1.0f / (float)(1 << t);
-              }
-            }
-            qp->set_irrev_quant(num_decompositions);
-          }
-          else
-            assert(0);
-        }
-      }
     }
 
     //////////////////////////////////////////////////////////////////////////

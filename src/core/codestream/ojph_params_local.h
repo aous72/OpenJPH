@@ -707,6 +707,8 @@ namespace ojph {
       }
 
       void check_validity(const param_siz& siz, const param_cod& cod);
+      void make_quant_steps(ui32 comp_num, const param_cod &cod, const param_siz &siz);
+      bool is_qcc_needed(ui32 comp_num, const param_cod &cod, const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
       void set_delta(ui32 comp_idx, float delta);
       ui32 get_num_guard_bits() const;

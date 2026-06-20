@@ -312,6 +312,7 @@ namespace ojph {
     void wasm_rev_horz_syn(const param_atk* atk, const line_buf* dst,
                            const line_buf* lsrc, const line_buf* hsrc,
                            ui32 width, bool even);
+
     //////////////////////////////////////////////////////////////////////////
     //
     //

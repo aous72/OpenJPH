@@ -1192,16 +1192,8 @@ namespace ojph {
       {
         if (this->base_delta == -1.0f)
         {
-          if (this->wavelet_kern == param_cod::DWT_IRV97)
-          {
-            assert(this->base_delta != -1.0f);
-            this->base_delta = this->base_delta;
-          }
-          else
-          {
-            ui32 t = ojph_min(16, bit_depth);
-            this->base_delta = 1.0f / (float)(1 << t);
-          }
+          ui32 t = ojph_min(16, bit_depth);
+          this->base_delta = 1.0f / (float)(1 << t);
         }
         this->set_irrev_quant(this->num_decomps);
       }

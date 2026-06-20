@@ -25,22 +25,19 @@ RUN ldconfig
 WORKDIR /usr/src/openjph
 
 # step 1 - build docker image
-# docker build --rm -f Dockerfile_alpine -t openjph_alpine:latest .
+# docker build --rm -f Dockerfile -t openjph:latest .
 # step 2 - run docker image
-# docker run -it --rm openjph_alpine:latest
-# docker run -it --rm -v C:\\temp:/tmp openjph_alpine:latest
+# docker run -it --rm openjph:latest
+# docker run -it --rm -v C:\\temp:/tmp openjph:latest
 
-# to use s390x big endian build, conifigure QEMU to run 
-# 1 - config QEMU: docker run --privileged --rm tonistiigi/binfmt --install all
-# to build and run s390x big endian build, add --platform linux/s390x to the docker build and run commands as shown below
-# 2 - add --platform linux/s390x to the docker build and run commands
-# step 1 - build docker image using s390x big endian architecture
-# docker build --rm -f Dockerfile_alpine -t openjph_alpine_s390x:latest --platform linux/s390x .
-# step 2 - check that s390x is being used - this should print "s390x" to terminal
-# docker run -it --rm openjph_alpine_s390x:latest uname -m
-# step 3 - run docker image
-# docker run -it --rm openjph_alpine_s390x:latest
-# docker run -it --rm -v C:\\temp:/tmp openjph_alpine_s390x:latest
-
-
-
+# to use s390x big-endian build on a little-endian host follow these steps: 
+# step 1 - config QEMU to run s390x big-endian binaries on a little-endian
+#          host, this only needs to be done once per host:
+# docker run --privileged --rm tonistiigi/binfmt --install all
+# step 2 - build docker image using --platform linux/s390x command:
+# docker build --rm -f Dockerfile -t openjph_s390x:latest --platform linux/s390x .
+# step 3 - check that s390x is being used, this should print "s390x" to terminal
+# docker run -it --rm openjph_s390x:latest uname -m
+# step 4 - run docker image
+# docker run -it --rm openjph_s390x:latest
+# docker run -it --rm -v C:\\temp:/tmp openjph_s390x:latest

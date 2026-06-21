@@ -117,18 +117,20 @@ else()
 
     if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_PPC64")
         AND (CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le|powerpc64le"))
-      # native 128-bit VSX kernels (see ojph_simd_vsx.h).  Supported
-      # targets are POWER9 (ISA 3.0) and newer, little-endian only.
-      # The block decoder dispatch is selective; see
-      # ojph_codeblock_fun.cpp.
-      list(APPEND SOURCES ${CODESTREAM_VSX} ${CODING_VSX} ${TRANSFORM_VSX})
-      source_group("codestream" FILES ${CODESTREAM_VSX})
-      source_group("coding" FILES ${CODING_VSX})
-      source_group("transform" FILES ${TRANSFORM_VSX})
-      set_source_files_properties(codestream/ojph_codestream_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
-      set_source_files_properties(coding/ojph_block_decoder_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
-      set_source_files_properties(transform/ojph_transform_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
-      set_source_files_properties(transform/ojph_colour_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
+      if (NOT OJPH_DISABLE_SIMD)
+        # native 128-bit VSX kernels (see ojph_simd_vsx.h).  Supported
+        # targets are POWER9 (ISA 3.0) and newer, little-endian only.
+        # The block decoder dispatch is selective; see
+        # ojph_codeblock_fun.cpp.
+        list(APPEND SOURCES ${CODESTREAM_VSX} ${CODING_VSX} ${TRANSFORM_VSX})
+        source_group("codestream" FILES ${CODESTREAM_VSX})
+        source_group("coding" FILES ${CODING_VSX})
+        source_group("transform" FILES ${TRANSFORM_VSX})
+        set_source_files_properties(codestream/ojph_codestream_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
+        set_source_files_properties(coding/ojph_block_decoder_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
+        set_source_files_properties(transform/ojph_transform_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
+        set_source_files_properties(transform/ojph_colour_vsx.cpp PROPERTIES COMPILE_FLAGS "-mcpu=power9")
+      endif()
     endif()
 
   endif()
@@ -156,7 +158,11 @@ endif()
 ## include library version/name
 set_target_properties(openjph PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
-target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/openjph> $<INSTALL_INTERFACE:include>)
+target_include_directories(openjph PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/openjph>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/shared>
+  $<INSTALL_INTERFACE:include>
+)
 
 ## This is to check if aligned_alloc or posix_memalign is available
 # We want the code to compile for C11 and C++11.

@@ -92,11 +92,11 @@ namespace ojph {
     void wasm_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui32* max_val);
     void vsx_rev_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
-                             float delta_inv, ui32 count, ui32* max_val);
+                            float delta_inv, ui32 count, ui32* max_val);
     void wasm_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui32* max_val);
     void vsx_irv_tx_to_cb32(const void *sp, ui32 *dp, ui32 K_max,
-                             float delta_inv, ui32 count, ui32* max_val);
+                            float delta_inv, ui32 count, ui32* max_val);
 
     void  gen_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui64* max_val);
@@ -107,7 +107,7 @@ namespace ojph {
     void wasm_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max,
                              float delta_inv, ui32 count, ui64* max_val);
     void vsx_rev_tx_to_cb64(const void *sp, ui64 *dp, ui32 K_max,
-                             float delta_inv, ui32 count, ui64* max_val);
+                            float delta_inv, ui32 count, ui64* max_val);
 
     //////////////////////////////////////////////////////////////////////////
     void  gen_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
@@ -125,11 +125,11 @@ namespace ojph {
     void wasm_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
     void vsx_rev_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
-                               float delta, ui32 count);
+                              float delta, ui32 count);
     void wasm_irv_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
     void vsx_irv_tx_from_cb32(const ui32 *sp, void *dp, ui32 K_max,
-                               float delta, ui32 count);
+                              float delta, ui32 count);
 
     void  gen_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
@@ -142,7 +142,7 @@ namespace ojph {
     void wasm_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
                                float delta, ui32 count);
     void vsx_rev_tx_from_cb64(const ui64 *sp, void *dp, ui32 K_max,
-                               float delta, ui32 count);
+                              float delta, ui32 count);
 
     void codeblock_fun::init(bool reversible) {
 

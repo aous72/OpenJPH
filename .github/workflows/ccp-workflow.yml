@@ -11,124 +11,52 @@ on:
         description: 'Select the job to run manually'
         type: 'choice'
         options:
+          - 'test'
           - 'test_arm32'
+          - 'test_msys2'
           - 'test_s390x'
+          - 'test_windows'
+          - 'test_windows_on_arm'
           - 'test_ppc64le'
-        default: 'test_arm32'
+        default: ''
       log_level:
         description: 'Log level'
         required: false
         default: 'info'
 
+permissions:
+  contents: read
 
 jobs:
-  # build:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: MacOS,          runner: macos-latest },
-  #         { system: Ubuntu-22,      runner: ubuntu-22.04 },
-  #         { system: Ubuntu-latest,  runner: ubuntu-latest },
-  #       ]
-  #   name: ${{ matrix.system }} Build
-  #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - name: cmake
-  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
-  #     working-directory: build
-  #   - name: build
-  #     run: make
-  #     working-directory: build
-
   build_mac:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' }}
+
     strategy:
       fail-fast: false
       matrix:
         include: [
           { system: MacOS Dual Build, runner: macos-latest },
         ]
-    name: ${{ matrix.system }} Build
+
+    name: ${{ matrix.system }})
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
+
     steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
 
-  # build_windows:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: Windows,  runner: windows-latest },
-  #       ]
-  #   name: ${{ matrix.system }} Build
-  #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - name: cmake
-  #     run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-  #     working-directory: build
-  #   - name: build
-  #     run: cmake --build . --config Release
-  #     working-directory: build
+      - name: cmake
+        run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DOJPH_ENABLE_TIFF_SUPPORT=OFF ..
+        working-directory: build
 
-  # build_msys2:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
-  #         { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
-  #       ]
-  #   name: ${{ matrix.system }} Build
-  #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
-  #   defaults:
-  #     run:
-  #       shell: msys2 {0}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - uses: msys2/setup-msys2@v2
-  #     with:
-  #       msystem: ${{ matrix.msystem }}
-  #       update: false
-  #       pacboy: cc:p cmake:p libtiff:p
-  #   - name: cmake
-  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
-  #     working-directory: build
-  #   - name: build
-  #     run: cmake --build . --config Release
-  #     working-directory: build
-
-  # build_windows_on_arm:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include: [
-  #         { system: WindowsOnARM,  runner: windows-11-arm },
-  #       ]
-  #   name: ${{ matrix.system }} Build
-  #   runs-on: ${{ matrix.runner }}
-  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
-  #   steps:
-  #   - uses: actions/checkout@v5
-  #   - name: cmake
-  #     run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-  #     working-directory: build
-  #   - name: build
-  #     run: cmake --build . --config Release
-  #     working-directory: build
+      - name: build
+        run: make
+        working-directory: build
 
   test:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -138,44 +66,60 @@ jobs:
           { system: Ubuntu-22,      runner: ubuntu-22.04 },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
+
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
+
     steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=ON ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure
-      working-directory: build
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: cmake
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=ON ..
+        working-directory: build
+
+      - name: build
+        run: make
+        working-directory: build
+
+      - name: test
+        run: ctest --output-on-failure
+        working-directory: build
 
   test_windows:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_windows' }}
+
     strategy:
       fail-fast: false
       matrix:
         include: [
           { system: Windows,  runner: windows-latest },
         ]
+
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
+
     steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure -C Release
-      working-directory: build
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: cmake
+        run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+        working-directory: build
+
+      - name: build
+        run: cmake --build . --config Release
+        working-directory: build
+
+      - name: test
+        run: ctest --output-on-failure -C Release
+        working-directory: build
 
   test_msys2:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_msys2' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -183,115 +127,141 @@ jobs:
           { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
           { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
         ]
-    name: ${{ matrix.system }} Build and Test
-    runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
+
     defaults:
       run:
         shell: msys2 {0}
+
+    name: ${{ matrix.system }} Build and Test
+    runs-on: ${{ matrix.runner }}
+
     steps:
-    - uses: actions/checkout@v5
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{ matrix.msystem }}
-        update: false
-        pacboy: cc:p cmake:p python:p
-    - name: cmake
-      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure -C Release
-      working-directory: build
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c #v2.31.1
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: false
+          pacboy: cc:p cmake:p python:p
+
+      - name: cmake
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe ..
+        working-directory: build
+
+      - name: build
+        run: cmake --build . --config Release
+        working-directory: build
+
+      - name: test
+        run: ctest --output-on-failure -C Release
+        working-directory: build
 
   test_windows_on_arm:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_windows_on_arm' }}
+
     strategy:
       fail-fast: false
       matrix:
         include: [
           { system: WindowsOnARM,  runner: windows-11-arm },
         ]
+
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' || github.event.inputs.job_to_run != 'test_ppc64le' )}}
+
     steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
-    - name: test
-      run: ctest --output-on-failure -C Release
-      working-directory: build
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: cmake
+        run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+        working-directory: build
+
+      - name: build
+        run: cmake --build . --config Release
+        working-directory: build
+
+      - name: test
+        run: ctest --output-on-failure -C Release
+        working-directory: build
 
   test_arm32:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_arm32' }}
+
     name: Linux-ARM32 Build and Test
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_arm32' }}
+
     steps:
-    - uses: actions/checkout@v5
-    - uses: uraimo/run-on-arch-action@v2
-      with:
-        arch: armv7
-        distro: ubuntu22.04
-        githubToken: ${{ github.token }}
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y cmake make g++ libtiff-dev python3
-        run: |
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-          make
-          ctest --output-on-failure
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+        with:
+          arch: armv7
+          distro: ubuntu22.04
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y cmake make g++ libtiff-dev python3
+          run: |
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
+            make
+            ctest --output-on-failure
 
   test_s390x:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_s390x' }}
+
     name: Linux-s390x (big-endian) Build and Test
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_s390x' }}
-    steps:
-    - uses: actions/checkout@v5
-    - uses: uraimo/run-on-arch-action@v3
-      with:
-        arch: s390x
-        distro: ubuntu22.04
-        githubToken: ${{ github.token }}
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y cmake make g++ libtiff-dev python3
-        run: |
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-          make
-          ctest --output-on-failure
 
-  test_powerpc64le:
-    name: Linux-ppc64le Build and Test
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { dist: ubuntu22.04 },
-          { dist: ubuntu24.04 },
-          { dist: ubuntu_latest },
-        ]
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_ppc64le' }}
     steps:
-    - uses: actions/checkout@v5
-    - uses: uraimo/run-on-arch-action@v3
-      with:
-        arch: ppc64le
-        distro: ${{ matrix.dist }}
-        githubToken: ${{ github.token }}
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y cmake make g++ libtiff-dev python3
-        run: |
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
-          make
-          ctest --output-on-failure
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+        with:
+          arch: s390x
+          distro: ubuntu22.04
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y cmake make g++ libtiff-dev python3
+          run: |
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
+            make
+            ctest --output-on-failure
+
+  test_ppc64le:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_ppc64le' }}
+
+    name: Linux-PowerPC64LE (little-endian) Build and Test
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+            include: [ { dist: ubuntu22.04 }, { dist: ubuntu_latest } ]
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+        with:
+          arch: s390x
+          distro: ${{ matrix.dist }}
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y cmake make g++ libtiff-dev python3
+          run: |
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
+            make
+            ctest --output-on-failure

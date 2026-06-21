@@ -47,10 +47,9 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void vsx_mem_clear(void* addr, size_t count)
     {
-      float* p = (float*)addr;
       v128_t zero = vsx_i32x4_splat(0);
-      for (size_t i = 0; i < count; i += 16, p += 4)
-        vsx_v128_store(p, zero);
+      for (size_t i = 0; i < count; i += 16, addr = (char*)addr + 16)
+        vsx_v128_store(addr, zero);
     }
 
     //////////////////////////////////////////////////////////////////////////

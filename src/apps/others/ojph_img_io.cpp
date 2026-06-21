@@ -673,42 +673,44 @@ namespace ojph {
         cur_line = 0;
     }
 
-    union {
-      si32* s;
-      ui32* u;
-      float* f;
-    } sp, dp;
+    float* sp = temp_buf + comp_num;
+    float* dp = line->f32;
 
     if (little_endian == is_machine_little_endian)
     {
       ui32 shift = 32 - bit_depth[comp_num];
-      sp.f = temp_buf + comp_num;
-      dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
         {
-          si32 s = *sp.s;
+          si32 s;
+          memcpy(&s, sp, sizeof(si32));
           s >>= shift;
-          *dp.s++ = s;
+          memcpy(dp, &s, sizeof(si32));
+          ++dp;
         }
       else
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
-          *dp.f++ = *sp.f;
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
+          *dp++ = *sp;
     }
     else {
       ui32 shift = 32 - bit_depth[comp_num];
-      sp.f = temp_buf + comp_num;
-      dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps) {
-          ui32 u = be2le(*sp.u);
-          si32 s = *(si32*)&u;
+        for (ui32 i = width; i > 0; --i, sp += num_comps) {
+          si32 s;
+          memcpy(&s, sp, sizeof(si32));
+          s = (si32)be2le((ui32)s);
           s >>= shift;
-          *dp.s++ = s;
+          memcpy(dp, &s, sizeof(si32));
+          ++dp;
         }
       else
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
-          *dp.u++ = be2le(*sp.u);
+        for (ui32 i = width; i > 0; --i, sp += num_comps) {
+          ui32 u;
+          memcpy(&u, sp, sizeof(ui32));
+          u = be2le(u);
+          memcpy(dp, &u, sizeof(ui32));
+          ++dp;
+        }
     }
 
     return width;
@@ -771,28 +773,44 @@ namespace ojph {
     assert(fh);
 
     ui32 shift = 32 - bit_depth[comp_num];
-    union {
-      ui32* u;
-      float* f;
-    } sp, dp;
-
-    dp.f = buffer + comp_num;
-    sp.f = line->f32;
+    float* sp = line->f32;
+    float* dp = buffer + comp_num;
 
     // swap bytes when the samples are forced to little endian on disk
     // but the machine is big endian
     bool needs_swap = is_force_pfm_write_as_little_endian_on_disk
       && !is_machine_little_endian;
-    if (shift)
-      for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
-      {
-        ui32 u = *sp.u;
-        u <<= shift;
-        *dp.u = needs_swap ? be2le(u) : u;
-      }
+    if (shift) {
+      if (needs_swap)
+        for (ui32 i = width; i > 0; --i, dp += num_components, ++sp)
+        {
+          ui32 u;
+          memcpy(&u, sp, sizeof(ui32));
+          u <<= shift;
+          u = be2le(u);
+          memcpy(dp, &u, sizeof(ui32));
+        }
+      else
+        for (ui32 i = width; i > 0; --i, dp += num_components, ++sp)
+        {
+          ui32 u;
+          memcpy(&u, sp, sizeof(ui32));
+          u <<= shift;
+          memcpy(dp, &u, sizeof(ui32));
+        }
+    }
     else
-      for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
-        *dp.u = needs_swap ? be2le(*sp.u) : *sp.u;
+      if (needs_swap)
+        for (ui32 i = width; i > 0; --i, dp += num_components, ++sp)
+        {
+          ui32 u;
+          memcpy(&u, sp, sizeof(ui32));
+          u = be2le(u);
+          memcpy(dp, &u, sizeof(ui32));
+        }
+      else
+        for (ui32 i = width; i > 0; --i, dp += num_components, ++sp)
+          *dp = *sp;
 
     if (comp_num == num_components - 1)
     {

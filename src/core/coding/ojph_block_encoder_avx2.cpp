@@ -358,7 +358,7 @@ namespace ojph {
         }
       } else {
         int t = mel_exp[melp->k];
-        mel_emit_bits(melp, melp->run & ((1u << t) - 1), t + 1);
+        mel_emit_bits(melp, (ui32)melp->run & ((1u << t) - 1), t + 1);
         melp->run = 0;
         melp->k = ojph_max(0, melp->k - 1);
         melp->threshold = 1 << mel_exp[melp->k];
@@ -366,35 +366,35 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    static inline void
-    mel_advance_run(mel_struct* melp, ui32 n)
-    {
-      ui32 remaining = n;
-      while (remaining > 0) {
-        ui32 space = (ui32)melp->threshold - (ui32)melp->run;
-        if (remaining >= space) {
-          remaining -= space;
-          mel_emit_bits(melp, 1, 1);
-          melp->run = 0;
-          melp->k = ojph_min(12, melp->k + 1);
-          melp->threshold = 1 << mel_exp[melp->k];
-        } else {
-          melp->run += (int)remaining;
-          remaining = 0;
-        }
-      }
-    }
+    // static inline void
+    // mel_advance_run(mel_struct* melp, ui32 n)
+    // {
+    //   ui32 remaining = n;
+    //   while (remaining > 0) {
+    //     ui32 space = (ui32)melp->threshold - (ui32)melp->run;
+    //     if (remaining >= space) {
+    //       remaining -= space;
+    //       mel_emit_bits(melp, 1, 1);
+    //       melp->run = 0;
+    //       melp->k = ojph_min(12, melp->k + 1);
+    //       melp->threshold = 1 << mel_exp[melp->k];
+    //     } else {
+    //       melp->run += (int)remaining;
+    //       remaining = 0;
+    //     }
+    //   }
+    // }
 
     //////////////////////////////////////////////////////////////////////////
-    static inline void
-    mel_encode_significance(mel_struct* melp)
-    {
-      int t = mel_exp[melp->k];
-      mel_emit_bits(melp, melp->run & ((1u << t) - 1), t + 1);
-      melp->run = 0;
-      melp->k = ojph_max(0, melp->k - 1);
-      melp->threshold = 1 << mel_exp[melp->k];
-    }
+    // static inline void
+    // mel_encode_significance(mel_struct* melp)
+    // {
+    //   int t = mel_exp[melp->k];
+    //   mel_emit_bits(melp, melp->run & ((1u << t) - 1), t + 1);
+    //   melp->run = 0;
+    //   melp->k = ojph_max(0, melp->k - 1);
+    //   melp->threshold = 1 << mel_exp[melp->k];
+    // }
 
     /////////////////////////////////////////////////////////////////////////
     //
@@ -432,7 +432,7 @@ namespace ojph {
       while (vlcp->used_bits >= 8) {
         int escape = (int)vlcp->last_greater_than_8F;
         int is_7f = (int)((vlcp->tmp & 0x7F) == 0x7F);
-        int need_stuff = escape & is_7f;
+        int need_stuff = (escape & is_7f) != 0 ? 1 : 0;
         int bits = 8 - need_stuff;
 
         ui8 byte = (ui8)(vlcp->tmp & ((1u << bits) - 1));
@@ -450,7 +450,7 @@ namespace ojph {
     {
       while (true) {
         int avail = 64 - vlcp->used_bits;
-        if (likely(cwd_len <= avail)) {
+        if (likely(avail > 0 && cwd_len <= avail)) {
           vlcp->tmp |= cwd << vlcp->used_bits;
           vlcp->used_bits += cwd_len;
           return;
@@ -611,24 +611,24 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    static inline void
-    ms_encode(ms_struct* msp, ui64 cwd, int cwd_len)
-    {
-      int avail = 64 - msp->used_bits;
-      if (likely(cwd_len <= avail)) {
-        msp->tmp |= cwd << msp->used_bits;
-        msp->used_bits += cwd_len;
-      } else {
-        msp->tmp |= (cwd & ((1ULL << avail) - 1)) << msp->used_bits;
-        msp->used_bits = 64;
-        ms_drain(msp);
-        cwd >>= avail;
-        cwd_len -= avail;
-        msp->tmp |= cwd << msp->used_bits;
-        msp->used_bits += cwd_len;
-      }
-      ms_drain(msp);
-    }
+    // static inline void
+    // ms_encode(ms_struct* msp, ui64 cwd, int cwd_len)
+    // {
+    //   int avail = 64 - msp->used_bits;
+    //   if (likely(cwd_len <= avail)) {
+    //     msp->tmp |= cwd << msp->used_bits;
+    //     msp->used_bits += cwd_len;
+    //   } else {
+    //     msp->tmp |= (cwd & ((1ULL << avail) - 1)) << msp->used_bits;
+    //     msp->used_bits = 64;
+    //     ms_drain(msp);
+    //     cwd >>= avail;
+    //     cwd_len -= avail;
+    //     msp->tmp |= cwd << msp->used_bits;
+    //     msp->used_bits += cwd_len;
+    //   }
+    //   ms_drain(msp);
+    // }
 
     //////////////////////////////////////////////////////////////////////////
     static inline void
@@ -1281,9 +1281,9 @@ void ojph_encode_codeblock_avx2(ui32* buf, ui32 missing_msbs,
     ui32 n_loop = (width + 15) / 16;
 
     __m256i e_val_vec[65];
-    for (ui32 i = 0; i <ojph_min(64, n_loop); ++i) {
+    for (ui32 i = 0; i < ojph_min(64, n_loop); ++i)
         e_val_vec[i] = ZERO;
-    }
+
     __m256i prev_e_val_vec = ZERO;
 
     __m256i cx_val_vec[65];

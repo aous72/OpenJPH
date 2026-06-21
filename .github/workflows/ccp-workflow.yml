@@ -17,6 +17,7 @@ on:
           - 'test_s390x'
           - 'test_windows'
           - 'test_windows_on_arm'
+          - 'test_ppc64le'
         default: ''
       log_level:
         description: 'Log level'
@@ -208,7 +209,7 @@ jobs:
             apt-get install -q -y cmake make g++ libtiff-dev python3
           run: |
             cd build
-            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
             make
             ctest --output-on-failure
 
@@ -233,6 +234,33 @@ jobs:
             apt-get install -q -y cmake make g++ libtiff-dev python3
           run: |
             cd build
-            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
+            make
+            ctest --output-on-failure
+
+test_ppc64le:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_ppc64le' }}
+
+    name: Linux-PowerPC64LE (big-endian) Build and Test
+    runs-on: ubuntu-latest
+    matrix:
+        include: [ { dist: ubuntu22.04 }, { dist: ubuntu_latest } ]
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+        with:
+          arch: s390x
+          distro: ${{ matrix.dist }}
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y cmake make g++ libtiff-dev python3
+          run: |
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=ON -DOJPH_BUILD_TESTS=ON ..
             make
             ctest --output-on-failure

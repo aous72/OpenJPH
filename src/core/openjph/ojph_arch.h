@@ -40,6 +40,7 @@
 #ifndef OJPH_ARCH_H
 #define OJPH_ARCH_H
 
+#include <cstring>
 #include <cstdio>
 #include <cstdint>
 #include <cmath>
@@ -100,12 +101,20 @@
   #define OJPH_ARCH_UNKNOWN
 #endif
 
+// Only little-endian POWER (ppc64le) is supported for SIMD
+#if defined(OJPH_ARCH_PPC64) &&  \
+  (defined(__LITTLE_ENDIAN__) ||  \
+   (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+  #define OJPH_ARCH_PPC64LE
+#endif
+
 namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   //                  disable SIMD for unknown architecture
   ////////////////////////////////////////////////////////////////////////////
 #if !defined(OJPH_ARCH_X86_64) && !defined(OJPH_ARCH_I386) &&  \
-    !defined(OJPH_ARCH_ARM) && !defined(OJPH_DISABLE_SIMD)
+    !defined(OJPH_ARCH_ARM) && !defined(OJPH_ARCH_PPC64LE) &&  \
+    !defined(OJPH_DISABLE_SIMD)
 #define OJPH_DISABLE_SIMD
 #endif // !OJPH_ARCH_UNKNOWN
 
@@ -162,6 +171,14 @@ namespace ojph {
     ARM_CPU_EXT_LEVEL_ASIMD = 1,
     ARM_CPU_EXT_LEVEL_SVE = 2,
     ARM_CPU_EXT_LEVEL_SVE2 = 3,
+  };
+
+  // POWER9 (ISA 3.0) is the minimum supported SIMD level; older CPUs
+  // (POWER8 and earlier) use the generic code paths
+  enum : int {
+    PPC_CPU_EXT_LEVEL_GENERIC = 0,
+    PPC_CPU_EXT_LEVEL_ARCH_3_00 = 1, // ISA 3.0  (POWER9)
+    PPC_CPU_EXT_LEVEL_ARCH_3_1 = 2,  // ISA 3.1  (POWER10)
   };
 
   /////////////////////////////////////////////////////////////////////////////
@@ -451,8 +468,11 @@ namespace ojph {
   // result, irrespective of the machine's endianness
   static inline ui32 load_le_ui32(const ui8 *p)
   {
-    if (is_machine_little_endian)
-      return *(const ui32 *)p;
+    if (is_machine_little_endian) {
+      ui32 val;
+      std::memcpy(&val, p, sizeof(val));
+      return val;
+    }
     else
       return (ui32)p[0] | ((ui32)p[1] << 8)
         | ((ui32)p[2] << 16) | ((ui32)p[3] << 24);
@@ -464,8 +484,11 @@ namespace ojph {
   // of the machine's endianness
   static inline ui32 load_le_ui16x2(const ui16 *p)
   {
-    if (is_machine_little_endian)
-      return *(const ui32 *)p;
+    if (is_machine_little_endian) {
+      ui32 val;
+      std::memcpy(&val, p, sizeof(val));
+      return val;
+    }
     else
       return (ui32)p[0] | ((ui32)p[1] << 16);
   }

@@ -665,17 +665,24 @@ namespace ojph {
       if (!nlt.write(file))
         OJPH_ERROR(0x00030027, "Error writing to file");
 
-      char buf[] = "      OpenJPH Ver "
+      const char* version_str = "OpenJPH Ver "
         OJPH_INT_TO_STRING(OPENJPH_VERSION_MAJOR) "."
         OJPH_INT_TO_STRING(OPENJPH_VERSION_MINOR) "."
         OJPH_INT_TO_STRING(OPENJPH_VERSION_PATCH) ".";
-      size_t len = strlen(buf);
-      *(ui16*)buf = swap_bytes_if_le((ui16)JP2K_MARKER::COM);
-      *(ui16*)(buf + 2) = swap_bytes_if_le((ui16)(len - 2));
-      //1 for General use (IS 8859-15:1999 (Latin) values)
-      *(ui16*)(buf + 4) = swap_bytes_if_le((ui16)(1));
-      if (file->write(buf, len) != len)
+      size_t data_len = strlen(version_str);
+
+      t = swap_bytes_if_le((ui16)JP2K_MARKER::COM);
+      if (file->write(&t, sizeof(ui16)) != sizeof(ui16))
         OJPH_ERROR(0x00030028, "Error writing to file");
+      t = swap_bytes_if_le((ui16)(data_len + 4));
+      if (file->write(&t, sizeof(ui16)) != sizeof(ui16))
+        OJPH_ERROR(0x0003002D, "Error writing to file");
+      //1 for General use (IS 8859-15:1999 (Latin) values)
+      t = swap_bytes_if_le((ui16)(1));
+      if (file->write(&t, sizeof(ui16)) != sizeof(ui16))
+        OJPH_ERROR(0x0003002E, "Error writing to file");
+      if (file->write(version_str, data_len) != data_len)
+        OJPH_ERROR(0x0003002F, "Error writing to file");
 
       if (comments != NULL) {
         for (ui32 i = 0; i < num_comments; ++i)

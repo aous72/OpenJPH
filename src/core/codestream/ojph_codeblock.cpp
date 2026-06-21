@@ -118,7 +118,9 @@ namespace ojph {
       if (precision == BUF32)
       {
         assert(line->flags & line_buf::LFT_32BIT);
-        const si32 *sp = line->i32 + line_offset;
+        const void *sp = (line->flags & line_buf::LFT_INTEGER)
+          ? (const void*)(line->i32 + line_offset)
+          : (const void*)(line->f32 + line_offset);
         ui32 *dp = buf32 + cur_line * stride;
         this->codeblock_functions.tx_to_cb32(sp, dp, K_max, delta_inv,
                                              cb_size.w, max_val32);
@@ -231,7 +233,9 @@ namespace ojph {
       if (precision == BUF32)
       {
         assert(line->flags & line_buf::LFT_32BIT);
-        si32 *dp = line->i32 + line_offset;
+        void *dp = (line->flags & line_buf::LFT_INTEGER)
+          ? (void*)(line->i32 + line_offset)
+          : (void*)(line->f32 + line_offset);
         if (!zero_block)
         {
           const ui32 *sp = buf32 + cur_line * stride;

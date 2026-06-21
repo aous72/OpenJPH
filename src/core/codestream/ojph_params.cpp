@@ -2248,8 +2248,8 @@ namespace ojph {
     bool param_tlm::write(outfile_base *file)
     {
       assert(next_pair_index == num_pairs);
-      ui32 buf4;
       ui16 buf2;
+      ui32 buf4;
       bool result = true;
 
       buf2 = JP2K_MARKER::TLM;

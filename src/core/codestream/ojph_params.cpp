@@ -603,40 +603,44 @@ namespace ojph {
       //marker size excluding header
       Lsiz = (ui16)(38 + 3 * Csiz);
 
-      ui8 buf[4];
+      ui8  buf1;
+      ui16 buf2;
+      ui32 buf4;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::SIZ;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lsiz);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Rsiz);
-      result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_bytes_if_le(Xsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(Ysiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(XOsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(YOsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(XTsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(YTsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(XTOsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_bytes_if_le(YTOsiz);
-      result &= file->write(&buf, 4) == 4;
-      *(ui16*)buf = swap_bytes_if_le(Csiz);
-      result &= file->write(&buf, 2) == 2;
+      buf2 = JP2K_MARKER::SIZ;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lsiz);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Rsiz);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf4 = swap_bytes_if_le(Xsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(Ysiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(XOsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(YOsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(XTsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(YTsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(XTOsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf4 = swap_bytes_if_le(YTOsiz);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+      buf2 = swap_bytes_if_le(Csiz);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       for (int c = 0; c < Csiz; ++c)
       {
-        buf[0] = cptr[c].SSiz;
-        buf[1] = cptr[c].XRsiz;
-        buf[2] = cptr[c].YRsiz;
-        result &= file->write(&buf, 3) == 3;
+        buf1 = cptr[c].SSiz;
+        result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+        buf1 = cptr[c].XRsiz;
+        result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+        buf1 = cptr[c].YRsiz;
+        result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       }
 
       return result;
@@ -671,7 +675,7 @@ namespace ojph {
       if (file->read(&t_YOsiz, 4) != 4)
         OJPH_ERROR(0x00050048, "error reading SIZ marker");
       set_image_offset(point(
-        swap_bytes_if_le(t_XOsiz), 
+        swap_bytes_if_le(t_XOsiz),
         swap_bytes_if_le(t_YOsiz)));
       ui32 t_XTsiz, t_YTsiz;
       if (file->read(&t_XTsiz, 4) != 4)
@@ -679,7 +683,7 @@ namespace ojph {
       if (file->read(&t_YTsiz, 4) != 4)
         OJPH_ERROR(0x0005004A, "error reading SIZ marker");
       set_tile_size(size(
-        swap_bytes_if_le(t_XTsiz), 
+        swap_bytes_if_le(t_XTsiz),
         swap_bytes_if_le(t_YTsiz)));
       ui32 t_XTOsiz, t_YTOsiz;
       if (file->read(&t_XTOsiz, 4) != 4)
@@ -687,7 +691,7 @@ namespace ojph {
       if (file->read(&t_YTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004C, "error reading SIZ marker");
       set_tile_offset(point(
-        swap_bytes_if_le(t_XTOsiz), 
+        swap_bytes_if_le(t_XTOsiz),
         swap_bytes_if_le(t_YTOsiz)));
       if (file->read(&Csiz, 2) != 2)
         OJPH_ERROR(0x0005004D, "error reading SIZ marker");
@@ -762,19 +766,20 @@ namespace ojph {
       //marker size excluding header
       Lcap = 8;
 
-      char buf[4];
+      ui16 buf2;
+      ui32 buf4;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::CAP;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lcap);
-      result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_bytes_if_le(Pcap);
-      result &= file->write(&buf, 4) == 4;
+      buf2 = JP2K_MARKER::CAP;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lcap);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf4 = swap_bytes_if_le(Pcap);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
 
-      *(ui16*)buf = swap_bytes_if_le(Ccap[0]);
-      result &= file->write(&buf, 2) == 2;
+      buf2 = swap_bytes_if_le(Ccap[0]);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
 
       return result;
     }
@@ -831,34 +836,38 @@ namespace ojph {
       Lcod = 12;
       Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
-      ui8 buf[4];
+      ui8  buf1;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::COD;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lcod);
-      result &= file->write(&buf, 2) == 2;
-      *(ui8*)buf = Scod;
-      result &= file->write(&buf, 1) == 1;
-      *(ui8*)buf = SGCod.prog_order;
-      result &= file->write(&buf, 1) == 1;
-      *(ui16*)buf = swap_bytes_if_le(SGCod.num_layers);
-      result &= file->write(&buf, 2) == 2;
-      *(ui8*)buf = SGCod.mc_trans;
-      result &= file->write(&buf, 1) == 1;
-      buf[0] = SPcod.num_decomp;
-      buf[1] = SPcod.block_width;
-      buf[2] = SPcod.block_height;
-      buf[3] = SPcod.block_style;
-      result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = SPcod.wavelet_trans;
-      result &= file->write(&buf, 1) == 1;
+      buf2 = JP2K_MARKER::COD;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lcod);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf1 = Scod;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SGCod.prog_order;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf2 = swap_bytes_if_le(SGCod.num_layers);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf1 = SGCod.mc_trans;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.num_decomp;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_width;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_height;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_style;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.wavelet_trans;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
         {
-          *(ui8*)buf = SPcod.precinct_size[i];
-          result &= file->write(&buf, 1) == 1;
+          buf1 = SPcod.precinct_size[i];
+          result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
         }
 
       return result;
@@ -888,38 +897,42 @@ namespace ojph {
       Lcod = num_comps < 257 ? 9 : 10;
       Lcod = (ui16)(Lcod + (Scod & 1 ? 1 + SPcod.num_decomp : 0));
 
-      ui8 buf[4];
+      ui8  buf1;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::COC;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lcod);
-      result &= file->write(&buf, 2) == 2;
+      buf2 = JP2K_MARKER::COC;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lcod);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       if (num_comps < 257)
       {
-        *(ui8*)buf = (ui8)comp_idx;
-        result &= file->write(&buf, 1) == 1;
+        buf1 = (ui8)comp_idx;
+        result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       }
       else
       {
-        *(ui16*)buf = swap_bytes_if_le(comp_idx);
-        result &= file->write(&buf, 2) == 2;
+        buf2 = swap_bytes_if_le(comp_idx);
+        result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       }
-      *(ui8*)buf = Scod;
-      result &= file->write(&buf, 1) == 1;
-      buf[0] = SPcod.num_decomp;
-      buf[1] = SPcod.block_width;
-      buf[2] = SPcod.block_height;
-      buf[3] = SPcod.block_style;
-      result &= file->write(&buf, 4) == 4;
-      *(ui8*)buf = SPcod.wavelet_trans;
-      result &= file->write(&buf, 1) == 1;
+      buf1 = Scod;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.num_decomp;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_width;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_height;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.block_style;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
+      buf1 = SPcod.wavelet_trans;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       if (Scod & 1)
         for (int i = 0; i <= SPcod.num_decomp; ++i)
         {
-          *(ui8*)buf = SPcod.precinct_size[i];
-          result &= file->write(&buf, 1) == 1;
+          buf1 = SPcod.precinct_size[i];
+          result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
         }
 
       return result;
@@ -1553,28 +1566,29 @@ namespace ojph {
       else
         assert(0);
 
-      char buf[4];
+      ui8  buf1;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::QCD;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lqcd);
-      result &= file->write(&buf, 2) == 2;
-      *(ui8*)buf = Sqcd;
-      result &= file->write(&buf, 1) == 1;
+      buf2 = JP2K_MARKER::QCD;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lqcd);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf1 = Sqcd;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
 
       if (irrev == 0)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui8*)buf = SPqcd.u8[i];
-          result &= file->write(&buf, 1) == 1;
+          buf1 = SPqcd.u8[i];
+          result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
         }
       else if (irrev == 2)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui16*)buf = swap_bytes_if_le(SPqcd.u16[i]);
-          result &= file->write(&buf, 2) == 2;
+          buf2 = swap_bytes_if_le(SPqcd.u16[i]);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
         }
       else
         assert(0);
@@ -1611,37 +1625,38 @@ namespace ojph {
       else
         assert(0);
 
-      char buf[4];
+      ui8  buf1;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::QCC;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lqcd);
-      result &= file->write(&buf, 2) == 2;
+      buf2 = JP2K_MARKER::QCC;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lqcd);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       if (num_comps < 257)
       {
-        *(ui8*)buf = (ui8)comp_idx;
-        result &= file->write(&buf, 1) == 1;
+        buf1 = (ui8)comp_idx;
+        result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       }
       else
       {
-        *(ui16*)buf = swap_bytes_if_le(comp_idx);
-        result &= file->write(&buf, 2) == 2;
+        buf2 = swap_bytes_if_le(comp_idx);
+        result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       }
-      *(ui8*)buf = Sqcd;
-      result &= file->write(&buf, 1) == 1;
+      buf1 = Sqcd;
+      result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
       if (irrev == 0)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui8*)buf = SPqcd.u8[i];
-          result &= file->write(&buf, 1) == 1;
+          buf1 = SPqcd.u8[i];
+          result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
         }
       else if (irrev == 2)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui16*)buf = swap_bytes_if_le(SPqcd.u16[i]);
-          result &= file->write(&buf, 2) == 2;
+          buf2 = swap_bytes_if_le(SPqcd.u16[i]);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
         }
       else
         assert(0);
@@ -1948,20 +1963,20 @@ namespace ojph {
       if (is_any_enabled() == false)
         return true;
 
-      char buf[2];
+      ui16 buf2;
       bool result = true;
       const param_nlt* p = this;
       while (p)
       {
         if (p->enabled)
         {
-          *(ui16*)buf = JP2K_MARKER::NLT;
-          *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-          result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_bytes_if_le(p->Lnlt);
-          result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_bytes_if_le(p->Cnlt);
-          result &= file->write(&buf, 2) == 2;
+          buf2 = JP2K_MARKER::NLT;
+          buf2 = swap_bytes_if_le(buf2);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+          buf2 = swap_bytes_if_le(p->Lnlt);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+          buf2 = swap_bytes_if_le(p->Cnlt);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
           result &= file->write(&p->BDnlt, 1) == 1;
           result &= file->write(&p->Tnlt, 1) == 1;
         }
@@ -1973,23 +1988,32 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_nlt::read(infile_base* file)
     {
-      ui8 buf[6];
+      ui16 buf2_len;
+      ui16 buf2_comp;
+      ui8  buf1_BDnlt;
+      ui8  buf1_Tnlt;
 
-      if (file->read(buf, 6) != 6)
+      if (file->read(&buf2_len, sizeof(ui16)) != sizeof(ui16))
         OJPH_ERROR(0x00050141, "error reading NLT marker segment");
+      if (file->read(&buf2_comp, sizeof(ui16)) != sizeof(ui16))
+        OJPH_ERROR(0x00050142, "error reading NLT marker segment");
+      if (file->read(&buf1_BDnlt, sizeof(ui8)) != sizeof(ui8))
+        OJPH_ERROR(0x00050143, "error reading NLT marker segment");
+      if (file->read(&buf1_Tnlt, sizeof(ui8)) != sizeof(ui8))
+        OJPH_ERROR(0x00050144, "error reading NLT marker segment");
 
-      ui16 length = swap_bytes_if_le(*(ui16*)buf);
-      if (length != 6 || (buf[5] != 3 && buf[5] != 0)) // wrong length or type
-        OJPH_ERROR(0x00050142, "Unsupported NLT type %d\n", buf[5]);
+      ui16 length = swap_bytes_if_le(buf2_len);
+      if (length != 6 || (buf1_Tnlt != 3 && buf1_Tnlt != 0))
+        OJPH_ERROR(0x00050145, "Unsupported NLT type %d\n", buf1_Tnlt);
 
-      ui16 comp = swap_bytes_if_le(*(ui16*)(buf + 2));
+      ui16 comp = swap_bytes_if_le(buf2_comp);
       param_nlt* p = get_nlt_object(comp);
       if (p == NULL)
         p = add_object(comp);
       p->enabled = true;
       p->Cnlt = comp;
-      p->BDnlt = buf[4];
-      p->Tnlt = buf[5];
+      p->BDnlt = buf1_BDnlt;
+      p->Tnlt = buf1_Tnlt;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2069,20 +2093,21 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool param_sot::write(outfile_base *file, ui32 payload_len)
     {
-      char buf[4];
+      ui16 buf2;
+      ui32 buf4;
       bool result = true;
 
       this->Psot = payload_len + 14; //inc. SOT marker, field & SOD
 
-      *(ui16*)buf = JP2K_MARKER::SOT;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lsot);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Isot);
-      result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_bytes_if_le(Psot);
-      result &= file->write(&buf, 4) == 4;
+      buf2 = JP2K_MARKER::SOT;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lsot);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Isot);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf4 = swap_bytes_if_le(Psot);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
       result &= file->write(&TPsot, 1) == 1;
       result &= file->write(&TNsot, 1) == 1;
 
@@ -2093,18 +2118,19 @@ namespace ojph {
     bool param_sot::write(outfile_base *file, ui32 payload_len,
                           ui8 TPsot, ui8 TNsot)
     {
-      char buf[4];
+      ui32 buf4;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::SOT;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Lsot);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Isot);
-      result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_bytes_if_le(payload_len + 14);
-      result &= file->write(&buf, 4) == 4;
+      buf2 = JP2K_MARKER::SOT;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Lsot);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Isot);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf4 = swap_bytes_if_le(payload_len + 14);
+      result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
       result &= file->write(&TPsot, 1) == 1;
       result &= file->write(&TNsot, 1) == 1;
 
@@ -2222,22 +2248,23 @@ namespace ojph {
     bool param_tlm::write(outfile_base *file)
     {
       assert(next_pair_index == num_pairs);
-      char buf[4];
+      ui32 buf4;
+      ui16 buf2;
       bool result = true;
 
-      *(ui16*)buf = JP2K_MARKER::TLM;
-      *(ui16*)buf = swap_bytes_if_le(*(ui16*)buf);
-      result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_bytes_if_le(Ltlm);
-      result &= file->write(&buf, 2) == 2;
+      buf2 = JP2K_MARKER::TLM;
+      buf2 = swap_bytes_if_le(buf2);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+      buf2 = swap_bytes_if_le(Ltlm);
+      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
       result &= file->write(&Ztlm, 1) == 1;
       result &= file->write(&Stlm, 1) == 1;
       for (ui32 i = 0; i < num_pairs; ++i)
       {
-        *(ui16*)buf = swap_bytes_if_le(pairs[i].Ttlm);
-        result &= file->write(&buf, 2) == 2;
-        *(ui32*)buf = swap_bytes_if_le(pairs[i].Ptlm);
-        result &= file->write(&buf, 4) == 4;
+        buf2 = swap_bytes_if_le(pairs[i].Ttlm);
+        result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+        buf4 = swap_bytes_if_le(pairs[i].Ptlm);
+        result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
       }
       return result;
     }
@@ -2424,24 +2451,22 @@ namespace ojph {
         K = swap_bytes_if_le(v);
       }
       else if (coeff_type == 2) { // float
-        union {
-          float f;
-          ui32 i;
-        } v;
-        if (file->read(&v.i, 4) != 4) return false;
+        ui32 i;
+        if (file->read(&i, sizeof(ui32)) != sizeof(ui32)) return false;
         bytes -= 4;
-        v.i = swap_bytes_if_le(v.i);
-        K = v.f;
+        i = swap_bytes_if_le(i);
+        float f;
+        memcpy(&f, &i, sizeof(float));
+        K = f;
       }
       else if (coeff_type == 3) { // double
-        union {
-          double d;
-          ui64 i;
-        } v;
-        if (file->read(&v.i, 8) != 8) return false;
+        ui64 i;
+        if (file->read(&i, sizeof(ui64)) != sizeof(ui64)) return false;
         bytes -= 8;
-        v.i = swap_bytes_if_le(v.i);
-        K = (float)v.d;
+        i = swap_bytes_if_le(i);
+        double d;
+        memcpy(&d, &i, sizeof(double));
+        K = (float)d;
       }
       else if (coeff_type == 4) { // 128 bit float
         ui64 v, v1;
@@ -2451,10 +2476,6 @@ namespace ojph {
         bytes -= 8;
         v = swap_bytes_if_le(v);
 
-        union {
-          float f;
-          ui32 i;
-        } s;
         // convert the MSB of 128b float to 32b float
         // 32b float has 1 sign bit, 8 exponent (offset 127), 23 mantissa
         // 128b float has 1 sign bit, 15 exponent (offset 16383), 112 mantissa
@@ -2463,11 +2484,13 @@ namespace ojph {
         e += 127;
         e = e & 0xFF;                          // removes MSBs if negative
         e <<= 23;                              // move bits to their location
-        s.i = 0;
-        s.i |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
-        s.i |= (ui32)e;                        // copy exponent
-        s.i |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
-        K = s.f;
+        ui32 i = 0;
+        i |= ((ui32)(v >> 32) & 0x80000000); // copy sign bit
+        i |= (ui32)e;                        // copy exponent
+        i |= (ui32)((v >> 25) & 0x007FFFFF); // copy 23 mantissa
+        float f;
+        memcpy(&f, &i, sizeof(float));
+        K = f;
       }
       return true;
     }

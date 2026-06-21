@@ -238,7 +238,7 @@ jobs:
             make
             ctest --output-on-failure
 
-test_ppc64le:
+  test_ppc64le:
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run == '' || github.event.inputs.job_to_run == 'test_ppc64le' }}
 
     name: Linux-PowerPC64LE (big-endian) Build and Test

@@ -455,7 +455,8 @@ namespace ojph {
           vlcp->used_bits += cwd_len;
           return;
         }
-        vlcp->tmp |= (cwd & ((1ULL << avail) - 1)) << vlcp->used_bits;
+        if (likely(avail > 0)) // available space smaller than needed
+          vlcp->tmp |= cwd << vlcp->used_bits;
         vlcp->used_bits = 64;
         vlc_drain(vlcp);
         cwd >>= avail;
@@ -597,12 +598,13 @@ namespace ojph {
     {
       while (true) {
         int avail = 64 - msp->used_bits;
-        if (likely(cwd_len <= avail)) {
+        if (likely(avail > 0 && cwd_len <= avail)) {
           msp->tmp |= cwd << msp->used_bits;
           msp->used_bits += cwd_len;
           return;
         }
-        msp->tmp |= (cwd & ((1ULL << avail) - 1)) << msp->used_bits;
+        if (likely(avail > 0)) // available space smaller than needed
+          msp->tmp |= cwd << msp->used_bits;
         msp->used_bits = 64;
         ms_drain(msp);
         cwd >>= avail;
@@ -1223,9 +1225,9 @@ OJPH_FORCE_INLINE void encode_x_loop(
         _mm256_storeu_si256((__m256i*)tuple, tuple_vec);
         _mm256_storeu_si256((__m256i*)u_q, u_q_vec);
         {
-            ui32 i_max = 8 - (_ignore / 2);
-            if (i_max & 1) { tuple[i_max] = 0; u_q[i_max] = 0; }
-            tuple[8] = 0; u_q[8] = 0;
+          ui32 i_max = 8 - (_ignore / 2);
+          if (i_max & 1) { tuple[i_max] = 0; u_q[i_max] = 0; }
+          tuple[8] = 0; u_q[8] = 0;
         }
         proc_vlc_encode(&vlc, tuple, u_q, _ignore,
             (PASS == 1) ? uvlc_tbl_pair1 : uvlc_tbl_pair2);

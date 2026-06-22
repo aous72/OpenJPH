@@ -707,6 +707,8 @@ namespace ojph {
       }
 
       void check_validity(const param_siz& siz, const param_cod& cod);
+      void make_quant_steps(ui32 comp_num, const param_cod &cod, const param_siz &siz);
+      bool is_qcc_needed(ui32 comp_num, const param_cod &cod, const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
       void set_delta(ui32 comp_idx, float delta);
       ui32 get_num_guard_bits() const;
@@ -731,6 +733,7 @@ namespace ojph {
       ////////////////////////////////////////
       void init(param_qcd* top_qcd, ui16 comp_idx)
       {
+        is_init = false;
         type = top_qcd ? QCC_MAIN : QCD_MAIN;
         Lqcd = 0;
         Sqcd = 0;
@@ -769,6 +772,7 @@ namespace ojph {
 
     private: // QCD variables
       qcd_type type;
+      bool is_init;     // have the quantization steps been generated
       ui16 Lqcd;
       ui8 Sqcd;
       union
@@ -777,11 +781,18 @@ namespace ojph {
         ui16 u16[97];
       } SPqcd;
       ui32 num_subbands;  // number of subbands
-      float base_delta;   // base quantization step size -- all other
-                          // step sizes are derived from it.
       bool enabled;       // enabled if two, and ignored if false
       param_qcd *next;    // pointer to create chains of qcc marker segments
       param_qcd *top_qcd; // pointer to the top QCD (this is the default)
+
+      // variables used to generate the quantization step sizes
+      float base_delta;   // base quantization step size -- all other
+                          // step sizes are derived from it.
+      bool is_color_trans;
+      ui32 num_decomps;
+      ui32 bit_depth;
+      bool is_signed;
+      ui32 wavelet_kern;
 
     private: // QCC only variables
       ui16 comp_idx;

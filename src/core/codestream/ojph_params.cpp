@@ -1299,15 +1299,11 @@ namespace ojph {
 
         double w_g = 0;
         if (s == 0)
-        {
-          w_g = gain_l * gain_l;
-        }
+        { w_g = gain_l * gain_l; }
         else if ((s - 1) % 3 == 2)
-        {
-          w_g = gain_h * gain_h;
-        } else {
-          w_g = gain_l * gain_h;
-        }
+        { w_g = gain_h * gain_h; }
+        else
+        { w_g = gain_l * gain_h; }
 
         double delta_b = base_delta / w_g;
 

@@ -1288,40 +1288,34 @@ namespace ojph {
     {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
-      int s = 0;
-      float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
-      float delta_b = base_delta / (gain_l * gain_l);
-      int exp = 0, mantissa;
-      while (delta_b < 1.0f)
-      { exp++; delta_b *= 2.0f; }
-      //with rounding, there is a risk of becoming equal to 1<<12
-      // but that should not happen in reality
-      mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
-      mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-      SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
-      for (ui32 d = num_decomps; d > 0; --d)
+
+      // LL, HL, LH, HH, HL, LH, HH...
+      for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
+        ui32 d = num_decomps - (s - 1) / 3;
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        delta_b = base_delta / (gain_l * gain_h);
+        double w_g = 0;
+        if (s == 0)
+        {
+          w_g = gain_l * gain_l;
+        }
+        else if ((s - 1) % 3 == 2)
+        {
+          w_g = gain_h * gain_h;
+        } else {
+          w_g = gain_l * gain_h;
+        }
+
+        double delta_b = base_delta / w_g;
 
         int exp = 0, mantissa;
         while (delta_b < 1.0f)
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
-        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
-
-        delta_b = base_delta / (gain_h * gain_h);
-
-        exp = 0;
-        while (delta_b < 1)
-        { exp++; delta_b *= 2.0f; }
-        mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
-        mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        SPqcd.u16[s++] = (ui16)((exp << 11) | mantissa);
+        SPqcd.u16[s] = (ui16)((exp << 11) | mantissa);
       }
     }
 

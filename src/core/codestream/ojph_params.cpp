@@ -1305,7 +1305,7 @@ namespace ojph {
         else
         { w_g = gain_l * gain_h; }
 
-        double delta_b = base_delta / w_g;
+        float delta_b = base_delta / w_g;
 
         int exp = 0, mantissa;
         while (delta_b < 1.0f)

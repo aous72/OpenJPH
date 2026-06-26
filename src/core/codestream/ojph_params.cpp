@@ -1297,7 +1297,7 @@ namespace ojph {
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        double w_g = 0;
+        float w_g = 0;
         if (s == 0)
         { w_g = gain_l * gain_l; }
         else if ((s - 1) % 3 == 2)

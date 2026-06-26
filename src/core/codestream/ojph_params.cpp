@@ -1292,6 +1292,7 @@ namespace ojph {
       // LL, HL, LH, HH, HL, LH, HH...
       for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
+        // compute square root of the enery gain factor W_g
         ui32 d = num_decomps - (((int) s) - 1) / 3;
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);

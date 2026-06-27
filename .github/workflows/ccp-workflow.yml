@@ -61,14 +61,22 @@ jobs:
       fail-fast: false
       matrix:
         include: [
-          { system: MacOS-Intel,    runner: macos-15-intel },
-          { system: MacOS-latest,   runner: macos-latest },
-          { system: Ubuntu-22,      runner: ubuntu-22.04 },
-          { system: Ubuntu-latest,  runner: ubuntu-latest },
+          { system: MacOS-Intel-gcc,     runner: macos-15-intel,  cc: gcc,   cxx: g++ },
+          { system: MacOS-Intel-clang,   runner: macos-15-intel,  cc: clang, cxx: clang++ },
+          { system: MacOS-latest-gcc,    runner: macos-latest,    cc: gcc,   cxx: g++ },
+          { system: MacOS-latest-clang,  runner: macos-latest,    cc: clang, cxx: clang++ },
+          { system: Ubuntu-22-gcc,       runner: ubuntu-22.04,    cc: gcc,   cxx: g++ },
+          { system: Ubuntu-22-clang,     runner: ubuntu-22.04,    cc: clang, cxx: clang++ },
+          { system: Ubuntu-latest-gcc,   runner: ubuntu-latest,   cc: gcc,   cxx: g++ },
+          { system: Ubuntu-latest-clang, runner: ubuntu-latest,   cc: clang, cxx: clang++ },
         ]
 
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
+
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0

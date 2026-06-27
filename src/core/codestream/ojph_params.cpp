@@ -1297,10 +1297,10 @@ namespace ojph {
 
         if (num_decomps > 0)
         {
-          ui32 d = num_decomps - (s - 1u) / 3u;
+          //In C++, division result truncates towards zero
+          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
           float gain_l = sqrt_energy_gains::get_gain_l(d, false);
           float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
-
 
           if (s == 0)
           { w_g = gain_l * gain_l; }

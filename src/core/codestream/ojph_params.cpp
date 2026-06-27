@@ -1297,7 +1297,7 @@ namespace ojph {
 
         if (num_decomps > 0)
         {
-          ui32 d = num_decomps - (((int) s) - 1) / 3;
+          ui32 d = num_decomps - (s - 1u) / 3u;
           float gain_l = sqrt_energy_gains::get_gain_l(d, false);
           float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 

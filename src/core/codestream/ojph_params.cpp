@@ -1316,6 +1316,8 @@ namespace ojph {
         while (delta_b < 1.0f)
         { exp++; delta_b *= 2.0f; }
         mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
+        // with rounding, there is a risk that the mantissa becomes
+        // equal to 1<<11
         mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
         SPqcd.u16[s] = (ui16)((exp << 11) | mantissa);
       }

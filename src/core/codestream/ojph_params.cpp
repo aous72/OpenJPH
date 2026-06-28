@@ -1204,6 +1204,7 @@ namespace ojph {
       this->is_signed = siz.is_signed(comp_num);
       this->is_color_trans = cod.is_employing_color_transform();
       this->wavelet_kern = cod.get_wavelet_kern();
+      this->sampling = siz.get_downsampling(comp_num);
       this->num_subbands = 1 + 3 * this->num_decomps;
 
       if (this->wavelet_kern == param_cod::DWT_REV53)

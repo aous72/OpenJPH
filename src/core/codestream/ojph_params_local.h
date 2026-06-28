@@ -748,6 +748,7 @@ namespace ojph {
         base_delta = -1.0f;
         qfactor = QFACTOR_UNSET;
         ctype = ojph::param_qcd::OJPH_COMP_Y;
+        sampling = ojph::point(1, 1);
         enabled = true;
         next = NULL;
         this->top_qcd = top_qcd;

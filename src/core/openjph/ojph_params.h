@@ -162,6 +162,12 @@ namespace ojph {
   class OJPH_EXPORT param_qcd
   {
   public:
+    enum comp_type {
+      OJPH_COMP_Y,
+      OJPH_COMP_CB,
+      OJPH_COMP_CR
+    };
+
     param_qcd(local::param_qcd* p) : state(p) {}
 
     /**
@@ -186,6 +192,17 @@ namespace ojph {
      * @param delta 
      */
     void set_irrev_quant(ui32 comp_idx, float delta);
+
+    /**
+     * @brief Sets Qfactor for a specific component.
+     *
+     * Setting Qfactor takes precedence over setting an irreversible quantization base delta
+     *
+     * @param comp_idx Component index
+     * @param qfactor Compression quality as an integer between 1 (worst quality) and 100 (best quality)
+     * @param ctype Indicates whether the component is a Y, Cb or Cr channel, after the ICT if present
+     */
+    void set_qfactor(ui32 comp_idx, ui8 qfactor, comp_type ctype);
 
   private:
     local::param_qcd* state;

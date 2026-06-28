@@ -43,6 +43,7 @@
 #include "ojph_file.h"
 #include "ojph_params.h"
 
+#include "ojph_visual_weighting.hpp"
 #include "ojph_params_local.h"
 #include "ojph_message.h"
 
@@ -421,6 +422,11 @@ namespace ojph {
   void param_qcd::set_irrev_quant(ui32 comp_idx, float delta)
   {
     state->set_delta(comp_idx, delta);
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  void param_qcd::set_qfactor(ui32 comp_idx, ui8 qfactor, comp_type ctype) {
+    state->set_qfactor(comp_idx, qfactor, ctype);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1164,14 +1170,16 @@ namespace ojph {
 
       // initialize every QCC, creating one for every component that (a) cannot
       // use QCD and (b) does not already have a QCC
+      // NOTE: Qfactor always creates a QCC and QCD cannot be reused
       for (ui32 c = 0; c < num_comps; ++c)
       {
         param_qcd *qcc = this->get_qcc(c);
         const param_cod *coc = cod.get_coc(c);
 
+        // check if a QCC exists for the component
         if (qcc == this)
         {
-          // no QCC specified for the component, one is created only if QCD cannot be used
+          // if none exists, do not create one if QCD can be reused
           if (!this->is_qcc_needed(c, *coc, siz))
             continue;
 
@@ -1237,6 +1245,22 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_qfactor(ui32 comp_idx, ui8 qfactor, ojph::param_qcd::comp_type ctype) {
+      if (this->top_qcd != NULL)
+        OJPH_ERROR(0x00040401, "This method is not implemented for QCC.");
+
+      if (qfactor < 1 || qfactor > 100)
+        OJPH_ERROR(0x00040403, "Qfactor must be between 1 and 100, but was set to %i.", qfactor);
+
+      param_qcd *p = get_qcc(comp_idx);
+      if (p == NULL)
+        p = add_qcc_object(comp_idx);
+
+      p->qfactor = qfactor;
+      p->ctype = ctype;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void param_qcd::set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                                   bool is_employing_color_transform)
     {
@@ -1289,6 +1313,20 @@ namespace ojph {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
 
+      // the following are used only when Qfactor is set
+      float qfactor_power;
+      float delta_ref;
+      float G_c;
+      static const open_htj2k::visual_weighting_params vp;
+      static const std::vector<double> W_b_Y = open_htj2k::luma_visual_weights(num_decomps, vp);
+      if (this->qfactor != QFACTOR_UNSET) {
+        const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor, this->bit_depth);
+        qfactor_power = qs.qfactor_power;
+        const open_htj2k::color_transform ct = open_htj2k::resolve_color_transform(vp, this->is_color_trans);
+        delta_ref = qs.delta_Q * open_htj2k::color_gain(ct, 0);
+        G_c = open_htj2k::color_gain(ct, 0);
+      }
+
       // LL, HL, LH, HH, HL, LH, HH...
       for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
@@ -1310,7 +1348,16 @@ namespace ojph {
           { w_g = gain_l * gain_h; }
         }
 
-        float delta_b = base_delta / w_g;
+        float delta_b;
+        if (this->qfactor == QFACTOR_UNSET)
+        {
+          delta_b = base_delta / w_g;
+        }
+        else
+        {
+          float w_b = (s == 0 || s > W_b_Y.size()) ? 1.0 : pow(W_b_Y[W_b_Y.size() - s], qfactor_power);
+          delta_b = delta_ref / (w_g * w_b * G_c);
+        }
 
         int exp = 0, mantissa;
         while (delta_b < 1.0f)

@@ -1,5 +1,5 @@
 
-file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h")
+file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h" "codestream/*.hpp")
 file(GLOB CODESTREAM_SSE   "codestream/*_sse.cpp")
 file(GLOB CODESTREAM_SSE2  "codestream/*_sse2.cpp")
 file(GLOB CODESTREAM_AVX   "codestream/*_avx.cpp")

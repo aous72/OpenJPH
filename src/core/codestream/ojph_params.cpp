@@ -1320,16 +1320,30 @@ namespace ojph {
       const open_htj2k::visual_weighting_params vp;
       std::vector<double> W_b;
       if (this->qfactor != QFACTOR_UNSET) {
-        const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor, this->bit_depth);
-        qfactor_power = qs.qfactor_power;
+        const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor, (ui8) this->bit_depth);
+        qfactor_power = (float) qs.qfactor_power;
         const open_htj2k::color_transform ct = open_htj2k::resolve_color_transform(vp, this->is_color_trans);
         int comp_index = (int)this->ctype;
-        delta_ref = qs.delta_Q * open_htj2k::color_gain(ct, 0);
-        G_c = open_htj2k::color_gain(ct, comp_index);
-        if (this->ctype == ojph::param_qcd::OJPH_COMP_Y)
-          W_b = open_htj2k::luma_visual_weights(num_decomps, vp);
+        delta_ref = (float) (qs.delta_Q * open_htj2k::color_gain(ct, 0));
+        G_c = (float) open_htj2k::color_gain(ct, comp_index);
+
+        // chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2
+        int sampling = 0;
+        if (this->sampling.x == 1 && this->sampling.y == 1)
+          { sampling = 0; }
+        else if (this->sampling.x == 2 && this->sampling.y == 2)
+          { sampling = 1; }
+        else if (this->sampling.x == 2 && this->sampling.y == 1)
+          { sampling = 2; }
         else
-          W_b = open_htj2k::chroma_visual_weights(num_decomps, vp, comp_index, 0, ct);
+        {
+          OJPH_ERROR(0x00050161, "Qfactor can only be used on components with 4:4:4, 4:2:2 or 4:2:0 sampling");
+        }
+
+        if (this->ctype == ojph::param_qcd::OJPH_COMP_Y)
+          W_b = open_htj2k::luma_visual_weights((ui8) num_decomps, vp);
+        else
+          W_b = open_htj2k::chroma_visual_weights((ui8) num_decomps, vp, comp_index, sampling, ct);
 
       }
 
@@ -1361,7 +1375,7 @@ namespace ojph {
         }
         else
         {
-          float w_b = (s == 0 || s > W_b.size()) ? 1.0 : pow(W_b[W_b.size() - s], qfactor_power);
+          float w_b = (s == 0 || s > W_b.size()) ? (float) 1.0 : (float) pow(W_b[W_b.size() - s], qfactor_power);
           delta_b = delta_ref / (w_g * w_b * G_c);
         }
 

@@ -747,6 +747,7 @@ namespace ojph {
         num_subbands = 0;
         base_delta = -1.0f;
         qfactor = QFACTOR_UNSET;
+        ctype = ojph::param_qcd::OJPH_COMP_Y;
         enabled = true;
         next = NULL;
         this->top_qcd = top_qcd;

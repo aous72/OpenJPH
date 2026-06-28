@@ -1253,7 +1253,7 @@ namespace ojph {
         OJPH_ERROR(0x00040403, "Qfactor must be between 1 and 100, but was set to %i.", qfactor);
 
       param_qcd *p = get_qcc(comp_idx);
-      if (p == NULL)
+      if (p == this)
         p = add_qcc_object(comp_idx);
 
       p->qfactor = qfactor;
@@ -1314,17 +1314,23 @@ namespace ojph {
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
 
       // the following are used only when Qfactor is set
-      float qfactor_power;
-      float delta_ref;
-      float G_c;
-      static const open_htj2k::visual_weighting_params vp;
-      static const std::vector<double> W_b_Y = open_htj2k::luma_visual_weights(num_decomps, vp);
+      float qfactor_power = 0;
+      float delta_ref = 0;
+      float G_c = 1;
+      const open_htj2k::visual_weighting_params vp;
+      std::vector<double> W_b;
       if (this->qfactor != QFACTOR_UNSET) {
         const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor, this->bit_depth);
         qfactor_power = qs.qfactor_power;
         const open_htj2k::color_transform ct = open_htj2k::resolve_color_transform(vp, this->is_color_trans);
+        int comp_index = (int)this->ctype;
         delta_ref = qs.delta_Q * open_htj2k::color_gain(ct, 0);
-        G_c = open_htj2k::color_gain(ct, 0);
+        G_c = open_htj2k::color_gain(ct, comp_index);
+        if (this->ctype == ojph::param_qcd::OJPH_COMP_Y)
+          W_b = open_htj2k::luma_visual_weights(num_decomps, vp);
+        else
+          W_b = open_htj2k::chroma_visual_weights(num_decomps, vp, comp_index, 0, ct);
+
       }
 
       // LL, HL, LH, HH, HL, LH, HH...
@@ -1355,7 +1361,7 @@ namespace ojph {
         }
         else
         {
-          float w_b = (s == 0 || s > W_b_Y.size()) ? 1.0 : pow(W_b_Y[W_b_Y.size() - s], qfactor_power);
+          float w_b = (s == 0 || s > W_b.size()) ? 1.0 : pow(W_b[W_b.size() - s], qfactor_power);
           delta_b = delta_ref / (w_g * w_b * G_c);
         }
 

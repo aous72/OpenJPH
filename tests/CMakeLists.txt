@@ -40,8 +40,21 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure QCD/QCC marker tests (library API tests)
+add_executable(
+  test_qcd_qcc_markers
+  test_qcd_qcc_markers.cpp
+)
+
+target_link_libraries(
+  test_qcd_qcc_markers
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
+gtest_add_tests(TARGET test_qcd_qcc_markers)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

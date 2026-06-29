@@ -716,7 +716,7 @@ namespace ojph {
       bool is_qcc_needed(ui32 comp_num, const param_cod &cod, const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
       void set_delta(ui32 comp_idx, float delta);
-      void set_qfactor(ui32 comp_idx, ui8 qfactor, ojph::param_qcd::comp_type ctype);
+      void set_qfactor(ui32 comp_idx, ojph::param_qcd::comp_type ctype, ui8 qfactor);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,

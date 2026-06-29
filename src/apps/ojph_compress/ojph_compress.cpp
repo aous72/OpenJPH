@@ -701,8 +701,8 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor(0, (ojph::ui8)qfactor,
-            ojph::param_qcd::OJPH_COMP_Y);
+          codestream.access_qcd().set_qfactor(0,
+            ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
@@ -761,9 +761,9 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1) {
           ojph::param_qcd qcd = codestream.access_qcd();
-          qcd.set_qfactor(0, (ojph::ui8)qfactor, ojph::param_qcd::OJPH_COMP_Y);
-          qcd.set_qfactor(1, (ojph::ui8)qfactor, ojph::param_qcd::OJPH_COMP_CB);
-          qcd.set_qfactor(2, (ojph::ui8)qfactor, ojph::param_qcd::OJPH_COMP_CR);
+          qcd.set_qfactor(0, ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+          qcd.set_qfactor(1, ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
+          qcd.set_qfactor(2, ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
         }
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
@@ -846,15 +846,15 @@ int main(int argc, char * argv[]) {
         if (!reversible && qfactor != -1) {
           ojph::param_qcd qcd = codestream.access_qcd();
           if (num_comps == 1) {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
           } else {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
-            qcd.set_qfactor(1, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CB);
-            qcd.set_qfactor(2, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CR);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+            qcd.set_qfactor(1,
+              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
+            qcd.set_qfactor(2,
+              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
           }
         } else if (!reversible) {
           const float min_step = 1.0f / 16384.0f;
@@ -941,15 +941,15 @@ int main(int argc, char * argv[]) {
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();
           if (num_comps == 1) {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
           } else {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
-            qcd.set_qfactor(1, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CB);
-            qcd.set_qfactor(2, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CR);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+            qcd.set_qfactor(1,
+              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
+            qcd.set_qfactor(2,
+              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
           }
         }
         codestream.set_planar(false);
@@ -1044,15 +1044,15 @@ int main(int argc, char * argv[]) {
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();
           if (num_components == 1) {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
           } else {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
-            qcd.set_qfactor(1, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CB);
-            qcd.set_qfactor(2, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CR);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+            qcd.set_qfactor(1,
+              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
+            qcd.set_qfactor(2,
+              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
           }
         }
         codestream.set_planar(true);
@@ -1108,8 +1108,8 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor(0, (ojph::ui8)qfactor,
-            ojph::param_qcd::OJPH_COMP_Y);
+          codestream.access_qcd().set_qfactor(0,
+            ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -1157,15 +1157,15 @@ int main(int argc, char * argv[]) {
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();
           if (num_comps == 1) {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
           } else {
-            qcd.set_qfactor(0, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_Y);
-            qcd.set_qfactor(1, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CB);
-            qcd.set_qfactor(2, (ojph::ui8)qfactor,
-              ojph::param_qcd::OJPH_COMP_CR);
+            qcd.set_qfactor(0,
+              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+            qcd.set_qfactor(1,
+              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
+            qcd.set_qfactor(2,
+              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
           }
         }
         codestream.set_planar(false);

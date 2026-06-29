@@ -425,8 +425,8 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
-  void param_qcd::set_qfactor(ui32 comp_idx, ui8 qfactor, comp_type ctype) {
-    state->set_qfactor(comp_idx, qfactor, ctype);
+  void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor) {
+    state->set_qfactor(comp_idx, ctype, qfactor);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1246,7 +1246,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_qfactor(ui32 comp_idx, ui8 qfactor, ojph::param_qcd::comp_type ctype) {
+    void param_qcd::set_qfactor(ui32 comp_idx, ojph::param_qcd::comp_type ctype, ui8 qfactor) {
       if (this->top_qcd != NULL)
         OJPH_ERROR(0x00040401, "This method is not implemented for QCC.");
 

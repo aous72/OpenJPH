@@ -199,10 +199,10 @@ namespace ojph {
      * Setting Qfactor takes precedence over setting an irreversible quantization base delta
      *
      * @param comp_idx Component index
-     * @param qfactor Compression quality as an integer between 1 (worst quality) and 100 (best quality)
      * @param ctype Indicates whether the component is a Y, Cb or Cr channel, after the ICT if present
+     * @param qfactor Compression quality as an integer between 1 (worst quality) and 100 (best quality)
      */
-    void set_qfactor(ui32 comp_idx, ui8 qfactor, comp_type ctype);
+    void set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor);
 
   private:
     local::param_qcd* state;

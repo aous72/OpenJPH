@@ -43,7 +43,7 @@
 #include "ojph_file.h"
 #include "ojph_params.h"
 
-#include "ojph_visual_weighting.hpp"
+#include "ojph_visual_weighting.h"
 #include "ojph_params_local.h"
 #include "ojph_message.h"
 

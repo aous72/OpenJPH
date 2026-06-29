@@ -162,7 +162,7 @@ namespace ojph {
   class OJPH_EXPORT param_qcd
   {
   public:
-    enum comp_type {
+    enum comp_type : ui8 {
       OJPH_COMP_Y,
       OJPH_COMP_CB,
       OJPH_COMP_CR

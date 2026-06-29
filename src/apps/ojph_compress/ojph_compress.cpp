@@ -642,10 +642,10 @@ int main(int argc, char * argv[]) {
   }
 
   if (qfactor != -1 && quantization_step != -1.0f)
-    OJPH_ERROR(0x01000101,
+    OJPH_ERROR(0x010000A1,
       "-qfactor and -qstep cannot be used together\n");
   if (qfactor != -1 && (qfactor < 1 || qfactor > 100))
-    OJPH_ERROR(0x01000102,
+    OJPH_ERROR(0x010000A2,
       "-qfactor must be between 1 and 100\n");
 
   clock_t begin = clock();
@@ -936,7 +936,7 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1) {
           if (num_comps != 1 && num_comps != 3)
-            OJPH_ERROR(0x01000103,
+            OJPH_ERROR(0x010000A3,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();
@@ -1039,7 +1039,7 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1) {
           if (num_components != 1 && num_components != 3)
-            OJPH_ERROR(0x01000104,
+            OJPH_ERROR(0x010000A4,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();
@@ -1152,7 +1152,7 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1) {
           if (num_comps != 1 && num_comps != 3)
-            OJPH_ERROR(0x01000105,
+            OJPH_ERROR(0x010000A5,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
           ojph::param_qcd qcd = codestream.access_qcd();

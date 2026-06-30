@@ -2,9 +2,7 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) Pierre-Anthony Lemieux
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -30,7 +28,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: test_qcd_qcc_markers.cpp
+// File: test_mixed_coc.cpp
 // Author: Pierre-Anthony Lemieux
 // Date: 29 June 2026
 //***************************************************************************/
@@ -50,7 +48,7 @@
 // This exercises COC and QCC marker generation for mixed coding modes.
 // Verifies that encoding succeeds, headers can be read back, and the
 // per-component coding settings are preserved.
-TEST(TestQcdQccMarkers, FourCompMixedReversibility) {
+TEST(TestMixedCOC, FourCompMixedReversibility) {
   const ojph::ui32 width = 64;
   const ojph::ui32 height = 64;
   const ojph::ui32 num_comps = 4;

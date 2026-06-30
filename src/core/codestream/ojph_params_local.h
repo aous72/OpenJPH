@@ -627,10 +627,24 @@ namespace ojph {
       void init(param_cod* top_cod, ui16 comp_idx)
       {
         type = top_cod ? COC_MAIN : COD_MAIN;
-        Lcod = 0;
-        Scod = 0;
+        if (top_cod)
+        {
+          // a freshly materialized COC inherits the COD's current
+          // settings, matching the fallback used by the const get_coc()
+          // when no COC marker exists for a component
+          Lcod = top_cod->Lcod;
+          Scod = top_cod->Scod;
+          SGCod = top_cod->SGCod;
+          SPcod = top_cod->SPcod;
+          atk = top_cod->atk;
+        }
+        else
+        {
+          Lcod = 0;
+          Scod = 0;
+          atk = NULL;
+        }
         next = NULL;
-        atk = NULL;
         this->top_cod = top_cod;
         this->comp_idx = comp_idx;
       }

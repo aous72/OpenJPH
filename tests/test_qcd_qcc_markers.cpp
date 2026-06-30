@@ -36,6 +36,7 @@
 //***************************************************************************/
 
 #include <cstring>
+#include <vector>
 
 #include "ojph_mem.h"
 #include "ojph_file.h"
@@ -55,6 +56,10 @@ TEST(TestQcdQccMarkers, FourCompMixedReversibility) {
   const ojph::ui32 num_comps = 4;
   const ojph::ui32 bit_depth = 8;
   const ojph::ui32 num_decomps = 5;
+
+  // samples fed into component 3 during encoding, kept around so they can
+  // be compared against the decoded output further down
+  std::vector<ojph::si32> comp3_orig(width * height);
 
   // encode
   {
@@ -93,7 +98,17 @@ TEST(TestQcdQccMarkers, FourCompMixedReversibility) {
       for (ojph::ui32 y = 0; y < height; ++y)
       {
         ASSERT_EQ(next_comp, c);
-        if (cur_line->flags & ojph::line_buf::LFT_INTEGER)
+        if (c == 3)
+        {
+          // non-constant pattern so a roundtrip mismatch would be caught
+          for (ojph::ui32 x = 0; x < width; ++x)
+          {
+            ojph::si32 val = (ojph::si32)((x + y * width) % 256);
+            cur_line->i32[x] = val;
+            comp3_orig[y * width + x] = val;
+          }
+        }
+        else if (cur_line->flags & ojph::line_buf::LFT_INTEGER)
           memset(cur_line->i32, 0,
                  sizeof(ojph::si32) * cur_line->size);
         else
@@ -131,6 +146,31 @@ TEST(TestQcdQccMarkers, FourCompMixedReversibility) {
     ojph::param_coc coc3 = cod.get_coc(3);
     EXPECT_TRUE(coc3.is_reversible())
       << "Component 3 should be reversible";
+
+    // decode all components and verify component 3 (reversible) samples
+    // are identical to what was encoded
+    codestream.restrict_input_resolution(0, 0);
+    codestream.set_planar(true);
+    codestream.create();
+
+    for (ojph::ui32 c = 0; c < num_comps; ++c)
+    {
+      ojph::ui32 comp_height = siz.get_recon_height(c);
+      ojph::ui32 comp_width = siz.get_recon_width(c);
+      for (ojph::ui32 y = 0; y < comp_height; ++y)
+      {
+        ojph::ui32 comp_num;
+        ojph::line_buf* line = codestream.pull(comp_num);
+        ASSERT_EQ(comp_num, c);
+        if (c == 3)
+        {
+          ASSERT_EQ(comp_width, width);
+          for (ojph::ui32 x = 0; x < width; ++x)
+            EXPECT_EQ(line->i32[x], comp3_orig[y * width + x])
+              << "Component 3 sample mismatch at (" << x << ", " << y << ")";
+        }
+      }
+    }
 
     codestream.close();
   }

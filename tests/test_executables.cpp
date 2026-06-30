@@ -1460,6 +1460,58 @@ TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
               "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 3-component PPM image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50.j2c -qfactor 50
+TEST(TestExecutables, SimpleEncIrv97Qfactor50) {
+  double mse[3] = { 34.1747, 31.8416, 41.5334};
+  int pae[3] = { 54, 55, 54};
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_qfactor50", "", "j2c",
+                    "-qfactor 50");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_qfactor50", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 4:2:0 YUV image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50_yuv.j2c -qfactor 50 -dims {352,288}
+// -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8
+// -signed false,false,false
+TEST(TestExecutables, SimpleEncIrv97Qfactor50Yuv) {
+  double mse[3] = { 23.5159, 6.1052, 3.5752};
+  int pae[3] = { 60, 24, 24};
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_irv97_qfactor50_yuv", "", "j2c",
+                    "-qfactor 50 -dims \"{352,288}\" -num_comps 3 -downsamp"
+                    " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
+                    " -signed false,false,false");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_irv97_qfactor50_yuv", "yuv",
+              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 1-component PGM image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50_gray.j2c -qfactor 50
+TEST(TestExecutables, SimpleEncIrv97Qfactor50Gray) {
+  double mse[1] = { 23.245};
+  int pae[1] = { 72};
+  run_ojph_compress("monarch.pgm",
+                    "simple_enc_irv97_qfactor50_gray", "", "j2c",
+                    "-qfactor 50");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_irv97_qfactor50_gray", "pgm",
+              "monarch.pgm", "", 1, mse, pae);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                   main
 ////////////////////////////////////////////////////////////////////////////////

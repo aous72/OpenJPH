@@ -67,7 +67,6 @@ class visual_weights {
 
     std::size_t size() const { return count; }
     float operator[](std::size_t idx) { return weights[idx]; }
-    const float operator[](std::size_t idx) const { return weights[idx]; }
 
     void clear() { count = 0; }
     void push_back(float val) {
@@ -184,7 +183,7 @@ inline q_scaling q_to_delta(uint8_t qfactor, uint8_t RI) {
   // eps0 = sqrt(1/2) / 2^RI. Use ldexp rather than `1 << RI`: bit-identical for
   // the encoder's RI (<= 16 bpp) but well-defined for any RI, so a crafted
   // high-bit-depth file fed to estimate_qfactor cannot trigger signed-shift UB.
-  const float eps0 = std::sqrt(0.5f) * std::ldexpf(1.0, -static_cast<int>(RI));
+  const float eps0 = std::sqrt(0.5f) * std::ldexp(1.0f, -static_cast<int>(RI));
   return {alpha_Q * M_Q + eps0, qfactor_power};
 }
 
@@ -228,7 +227,7 @@ inline csf_peak_t csf_peak(csf_model m) {
   auto scan = [](csf_model mm) {
     csf_peak_t pk{0.0f, 0.0f};
     for (int i = 1; i < 100000; ++i) {
-      const float f = i * 0.002f;  // 0.002 .. 200 cpd
+      const float f = (float)i * 0.002f;  // 0.002 .. 200 cpd
       const float v = csf_value(f, mm);
       if (v > pk.h_peak) {
         pk.h_peak = v;

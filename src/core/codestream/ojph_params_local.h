@@ -602,6 +602,9 @@ namespace ojph {
       ////////////////////////////////////////
       param_cod* add_coc_object(ui32 comp_idx);
 
+      ///////////////////////////////////////
+      param_cod* get_or_add_coc(ui32 comp_idx);
+
       ////////////////////////////////////////
       const param_atk* access_atk() const { return atk; }
 
@@ -631,6 +634,16 @@ namespace ojph {
         Scod = 0;
         next = NULL;
         atk = NULL;
+        if (top_cod)
+        { // Here we are initializing COC marker
+          // a freshly materialized COC inherits the COD's current
+          // settings at this very moment
+          // Lcod will be initialized on writing the marker segment to disk
+          Scod = top_cod->Scod & 0x1; // only the first bit is defined in COC
+          // SGcod does not exist in COC
+          SPcod = top_cod->SPcod;
+          atk = top_cod->atk;
+        }
         this->top_cod = top_cod;
         this->comp_idx = comp_idx;
       }

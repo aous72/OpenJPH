@@ -43,30 +43,26 @@
 //   * mannos_sakrison reproduces W_b_Y to RMS ~0.029 at ref_ppd ~= 72
 //   * daly            reproduces W_b_Y near the paper's ~1700 px viewing
 //                     distance but with a looser shape (RMS ~0.056)
-// Header-only and dependency-free (only <cmath>/<array>/<cstdint>/<cassert>)
+// Header-only and dependency-free (only <cmath>/<cstdint>/<cassert>)
 // so it can be exercised by a standalone demo as well as by the marker code.
 // ---------------------------------------------------------------------------
 
 #include <cassert>
 #include <cmath>
 #include <cstdint>
-#include <array>
 
 namespace open_htj2k {
 
-// Maximum number of DWT levels supported.
-constexpr uint8_t max_dwt_levels = 32;
-// Maximum number of visual weight entries (3 subbands per level).
-constexpr size_t max_weight_size = 3 * max_dwt_levels;
-// visual array type
-using visual_weighting_array = std::array<float, max_weight_size>;
 // structure for our visual weights
 class visual_weights {
   public:
-    visual_weights() : weights(), count(0) {}
+    visual_weights() : weights{}, count(0) {}
 
     std::size_t size() const { return count; }
-    float operator[](std::size_t idx) { return weights[idx]; }
+    float operator[](std::size_t idx) {
+      assert(idx < max_weight_size);
+      return weights[idx];
+    }
 
     void clear() { count = 0; }
     void push_back(float val) {
@@ -82,8 +78,14 @@ class visual_weights {
         weights[i] = src[i];
     }
 
+  public:
+    // Maximum number of DWT levels supported.
+    constexpr static uint8_t max_dwt_levels = 32;
+    // Maximum number of visual weight entries (3 subbands per level).
+    constexpr static size_t max_weight_size = 3 * max_dwt_levels;
+
   private:
-    visual_weighting_array weights;
+    float weights[max_weight_size];
     std::size_t count;
 };
 

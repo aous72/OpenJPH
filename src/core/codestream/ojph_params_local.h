@@ -632,18 +632,15 @@ namespace ojph {
         type = top_cod ? COC_MAIN : COD_MAIN;
         Lcod = 0;
         Scod = 0;
+        SPcod = cod_SPcod();  // SPcod is initialized to default values
         next = NULL;
         atk = NULL;
-        if (top_cod)
-        { // Here we are initializing COC marker
-          // a freshly materialized COC inherits the COD's current
-          // settings at this very moment
-          // Lcod will be initialized on writing the marker segment to disk
-          Scod = top_cod->Scod & 0x1; // only the first bit is defined in COC
-          // SGcod does not exist in COC
-          SPcod = top_cod->SPcod;
-          atk = top_cod->atk;
-        }
+        // For COC marker segment:
+        // Lcod will be initialized on writing the marker segment to disk
+        // Scod is initialized to 0
+        // SGcod does not exist in COC
+        // SPcoc is initialized to default values
+        // atk is initialized to NULL
         this->top_cod = top_cod;
         this->comp_idx = comp_idx;
       }

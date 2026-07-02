@@ -102,8 +102,8 @@ namespace ojph {
    *
    *   The param_cod object uses Pimpl design.
    *   The top set of functions give access to the COD marker segment, while
-   *   the lower set, the ones that have comp_idx parameter, gives access to
-   *   potentially COC marker segment.
+   *   the lower set, the ones that have comp_idx as the first parameter,
+   *   gives access to COC marker segment.
    *   The functions:
    *   - set_num_decomposition(ui32 comp_idx, ...)
    *   - set_block_dims(ui32 comp_idx, ...)
@@ -111,12 +111,10 @@ namespace ojph {
    *   - set_reversible(ui32 comp_idx, ...)
    *   create a COC segment on first call; subsequent calls to these
    *   functions on the same component index will use the COC segment
-   *   created by the first call.  On first creation, the COC segment will
-   *   inherit relevant COD segment properties at the moment of COC segment
-   *   creation; therefore, you either configure COD first and rely on
-   *   properties propagation to COC when it is first created, modifying these
-   *   properties afterwards, or you create and configure COC segments as
-   *   desired before finishing COD configuration.
+   *   created by the first call.  On first creation, the COC segment is
+   *   initialized to the default COD settings; in particular, 5 levels of
+   *   decomposition, 64x64 codeblocks, reversible 5/3 transform and no
+   *   precinct size is defined, which gives 32768x32768 precincts.
    */
   class OJPH_EXPORT param_cod
   {

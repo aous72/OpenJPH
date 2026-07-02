@@ -1377,7 +1377,7 @@ namespace ojph {
         else
         {
           float w_b = (s == 0 || s > W_b.size()) ?
-            1.0f : pow(W_b[W_b.size() - s], qfactor_power);
+            1.0f : std::pow(W_b[W_b.size() - s], qfactor_power);
           delta_b = delta_ref / (w_g * w_b * G_c);
         }
 

@@ -253,12 +253,32 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  param_coc param_cod::get_coc(ui32 component_idx)
+  void param_cod::set_num_decomposition(ui32 comp_idx, ui32 num_decompositions)
   {
-    local::param_cod *p = state->get_coc(component_idx);
-    if (p == state) // no COC segment marker for this component
-      p = state->add_coc_object(component_idx);
-    return param_coc(p);
+    local::param_cod* cdp = state->get_or_add_coc(comp_idx);
+    ojph::param_cod(cdp).set_num_decomposition(num_decompositions);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_cod::set_block_dims(ui32 comp_idx, ui32 width, ui32 height)
+  {
+    local::param_cod* cdp = state->get_or_add_coc(comp_idx);
+    ojph::param_cod(cdp).set_block_dims(width, height);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_cod::set_precinct_size(ui32 comp_idx, int num_levels,
+                                    size* precinct_size)
+  {
+    local::param_cod* cdp = state->get_or_add_coc(comp_idx);
+    ojph::param_cod(cdp).set_precinct_size(num_levels, precinct_size);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void param_cod::set_reversible(ui32 comp_idx, bool reversible)
+  {
+    local::param_cod* cdp = state->get_or_add_coc(comp_idx);
+    ojph::param_cod(cdp).set_reversible(reversible);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -352,56 +372,32 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  //
-  //
-  //
-  //
-  //
-  ////////////////////////////////////////////////////////////////////////////
+  ui32 param_cod::get_num_decompositions(ui32 comp_idx) const
+  { return state->get_coc(comp_idx)->get_num_decompositions(); }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_coc::set_num_decomposition(ui32 num_decompositions)
-  { ojph::param_cod(state).set_num_decomposition(num_decompositions); }
+  size param_cod::get_block_dims(ui32 comp_idx) const
+  { return state->get_coc(comp_idx)->get_block_dims(); }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_coc::set_block_dims(ui32 width, ui32 height)
-  { ojph::param_cod(state).set_block_dims(width, height); }
+  size param_cod::get_log_block_dims(ui32 comp_idx) const
+  { return state->get_coc(comp_idx)->get_log_block_dims(); }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_coc::set_precinct_size(int num_levels, size* precinct_size)
-  { ojph::param_cod(state).set_precinct_size(num_levels, precinct_size); }
+  bool param_cod::is_reversible(ui32 comp_idx) const
+  { return state->get_coc(comp_idx)->is_reversible(); }
 
   ////////////////////////////////////////////////////////////////////////////
-  void param_coc::set_reversible(bool reversible)
-  { ojph::param_cod(state).set_reversible(reversible); }
+  size param_cod::get_precinct_size(ui32 comp_idx, ui32 level_num) const
+  { return state->get_coc(comp_idx)->get_precinct_size(level_num); }
 
   ////////////////////////////////////////////////////////////////////////////
-  ui32 param_coc::get_num_decompositions() const
-  { return ojph::param_cod(state).get_num_decompositions(); }
+  size param_cod::get_log_precinct_size(ui32 comp_idx, ui32 level_num) const
+  { return state->get_coc(comp_idx)->get_log_precinct_size(level_num); }
 
   ////////////////////////////////////////////////////////////////////////////
-  size param_coc::get_block_dims() const
-  { return ojph::param_cod(state).get_block_dims(); }
-
-  ////////////////////////////////////////////////////////////////////////////
-  size param_coc::get_log_block_dims() const
-  { return ojph::param_cod(state).get_log_block_dims(); }
-
-  ////////////////////////////////////////////////////////////////////////////
-  bool param_coc::is_reversible() const
-  { return ojph::param_cod(state).is_reversible(); }
-
-  ////////////////////////////////////////////////////////////////////////////
-  size param_coc::get_precinct_size(ui32 level_num) const
-  { return ojph::param_cod(state).get_precinct_size(level_num); }
-
-  ////////////////////////////////////////////////////////////////////////////
-  size param_coc::get_log_precinct_size(ui32 level_num) const
-  { return ojph::param_cod(state).get_log_precinct_size(level_num); }
-
-  ////////////////////////////////////////////////////////////////////////////
-  bool param_coc::get_block_vertical_causality() const
-  { return ojph::param_cod(state).get_block_vertical_causality(); }
+  bool param_cod::get_block_vertical_causality(ui32 comp_idx) const
+  { return state->get_coc(comp_idx)->get_block_vertical_causality(); }
 
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1137,6 +1133,16 @@ namespace ojph {
       else
         p->next = new param_cod(this, (ui16)comp_idx);
       return p->next;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    param_cod* param_cod::get_or_add_coc(ui32 comp_idx)
+    {
+      assert(type == COD_MAIN);
+      local::param_cod *p = get_coc(comp_idx);
+      if (p == this)
+        p = add_coc_object(comp_idx);
+      return p;
     }
 
     //////////////////////////////////////////////////////////////////////////

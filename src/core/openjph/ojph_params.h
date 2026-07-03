@@ -48,7 +48,6 @@ namespace ojph {
   // defined here
   class param_siz;
   class param_cod;
-  class param_coc;
   class param_qcd;
   class param_cap;
   class param_nlt;
@@ -59,7 +58,6 @@ namespace ojph {
   namespace local {
     struct param_siz;
     struct param_cod;
-    struct param_coc;
     struct param_qcd;
     struct param_cap;
     struct param_nlt;
@@ -99,19 +97,37 @@ namespace ojph {
     local::param_siz* state;
   };
 
-  /***************************************************************************/
+  /*****************************************************************************
+   * @brief An interface to COD and COC marker segments.
+   *
+   *   The param_cod object uses Pimpl design.
+   *   The top set of functions give access to the COD marker segment, while
+   *   the lower set, the ones that have comp_idx as the first parameter,
+   *   gives access to COC marker segment.
+   *   The functions:
+   *   - set_num_decomposition(ui32 comp_idx, ...)
+   *   - set_block_dims(ui32 comp_idx, ...)
+   *   - set_precinct_size(ui32 comp_idx, ...)
+   *   - set_reversible(ui32 comp_idx, ...)
+   *   create a COC segment on first call; subsequent calls to these
+   *   functions on the same component index will use the COC segment
+   *   created by the first call.  On first creation, the COC segment is
+   *   initialized to the default COD settings; in particular, 5 levels of
+   *   decomposition, 64x64 codeblocks, reversible 5/3 transform and no
+   *   precinct size is defined, which gives 32768x32768 precincts.
+   */
   class OJPH_EXPORT param_cod
   {
   public:
     param_cod(local::param_cod* p) : state(p) {}
 
+    // COD marker segment interface
     void set_num_decomposition(ui32 num_decompositions);
     void set_block_dims(ui32 width, ui32 height);
     void set_precinct_size(int num_levels, size* precinct_size);
     void set_progression_order(const char *name);
     void set_color_transform(bool color_transform);
     void set_reversible(bool reversible);
-    param_coc get_coc(ui32 component_idx);
 
     ui32 get_num_decompositions() const;
     size get_block_dims() const;
@@ -127,28 +143,19 @@ namespace ojph {
     bool packets_use_eph() const;
     bool get_block_vertical_causality() const;
 
-  private:
-    local::param_cod* state;
-  };
+    // COC marker segment interface
+    void set_num_decomposition(ui32 comp_idx, ui32 num_decompositions);
+    void set_block_dims(ui32 comp_idx, ui32 width, ui32 height);
+    void set_precinct_size(ui32 comp_idx, int num_levels, size* precinct_size);
+    void set_reversible(ui32 comp_idx, bool reversible);
 
-  /***************************************************************************/
-  class OJPH_EXPORT param_coc
-  {
-  public:
-    param_coc(local::param_cod* p) : state(p) {}
-
-    void set_num_decomposition(ui32 num_decompositions);
-    void set_block_dims(ui32 width, ui32 height);
-    void set_precinct_size(int num_levels, size* precinct_size);
-    void set_reversible(bool reversible);
-
-    ui32 get_num_decompositions() const;
-    size get_block_dims() const;
-    size get_log_block_dims() const;
-    bool is_reversible() const;
-    size get_precinct_size(ui32 level_num) const;
-    size get_log_precinct_size(ui32 level_num) const;
-    bool get_block_vertical_causality() const;
+    ui32 get_num_decompositions(ui32 comp_idx) const;
+    size get_block_dims(ui32 comp_idx) const;
+    size get_log_block_dims(ui32 comp_idx) const;
+    bool is_reversible(ui32 comp_idx) const;
+    size get_precinct_size(ui32 comp_idx, ui32 level_num) const;
+    size get_log_precinct_size(ui32 comp_idx, ui32 level_num) const;
+    bool get_block_vertical_causality(ui32 comp_idx) const;
 
   private:
     local::param_cod* state;

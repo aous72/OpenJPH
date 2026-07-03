@@ -419,6 +419,11 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
+  void param_qcd::set_qfactor(ui8 qfactor) {
+    state->set_qfactor(qfactor);
+  }
+
+  //////////////////////////////////////////////////////////////////////////
   void param_qcd::set_irrev_quant(ui32 comp_idx, float delta)
   {
     state->set_delta(comp_idx, delta);
@@ -1150,12 +1155,13 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::check_validity(const param_siz& siz, const param_cod& cod)
     {
+      assert(this->type == QCD_MAIN);
+
       ui32 num_comps = siz.get_num_components();
       trim_non_existing_components(num_comps);
 
       // initialize QCD based on the first component that is (a) associated with
       // COD and (b) does not have a COC, or the first component othewise.
-
       ui32 qcd_comp = 0;
       for (ui32 c = 0; c < num_comps; ++c)
       {
@@ -1163,6 +1169,36 @@ namespace ojph {
         {
           qcd_comp = c;
           break;
+        }
+      }
+
+      // check if only the top QCD has qfactor set, if so, check if any
+      // of the first component has COC and qfactor set properly
+      if (this->qfactor != QFACTOR_UNSET)
+      {
+        if (num_comps < 3) // one or two components
+        {
+          for (ui32 i = 0; i < num_comps; ++i)
+          {
+            param_qcd* q = get_qcc(i);
+            if (q == this)
+            {
+              q = add_qcc_object(i);
+              set_qfactor(i, comp_type::OJPH_COMP_Y, this->qfactor);
+            }
+          }
+        }
+        else if (num_comps >= 3)
+        {
+          for (ui32 i = 0; i < num_comps; ++i) {
+            param_qcd* q = get_qcc(i);
+            if (q == this)
+            {
+              q = add_qcc_object(i);
+              comp_type t = ojph::param_qcd::ui8_2_comp_type(i < 3 ? i : 0);
+              set_qfactor(i, t, this->qfactor);
+            }
+          }
         }
       }
 
@@ -1192,7 +1228,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::make_quant_steps(ui32 comp_num, const param_cod &cod, const param_siz &siz)
+    void param_qcd::make_quant_steps(ui32 comp_num, const param_cod &cod,
+                                     const param_siz &siz)
     {
       if (this->is_init)
         OJPH_ERROR(0x00040001, "Quantization step sizes already initialized.");
@@ -1222,7 +1259,8 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    bool param_qcd::is_qcc_needed(ui32 comp_num, const param_cod &cod, const param_siz &siz)
+    bool param_qcd::is_qcc_needed(ui32 comp_num, const param_cod &cod,
+                                  const param_siz &siz)
     {
       if (! this->is_init)
         OJPH_ERROR(0x00040001, "Quantization step sizes not initialized.");
@@ -1236,29 +1274,14 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_delta(ui32 comp_idx, float delta)
-    {
-      assert(type == QCD_MAIN);
-      param_qcd *p = get_qcc(comp_idx);
-      if (p == NULL)
-        p = add_qcc_object(comp_idx);
-      p->set_delta(delta);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_qfactor(ui32 comp_idx, ojph::param_qcd::comp_type ctype, ui8 qfactor) {
-      if (this->top_qcd != NULL)
-        OJPH_ERROR(0x00040401, "This method is not implemented for QCC.");
+    void param_qcd::set_qfactor(ui8 qfactor) {
+      assert(this->type == QCD_MAIN);
 
       if (qfactor < 1 || qfactor > 100)
-        OJPH_ERROR(0x00040403, "Qfactor must be between 1 and 100, but was set to %i.", qfactor);
+        OJPH_ERROR(0x00050181, "Qfactor must be between 1 and 100, "
+          "but was set to %i.", qfactor);
 
-      param_qcd *p = get_qcc(comp_idx);
-      if (p == this)
-        p = add_qcc_object(comp_idx);
-
-      p->qfactor = qfactor;
-      p->ctype = ctype;
+      this->qfactor = qfactor;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1317,55 +1340,48 @@ namespace ojph {
       // the following are used only when Qfactor is set
       float qfactor_power = 0;
       float delta_ref = 0;
-      float G_c = 1;
+      float G_c = 1.0f;
       const open_htj2k::visual_weighting_params vp;
-      open_htj2k::visual_weights W_b;
-      if (this->qfactor != QFACTOR_UNSET) {
+      open_htj2k::visual_weights v_weights;
+      open_htj2k::color_transform ct;
+      int chroma_factor = 0;
+      if (this->qfactor != QFACTOR_UNSET)
+      {
         const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor,
           (ui8)ojph_min(16, this->bit_depth));
         qfactor_power = (float) qs.qfactor_power;
-        const open_htj2k::color_transform ct =
-          open_htj2k::resolve_color_transform(vp, this->is_color_trans);
-        int comp_index = (int)this->ctype;
+        ct = open_htj2k::resolve_color_transform(vp, this->is_color_trans);
         delta_ref = (float) (qs.delta_Q * open_htj2k::color_gain(ct, 0));
-        G_c = (float) open_htj2k::color_gain(ct, comp_index);
+        G_c = (float) open_htj2k::color_gain(ct, this->ctype);
 
         // chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2
-        int sampling = 0;
         if (this->sampling.x == 1 && this->sampling.y == 1)
-          sampling = 0;
+          chroma_factor = 0;
         else if (this->sampling.x == 2 && this->sampling.y == 2)
-          sampling = 1;
+          chroma_factor = 1;
         else if (this->sampling.x == 2 && this->sampling.y == 1)
-          sampling = 2;
+          chroma_factor = 2;
         else
           OJPH_ERROR(0x00050161, "Qfactor can only be used on components "
             "with 4:4:4, 4:2:2 or 4:2:0 sampling");
-
-        if (this->ctype == ojph::param_qcd::OJPH_COMP_Y)
-          W_b = open_htj2k::luma_visual_weights((ui8) num_decomps, vp);
-        else
-          W_b = open_htj2k::chroma_visual_weights((ui8) num_decomps, vp,
-            comp_index, sampling, ct);
-
       }
 
       // LL, HL, LH, HH, HL, LH, HH...
       for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
         // compute square root of the enery gain factor W_g
-        float w_g = 1.0;
-
+        float w_g = 1.0f;
+        ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
+        ui32 sb = s != 0 ? (s - 1) % 3 + 1 : 0;
         if (num_decomps > 0)
         {
           //In C++, division result truncates towards zero
-          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
           float gain_l = sqrt_energy_gains::get_gain_l(d, false);
           float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-          if (s == 0)
+          if (sb == 0)
           { w_g = gain_l * gain_l; }
-          else if ((s - 1) % 3 == 2)
+          else if (sb == 3)
           { w_g = gain_h * gain_h; }
           else
           { w_g = gain_l * gain_h; }
@@ -1376,8 +1392,18 @@ namespace ojph {
           delta_b = base_delta / w_g;
         else
         {
-          float w_b = (s == 0 || s > W_b.size()) ?
-            1.0f : std::pow(W_b[W_b.size() - s], qfactor_power);
+          float w_b = 1.0f;
+
+          bool result;
+          if (this->ctype == comp_type::OJPH_COMP_Y)
+            result = v_weights.luma_visual_weights(d - 1, sb, vp, w_b);
+          else
+            result = v_weights.chroma_visual_weights(d - 1, sb, vp,
+              this->ctype, chroma_factor, w_b, ct);
+          if (result == false)
+            OJPH_ERROR(0x00050162,
+              "Something is wrong with visual weight settings");
+          w_b = std::pow(w_b, qfactor_power);
           delta_b = delta_ref / (w_g * w_b * G_c);
         }
 
@@ -1786,6 +1812,33 @@ namespace ojph {
       }
       else
         OJPH_ERROR(0x000500AA, "wrong Sqcc value in QCC marker");
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_delta(ui32 comp_idx, float delta)
+    {
+      assert(type == QCD_MAIN);
+      param_qcd *p = get_qcc(comp_idx);
+      if (p == NULL)
+        p = add_qcc_object(comp_idx);
+      p->set_delta(delta);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor)
+    {
+      assert(this->type == QCD_MAIN);
+
+      if (qfactor < 1 || qfactor > 100)
+        OJPH_ERROR(0x00050191, "Qfactor must be between 1 and 100, "
+          "but was set to %i.", qfactor);
+
+      param_qcd *p = get_qcc(comp_idx);
+      if (p == this)
+        p = add_qcc_object(comp_idx);
+
+      p->qfactor = qfactor;
+      p->ctype = ctype;
     }
 
     //////////////////////////////////////////////////////////////////////////

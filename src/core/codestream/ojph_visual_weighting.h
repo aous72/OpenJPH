@@ -53,41 +53,6 @@
 
 namespace open_htj2k {
 
-// structure for our visual weights
-class visual_weights {
-  public:
-    visual_weights() : weights{}, count(0) {}
-
-    std::size_t size() const { return count; }
-    float operator[](std::size_t idx) {
-      assert(idx < max_weight_size);
-      return weights[idx];
-    }
-
-    void clear() { count = 0; }
-    void push_back(float val) {
-      assert(count < max_weight_size);
-      weights[count++] = val;
-    }
-
-    void set_weights(const float* src, std::size_t count)
-    {
-      assert(count <= max_weight_size);
-      this->count = count;
-      for (std::size_t i = 0; i < count; ++i)
-        weights[i] = src[i];
-    }
-
-  public:
-    // Maximum number of DWT levels supported.
-    constexpr static uint8_t max_dwt_levels = 32;
-    // Maximum number of visual weight entries (3 subbands per level).
-    constexpr static size_t max_weight_size = 3 * max_dwt_levels;
-
-  private:
-    float weights[max_weight_size];
-    std::size_t count;
-};
 
 enum class csf_model {
   legacy_table,    // exact Zeng Table 2 weights (default; bit-identical output)
@@ -251,38 +216,6 @@ inline float csf_weight(float f, csf_model m, const csf_peak_t &pk) {
   return finite_weight(csf_value(f, m) / pk.h_peak);
 }
 
-// Square-root-domain luminance visual weights, one per detail subband, in the
-// QCD/wmse build order (per level, finest first): [HH_l, LH_l, HL_l]. Length
-// is 3 * dwt_levels for analytic models; the LL band is handled by the caller
-// (weight 1.0). In legacy mode the historical 15-entry table is returned
-// verbatim, so the caller's existing out-of-range guard still applies.
-inline visual_weights luma_visual_weights(uint8_t dwt_levels,
-                                          const visual_weighting_params &vp) {
-  visual_weights w;
-  if (vp.model == csf_model::legacy_table) {
-    // Zeng et al., Table 2, Y column (= sqrt of the MSE-domain weights).
-    float a[15] = {0.0901f, 0.2758f, 0.2758f, 0.7018f, 0.8378f, 0.8378f,
-                   1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-    w.set_weights(a, sizeof(a)/sizeof(float));
-    return w;
-  }
-
-  const csf_peak_t pk = csf_peak(vp.model);
-  const float zoom    = (vp.zoom > 0.0f) ? vp.zoom : 1.0f;
-  const float ppd     = vp.ref_ppd / zoom;  // zoom-in lowers effective ppd
-  const float f_N     = ppd / 2.0f;          // Nyquist in cycles/degree
-
-  for (uint8_t lvl = 1; lvl <= dwt_levels; ++lvl) {
-    // Geometric-mean radial center of octave band [f_N/2^lvl, f_N/2^(lvl-1)].
-    const float f_r  = f_N * std::pow(2.0f, -(float)(lvl)) * std::sqrt(2.0f);
-    const float f_hh = f_r * vp.hh_factor;
-    w.push_back(csf_weight(f_hh, vp.model, pk));  // HH
-    w.push_back(csf_weight(f_r, vp.model, pk));   // LH
-    w.push_back(csf_weight(f_r, vp.model, pk));   // HL
-  }
-  return w;
-}
-
 // --- chroma (chrominance) analytic weighting -------------------------------
 //
 // Chrominance CSF is low-pass (not band-pass like luminance) and rolls off
@@ -310,88 +243,171 @@ inline chroma_csf_params chroma_params_for(int comp_index) {
     chroma_csf_params{0.1173f, 0.840f} : chroma_csf_params{0.0699f, 1.050f};
 }
 
-// Exact historical QCC table row (sqrt-domain). comp_index 1 = Cb, else Cr;
-// chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2 (matches j2kmarkers YCC*).
-inline visual_weights legacy_chroma_row(int comp_index, int chroma_format) {
-  static const float Cb444[15] =
-    {0.0263f, 0.0863f, 0.0863f, 0.1362f, 0.2564f, 0.2564f, 0.3346f, 0.4691f,
-     0.4691f, 0.5444f, 0.6523f, 0.6523f, 0.7078f, 0.7797f, 0.7797f};
-  static const float Cr444[15] =
-    {0.0773f, 0.1835f, 0.1835f, 0.2598f, 0.4130f, 0.4130f, 0.5040f, 0.6464f,
-     0.6464f, 0.7220f, 0.8254f, 0.8254f, 0.8769f, 0.9424f, 0.9424f};
-  static const float Cb420[15] =
-    {0.1362f, 0.2564f, 0.2564f, 0.3346f, 0.4691f, 0.4691f, 0.5444f, 0.6523f,
-     0.6523f, 0.7078f, 0.7797f, 0.7797f, 1.0f, 1.0f, 1.0f};
-  static const float Cr420[15] =
-    {0.2598f, 0.4130f, 0.4130f, 0.5040f, 0.6464f, 0.6464f, 0.7220f, 0.8254f,
-     0.8254f, 0.8769f, 0.9424f, 0.9424f, 1.0f, 1.0f, 1.0f};
-  static const float Cb422[15] =
-    {0.0863f, 0.0863f, 0.2564f, 0.2564f, 0.2564f, 0.4691f, 0.4691f, 0.4691f,
-     0.6523f, 0.6523f, 0.6523f, 0.7797f, 0.7797f, 0.7797f, 1.0f};
-  static const float Cr422[15] =
-    {0.1835f, 0.1835f, 0.4130f, 0.4130f, 0.4130f, 0.6464f, 0.6464f, 0.6464f,
-     0.8254f, 0.8254f, 0.8254f, 0.9424f, 0.9424f, 0.9424f, 1.0f};
-  const float *r;
-  switch (chroma_format) {
-    case 1:  r = (comp_index == 1) ? Cb420 : Cr420; break;  // 4:2:0
-    case 2:  r = (comp_index == 1) ? Cb422 : Cr422; break;  // 4:2:2
-    default: r = (comp_index == 1) ? Cb444 : Cr444; break;  // 4:4:4
-  }
-  visual_weights result;
-  result.set_weights(r, 15);
-  return result;
-}
+// structure for our visual weights
+class visual_weights {
+  public:
+    visual_weights() {}
 
-// Square-root-domain chroma visual weights, one per detail subband, in QCC
-// order (per level, finest first): [HH_l, LH_l, HL_l]. legacy_table returns
-// the historical row verbatim (bit-identical). Analytic models fold chroma
-// subsampling into the effective horizontal/vertical ppd, so LH (vertical
-// detail) and HL (horizontal detail) diverge under 4:2:2 as they should.
-inline visual_weights
-chroma_visual_weights(uint8_t dwt_levels, const visual_weighting_params &vp,
-                      int comp_index, int chroma_format,
-                      color_transform ct = color_transform::ict) {
-  if (vp.model == csf_model::legacy_table) {
-    return legacy_chroma_row(comp_index, chroma_format);
-  }
-  // Without a luma/chroma decorrelating transform this component carries
-  // luminance (e.g. a raw RGB channel), so it takes the luminance CSF, never
-  // the chroma roll-off. Such components are not subsampled (full resolution).
-  if (ct == color_transform::none) {
-    return luma_visual_weights(dwt_levels, vp);
+  // Square-root-domain luminance visual weights, one per detail subband, in the
+  // QCD/wmse build order (per level, finest first): [HH_l, LH_l, HL_l]. Length
+  // is 3 * dwt_levels for analytic models; the LL band is handled by the caller
+  // (weight 1.0). In legacy mode the historical 15-entry table is returned
+  // verbatim, so the caller's existing out-of-range guard still applies.
+  bool luma_visual_weights(uint8_t dwt_level, uint8_t orientation,
+    const visual_weighting_params &vp, float &weight)
+  {
+    if (vp.model == csf_model::legacy_table)
+      return legacy_luma_lookup(dwt_level, orientation, weight);
+    else
+      return luma_lookup(dwt_level, orientation, vp, weight);
   }
 
-  float sx = 1.0f, sy = 1.0f;  // horizontal/vertical chroma subsampling factors
-  if (chroma_format == 1) {   // 4:2:0
-    sx = 2.0f;
-    sy = 2.0f;
-  } else if (chroma_format == 2) {  // 4:2:2
-    sx = 2.0f;
-    sy = 1.0f;
+  // Square-root-domain chroma visual weights, one per detail subband, in QCC
+  // order (per level, finest first): [HH_l, LH_l, HL_l]. legacy_table returns
+  // the historical row verbatim (bit-identical). Analytic models fold chroma
+  // subsampling into the effective horizontal/vertical ppd, so LH (vertical
+  // detail) and HL (horizontal detail) diverge under 4:2:2 as they should.
+  bool chroma_visual_weights(uint8_t dwt_level, uint8_t orientation,
+    const visual_weighting_params &vp, int comp_index, int chroma_format,
+    float &weight, color_transform ct = color_transform::ict)
+  {
+    if (vp.model == csf_model::legacy_table)
+      return legacy_chroma_lookup(comp_index, chroma_format, dwt_level,
+        orientation, weight);
+
+    if (ct == color_transform::none)
+      return legacy_luma_lookup(dwt_level, orientation, weight);
+    else
+      return chroma_lookup(comp_index, chroma_format, dwt_level,
+        orientation, vp, weight);
   }
 
-  const chroma_csf_params cp = chroma_params_for(comp_index);
-  const float zoom          = (vp.zoom > 0.0f) ? vp.zoom : 1.0f;
-  const float f_N           = (vp.ref_ppd / zoom) / 2.0f; // luma Nyquist (cpd)
-  const float f_Nx          = f_N / sx;            // chroma horizontal Nyquist
-  const float f_Ny          = f_N / sy;            // chroma vertical Nyquist
+  private:
+    //////////////////////////////////////// legacy tables
+    bool legacy_luma_lookup(uint8_t dwt_level, uint8_t orientation,
+      float &weight)
+    {
+      return legacy_look_up(dwt_level, orientation, luma, weight);
+    }
 
-  visual_weights w;
-  for (uint8_t lvl = 1; lvl <= dwt_levels; ++lvl) {
-    const float dx = f_Nx * std::pow(2.0f, -(float)(lvl)) * std::sqrt(2.0f);
-    const float dy = f_Ny * std::pow(2.0f, -(float)(lvl)) * std::sqrt(2.0f);
-    // HH radial = geometric per-axis diagonal, scaled by hh_factor relative
-    // to the isotropic sqrt(2) so the same knob tunes luma and chroma
-    // (default sqrt(2) = no change).
-    const float f_hh =
-      (vp.hh_factor / std::sqrt(2.0f)) * std::sqrt(dx * dx + dy * dy);
-    // chroma_csf = exp(-(a*f)^b) is <= 1 by construction; finite_weight only
-    // guards the underflow-to-0 case at extreme effective ppd.
-    w.push_back(finite_weight(chroma_csf(f_hh, cp.a, cp.b))); // HH
-    w.push_back(finite_weight(chroma_csf(dy, cp.a, cp.b)));   // LH
-    w.push_back(finite_weight(chroma_csf(dx, cp.a, cp.b)));   // HL
-  }
-  return w;
-}
+    bool legacy_chroma_lookup(int comp_index, int chroma_format,
+      uint8_t dwt_level, uint8_t orientation, float &weight)
+    {
+      const float* r;
+      switch (chroma_format) {
+        case 1:  r = (comp_index == 1) ? Cb420 : Cr420; break;  // 4:2:0
+        case 2:  r = (comp_index == 1) ? Cb422 : Cr422; break;  // 4:2:2
+        default: r = (comp_index == 1) ? Cb444 : Cr444; break;  // 4:4:4
+      }
+      return legacy_look_up(dwt_level, orientation, r, weight);
+    }
+
+    bool legacy_look_up(uint8_t dwt_level, uint8_t orientation,
+      const float *tbl, float &weight)
+    {
+      if (orientation > 3)
+        { weight = 0.0f; return false; }
+      if (orientation == 0 || dwt_level >= 5)
+        { weight = 1.0f; return true; }
+      else
+        { weight = tbl[dwt_level * 3 + 3 - orientation]; return true; }
+    }
+
+    //////////////////////////////////////// formula based
+    bool luma_lookup(uint8_t dwt_level, uint8_t orientation,
+      const visual_weighting_params &vp, float &weight)
+    {
+      if (orientation >= 3) { weight = 0.0f; return false; }
+      if (orientation == 0) { weight = 1.0f; return true; }
+
+      const csf_peak_t pk = csf_peak(vp.model);
+      const float zoom    = (vp.zoom > 0.0f) ? vp.zoom : 1.0f;
+      const float ppd     = vp.ref_ppd / zoom;  // zoom-in lowers effective ppd
+      const float f_N     = ppd / 2.0f;          // Nyquist in cycles/degree
+
+      // Geometric-mean radial center of octave band
+      // [f_N/2^dwt_level, f_N/2^(dwt_level-1)].
+      const float f_r  =
+        f_N * std::pow(2.0f, -(float)(dwt_level)) * (float)M_SQRT2;
+      const float f_hh = f_r * vp.hh_factor;
+      if (orientation == 1)
+        weight = csf_weight(f_r, vp.model, pk);
+      else if (orientation == 2)
+        weight = csf_weight(f_r, vp.model, pk);
+      else if (orientation == 3)
+        weight = csf_weight(f_hh, vp.model, pk);
+
+      return true;
+    }
+
+    bool chroma_lookup(int comp_index, int chroma_format, uint8_t dwt_level,
+      uint8_t orientation, const visual_weighting_params &vp, float &weight)
+    {
+      if (orientation >= 3) { weight = 0.0f; return false; }
+      if (orientation == 0) { weight = 1.0f; return true; }
+
+      float sx = 1.0f, sy = 1.0f;  // horz/vert chroma subsampling factors
+      if (chroma_format == 1)
+        sx = sy = 2.0f; // 4:2:0
+      else if (chroma_format == 2) // 4:2:2
+      {  sx = 2.0f; sy = 1.0f; }
+
+      const chroma_csf_params cp = chroma_params_for(comp_index);
+      const float zoom    = (vp.zoom > 0.0f) ? vp.zoom : 1.0f;
+      const float f_N     = (vp.ref_ppd / zoom) / 2.0f; // luma Nyquist (cpd)
+      const float f_Nx    = f_N / sx;            // chroma horizontal Nyquist
+      const float f_Ny    = f_N / sy;            // chroma vertical Nyquist
+
+      const float t = std::pow(2.0f, -(float)(dwt_level)) * (float)M_SQRT2;
+      const float dx = f_Nx * t;
+      const float dy = f_Ny * t;
+
+      // HH radial = geometric per-axis diagonal, scaled by hh_factor relative
+      // to the isotropic sqrt(2) so the same knob tunes luma and chroma
+      // (default sqrt(2) = no change).
+      const float f_hh =
+        (vp.hh_factor / std::sqrt(2.0f)) * std::sqrt(dx * dx + dy * dy);
+
+      // chroma_csf = exp(-(a*f)^b) is <= 1 by construction; finite_weight only
+      // guards the underflow-to-0 case at extreme effective ppd.
+
+      if (orientation == 1)
+        weight = finite_weight(chroma_csf(dx, cp.a, cp.b));
+      else if (orientation == 2)
+        weight = finite_weight(chroma_csf(dy, cp.a, cp.b));
+      else if (orientation == 3)
+        weight = finite_weight(chroma_csf(f_hh, cp.a, cp.b));
+
+      return true;
+    }
+
+  private:
+    // Maximum number of DWT levels supported.
+    constexpr static uint8_t max_dwt_levels = 32;
+    // Maximum number of visual weight entries (3 subbands per level).
+    constexpr static size_t max_weight_size = 3 * max_dwt_levels;
+    // Luminance and Chromium legacy weights
+    const float luma[15] =
+      {0.0901f, 0.2758f, 0.2758f, 0.7018f, 0.8378f, 0.8378f, 1.0000f, 1.0000f,
+       1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f};
+    const float Cb444[15] =
+      {0.0263f, 0.0863f, 0.0863f, 0.1362f, 0.2564f, 0.2564f, 0.3346f, 0.4691f,
+       0.4691f, 0.5444f, 0.6523f, 0.6523f, 0.7078f, 0.7797f, 0.7797f};
+    const float Cr444[15] =
+      {0.0773f, 0.1835f, 0.1835f, 0.2598f, 0.4130f, 0.4130f, 0.5040f, 0.6464f,
+       0.6464f, 0.7220f, 0.8254f, 0.8254f, 0.8769f, 0.9424f, 0.9424f};
+    const float Cb420[15] =
+      {0.1362f, 0.2564f, 0.2564f, 0.3346f, 0.4691f, 0.4691f, 0.5444f, 0.6523f,
+       0.6523f, 0.7078f, 0.7797f, 0.7797f, 1.0000f, 1.0000f, 1.0000f};
+    const float Cr420[15] =
+      {0.2598f, 0.4130f, 0.4130f, 0.5040f, 0.6464f, 0.6464f, 0.7220f, 0.8254f,
+       0.8254f, 0.8769f, 0.9424f, 0.9424f, 1.0000f, 1.0000f, 1.0000f};
+    const float Cb422[15] =
+      {0.0863f, 0.0863f, 0.2564f, 0.2564f, 0.2564f, 0.4691f, 0.4691f, 0.4691f,
+       0.6523f, 0.6523f, 0.6523f, 0.7797f, 0.7797f, 0.7797f, 1.0000f};
+    const float Cr422[15] =
+      {0.1835f, 0.1835f, 0.4130f, 0.4130f, 0.4130f, 0.6464f, 0.6464f, 0.6464f,
+       0.8254f, 0.8254f, 0.8254f, 0.9424f, 0.9424f, 0.9424f, 1.0000f};
+};
 
 }  // namespace open_htj2k

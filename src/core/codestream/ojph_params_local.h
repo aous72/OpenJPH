@@ -786,6 +786,8 @@ namespace ojph {
       void set_rev_quant(ui32 num_decomps, ui32 bit_depth,
                          bool is_employing_color_transform);
       void set_irrev_quant(ui32 num_decomps);
+      void set_qfactor_quant(ui32 num_decomps);
+      void encode_SPqcd(ui32 subband_index, float delta);
       ui32 get_largest_Kmax() const;
       bool internal_write_qcc(outfile_base *file, ui32 num_comps);
       void trim_non_existing_components(ui32 num_comps);

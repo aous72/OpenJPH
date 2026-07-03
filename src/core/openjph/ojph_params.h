@@ -175,8 +175,6 @@ namespace ojph {
       OJPH_COMP_CR        = 2,
       OJPH_COMP_UNDEFINED = 0xFF
     };
-    static ui8 comp_type_2_ui8(comp_type ctype)
-    { return static_cast<ui8>(ctype); }
     static comp_type ui8_2_comp_type(ui8 c)
     {
       if (c >= OJPH_COMP_Y && c <= OJPH_COMP_CR)

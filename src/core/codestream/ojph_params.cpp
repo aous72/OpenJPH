@@ -43,9 +43,10 @@
 #include "ojph_file.h"
 #include "ojph_params.h"
 
-#include "ojph_visual_weighting.h"
 #include "ojph_params_local.h"
 #include "ojph_message.h"
+
+#include "ojph_visual_weighting.h"
 
 namespace ojph {
 
@@ -1261,7 +1262,10 @@ namespace ojph {
           ui32 t = ojph_min(16, bit_depth);
           this->base_delta = 1.0f / (float)(1 << t);
         }
-        this->set_irrev_quant(this->num_decomps);
+        if (qfactor == QFACTOR_UNSET)
+          this->set_irrev_quant(this->num_decomps);
+        else
+          this->set_qfactor_quant(this->num_decomps);
       }
     }
 
@@ -1277,7 +1281,6 @@ namespace ojph {
               this->is_signed != siz.is_signed(comp_num) ||
               this->is_color_trans != cod.is_employing_color_transform() ||
               this->wavelet_kern != cod.get_wavelet_kern();
-
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -1344,85 +1347,109 @@ namespace ojph {
       int guard_bits = 1;
       Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
 
-      // the following are used only when Qfactor is set
-      float qfactor_power = 0;
-      float delta_ref = 0;
-      float G_c = 1.0f;
-      const open_htj2k::visual_weighting_params vp;
-      open_htj2k::visual_weights v_weights;
-      open_htj2k::color_transform ct;
-      int chroma_factor = 0;
-      if (this->qfactor != QFACTOR_UNSET)
+      // LL, HL, LH, HH, HL, LH, HH...
+      for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
-        const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor,
-          (ui8)ojph_min(16, this->bit_depth));
-        qfactor_power = (float) qs.qfactor_power;
-        ct = open_htj2k::resolve_color_transform(vp, this->is_color_trans);
-        delta_ref = (float) (qs.delta_Q * open_htj2k::color_gain(ct, 0));
-        G_c = (float) open_htj2k::color_gain(ct, this->ctype);
+        // compute square root of the enery gain factor W_g
+        float w_g = 1.0;
 
-        // chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2
-        if (this->sampling.x == 1 && this->sampling.y == 1)
-          chroma_factor = 0;
-        else if (this->sampling.x == 2 && this->sampling.y == 2)
-          chroma_factor = 1;
-        else if (this->sampling.x == 2 && this->sampling.y == 1)
-          chroma_factor = 2;
-        else
-          OJPH_ERROR(0x00050161, "Qfactor can only be used on components "
-            "with 4:4:4, 4:2:2 or 4:2:0 sampling");
+        if (num_decomps > 0)
+        {
+          //In C++, division result truncates towards zero
+          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
+          float gain_l = sqrt_energy_gains::get_gain_l(d, false);
+          float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
+
+          if (s == 0)
+          { w_g = gain_l * gain_l; }
+          else if ((s - 1) % 3 == 2)
+          { w_g = gain_h * gain_h; }
+          else
+          { w_g = gain_l * gain_h; }
+        }
+
+        float delta_b = base_delta / w_g;
+        encode_SPqcd(s, delta_b);
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_qfactor_quant(ui32 num_decomps)
+    {
+      int guard_bits = 1;
+      Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
+
+      // the following are used only when Qfactor is set
+      const open_htj2k::visual_weighting_params vp;
+      open_htj2k::color_transform ct =
+        open_htj2k::resolve_color_transform(vp, this->is_color_trans);
+
+      const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor,
+        (ui8)ojph_min(16, this->bit_depth));
+      float qfactor_power = (float) qs.qfactor_power;
+      float delta_ref = (float) (qs.delta_Q * open_htj2k::color_gain(ct, 0));
+      float G_c = (float) open_htj2k::color_gain(ct, this->ctype);
+
+      int chroma_format = 0;
+      // chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2
+      if (this->sampling.x == 1 && this->sampling.y == 1)
+        chroma_format = 0;
+      else if (this->sampling.x == 2 && this->sampling.y == 2)
+        chroma_format = 1;
+      else if (this->sampling.x == 2 && this->sampling.y == 1)
+        chroma_format = 2;
+      else
+        OJPH_ERROR(0x00050161, "Qfactor can only be used on components "
+          "with 4:4:4, 4:2:2 or 4:2:0 sampling");
+
+      open_htj2k::visual_weights weights =
+        open_htj2k::visual_weights::make_weights((ui8) num_decomps, vp,
+          comp_idx, chroma_format, ct);
+      size_t count = weights.get_count();
+      const float* w = weights.get_weights();
 
       // LL, HL, LH, HH, HL, LH, HH...
       for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
       {
         // compute square root of the enery gain factor W_g
-        float w_g = 1.0f;
-        ui8 d = (ui8)(num_decomps - (ui32)(((int)s - 1) / 3));
-        ui8 sb = (ui8)(s != 0 ? (s - 1) % 3 + 1 : 0);
+        float w_g = 1.0;
+
         if (num_decomps > 0)
         {
           //In C++, division result truncates towards zero
+          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
           float gain_l = sqrt_energy_gains::get_gain_l(d, false);
           float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-          if (sb == 0)
+          if (s == 0)
           { w_g = gain_l * gain_l; }
-          else if (sb == 3)
+          else if ((s - 1) % 3 == 2)
           { w_g = gain_h * gain_h; }
           else
           { w_g = gain_l * gain_h; }
         }
 
         float delta_b;
-        if (this->qfactor == QFACTOR_UNSET)
-          delta_b = base_delta / w_g;
-        else
-        {
-          float w_b = 1.0f;
-
-          bool result;
-          if (this->ctype == comp_type::OJPH_COMP_Y)
-            result = v_weights.luma_visual_weights(d - 1, sb, vp, w_b);
-          else
-            result = v_weights.chroma_visual_weights(d - 1, sb, vp,
-              this->ctype, chroma_factor, w_b, ct);
-          if (result == false)
-            OJPH_ERROR(0x00050162,
-              "Something is wrong with visual weight settings");
-          w_b = std::pow(w_b, qfactor_power);
-          delta_b = delta_ref / (w_g * w_b * G_c);
-        }
-
-        int exp = 0, mantissa;
-        while (delta_b < 1.0f)
-        { exp++; delta_b *= 2.0f; }
-        mantissa = (int)round(delta_b * (float)(1<<11)) - (1<<11);
-        // with rounding, there is a risk that the mantissa becomes
-        // equal to 1<<11
-        mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
-        SPqcd.u16[s] = (ui16)((exp << 11) | mantissa);
+        float w_b = 1.0f;
+        if (s > 0 && s <= count)
+          w_b = std::pow(w[count - s], qfactor_power);
+        delta_b = delta_ref / (w_g * w_b * G_c);
+        printf("%f\n", w_b);
+        encode_SPqcd(s, delta_b);
       }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::encode_SPqcd(ui32 subband_index, float delta)
+    {
+      int exp = 0, mantissa;
+      while (delta < 1.0f)
+      { exp++; delta *= 2.0f; }
+      mantissa = (int)round(delta * (float)(1<<11)) - (1<<11);
+      // with rounding, there is a risk that the mantissa becomes
+      // equal to 1<<11
+      mantissa = mantissa < (1<<11) ? mantissa : 0x7FF;
+      SPqcd.u16[subband_index] = (ui16)((exp << 11) | mantissa);
     }
 
     //////////////////////////////////////////////////////////////////////////

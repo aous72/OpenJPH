@@ -1201,7 +1201,8 @@ namespace ojph {
             if (q == this)
             {
               q = add_qcc_object(i);
-              comp_type t = ojph::param_qcd::ui8_2_comp_type(i < 3 ? i : 0);
+              ui8 ci = (ui8)(i < 3u ? i : 0u);
+              comp_type t = ojph::param_qcd::ui8_2_comp_type(ci);
               set_qfactor(i, t, this->qfactor);
             }
           }
@@ -1377,8 +1378,8 @@ namespace ojph {
       {
         // compute square root of the enery gain factor W_g
         float w_g = 1.0f;
-        ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
-        ui32 sb = s != 0 ? (s - 1) % 3 + 1 : 0;
+        ui8 d = (ui8)(num_decomps - (ui32)(((int)s - 1) / 3));
+        ui8 sb = (ui8)(s != 0 ? (s - 1) % 3 + 1 : 0);
         if (num_decomps > 0)
         {
           //In C++, division result truncates towards zero

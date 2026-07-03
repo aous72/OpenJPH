@@ -1434,7 +1434,6 @@ namespace ojph {
         if (s > 0 && s <= count)
           w_b = std::pow(w[count - s], qfactor_power);
         delta_b = delta_ref / (w_g * w_b * G_c);
-        printf("%f\n", w_b);
         encode_SPqcd(s, delta_b);
       }
     }

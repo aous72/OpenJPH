@@ -46,8 +46,6 @@
 #include "ojph_params_local.h"
 #include "ojph_message.h"
 
-#include "ojph_visual_weighting.h"
-
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
@@ -596,6 +594,192 @@ namespace ojph {
       2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f, 2.8671e+00f,
       2.8671e+00f, 2.8671e+00f };
 
+    //////////////////////////////////////////////////////////////////////////
+    //static
+    class visual_weights
+    {
+      public:
+        enum colour_format : ui32
+        {
+          VW_COLOUR_FORMAT_400 = 0,
+          VW_COLOUR_FORMAT_420 = 1,
+          VW_COLOUR_FORMAT_422 = 2,
+          VW_COLOUR_FORMAT_444 = 3,
+          VW_COLOUR_FORMAT_ERROR = 4
+        };
+        using comp_type = param_qcd::comp_type;
+
+    public:
+      static colour_format get_format(const point& component_subsampling)
+      {
+        if (component_subsampling.x == 2 && component_subsampling.y == 2)
+          return VW_COLOUR_FORMAT_420;
+        else if (component_subsampling.x == 2 && component_subsampling.y == 1)
+          return VW_COLOUR_FORMAT_422;
+        else if (component_subsampling.x == 1 && component_subsampling.y == 1)
+          return VW_COLOUR_FORMAT_444;
+        else
+          return VW_COLOUR_FORMAT_ERROR;
+      }
+
+    public:
+      static const float* get_weights(ui32 format, ui32 comp_type)
+      {
+        if (comp_type == comp_type::OJPH_COMP_Y)
+          return y;
+        else if (comp_type == comp_type::OJPH_COMP_CB)
+        {
+          if (format == VW_COLOUR_FORMAT_420)        return cb420;
+          else if (format == VW_COLOUR_FORMAT_422)   return cb422;
+          else if (format == VW_COLOUR_FORMAT_444)   return cb444;
+          else {
+            assert(0);
+            return y;
+          }
+        }
+        else if (comp_type == comp_type::OJPH_COMP_CR)
+        {
+          if (format == VW_COLOUR_FORMAT_420)        return cr420;
+          else if (format == VW_COLOUR_FORMAT_422)   return cr422;
+          else if (format == VW_COLOUR_FORMAT_444)   return cr444;
+          else {
+            assert(0);
+            return y;
+          }
+        }
+        else {
+          assert(0);
+          return y;
+        }
+      }
+
+      static float get_weight(const float *v, ui32 decomposition_level,
+                              ui32 subband_idx)
+
+      {
+        if (subband_idx == 0)
+          return v[18];
+        else {
+          assert(subband_idx >= 1 && subband_idx <= 3);
+          assert(decomposition_level > 0);
+          decomposition_level = ojph_min(decomposition_level, 6);
+          ui32 index = (decomposition_level - 1) * 3 + (3 - subband_idx);
+          return v[index];
+        }
+      }
+
+      //////////////////////////
+      static float get_gain(ui32 comp_type)
+      {
+        if (comp_type == comp_type::OJPH_COMP_Y)
+          return 1.7321f;
+        else if (comp_type == comp_type::OJPH_COMP_CB)
+          return 1.8051f;
+        else if (comp_type == comp_type::OJPH_COMP_CR)
+          return 1.5734f;
+        else {
+          assert(0);
+          return 0.0f;
+        }
+      }
+
+      //////////////////////////
+      static float get_delta_ref(ui32 qfactor, ui32 bit_depth,
+                                 float& power)
+      {
+        // returns delta_ref & power to be used with visual weights
+        constexpr uint8_t t0     = 65, t1 = 97;
+        constexpr float alpha_t0 = 0.04f, alpha_t1 = 0.10f;
+        constexpr float m_t0     = 2.0f * (1.0f - t0 / 100.0f);
+        constexpr float m_t1     = 2.0f * (1.0f - t1 / 100.0f);
+
+        float m_q;
+        if (qfactor < 50)
+          m_q = 50.0f / qfactor;
+        else
+          m_q = 2.0f * (1.0f - qfactor / 100.0f);
+
+        float alpha_q;
+        if (qfactor <= t0)
+        {
+          power = 1.0f;
+          alpha_q = alpha_t0;
+        }
+        else if (qfactor < t1)
+        {
+          power = std::log(m_q) - std::log(m_t1);
+          power /= std::log(m_t0) - std::log(m_t1);
+          alpha_q = alpha_t1 * std::pow(alpha_t0 / alpha_t1, power);
+        }
+        else
+        {
+          power = 0.0f;
+          float alpha_q = alpha_t1;
+        }
+        const float eps = std::sqrt(0.5f) * std::ldexp(1.0f, -(int)bit_depth);
+        return alpha_q * m_q + eps;
+      }
+
+    private:
+      static const float cb420[19];
+      static const float cr420[19];
+      static const float cb422[19];
+      static const float cr422[19];
+      static const float cb444[19];
+      static const float cr444[19];
+      static const float y[19];
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    const float visual_weights::cb420[19] = {
+      0.2724f, 0.5128f, 0.5128f,              // level 1
+      0.6692f, 0.9382f, 0.9382f,              // level 2
+      1.0888f, 1.3046f, 1.3046f,              // level 3
+      1.4156f, 1.5594f, 1.5594f,              // level 4
+      2.0f,    2.0f,    2.0f,                 // level 5
+      2.0f,    2.0f,    2.0f,    2.0f};       // level 6 + LL
+    const float visual_weights::cr420[19] = {
+      0.5196f, 0.8260f, 0.8260f,              // level 1
+      1.0080f, 1.2928f, 1.2928f,              // level 2
+      1.4440f, 1.6508f, 1.6508f,              // level 3
+      1.7538f, 1.8848f, 1.8848f,              // level 4
+      2.0f,    2.0f,    2.0f,                 // level 5
+      2.0f,    2.0f,    2.0f,    2.0f};       // level 6 + LL
+    const float visual_weights::cb422[19] = {
+      0.1220f, 0.1220f, 0.3626f,              // level 1
+      0.3626f, 0.3626f, 0.6634f,              // level 2
+      0.6634f, 0.6634f, 0.9225f,              // level 3
+      0.9225f, 0.9225f, 1.1027f,              // level 4
+      1.1027f, 1.1027f, 1.4142f,              // level 5
+      1.4142f, 1.4142f, 1.4142f, 1.4142f};    // level 6 + LL
+    const float visual_weights::cr422[19] = {
+      0.2595f, 0.2595f, 0.5841f,              // level 1
+      0.5841f, 0.5841f, 0.9141f,              // level 2
+      0.9141f, 0.9141f, 1.1673f,              // level 3
+      1.1673f, 1.1673f, 1.3328f,              // level 4
+      1.3328f, 1.3328f, 1.4142f,              // level 5
+      1.4142f, 1.4142f, 1.4142f, 1.4142f};    // level 6 + LL
+    const float visual_weights::cb444[19] = {
+      0.0263f, 0.0863f, 0.0863f,              // level 1
+      0.1362f, 0.2564f, 0.2564f,              // level 2
+      0.3346f, 0.4691f, 0.4691f,              // level 3
+      0.5444f, 0.6523f, 0.6523f,              // level 4
+      0.7078f, 0.7797f, 0.7797f,              // level 5
+      1.0f,    1.0f,    1.0f,    1.0f};       // level 6 + LL
+    const float visual_weights::cr444[19] = {
+      0.0773f, 0.1835f, 0.1835f,              // level 1
+      0.2598f, 0.4130f, 0.4130f,              // level 2
+      0.5040f, 0.6464f, 0.6464f,              // level 3
+      0.7220f, 0.8254f, 0.8254f,              // level 4
+      0.8769f, 0.9424f, 0.9424f,              // level 5
+      1.0f,    1.0f,    1.0f,    1.0f};       // level 6 + LL
+    const float visual_weights::y[19]     = {
+      0.0901f, 0.2758f, 0.2758f,              // level 1
+      0.7018f, 0.8378f, 0.8378f,              // level 2
+      1.0f,    1.0f,    1.0f,                 // level 3
+      1.0f,    1.0f,    1.0f,                 // level 4
+      1.0f,    1.0f,    1.0f,                 // level 5
+      1.0f,    1.0f,    1.0f,    1.0f};       // level 6 + LL
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -1262,10 +1446,11 @@ namespace ojph {
           ui32 t = ojph_min(16, bit_depth);
           this->base_delta = 1.0f / (float)(1 << t);
         }
-        if (qfactor == QFACTOR_UNSET)
-          this->set_irrev_quant(this->num_decomps);
-        else
-          this->set_qfactor_quant(this->num_decomps);
+        else if (qfactor != QFACTOR_UNSET)
+          OJPH_WARN(0x00040002, "qstep for component %d is ignored, because "
+            "qfactor is set.", comp_num);
+
+        this->set_irrev_quant(this->num_decomps);
       }
     }
 
@@ -1345,96 +1530,68 @@ namespace ojph {
     void param_qcd::set_irrev_quant(ui32 num_decomps)
     {
       int guard_bits = 1;
-      Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
+      Sqcd = (ui8)((guard_bits<<5)|0x2); //one guard bit, scalar quantization
 
-      // LL, HL, LH, HH, HL, LH, HH...
-      for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
+      float g_c = 1.0f;
+      float delta_ref = base_delta;
+      float power = 1.0f;
+      float w_b = 1.0f;
+      const float* weights = NULL;
+      ui32 b = 0; // LL band
+
+      if (qfactor != QFACTOR_UNSET)
       {
-        // compute square root of the enery gain factor W_g
-        float w_g = 1.0;
+        visual_weights::colour_format format =
+          visual_weights::get_format(this->sampling);
+        if (format == visual_weights::VW_COLOUR_FORMAT_ERROR)
+          OJPH_ERROR(0x00050161, "Qfactor can only be used on components "
+            "with 4:4:4, 4:2:2 or 4:2:0 sampling");
+        if (this->ctype == comp_type::OJPH_COMP_Y &&
+          this->sampling.x != 1 && this->sampling.y != 1)
+          OJPH_ERROR(0x00050162, "Qfactor can only be used for a Y or "
+            "luminance component when it is not downsampled.");
 
-        if (num_decomps > 0)
-        {
-          //In C++, division result truncates towards zero
-          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
-          float gain_l = sqrt_energy_gains::get_gain_l(d, false);
-          float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
+        // calculate component gain
+        g_c = visual_weights::get_gain(this->ctype);
 
-          if (s == 0)
-          { w_g = gain_l * gain_l; }
-          else if ((s - 1) % 3 == 2)
-          { w_g = gain_h * gain_h; }
-          else
-          { w_g = gain_l * gain_h; }
-        }
+        // calculate delta_ref & power
+        delta_ref = visual_weights::get_delta_ref(qfactor, bit_depth, power);
 
-        float delta_b = base_delta / w_g;
-        encode_SPqcd(s, delta_b);
+        // find visual weight
+        weights = visual_weights::get_weights(format, this->ctype);
+        w_b = visual_weights::get_weight(weights, num_decomps, b);
+        w_b = std::pow(w_b, power);
       }
-    }
 
-    //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_qfactor_quant(ui32 num_decomps)
-    {
-      int guard_bits = 1;
-      Sqcd = (ui8)((guard_bits<<5)|0x2);//one guard bit, scalar quantization
-
-      // the following are used only when Qfactor is set
-      const open_htj2k::visual_weighting_params vp;
-      open_htj2k::color_transform ct =
-        open_htj2k::resolve_color_transform(vp, this->is_color_trans);
-
-      const open_htj2k::q_scaling qs = open_htj2k::q_to_delta(this->qfactor,
-        (ui8)ojph_min(16, this->bit_depth));
-      float qfactor_power = (float) qs.qfactor_power;
-      float delta_ref = (float) (qs.delta_Q * open_htj2k::color_gain(ct, 0));
-      float G_c = (float) open_htj2k::color_gain(ct, this->ctype);
-
-      int chroma_format = 0;
-      // chroma_format 0 = 4:4:4, 1 = 4:2:0, 2 = 4:2:2
-      if (this->sampling.x == 1 && this->sampling.y == 1)
-        chroma_format = 0;
-      else if (this->sampling.x == 2 && this->sampling.y == 2)
-        chroma_format = 1;
-      else if (this->sampling.x == 2 && this->sampling.y == 1)
-        chroma_format = 2;
-      else
-        OJPH_ERROR(0x00050161, "Qfactor can only be used on components "
-          "with 4:4:4, 4:2:2 or 4:2:0 sampling");
-
-      open_htj2k::visual_weights weights =
-        open_htj2k::visual_weights::make_weights((ui8) num_decomps, vp,
-          comp_idx, chroma_format, ct);
-      size_t count = weights.get_count();
-      const float* w = weights.get_weights();
+      // LL band
+      float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
+      float delta_b = delta_ref / (gain_l * gain_l * g_c * w_b);
+      encode_SPqcd(b++, delta_b);
 
       // LL, HL, LH, HH, HL, LH, HH...
-      for (ui32 s = 0; s < (1 + num_decomps * 3); s++)
+      for (ui32 d = num_decomps; d > 0; --d)
       {
         // compute square root of the enery gain factor W_g
-        float w_g = 1.0;
+        float gain_l = sqrt_energy_gains::get_gain_l(d, false);
+        float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        if (num_decomps > 0)
-        {
-          //In C++, division result truncates towards zero
-          ui32 d = num_decomps - (ui32)(((int)s - 1) / 3);
-          float gain_l = sqrt_energy_gains::get_gain_l(d, false);
-          float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
-
-          if (s == 0)
-          { w_g = gain_l * gain_l; }
-          else if ((s - 1) % 3 == 2)
-          { w_g = gain_h * gain_h; }
-          else
-          { w_g = gain_l * gain_h; }
+        if (qfactor != QFACTOR_UNSET) {
+          w_b = visual_weights::get_weight(weights, d, 1);
+          w_b = std::pow(w_b, power);
+          encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
+          w_b = visual_weights::get_weight(weights, d, 2);
+          w_b = std::pow(w_b, power);
+          encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
+          w_b = visual_weights::get_weight(weights, d, 3);
+          w_b = std::pow(w_b, power);
+          encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
         }
-
-        float delta_b;
-        float w_b = 1.0f;
-        if (s > 0 && s <= count)
-          w_b = std::pow(w[count - s], qfactor_power);
-        delta_b = delta_ref / (w_g * w_b * G_c);
-        encode_SPqcd(s, delta_b);
+        else
+        {
+          encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
+          encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
+          encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
+        }
       }
     }
 
@@ -1504,7 +1661,7 @@ namespace ojph {
       else
         idx = resolution ? (resolution - 1) * 3 + subband : 0;
       if (idx >= num_subbands) {
-        OJPH_INFO(0x00050101, "Trying to access quantization step size for "
+        OJPH_INFO(0x00050102, "Trying to access quantization step size for "
           "subband %d when the QCD/QCC marker segment specifies "
           "quantization step sizes for %d subbands only.  To continue "
           "decoding, we are using the step size for subband %d, which can "

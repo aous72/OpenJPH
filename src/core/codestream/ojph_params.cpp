@@ -695,9 +695,9 @@ namespace ojph {
 
         float m_q;
         if (qfactor < 50)
-          m_q = 50.0f / qfactor;
+          m_q = 50.0f / (float)qfactor;
         else
-          m_q = 2.0f * (1.0f - qfactor / 100.0f);
+          m_q = 2.0f * (1.0f - (float)qfactor / 100.0f);
 
         float alpha_q;
         if (qfactor <= t0)
@@ -714,7 +714,7 @@ namespace ojph {
         else
         {
           power = 0.0f;
-          float alpha_q = alpha_t1;
+          alpha_q = alpha_t1;
         }
         const float eps = std::sqrt(0.5f) * std::ldexp(1.0f, -(int)bit_depth);
         return alpha_q * m_q + eps;

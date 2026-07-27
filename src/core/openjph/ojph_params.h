@@ -198,8 +198,6 @@ namespace ojph {
     /**
      * @brief Sets Qfactor
      *
-     * Setting Qfactor takes precedence over setting an irreversible
-     * quantization base delta.
      * This is a top level Qfactor; it will automatically set the qfactor;
      * if you have one or two channels they will be set to luminance
      * (or Y) visual weighting. If you have three or more, the first three
@@ -208,6 +206,9 @@ namespace ojph {
      * top level qfactor, but set the Qfactor for individual channels
      * according to desired visual weighting type, using
      * set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor);
+     *
+     * Note that setting Qfactor takes precedence over setting an
+     * irreversible quantization base delta.
      *
      * @param qfactor Compression quality as an integer between
      *                1 (worst quality) and 100 (best quality)

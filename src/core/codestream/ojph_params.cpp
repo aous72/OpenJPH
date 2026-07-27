@@ -672,11 +672,11 @@ namespace ojph {
       static float get_gain(ui32 comp_type)
       {
         if (comp_type == comp_type::OJPH_COMP_Y)
-          return 1.7321f;
+          return 1.0f;
         else if (comp_type == comp_type::OJPH_COMP_CB)
-          return 1.8051f;
+          return 1.8051f / 1.7321f;
         else if (comp_type == comp_type::OJPH_COMP_CR)
-          return 1.5734f;
+          return 1.5734f / 1.7321f;
         else {
           assert(0);
           return 0.0f;

@@ -653,6 +653,9 @@ namespace ojph {
         }
       }
 
+      static const float* get_no_weights()
+      { return no_weights; }
+
       static float get_weight(const float *v, ui32 decomposition_level,
                               ui32 subband_idx)
 
@@ -728,6 +731,7 @@ namespace ojph {
       static const float cb444[19];
       static const float cr444[19];
       static const float y[19];
+      static const float no_weights[19];
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -780,6 +784,14 @@ namespace ojph {
       1.0f,    1.0f,    1.0f,                 // level 4
       1.0f,    1.0f,    1.0f,                 // level 5
       1.0f,    1.0f,    1.0f,    1.0f};       // level 6 + LL
+    const float visual_weights::no_weights[19] = {
+      1.0f,    1.0f,    1.0f,                 // level 1
+      1.0f,    1.0f,    1.0f,                 // level 2
+      1.0f,    1.0f,    1.0f,                 // level 3
+      1.0f,    1.0f,    1.0f,                 // level 4
+      1.0f,    1.0f,    1.0f,                 // level 5
+      1.0f,    1.0f,    1.0f,    1.0f};       // level 6 + LL
+
 
     //////////////////////////////////////////////////////////////////////////
     //
@@ -1535,9 +1547,7 @@ namespace ojph {
       float g_c = 1.0f;
       float delta_ref = base_delta;
       float power = 1.0f;
-      float w_b = 1.0f;
-      const float* weights = NULL;
-      ui32 b = 0; // LL band
+      const float* weights = visual_weights::get_no_weights();
 
       if (qfactor != QFACTOR_UNSET)
       {
@@ -1559,14 +1569,15 @@ namespace ojph {
 
         // find visual weight
         weights = visual_weights::get_weights(format, this->ctype);
-        w_b = visual_weights::get_weight(weights, num_decomps, b);
-        w_b = std::pow(w_b, power);
       }
 
       // LL band
+      ui32 b = 0;
+      float w_b;
       float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
-      float delta_b = delta_ref / (gain_l * gain_l * g_c * w_b);
-      encode_SPqcd(b++, delta_b);
+      w_b = visual_weights::get_weight(weights, num_decomps, b);
+      w_b = std::pow(w_b, power);
+      encode_SPqcd(b++, delta_ref / (gain_l * gain_l * g_c * w_b));
 
       // LL, HL, LH, HH, HL, LH, HH...
       for (ui32 d = num_decomps; d > 0; --d)
@@ -1575,23 +1586,15 @@ namespace ojph {
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        if (qfactor != QFACTOR_UNSET) {
-          w_b = visual_weights::get_weight(weights, d, 1);
-          w_b = std::pow(w_b, power);
-          encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
-          w_b = visual_weights::get_weight(weights, d, 2);
-          w_b = std::pow(w_b, power);
-          encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
-          w_b = visual_weights::get_weight(weights, d, 3);
-          w_b = std::pow(w_b, power);
-          encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
-        }
-        else
-        {
-          encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
-          encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
-          encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
-        }
+        w_b = visual_weights::get_weight(weights, d, 1);
+        w_b = std::pow(w_b, power);
+        encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
+        w_b = visual_weights::get_weight(weights, d, 2);
+        w_b = std::pow(w_b, power);
+        encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
+        w_b = visual_weights::get_weight(weights, d, 3);
+        w_b = std::pow(w_b, power);
+        encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
       }
     }
 

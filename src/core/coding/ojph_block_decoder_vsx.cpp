@@ -622,7 +622,7 @@ namespace ojph {
       v128_t offset, val, validity, all_xff;
       val = vsx_v128_load(msp->data);
       int bytes = msp->size >= 16 ? 16 : msp->size;
-      validity = vsx_i8x16_splat((char)bytes);
+      validity = vsx_i8x16_splat((signed char)bytes);
       msp->data += bytes;
       msp->size -= bytes;
       ui32 bits = 128;
@@ -642,7 +642,7 @@ namespace ojph {
       v128_t ff_bytes;
       ff_bytes = vsx_i8x16_eq(val, all_xff);
       ff_bytes = vsx_v128_and(ff_bytes, validity);
-      ui32 flags = vsx_i8x16_bitmask(ff_bytes);
+      ui32 flags = (ui32)vsx_i8x16_bitmask(ff_bytes);
       flags <<= 1; // unstuff following byte
       ui32 next_unstuff = flags >> 16;
       flags |= msp->unstuff;
@@ -657,7 +657,7 @@ namespace ojph {
         flags ^= 1 << loc;
 
         v128_t m, t, c;
-        t = vsx_i8x16_splat((char)loc);
+        t = vsx_i8x16_splat((signed char)loc);
         m = vsx_i8x16_gt(offset, t);
 
         t = vsx_v128_and(m, val);    // keep bits at locations larger than loc
@@ -672,19 +672,19 @@ namespace ojph {
       // combine with earlier data
       assert(msp->bits >= 0 && msp->bits <= 128);
       int cur_bytes = msp->bits >> 3;
-      ui32 cur_bits = msp->bits & 7;
+      int cur_bits = (int)(msp->bits & 7);
       v128_t b1, b2;
       b1 = vsx_i64x2_shl(val, cur_bits);
       //next shift 8 bytes right
       b2 = vsx_i64x2_shuffle(vsx_i64x2_const(0, 0), val, 1, 2);
-      b2 = vsx_u64x2_shr(b2, 64u - cur_bits);
+      b2 = vsx_u64x2_shr(b2, 64 - cur_bits);
       b2 = (cur_bits > 0) ? b2 : vsx_i64x2_const(0, 0);
       b1 = vsx_v128_or(b1, b2);
       b2 = vsx_v128_load(msp->tmp + cur_bytes);
       b2 = vsx_v128_or(b1, b2);
       vsx_v128_store(msp->tmp + cur_bytes, b2);
 
-      ui32 consumed_bits = bits < 128u - cur_bits ? bits : 128u - cur_bits;
+      int consumed_bits = bits < 128 - cur_bits ? bits : 128 - cur_bits;
       cur_bytes = (msp->bits + consumed_bits + 7) >> 3; // round up
       int upper = vsx_u16x8_extract_lane(val, 7);
       upper >>= consumed_bits + 16 - 128;

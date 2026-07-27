@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia 
+// Copyright (c) 2019, The University of New South Wales, Australia
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -93,7 +93,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 static
 bool get_arguments(int argc, char *argv[],
                    char *&input_filename, char *&output_filename,
-                   ojph::ui32& skipped_res_for_read, 
+                   ojph::ui32& skipped_res_for_read,
                    ojph::ui32& skipped_res_for_recon,
                    bool& resilient)
 {
@@ -133,20 +133,20 @@ bool get_arguments(int argc, char *argv[],
 }
 
 /////////////////////////////////////////////////////////////////////////////
-static 
+static
 const char* get_file_extension(const char* filename)
 {
   size_t len = strlen(filename);
   const char* p = strrchr(filename, '.');
   if (p == NULL || p == filename + len - 1)
-    OJPH_ERROR(0x01000071,
+    OJPH_ERROR(0x02000071,
       "no file extension is found, or there are no characters "
       "after the dot \'.\' for filename \"%s\" \n", filename);
   return p;
 }
 
 /////////////////////////////////////////////////////////////////////////////
-static 
+static
 bool is_matching(const char *ref, const char *other)
 {
   size_t num_ele = strlen(ref);
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
       if (resilient)
         codestream.enable_resilience();
       codestream.read_headers(&j2c_file);
-      codestream.restrict_input_resolution(skipped_res_for_read, 
+      codestream.restrict_input_resolution(skipped_res_for_read,
         skipped_res_for_recon);
       ojph::param_siz siz = codestream.access_siz();
 
@@ -362,7 +362,7 @@ int main(int argc, char *argv[]) {
         if (siz.get_num_components() != 1)
           OJPH_ERROR(0x02000008,
             "The file has %d color components; this cannot be saved to"
-            " .raw file (only one component is allowed).\n", 
+            " .raw file (only one component is allowed).\n",
             siz.get_num_components());
         bool is_signed = siz.is_signed(0);
         ojph::ui32 width = siz.get_recon_width(0);

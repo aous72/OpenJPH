@@ -701,8 +701,7 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor(0,
-            ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
@@ -759,12 +758,8 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1) {
-          ojph::param_qcd qcd = codestream.access_qcd();
-          qcd.set_qfactor(0, ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-          qcd.set_qfactor(1, ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
-          qcd.set_qfactor(2, ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
-        }
+        if (!reversible && qfactor != -1)
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -843,20 +838,9 @@ int main(int argc, char * argv[]) {
             cod.set_color_transform(employ_color_transform == 1);
         }
         cod.set_reversible(reversible);
-        if (!reversible && qfactor != -1) {
-          ojph::param_qcd qcd = codestream.access_qcd();
-          if (num_comps == 1) {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-          } else {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-            qcd.set_qfactor(1,
-              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
-            qcd.set_qfactor(2,
-              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
-          }
-        } else if (!reversible) {
+        if (!reversible && qfactor != -1)
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+        else if (!reversible) {
           const float min_step = 1.0f / 16384.0f;
           if (quantization_step == -1.0f)
             quantization_step = min_step;
@@ -939,18 +923,8 @@ int main(int argc, char * argv[]) {
             OJPH_ERROR(0x010000A3,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          ojph::param_qcd qcd = codestream.access_qcd();
-          if (num_comps == 1) {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-          } else {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-            qcd.set_qfactor(1,
-              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
-            qcd.set_qfactor(2,
-              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
-          }
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+
         }
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
@@ -1042,18 +1016,7 @@ int main(int argc, char * argv[]) {
             OJPH_ERROR(0x010000A4,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          ojph::param_qcd qcd = codestream.access_qcd();
-          if (num_components == 1) {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-          } else {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-            qcd.set_qfactor(1,
-              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
-            qcd.set_qfactor(2,
-              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
-          }
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
         }
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
@@ -1108,8 +1071,7 @@ int main(int argc, char * argv[]) {
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor(0,
-            ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -1155,18 +1117,7 @@ int main(int argc, char * argv[]) {
             OJPH_ERROR(0x010000A5,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          ojph::param_qcd qcd = codestream.access_qcd();
-          if (num_comps == 1) {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-          } else {
-            qcd.set_qfactor(0,
-              ojph::param_qcd::OJPH_COMP_Y, (ojph::ui8)qfactor);
-            qcd.set_qfactor(1,
-              ojph::param_qcd::OJPH_COMP_CB, (ojph::ui8)qfactor);
-            qcd.set_qfactor(2,
-              ojph::param_qcd::OJPH_COMP_CR, (ojph::ui8)qfactor);
-          }
+          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
         }
         codestream.set_planar(false);
         if (profile_string[0] != '\0')

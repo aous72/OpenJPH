@@ -907,6 +907,13 @@ namespace ojph {
           assert(0);
 
       }
+      catch (const char *error)
+      {
+        if (resilient)
+          OJPH_INFO(0x00030092, "%s", error)
+        else
+          OJPH_ERROR(0x00030092, "%s", error)
+      }
       catch (const std::exception& error)
       {
         if (resilient)

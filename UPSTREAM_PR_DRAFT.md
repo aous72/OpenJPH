@@ -2,7 +2,7 @@
 Fix truncated-codestream exception handling in tile header parsing
 
 ## Summary
-- Fix exception handling in `tile::parse_tile_header` to catch `std::exception` (and unknown exceptions) instead of only `const char*`.
+- Fix exception handling in `tile::parse_tile_header` to also catch `std::exception` and unknown exceptions, not just `const char*`.
 - Preserve resilience behavior by logging in resilient mode and only re-raising through `OJPH_ERROR` in non-resilient mode.
 - Add a small standalone demo script (`subprojects/js/standalone/truncated_decode_demo.sh`) to reproduce truncated codestream decoding behavior and confirm graceful process termination.
 
@@ -16,15 +16,18 @@ Mismatch between thrown exception type and caught exception type:
 - Catch site in `ojph_tile.cpp`: `catch (const char*)`
 
 ## Fix Details
-In `src/core/codestream/ojph_tile.cpp`:
-- Replace:
-  - `catch (const char* error)`
-- With:
-  - `catch (const std::exception& error)`
-  - `catch (...)`
+In `src/core/codestream/ojph_tile.cpp`, keep the existing handler and add two more:
+- `catch (const char* error)` — unchanged; still the path for the `throw "..."`
+  string literals in `ojph_bitbuffer_read.h` and `ojph_precinct.cpp`, which are
+  the most common truncation errors and carry useful messages.
+- `catch (const std::exception& error)` — new; covers `std::runtime_error` from
+  `OJPH_ERROR` and `std::bad_alloc` from the allocators.
+- `catch (...)` — new; backstop so nothing escapes `parse_tile_header`.
 
 ## Why This Is Safe
 - No behavior change on successful decodes.
+- The `const char*` handler is untouched, so existing truncation diagnostics keep
+  their original messages.
 - In resilient mode, errors continue to be reported via `OJPH_INFO`.
 - In non-resilient mode, failures still propagate as errors through `OJPH_ERROR`.
 

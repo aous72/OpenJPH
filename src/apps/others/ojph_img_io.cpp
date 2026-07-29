@@ -1586,7 +1586,7 @@ namespace ojph {
       if (is_signed) {
         const si16* sp = (si16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_be((ui16)*sp);
+          *dp++ = (si32)(si16)swap_bytes_if_be((ui16)*sp);
       }
       else {
         const ui16* sp = (ui16*)buffer;

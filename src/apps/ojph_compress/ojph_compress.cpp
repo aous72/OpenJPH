@@ -1049,7 +1049,7 @@ int main(int argc, char * argv[]) {
           OJPH_ERROR(0x01000085,
             "-downsamp option is missing and must be provided\n");
 
-        raw.set_img_props(dims, bit_depth[0], is_signed);
+        raw.set_img_props(dims, bit_depth[0], is_signed[0] == 1);
 
         siz.set_num_components(num_components);
         siz.set_component(0, comp_downsampling[0], bit_depth[0], is_signed[0]);

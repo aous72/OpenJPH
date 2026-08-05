@@ -1591,7 +1591,7 @@ namespace ojph {
       else {
         const ui16* sp = (ui16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_be(*sp);
+          *dp++ = (si32)swap_bytes_if_be(*sp);
       }
     }
     else

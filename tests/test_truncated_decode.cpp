@@ -173,7 +173,8 @@ protected:
   std::vector<ojph::ui8> truncate(ojph::ui32 cut) const
   {
     size_t len = full.size() * cut / NUM_CUTS;
-    return std::vector<ojph::ui8>(full.begin(), full.begin() + len);
+    return std::vector<ojph::ui8>(
+      full.begin(), full.begin() + static_cast<std::ptrdiff_t>(len));
   }
 
   std::vector<ojph::ui8> full;

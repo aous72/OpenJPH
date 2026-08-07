@@ -43,15 +43,6 @@ To test the WASM subroutines, I would like to use the same test subroutines for 
 
 This is a standard build without any modifications. The modified com_decom.sh and com_decom_yuv.sh files should invoke the WASM versions of the code.  You can modify these files to test with or without WASM SIMD.
 
-## Truncated codestream demo
-
-`truncated_decode_demo.sh` demonstrates decoder behavior with a physically
-truncated codestream. It keeps only the first 10 KiB from a valid `.j2c` input
-and invokes `ojph_expand`.
-
-The expected behavior is graceful process termination (possibly with non-zero
-exit status), rather than an uncaught exception/abort.
-
 There is a small complication with the test.  The test reads uncompressed images from ```..\```, and writes compressed images to ```.\```, while wasmer has access to ```..``` only with the command ```--dir ..```.  It would be convenient if I can specify two folders, but I do not know how to do that.   To overcome this, I also use ```--mapdir ./:./``` that maps the ```.\``` folder to the same location in wasmer, thus giving wasmer access to this folder.
 
 

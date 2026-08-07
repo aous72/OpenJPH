@@ -94,7 +94,7 @@ namespace ojph {
       cur_comp = 0;
       cur_line = 0;
       cur_tile_row = 0;
-      resilient = true;
+      resilient = false;
       skipped_res_for_read = skipped_res_for_recon = 0;
 
       precinct_scratch_needed_bytes = 0;
@@ -1104,8 +1104,7 @@ namespace ojph {
         int marker_idx = find_marker(infile, next_markers, 2);
         if (marker_idx == -1)
         {
-          // This is common, so don't log unless needed
-          // OJPH_INFO(0x00030067, "File terminated early");
+          OJPH_INFO(0x00030067, "File terminated early");
           break;
         }
         else if (marker_idx == 0)

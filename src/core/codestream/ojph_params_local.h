@@ -168,6 +168,7 @@ namespace ojph {
 
     public:
       enum : ui16 {
+        RSIZ_WS_KERN_FLAG = 0x20,
         RSIZ_NLT_FLAG  =  0x200,
         RSIZ_HT_FLAG   = 0x4000,
         RSIZ_EXT_FLAG  = 0x8000,
@@ -407,6 +408,9 @@ namespace ojph {
       enum dwt_type : ui8 {
         DWT_IRV97 = 0,
         DWT_REV53 = 1,
+        DWT_REV13 = 2,  // reversible predict-only kernel; the low-pass
+                        // subband holds untouched even-indexed samples.
+                        // Signaled with an ATK marker segment of index 2.
       };
 
     public: // COD_MAIN and COC_MAIN common functions
@@ -429,6 +433,13 @@ namespace ojph {
       {
         assert(type == UNDEFINED || type == COD_MAIN || type == COC_MAIN);
         SPcod.wavelet_trans = reversible ? DWT_REV53 : DWT_IRV97;
+      }
+
+      ////////////////////////////////////////
+      void set_wavelet_kern(ui8 kernel)
+      {
+        assert(type == UNDEFINED || type == COD_MAIN || type == COC_MAIN);
+        SPcod.wavelet_trans = kernel;
       }
 
       ////////////////////////////////////////
@@ -532,6 +543,9 @@ namespace ojph {
 
       ////////////////////////////////////////
       bool is_reversible() const;
+
+      ////////////////////////////////////////
+      bool is_predict_only() const;
 
       ////////////////////////////////////////
       bool is_employing_color_transform() const
@@ -921,7 +935,7 @@ namespace ojph {
 
       void check_validity(const param_cod& cod, const param_qcd& qcd)
       {
-        if (cod.get_wavelet_kern() == param_cod::DWT_REV53)
+        if (cod.is_reversible())
           Ccap[0] &= 0xFFDF;
         else
           Ccap[0] |= 0x0020;
@@ -1168,6 +1182,10 @@ namespace ojph {
       }
 
       bool read(infile_base *file);
+      bool write(outfile_base *file);
+      void init_rev13();
+      bool is_used() const { return Latk != 0; }
+      bool is_predict_only() const;
 
       ui8 get_index() const { return (ui8)(Satk & 0xFF); }
       int get_coeff_type() const { return (Satk >> 8) & 0x7; }

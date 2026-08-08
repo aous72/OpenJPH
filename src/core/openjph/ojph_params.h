@@ -119,6 +119,17 @@ namespace ojph {
   class OJPH_EXPORT param_cod
   {
   public:
+    enum wavelet_kernel : ui32 {
+      OJPH_WAVELET_IRV97 = 0, // irreversible 9/7 kernel
+      OJPH_WAVELET_REV53 = 1, // reversible 5/3 kernel
+      OJPH_WAVELET_REV13 = 2, // reversible predict-only (1/3) kernel; the
+                              // low-pass subband of each decomposition holds
+                              // the even-indexed samples of the previous
+                              // resolution, untouched by any filtering.
+                              // Signaled with an ATK marker segment (Part 2).
+    };
+
+  public:
     param_cod(local::param_cod* p) : state(p) {}
 
     // COD marker segment interface
@@ -128,11 +139,21 @@ namespace ojph {
     void set_progression_order(const char *name);
     void set_color_transform(bool color_transform);
     void set_reversible(bool reversible);
+    void set_wavelet_kern(ui32 kernel);
 
     ui32 get_num_decompositions() const;
     size get_block_dims() const;
     size get_log_block_dims() const;
     bool is_reversible() const;
+    ui32 get_wavelet_kern() const;
+    // True when the employed kernel has no effective update steps, so the
+    // low-pass subband of each decomposition holds the even-indexed samples
+    // of the previous resolution untouched; with a reversible kernel and
+    // lossless coding, resolution level r decodes to the image subsampled
+    // by 2^r.  The decision inspects the lifting steps signaled in the ATK
+    // marker segment, never the kernel index, so it is reliable for
+    // codestreams produced by other encoders.
+    bool is_predict_only() const;
     size get_precinct_size(ui32 level_num) const;
     size get_log_precinct_size(ui32 level_num) const;
     int get_progression_order() const;

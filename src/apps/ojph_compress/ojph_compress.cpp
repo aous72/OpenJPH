@@ -361,7 +361,7 @@ static
 bool get_arguments(int argc, char *argv[], char *&input_filename,
                    char *&output_filename, char *&progression_order,
                    char *&profile_string, ojph::ui32 &num_decompositions,
-                   float &quantization_step, int &qfactor, bool &reversible,
+                   float &quantization_step, float &qfactor, bool &reversible,
                    int &employ_color_transform,
                    const int max_num_precincts, int &num_precincts,
                    ojph::size *precinct_size, ojph::size& block_size,
@@ -499,7 +499,7 @@ int main(int argc, char * argv[]) {
   char *com_string = NULL;
   ojph::ui32 num_decompositions = 5;
   float quantization_step = -1.0f;
-  int qfactor = -1;
+  float qfactor = -1.0f;
   bool reversible = false;
   int employ_color_transform = -1;
 
@@ -641,10 +641,10 @@ int main(int argc, char * argv[]) {
     return -1;
   }
 
-  if (qfactor != -1 && quantization_step != -1.0f)
+  if (qfactor != -1.0f && quantization_step != -1.0f)
     OJPH_ERROR(0x010000A1,
       "-qfactor and -qstep cannot be used together\n");
-  if (qfactor != -1 && (qfactor < 1 || qfactor > 100))
+  if (qfactor != -1.0f && (qfactor < 1.0f || qfactor > 100.0f))
     OJPH_ERROR(0x010000A2,
       "-qfactor must be between 1 and 100\n");
 
@@ -700,8 +700,8 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+        if (!reversible && qfactor != -1.0f)
+          codestream.access_qcd().set_qfactor(qfactor);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
@@ -758,8 +758,8 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+        if (!reversible && qfactor != -1.0f)
+          codestream.access_qcd().set_qfactor(qfactor);
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -838,8 +838,8 @@ int main(int argc, char * argv[]) {
             cod.set_color_transform(employ_color_transform == 1);
         }
         cod.set_reversible(reversible);
-        if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+        if (!reversible && qfactor != -1.0f)
+          codestream.access_qcd().set_qfactor(qfactor);
         else if (!reversible) {
           const float min_step = 1.0f / 16384.0f;
           if (quantization_step == -1.0f)
@@ -918,12 +918,12 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1) {
+        if (!reversible && qfactor != -1.0f) {
           if (num_comps != 1 && num_comps != 3)
             OJPH_ERROR(0x010000A3,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+          codestream.access_qcd().set_qfactor(qfactor);
 
         }
         codestream.set_planar(false);
@@ -1011,12 +1011,12 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1) {
+        if (!reversible && qfactor != -1.0f) {
           if (num_components != 1 && num_components != 3)
             OJPH_ERROR(0x010000A4,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+          codestream.access_qcd().set_qfactor(qfactor);
         }
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
@@ -1070,8 +1070,8 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1.0f)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1)
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+        if (!reversible && qfactor != -1.0f)
+          codestream.access_qcd().set_qfactor(qfactor);
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
@@ -1112,12 +1112,12 @@ int main(int argc, char * argv[]) {
         cod.set_reversible(reversible);
         if (!reversible && quantization_step != -1)
           codestream.access_qcd().set_irrev_quant(quantization_step);
-        if (!reversible && qfactor != -1) {
+        if (!reversible && qfactor != -1.0f) {
           if (num_comps != 1 && num_comps != 3)
             OJPH_ERROR(0x010000A5,
               "-qfactor is only supported for images with 1 or 3 "
               "components\n");
-          codestream.access_qcd().set_qfactor((ojph::ui8)qfactor);
+          codestream.access_qcd().set_qfactor(qfactor);
         }
         codestream.set_planar(false);
         if (profile_string[0] != '\0')

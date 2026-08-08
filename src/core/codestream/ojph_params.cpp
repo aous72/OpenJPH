@@ -741,8 +741,10 @@ namespace ojph {
           OJPH_ERROR(0x00050056, "Wrong SIZ-YRsiz value of %d", cptr[c].YRsiz);
       }
 
-      ws_kern_support_needed = (Rsiz & 0x20) != 0;
-      dfs_support_needed = (Rsiz & 0x80) != 0;
+      // T.801 Table A.2: bit 5 (0x20) signals arbitrary decomposition
+      // styles, and bit 7 (0x80) signals whole-sample symmetric kernels
+      ws_kern_support_needed = (Rsiz & 0x80) != 0;
+      dfs_support_needed = (Rsiz & 0x20) != 0;
 
       check_validity();
     }
@@ -2623,10 +2625,10 @@ namespace ojph {
           if (file->read(&d[s].rev.Eatk, 1) != 1)
             OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");
           bytes -= 1;
-          if (file->read(&d[s].rev.Batk, 2) != 2)
+          // Batk has the size of the coefficient type Coeff_Typ
+          // (T.801 Table A.27)
+          if (read_coefficient(file, d[s].rev.Batk, bytes) == false)
             OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");
-          bytes -= 2;
-          d[s].rev.Batk = (si16)swap_bytes_if_le((ui16)d[s].rev.Batk);
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
             OJPH_ERROR(0x000500EB, "error reading ATK-LCatk parameter");
@@ -2693,11 +2695,15 @@ namespace ojph {
       // an even number of steps.
       // Indices 0 and 1 are reserved for the 9/7 and 5/3 kernels, so this
       // kernel is signaled with an ATK marker segment of index 2.
-      Satk = 0x5800 | param_cod::DWT_REV13;
+      // 16-bit coefficients (Coeff_Typ = 1) are used because widely
+      // deployed decoders read Batk as a 16-bit field for all coefficient
+      // types, while T.801 Table A.27 sizes Batk by Coeff_Typ; with
+      // Coeff_Typ = 1 both interpretations coincide.
+      Satk = 0x5900 | param_cod::DWT_REV13;
       Natk = 2;
       // Latk(2) + Satk(2) + Natk(1), then Eatk(1) + Batk(2) + LCatk(1) +
-      // Aatk(1, 8-bit coefficients) per step
-      Latk = (ui16)(5 + 5 * Natk);
+      // Aatk(2) per step, with 16-bit Batk and Aatk (Coeff_Typ = 1)
+      Latk = (ui16)(5 + 6 * Natk);
       d[0].rev.Aatk = 0;  // update: s[n] += (0 * (d[n-1] + d[n]) + 0) >> 0,
       d[0].rev.Batk = 0;  // i.e., a no-op
       d[0].rev.Eatk = 0;
@@ -2751,8 +2757,16 @@ namespace ojph {
       for (int s = 0; s < Natk; ++s)
       {
         result &= file->write(&d[s].rev.Eatk, 1) == 1;
-        buf2 = swap_bytes_if_le((ui16)d[s].rev.Batk);
-        result &= file->write(&buf2, 2) == 2;
+        // Batk has the size of the coefficient type Coeff_Typ
+        // (T.801 Table A.27)
+        if (coeff_type == 0) {
+          si8 v = (si8)d[s].rev.Batk;
+          result &= file->write(&v, 1) == 1;
+        }
+        else {
+          buf2 = swap_bytes_if_le((ui16)d[s].rev.Batk);
+          result &= file->write(&buf2, 2) == 2;
+        }
         ui8 LCatk = 1; // one coefficient per lifting step
         result &= file->write(&LCatk, 1) == 1;
         if (coeff_type == 0) {

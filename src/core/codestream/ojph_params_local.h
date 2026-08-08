@@ -168,7 +168,10 @@ namespace ojph {
 
     public:
       enum : ui16 {
-        RSIZ_WS_KERN_FLAG = 0x20,
+        // T.801 Table A.2 capability bits
+        RSIZ_DFS_FLAG      = 0x20,  // arbitrary decomposition styles
+        RSIZ_ARB_KERN_FLAG = 0x40,  // arbitrary transformation kernels
+        RSIZ_WS_KERN_FLAG  = 0x80,  // whole-sample symmetric kernels
         RSIZ_NLT_FLAG  =  0x200,
         RSIZ_HT_FLAG   = 0x4000,
         RSIZ_EXT_FLAG  = 0x8000,

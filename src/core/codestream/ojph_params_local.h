@@ -702,9 +702,7 @@ namespace ojph {
       };
 
       ////////////////////////////////////////
-      enum qfactor_const : ui8 {
-        QFACTOR_UNSET = 0
-      };
+      const float QFACTOR_UNSET = 0.0f;
 
       ////////////////////////////////////////
       using comp_type = ojph::param_qcd::comp_type;
@@ -730,7 +728,7 @@ namespace ojph {
       bool is_qcc_needed(ui32 comp_num, const param_cod &cod,
                          const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
-      void set_qfactor(ui8 qfactor);
+      void set_qfactor(float qfactor);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
@@ -745,7 +743,7 @@ namespace ojph {
       void read_qcc(infile_base *file, ui32 num_comps);
 
       void set_delta(ui32 comp_idx, float delta);
-      void set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor);
+      void set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor);
       param_qcd* get_qcc(ui32 comp_idx);
       const param_qcd* get_qcc(ui32 comp_idx) const;
       param_qcd* add_qcc_object(ui32 comp_idx);
@@ -814,7 +812,7 @@ namespace ojph {
       // variables used to generate the quantization step sizes
       float base_delta;   // base quantization step size -- all other
                           // step sizes are derived from it.
-      ui8 qfactor;
+      float qfactor;
       comp_type ctype;
       bool is_color_trans;
       ui32 num_decomps;

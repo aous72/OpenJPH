@@ -414,7 +414,7 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
-  void param_qcd::set_qfactor(ui8 qfactor) {
+  void param_qcd::set_qfactor(float qfactor) {
     state->set_qfactor(qfactor);
   }
 
@@ -425,7 +425,8 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
-  void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor) {
+  void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor)
+  {
     state->set_qfactor(comp_idx, ctype, qfactor);
   }
 
@@ -687,20 +688,21 @@ namespace ojph {
       }
 
       //////////////////////////
-      static float get_delta_ref(ui32 qfactor, ui32 bit_depth,
+      static float get_delta_ref(float qfactor, ui32 bit_depth,
                                  float& power)
       {
         // returns delta_ref & power to be used with visual weights
-        constexpr uint8_t t0     = 65, t1 = 97;
+        constexpr float t0       = 65.0f;
+        constexpr float t1       = 97.0f;
         constexpr float alpha_t0 = 0.04f, alpha_t1 = 0.10f;
         constexpr float m_t0     = 2.0f * (1.0f - t0 / 100.0f);
         constexpr float m_t1     = 2.0f * (1.0f - t1 / 100.0f);
 
         float m_q;
-        if (qfactor < 50)
-          m_q = 50.0f / (float)qfactor;
+        if (qfactor < 50.0f)
+          m_q = 50.0f / qfactor;
         else
-          m_q = 2.0f * (1.0f - (float)qfactor / 100.0f);
+          m_q = 2.0f * (1.0f - qfactor / 100.0f);
 
         float alpha_q;
         if (qfactor <= t0)
@@ -1481,10 +1483,10 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_qfactor(ui8 qfactor) {
+    void param_qcd::set_qfactor(float qfactor) {
       assert(this->type == QCD_MAIN);
 
-      if (qfactor < 1 || qfactor > 100)
+      if (qfactor < 1.0f || qfactor > 100.0f)
         OJPH_ERROR(0x00050181, "Qfactor must be between 1 and 100, "
           "but was set to %i.", qfactor);
 
@@ -2018,11 +2020,11 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, ui8 qfactor)
+    void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor)
     {
       assert(this->type == QCD_MAIN);
 
-      if (qfactor < 1 || qfactor > 100)
+      if (qfactor < 1.0f || qfactor > 100.0f)
         OJPH_ERROR(0x00050191, "Qfactor must be between 1 and 100, "
           "but was set to %i.", qfactor);
 

@@ -35,8 +35,11 @@
 // 128-bit SIMD helpers for POWER VSX, used by the ojph_*_vsx.cpp
 // kernels.  Lane numbering and operation semantics follow the same
 // conventions as the other 128-bit kernels in this codebase (lane 0
-// is the lowest memory address).  Supported targets are POWER9
-// (ISA 3.0) and newer, little-endian only (ppc64le).
+// is the lowest memory address).  Supported targets are POWER8
+// (ISA 2.07) and newer, little-endian only (ppc64le).  Everything
+// here is expressible at the ISA 2.07 baseline; the one newer
+// instruction used, vec_extractm (ISA 3.1), is guarded and has an
+// ISA 2.07 fallback.
 //***************************************************************************/
 
 #ifndef OJPH_SIMD_VSX_H

@@ -843,7 +843,13 @@ namespace ojph {
       using special_comp_num = ojph::param_nlt::special_comp_num;
       using nonlinearity = ojph::param_nlt::nonlinearity;
     public:
-      param_nlt() { avail = NULL; init(); }
+      param_nlt() {
+        avail = NULL;
+        num_points = 0;
+        points = NULL;
+        points_storage_size = 0;
+        init();
+      }
       ~param_nlt() { destroy(); }
 
       ////////////////////////////////////////
@@ -857,26 +863,43 @@ namespace ojph {
       }
 
       void check_validity(param_siz& siz);
+
       void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
-      bool get_nonlinear_transform(ui32 comp_num, ui8& bit_depth,
-                                   bool& is_signed, ui8& nl_type) const;
+
+      void set_nonlinear_transform(ui32 comp_num,
+                                   ui8 decoded_bit_depth,
+                                   bool decoded_signedness,
+                                   ui32 d_min, ui32 d_max, ui8 pt_val,
+                                   ui16 num_points, void* points, ui8 nl_type);
+
+      bool get_nonlinear_transform(ui32 comp_num,
+                                   ui8& decoded_bit_depth,
+                                   bool& decoded_signedness,
+                                   ui8& nl_type) const;
+
       bool write(outfile_base* file) const;
-      void read(infile_base* file);
+      bool read(infile_base* file);
 
     private:
       ////////////////////////////////////////
       void init()
       {
-        Lnlt = 6;
+        Lnlt = 0;
         Cnlt = special_comp_num::ALL_COMPS; // default
         BDnlt = 0;
         Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
+        d_min = d_max = pt_val = num_points = 0;
+        val_len = 0;
         enabled = false; next = NULL;
       }
 
       ////////////////////////////////////////
       void destroy()
       {
+        if (points) {
+          delete[] points;
+          points = NULL;
+        }
         if (avail)
           delete avail;
         if (next) {
@@ -897,8 +920,14 @@ namespace ojph {
       ui16 Cnlt;         // Component involved in the transformation
       ui8 BDnlt;         // Decoded image component bit depth parameter
       ui8 Tnlt;          // Type of non-linearity
-      bool enabled;      // true if this object is used
-      param_nlt* next;   // for chaining NLT markers
+
+    private:
+      ui32 d_min, d_max; // Dmin and Dmax
+      ui32 pt_val;       // Precision of points in bits
+      ui32 num_points;   // number of points in LUT points
+      void* points;      // LUT points
+      ui32 points_storage_size; // storage used for points
+      ui8 val_len;       // number of bytes per point, derived from pt_val
 
       // The top level param_nlt object is not allocated, but as part of
       // codestream, and is used to manage allocated next objects.
@@ -906,6 +935,8 @@ namespace ojph {
       // param_nlt object.
 
     private: // on restart, already allocated param_nlt objs are stored here
+      bool enabled;      // true if this object is used
+      param_nlt* next;   // for chaining NLT markers
       param_nlt* avail;
     };
 

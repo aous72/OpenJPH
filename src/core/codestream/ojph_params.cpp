@@ -2225,10 +2225,11 @@ namespace ojph {
       if (d_min <= d_max)
         OJPH_ERROR(0x000501A4, "d_max must be larger than d_min; you "
           "provided %d and %d", d_min, d_max);
-      if (num_points > 8191)
-        OJPH_ERROR(0x000501A5, "number of points cannot be larger than "
-          "8191; you provided %d", num_points);
-
+      if (num_points < 2 || num_points > 8192)
+        OJPH_ERROR(0x000501A5, "The number of points must be larger or equal "
+          "to 2 and smaller or equal to 8192 -- the code will convert this "
+          "number to a number in the range 1 to 8191 for the NLT marker "
+          "segement; you provided %d", num_points);
 
       param_nlt* p = get_nlt_object(comp_num);
       if (p == NULL)
@@ -2303,7 +2304,7 @@ namespace ojph {
           if (p->Tnlt == nonlinearity::OJPH_NLT_LUT_STYLE_NLT ||
             p->Tnlt == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
           {
-            buf2 = swap_bytes_if_le(p->num_points);
+            buf2 = swap_bytes_if_le(p->num_points - 1);
             result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
             buf4 = swap_bytes_if_le(p->d_min);
             result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
@@ -2405,9 +2406,9 @@ namespace ojph {
         buf4_d_min = swap_bytes_if_be(buf4_d_min);
         buf4_d_max = swap_bytes_if_be(buf4_d_max);
 
-        if (buf2_num_points > 8191)
+        if (buf2_num_points < 1 || buf2_num_points > 8191)
           OJPH_ERROR(0x00050145, "The NLT marker segment has an invalid "
-            "number of points", buf2_num_points);
+            "number of points field", buf2_num_points);
         if (buf4_d_min <= buf4_d_max)
           OJPH_ERROR(0x00050146, "In an NLT marker segment, Dmin must smaller "
             "than Dmax; here we have %d and %d", buf4_d_min, buf4_d_max);
@@ -2416,7 +2417,7 @@ namespace ojph {
             "pt_val must be larger than 0 and smaller or equal to 32; "
             "here, we have %d", buf_pt_val);
 
-        p->num_points = buf2_num_points;
+        p->num_points = buf2_num_points + 1;
         p->d_min = buf4_d_min;
         p->d_max = buf4_d_max;
         p->pt_val = buf_pt_val;

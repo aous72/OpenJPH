@@ -924,7 +924,7 @@ namespace ojph {
     private:
       ui32 d_min, d_max; // Dmin and Dmax
       ui32 pt_val;       // Precision of points in bits
-      ui32 num_points;   // number of points in LUT points
+      ui32 num_points;   // number of points in LUT points from 2 to 8192
       void* points;      // LUT points
       ui32 points_storage_size; // storage used for points
       ui8 val_len;       // number of bytes per point, derived from pt_val

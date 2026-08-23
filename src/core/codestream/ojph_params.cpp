@@ -2249,8 +2249,8 @@ namespace ojph {
 
       if (len > p->points_storage_size)
       {
-        if (points)
-          delete[] points;
+        if (p->points)
+          delete[] p->points;
         p->points_storage_size = len;
         p->points = new char[p->points_storage_size];
       }

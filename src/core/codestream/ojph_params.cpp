@@ -2427,8 +2427,8 @@ namespace ojph {
         ui32 len = (ui32)num_points * (ui32)p->val_len;
         if (p->points_storage_size < len)
         {
-          if (points)
-            delete[] points;
+          if (p->points)
+            delete[] p->points;
           p->points_storage_size = len;
           p->points = new char[p->points_storage_size];
         }

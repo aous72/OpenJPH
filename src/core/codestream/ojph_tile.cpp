@@ -69,7 +69,7 @@ namespace ojph {
       allocator->pre_alloc_obj<ui32>(num_comps); //for num_bits
       allocator->pre_alloc_obj<bool>(num_comps); //for is_signed
       allocator->pre_alloc_obj<bool>(num_comps); //for reversible
-      allocator->pre_alloc_obj<ui8>(num_comps);  //for nlt_type3
+      allocator->pre_alloc_obj<ui8>(num_comps);  //for nlt_type
       allocator->pre_alloc_obj<ui32>(num_comps); //for cur_line
 
       {
@@ -192,6 +192,13 @@ namespace ojph {
                               ui32 tile_idx, ui32& offset,
                               ui32 &num_tileparts)
     {
+      constexpr ui8 type2 =
+        param_nlt::nonlinearity::OJPH_NLT_LUT_STYLE_NLT;
+      constexpr ui8 type3 =
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+      constexpr ui8 type4 =
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
+
       //this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();
 
@@ -212,7 +219,7 @@ namespace ojph {
       num_bits = allocator->post_alloc_obj<ui32>(num_comps);
       is_signed = allocator->post_alloc_obj<bool>(num_comps);
       reversible = allocator->post_alloc_obj<bool>(num_comps);
-      nlt_type3 = allocator->post_alloc_obj<ui8>(num_comps);
+      nlt_type = allocator->post_alloc_obj<ui8>(num_comps);
       cur_line = allocator->post_alloc_obj<ui32>(num_comps);
 
       profile = codestream->get_profile();
@@ -258,8 +265,6 @@ namespace ojph {
       ui32 width = 0;
       for (ui32 i = 0; i < num_comps; ++i)
       {
-        ui8 bd; bool is; // used for nlt_type3
-
         point downsamp = szp->get_downsampling(i);
         point recon_downsamp = szp->get_recon_downsampling(i);
 
@@ -289,15 +294,18 @@ namespace ojph {
 
         num_bits[i] = szp->get_bit_depth(i);
         is_signed[i] = szp->is_signed(i);
-        bool result = nlp->get_nonlinear_transform(i, bd, is, nlt_type3[i]);
-        if (result == true && (bd != num_bits[i] || is != is_signed[i]))
+
+        ui8 bd; bool is; // used for nlt_type
+        bool result = nlp->get_nonlinear_transform(i, bd, is, nlt_type[i]);
+        if (result == true && nlt_type[i] == type3 &&
+          (bd != num_bits[i] || is != is_signed[i]))
           OJPH_ERROR(0x000300A1, "Mismatch between Ssiz (bit_depth = %d, "
             "is_signed = %s) from SIZ marker segment, and BDnlt "
             "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
             "for component %d", num_bits[i],
             is_signed[i] ? "True" : "False", bd, is ? "True" : "False", i);
         if (result == false)
-          nlt_type3[i] = param_nlt::nonlinearity::OJPH_NLT_NO_NLT;
+          nlt_type[i] = param_nlt::nonlinearity::OJPH_NLT_NO_NLT;
         cur_line[i] = 0;
         reversible[i] = codestream->get_coc(i)->is_reversible();
       }
@@ -331,8 +339,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile::push(line_buf *line, ui32 comp_num)
     {
+      constexpr ui8 type2 =
+        param_nlt::nonlinearity::OJPH_NLT_LUT_STYLE_NLT;
       constexpr ui8 type3 =
         param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+      constexpr ui8 type4 =
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
 
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= comp_rects[comp_num].siz.h)
@@ -349,7 +361,10 @@ namespace ojph {
         if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            rev_encode_nlt_type2or4(line, line_offsets[comp_num],
+              tc, 0, shift + 1, comp_width);
+          else if (is_signed[comp_num] && nlt_type[comp_num] == type3)
             rev_convert_nlt_type3(line, line_offsets[comp_num],
               tc, 0, shift + 1, comp_width);
           else {
@@ -360,7 +375,10 @@ namespace ojph {
         }
         else
         {
-          if (nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            irv_convert_to_float_nlt_type2or4(line, line_offsets[comp_num],
+              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
+          else if (nlt_type[comp_num] == type3)
             irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
               tc, num_bits[comp_num], is_signed[comp_num], comp_width);
           else
@@ -375,7 +393,10 @@ namespace ojph {
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible[comp_num])
         {
-          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            rev_encode_nlt_type2or4(line, line_offsets[comp_num],
+              lines + comp_num, 0, shift + 1, comp_width);
+          else if (is_signed[comp_num] && nlt_type[comp_num] == type3)
             rev_convert_nlt_type3(line, line_offsets[comp_num],
               lines + comp_num, 0, shift + 1, comp_width);
           else {
@@ -397,7 +418,11 @@ namespace ojph {
         }
         else
         {
-          if (nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            irv_convert_to_float_nlt_type2or4(line, line_offsets[comp_num],
+              lines + comp_num, num_bits[comp_num], is_signed[comp_num],
+              comp_width);
+          else if (nlt_type[comp_num] == type3)
             irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
               lines + comp_num, num_bits[comp_num], is_signed[comp_num],
               comp_width);
@@ -424,8 +449,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile::pull(line_buf* tgt_line, ui32 comp_num)
     {
+      constexpr ui8 type2 =
+        param_nlt::nonlinearity::OJPH_NLT_LUT_STYLE_NLT;
       constexpr ui8 type3 =
         param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+      constexpr ui8 type4 =
+        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
 
       assert(comp_num < num_comps);
       if (cur_line[comp_num] >= recon_comp_rects[comp_num].siz.h)
@@ -443,7 +472,10 @@ namespace ojph {
         if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            rev_decode_nlt_type2or4(src_line, 0, tgt_line,
+              line_offsets[comp_num], shift + 1, comp_width);
+          else if (is_signed[comp_num] && nlt_type[comp_num] == type3)
             rev_convert_nlt_type3(src_line, 0, tgt_line,
               line_offsets[comp_num], shift + 1, comp_width);
           else {
@@ -454,7 +486,11 @@ namespace ojph {
         }
         else
         {
-          if (nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            irv_convert_to_integer_nlt_type2or4(src_line, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num],
+              is_signed[comp_num], comp_width);
+          else if (nlt_type[comp_num] == type3)
             irv_convert_to_integer_nlt_type3(src_line, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
               is_signed[comp_num], comp_width);
@@ -486,7 +522,10 @@ namespace ojph {
             src_line = lines + comp_num;
           else
             src_line = comps[comp_num].pull_line();
-          if (is_signed[comp_num] && nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            rev_decode_nlt_type2or4(src_line, 0, tgt_line,
+              line_offsets[comp_num], shift + 1, comp_width);
+          else if (is_signed[comp_num] && nlt_type[comp_num] == type3)
             rev_convert_nlt_type3(src_line, 0, tgt_line,
               line_offsets[comp_num], shift + 1, comp_width);
           else {
@@ -502,7 +541,11 @@ namespace ojph {
             lbp = lines + comp_num;
           else
             lbp = comps[comp_num].pull_line();
-          if (nlt_type3[comp_num] == type3)
+          if (nlt_type[comp_num] == type2 || nlt_type[comp_num] == type4)
+            irv_convert_to_integer_nlt_type2or4(lbp, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num],
+              is_signed[comp_num], comp_width);
+          else if (nlt_type[comp_num] == type3)
             irv_convert_to_integer_nlt_type3(lbp, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
               is_signed[comp_num], comp_width);

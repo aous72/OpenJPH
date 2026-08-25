@@ -2374,8 +2374,8 @@ namespace ojph {
       }
 
       ui16 comp = swap_bytes_if_le(buf2_comp);
-      if (comp > 16383)
-        OJPH_ERROR(0x00050143, "Somethins is wrong with this NLT "
+      if (comp > 16383 && comp != special_comp_num::ALL_COMPS)
+        OJPH_ERROR(0x00050143, "Something is wrong with this NLT "
           "marker segment -- it has an incorrect component index of %d",
           comp);
 

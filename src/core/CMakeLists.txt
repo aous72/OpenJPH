@@ -79,7 +79,7 @@ else()
       endif()
 
       # Set compilation flags
-      if (MSVC)
+      if (MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         set_source_files_properties(codestream/ojph_codestream_avx.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX")
         set_source_files_properties(codestream/ojph_codestream_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")
         set_source_files_properties(coding/ojph_block_decoder_avx2.cpp PROPERTIES COMPILE_FLAGS "/arch:AVX2")

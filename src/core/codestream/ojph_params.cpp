@@ -2238,7 +2238,7 @@ namespace ojph {
       p->val_len = (pt_val <= 8) ? 1 : ((pt_val <= 16) ? 2 : 4);
       ui32 len = (ui32)num_points * (ui32)p->val_len;
 
-      p->Lnlt = 11 + len;
+      p->Lnlt = (ui16)(11u + len);
       p->BDnlt = (decoded_bit_depth - 1) | (decoded_signedness ? 0x80 : 0);
       p->Tnlt = nl_type;
 
@@ -2304,7 +2304,7 @@ namespace ojph {
           if (p->Tnlt == nonlinearity::OJPH_NLT_LUT_STYLE_NLT ||
             p->Tnlt == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
           {
-            buf2 = swap_bytes_if_le(p->num_points - 1);
+            buf2 = (ui16)swap_bytes_if_le(p->num_points - 1);
             result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
             buf4 = swap_bytes_if_le(p->d_min);
             result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);

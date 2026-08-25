@@ -2250,9 +2250,9 @@ namespace ojph {
       if (len > p->points_storage_size)
       {
         if (p->points)
-          delete[] p->points;
+          free(points);
         p->points_storage_size = len;
-        p->points = new char[p->points_storage_size];
+        p->points = malloc(p->points_storage_size);
       }
       memcpy(p->points, points, len);
 
@@ -2428,9 +2428,9 @@ namespace ojph {
         if (p->points_storage_size < len)
         {
           if (p->points)
-            delete[] p->points;
+            free(points);
           p->points_storage_size = len;
-          p->points = new char[p->points_storage_size];
+          p->points = malloc(p->points_storage_size);
         }
 
         if (p->val_len == 1)

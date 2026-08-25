@@ -897,7 +897,7 @@ namespace ojph {
       void destroy()
       {
         if (points) {
-          delete[] points;
+          free(points);
           points = NULL;
         }
         if (avail)

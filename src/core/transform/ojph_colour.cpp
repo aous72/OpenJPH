@@ -265,6 +265,36 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
 
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_encode_nlt_type2or4(
+      const line_buf *src_line, const ui32 src_line_offset,
+      line_buf *dst_line, const ui32 dst_line_offset,
+      si64 shift, ui32 width)
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_decode_nlt_type2or4(
+      const line_buf *src_line, const ui32 src_line_offset,
+      line_buf *dst_line, const ui32 dst_line_offset,
+      si64 shift, ui32 width)
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_float_nlt_type2or4(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_integer_nlt_type2or4(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+    }
+
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     //////////////////////////////////////////////////////////////////////////
@@ -300,22 +330,6 @@ namespace ojph {
         for (ui32 i = width; i > 0; --i)
           *dp++ = (si32)(*sp++ + shift);
       }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_encode_nlt_type2or4(
-      const line_buf *src_line, const ui32 src_line_offset,
-      line_buf *dst_line, const ui32 dst_line_offset,
-      si64 shift, ui32 width)
-    {
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_decode_nlt_type2or4(
-      const line_buf *src_line, const ui32 src_line_offset,
-      line_buf *dst_line, const ui32 dst_line_offset,
-      si64 shift, ui32 width)
-    {
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -423,13 +437,6 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_integer_nlt_type2or4(const line_buf *src_line,
-      line_buf *dst_line, ui32 dst_line_offset,
-      ui32 bit_depth, bool is_signed, ui32 width)
-    {
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     void gen_irv_convert_to_integer_nlt_type3(const line_buf *src_line,
       line_buf *dst_line, ui32 dst_line_offset,
       ui32 bit_depth, bool is_signed, ui32 width)
@@ -483,13 +490,6 @@ namespace ojph {
     {
       local_gen_irv_convert_to_float<false>(src_line, src_line_offset,
         dst_line, bit_depth, is_signed, width);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_float_nlt_type2or4(const line_buf *src_line,
-      ui32 src_line_offset, line_buf *dst_line,
-      ui32 bit_depth, bool is_signed, ui32 width)
-    {
     }
 
     //////////////////////////////////////////////////////////////////////////

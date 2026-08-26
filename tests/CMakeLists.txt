@@ -57,9 +57,22 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# test compressing 4 channels (library API tests)
+add_executable(
+  test_4ch_codestream
+  test_4ch_codestream.cpp
+)
+
+target_link_libraries(
+  test_4ch_codestream
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
+gtest_add_tests(TARGET test_4ch_codestream)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

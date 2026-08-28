@@ -90,7 +90,7 @@ namespace ojph {
       ui32 *num_bits;
       bool *is_signed;
       ui32 *cur_line;
-      ui8 *nlt_type;
+      const nlt_rec **nlt_ptr;
       int prog_order;
 
     private:

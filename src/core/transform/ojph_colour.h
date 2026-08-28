@@ -46,6 +46,9 @@ namespace ojph {
 
   namespace local {
 
+  // defined elsewhere
+  struct nlt_rec;
+
   ////////////////////////////////////////////////////////////////////////////
   void init_colour_transform_functions();
 
@@ -56,16 +59,16 @@ namespace ojph {
      si64 shift, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*rev_encode_nlt_type2or4)
+  extern void (*rev_encode_nlt)
     (const line_buf *src_line, const ui32 src_line_offset,
-     line_buf *dst_line, const ui32 dst_line_offset,
-     si64 shift, ui32 width);
+     line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width,
+     const nlt_rec *rec);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*rev_decode_nlt_type2or4)
+  extern void (*rev_decode_nlt)
     (const line_buf *src_line, const ui32 src_line_offset,
      line_buf *dst_line, const ui32 dst_line_offset,
-     si64 shift, ui32 width);
+     ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec *rec);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*rev_convert_nlt_type3)
@@ -84,9 +87,9 @@ namespace ojph {
     line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*irv_convert_to_integer_nlt_type2or4) (
+  extern void (*irv_convert_to_integer_nlt) (
     const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset,
-    ui32 bit_depth, bool is_signed, ui32 width);
+    ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec *rec);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*irv_convert_to_integer_nlt_type3) (
@@ -94,9 +97,9 @@ namespace ojph {
     ui32 bit_depth, bool is_signed, ui32 width);
 
   ////////////////////////////////////////////////////////////////////////////
-  extern void (*irv_convert_to_float_nlt_type2or4) (
-    const line_buf *src_line, ui32 src_line_offset,
-    line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);
+  extern void (*irv_convert_to_float_nlt) (
+    const line_buf *src_line, ui32 src_line_offset, line_buf *dst_line,
+    ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec *rec);
 
   ////////////////////////////////////////////////////////////////////////////
   extern void (*irv_convert_to_float_nlt_type3) (

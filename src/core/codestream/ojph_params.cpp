@@ -2253,6 +2253,8 @@ namespace ojph {
           free(p->rec.points);
         p->rec.points_storage_size = len;
         p->rec.points = malloc(p->rec.points_storage_size);
+        if (p->rec.points == NULL)
+          OJPH_ERROR(0x000501A6, "Failed to allocated memory");
       }
       memcpy(p->rec.points, points, len);
 
@@ -2434,6 +2436,9 @@ namespace ojph {
             free(p->rec.points);
           p->rec.points_storage_size = len;
           p->rec.points = malloc(p->rec.points_storage_size);
+          if (p->rec.points == NULL)
+            OJPH_ERROR(0x00050148, "Failed to allocated memory");
+
         }
 
         if (p->rec.bytes_per_point == 1)

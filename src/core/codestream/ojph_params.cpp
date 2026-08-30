@@ -2235,10 +2235,7 @@ namespace ojph {
       if (p == NULL)
         p = add_object(comp_num);
 
-      p->rec.bytes_per_point = (pt_val <= 8) ? 1 : ((pt_val <= 16) ? 2 : 4);
-      ui32 len = (ui32)num_points * (ui32)p->rec.bytes_per_point;
-
-      p->Lnlt = (ui16)(11u + len);
+      p->Lnlt = (ui16)(11u + (ui32)num_points * (ui32)p->rec.bytes_per_point);
       p->rec.BDnlt = (decoded_bit_depth - 1) | (decoded_signedness ? 0x80 : 0);
       p->rec.Tnlt = nl_type;
 
@@ -2246,17 +2243,80 @@ namespace ojph {
       p->rec.d_max = d_max;
       p->rec.pt_val = pt_val;
       p->rec.num_points = num_points;
+      p->rec.bytes_per_point = p->rec.get_bpp(pt_val);
 
-      if (len > p->rec.points_storage_size)
+      // Check that the LUT has increasing entries or has almost flat segments
+      ui32 v_min, v_max;
+      ui32 smallest_gap = UINT_MAX;
+      for (int k = 0; k < num_points - 1; ++k)
       {
-        if (p->rec.points)
-          free(p->rec.points);
-        p->rec.points_storage_size = len;
-        p->rec.points = malloc(p->rec.points_storage_size);
-        if (p->rec.points == NULL)
-          OJPH_ERROR(0x000501A6, "Failed to allocated memory");
+        if (p->rec.bytes_per_point = 1)
+        {
+          ui8* p = (ui8*)points;
+          if (p[k+1] > p[k])
+            smallest_gap = ojph_min(smallest_gap, (ui32)(p[k+1] - p[k]));
+          else
+            OJPH_ERROR(0x000501A6, "The LUT must have increasing sequence "
+              "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
+              "%d and %d.", k, k, p[k+1], p[k]);
+          v_min = p[0]; v_max = p[num_points - 1];
+        }
+        else if (p->rec.bytes_per_point = 2)
+        {
+          ui16* p = (ui16*)points;
+          if (p[k+1] > p[k])
+            smallest_gap = ojph_min(smallest_gap, (ui32)(p[k+1] - p[k]));
+          else
+            OJPH_ERROR(0x000501A7, "The LUT must have increasing sequence "
+              "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
+              "%d and %d.", k, k, p[k+1], p[k]);
+          v_min = p[0]; v_max = p[num_points - 1];
+        }
+        else if (p->rec.bytes_per_point = 4)
+        {
+          ui32* p = (ui32*)points;
+          if (p[k+1] > p[k])
+            smallest_gap = ojph_min(smallest_gap, p[k+1] - p[k]);
+          else
+            OJPH_ERROR(0x000501A8, "The LUT must have increasing sequence "
+              "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
+              "%d and %d.", k, k, p[k+1], p[k]);
+          v_min = p[0]; v_max = p[num_points - 1];
+        }
       }
-      memcpy(p->rec.points, points, len);
+
+      // find ceil of the ratio to a power of 2
+      ui32 ienc_pnts;
+      float enc_pnts = std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
+      if (enc_pnts > 8192.0f)
+      {
+        ienc_pnts = 8192;
+        OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "
+          "encoding LUT, derived from the LUT you provided; however, "
+          "because the provided LUT has almost flat segment or segments, "
+          "these are hard to invert.  We are limiting the encoding "
+          "LUT to 8192 entries, which means that some segment of the "
+          "LUT table might be ignored during encoding.")
+      }
+      else {
+        ui32 ienc_pnts = (ui32)enc_pnts;
+        ienc_pnts = 31 - count_leading_zeros(ienc_pnts);
+        ienc_pnts = 1u << ienc_pnts;
+      }
+
+      ui32 len = p->rec.cal_store_size_for_encoding(ienc_pnts);
+      if (len > p->rec.store_size)
+      {
+        if (p->rec.points_store)
+          delete[] (ui8*)p->rec.points_store;
+        p->rec.store_size = len;
+        p->rec.points_store = new ui8[p->rec.store_size];
+        if (p->rec.points_store == NULL)
+          OJPH_ERROR(0x000501A9, "Failed to allocated memory");
+      }
+      p->rec.assign_pointers_for_encoding();
+      memcpy(p->rec.marker_points, points, len);
+      p->rec.prepare_for_encoding();
 
       p->enabled = true;
     }
@@ -2318,10 +2378,10 @@ namespace ojph {
 
             ui32 len = p->rec.bytes_per_point * p->rec.num_points;
             if (p->rec.bytes_per_point == 1)
-              result &= file->write(p->rec.points, len) == len;
+              result &= file->write(p->rec.marker_points, len) == len;
             else if (p->rec.bytes_per_point == 2)
             {
-              char* sp = (char*)p->rec.points;
+              char* sp = (char*)p->rec.marker_points;
               for (ui32 i = 0; i < p->rec.num_points; ++i, sp += 2)
               {
                 memcpy(&buf2, sp, 2); // not to violate strict aliasing
@@ -2331,7 +2391,7 @@ namespace ojph {
             }
             else
             {
-              char* sp = (char*)p->rec.points;
+              char* sp = (char*)p->rec.marker_points;
               for (ui32 i = 0; i < p->rec.num_points; ++i, sp += 4)
               {
                 memcpy(&buf4, sp, 4); // not to violate strict aliasing
@@ -2425,28 +2485,28 @@ namespace ojph {
         p->rec.d_min = buf4_d_min;
         p->rec.d_max = buf4_d_max;
         p->rec.pt_val = buf_pt_val;
-        p->rec.bytes_per_point =
-          (p->rec.pt_val <= 8) ? 1 : ((p->rec.pt_val <= 16) ? 2 : 4);
+        p->rec.bytes_per_point = p->rec.get_bpp(buf_pt_val);
 
         // read the points
-        ui32 len = (ui32)p->rec.num_points * (ui32)p->rec.bytes_per_point;
-        if (p->rec.points_storage_size < len)
+        ui32 len = p->rec.cal_store_size_for_decoding();
+        if (p->rec.store_size < len)
         {
-          if (p->rec.points)
-            free(p->rec.points);
-          p->rec.points_storage_size = len;
-          p->rec.points = malloc(p->rec.points_storage_size);
-          if (p->rec.points == NULL)
+          if (p->rec.points_store)
+            delete[] (ui8*)p->rec.points_store;
+          p->rec.store_size = len;
+          p->rec.points_store = new ui8[p->rec.store_size];
+          if (p->rec.points_store == NULL)
             OJPH_ERROR(0x00050148, "Failed to allocated memory");
-
         }
+        p->rec.assign_pointers_for_decoding();
+        p->rec.prepare_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-          result &= file->read(p->rec.points, len) == len;
+          result &= file->read(p->rec.marker_points, len) == len;
         else if (p->rec.bytes_per_point == 2)
         {
           ui16 buf2;
-          char* dp = (char*)p->rec.points;
+          char* dp = (char*)p->rec.marker_points;
           for (ui32 i = 0; i < p->rec.num_points; ++i, dp += 2)
           {
             result &= file->read(&buf2, sizeof(ui16)) == sizeof(ui16);
@@ -2457,7 +2517,7 @@ namespace ojph {
         else
         {
           ui32 buf4;
-          char* dp = (char*)p->rec.points;
+          char* dp = (char*)p->rec.marker_points;
           for (ui32 i = 0; i < p->rec.num_points; ++i, dp += 4)
           {
             result &= file->read(&buf4, sizeof(ui32)) == sizeof(ui32);

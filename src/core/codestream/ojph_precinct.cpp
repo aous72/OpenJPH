@@ -399,8 +399,15 @@ namespace ojph {
       static int parse_call = 0;
       ++parse_call;
       if (ojph_debug_layers())
-        fprintf(stderr, "=== parse #%d num_layers=%u data_left=%u\n",
+      {
+        fprintf(stderr, "=== parse #%d num_layers=%u data_left=%u",
           parse_call, num_layers, data_left);
+        for (int s = 0; s < 4; ++s)
+          if (!bands[s].empty)
+            fprintf(stderr, "  s%d:%ux%u", s, cb_idxs[s].siz.w,
+              cb_idxs[s].siz.h);
+        fprintf(stderr, "\n");
+      }
 
       // Inclusion and missing-MSB tag trees must survive from one quality layer
       // to the next, so they are built once here rather than per packet, and
@@ -443,6 +450,7 @@ namespace ojph {
             cp->included = 0;
             cp->in_layer = 0;
             cp->Lblock_m3 = 0;
+            cp->has_cleanup = 0;
           }
         }
       }
@@ -605,6 +613,11 @@ namespace ojph {
               cp->missing_msbs += num_phld_passes;
 
               num_phld_passes *= 3;
+              // Kept so an HT set that turns out to be empty can leave this
+              // codeblock holding the segment it already had.
+              ui32 previous_num_passes = cp->num_passes;
+              ui32 previous_length_0 = cp->pass_length[0];
+              ui32 previous_length_1 = cp->pass_length[1];
               cp->num_passes = num_passes - num_phld_passes;
               cp->pass_length[0] = cp->pass_length[1] = 0;
 
@@ -632,14 +645,24 @@ namespace ojph {
                   "Lblock=%d bits=%d len0=%u\n", layer, s, x, y, cp->included,
                   num_passes, num_phld_passes, Lblock, bits, bit);
 
-              if (bit < 2)
-                throw "The cleanup segment of an HT codeblock cannot contain "
-                  "less than 2 bytes";
-              if (bit >= 65535)
+              // A zero length HT cleanup segment is legal and means this HT
+              // set contributes nothing: T.814 B.3 allows a set made only of
+              // zero-length segments, used to skip magnitude bit-planes, and a
+              // codeblock's first contribution may consist of placeholder passes
+              // alone. Only a codeblock's first real cleanup segment has to carry
+              // more than one byte.
+              ui32 cleanup_length = bit;
+              // T.814 B.3 requires a codeblock's first HT cleanup segment to
+              // exceed one byte. Downgraded to a note while the remaining
+              // segment rules are worked out, so parsing continues.
+              if (cleanup_length == 1 && !cp->has_cleanup
+                  && ojph_debug_layers())
+                fprintf(stderr, "    NOTE first cleanup segment is 1 byte\n");
+              if (cleanup_length >= 65535)
                 throw "The cleanup segment of an HT codeblock must contain "
                   "less than 65535 bytes";
-              cp->pass_length[0] = bit;
 
+              ui32 refinement_length = 0;
               if (cp->num_passes > 1)
               {
                 //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
@@ -650,12 +673,29 @@ namespace ojph {
                 if (bit >= 2047)
                   throw "The refinement segment (SigProp and MagRep passes) of "
                     "an HT codeblock must contain less than 2047 bytes";
-                cp->pass_length[1] = bit;
+                refinement_length = bit;
                 if (ojph_debug_layers())
                   fprintf(stderr, "        len1=%u (bits=%d)\n", bit, bits);
               }
 
-              cp->in_layer = 1;
+              if (cleanup_length == 0)
+              {
+                // Nothing to decode from this set, and per T.814 B.3 the
+                // refinement segment of such a set is empty too. Leave in place
+                // the segment this codeblock already holds; it is the best
+                // quality seen so far.
+                cp->num_passes = previous_num_passes;
+                cp->pass_length[0] = previous_length_0;
+                cp->pass_length[1] = previous_length_1;
+                cp->in_layer = 0;
+              }
+              else
+              {
+                cp->pass_length[0] = cleanup_length;
+                cp->pass_length[1] = refinement_length;
+                cp->has_cleanup = 1;
+                cp->in_layer = 1;
+              }
             }
           }
         }

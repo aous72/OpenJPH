@@ -127,6 +127,7 @@ namespace ojph {
       ui8 included;
       ui8 in_layer;
       ui8 Lblock_m3;
+      ui8 has_cleanup;
 
       static const int prefix_buf_size = 8;
       static const int suffix_buf_size = 16;

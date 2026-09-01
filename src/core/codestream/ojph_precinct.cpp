@@ -38,6 +38,8 @@
 
 #include <climits>
 #include <cmath>
+#include <cstdio>   // for the temporary multi-layer trace
+#include <cstdlib>  // for the temporary multi-layer trace
 
 #include "ojph_mem.h"
 #include "ojph_params.h"
@@ -325,251 +327,416 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void precinct::parse(int tag_tree_size, ui32* lev_idx,
-                         mem_elastic_allocator *elastic,
-                         ui32 &data_left, infile_base *file,
-                         bool skipped)
+    //////////////////////////////////////////////////////////////////////////
+    // Set OJPH_DEBUG_LAYERS to trace multi-layer packet parsing. Temporary.
+    static bool ojph_debug_layers()
     {
-      assert(data_left > 0);
-      bit_read_buf bb;
-      bb_init(&bb, data_left, file);
-      if (may_use_sop)
-        bb_skip_sop(&bb);
+      static int state = -1;
+      if (state < 0)
+        state = getenv("OJPH_DEBUG_LAYERS") != NULL ? 1 : 0;
+      return state == 1;
+    }
 
-      bool empty_packet = true;
-      for (int s = 0; s < 4; ++s)
+    //////////////////////////////////////////////////////////////////////////
+    // Decodes one tag tree leaf up to a threshold, keeping partially decoded
+    // state so decoding can continue in a later quality layer.
+    //
+    // A node's value is a lower bound that grows as 0 bits are read; a 1 bit
+    // fixes the value, which the flags tree records. When the value reaches the
+    // threshold before being fixed, decoding stops: the caller only learns the
+    // value is at least the threshold, and a later layer with a higher
+    // threshold resumes from here.
+    //
+    // With one quality layer the threshold is always 1 and this reduces to
+    // reading one bit per level, which is what the single-layer path did.
+    static bool tag_tree_decode(bit_read_buf* bb, tag_tree& val, tag_tree& known,
+                                ui32 x, ui32 y, ui32 num_levels, ui32 threshold,
+                                ui32& result)
+    {
+      ui32 lower_bound = 0;
+      for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
       {
-        if (bands[s].empty)
-          continue;
+        ui32 cur_lev = levp1 - 1;
+        ui8* v = val.get(x >> cur_lev, y >> cur_lev, cur_lev);
+        ui8* k = known.get(x >> cur_lev, y >> cur_lev, cur_lev);
 
-        if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
-          continue;
+        // A parent's value is a lower bound for its children.
+        if (*v < lower_bound)
+          *v = (ui8)lower_bound;
 
-        if (empty_packet) //one bit to check if the packet is empty
+        while (*k == 0 && *v < threshold)
         {
           ui32 bit;
-          bb_read_bit(&bb, bit);
-          if (bit == 0) //empty packet
-          { bb_terminate(&bb, uses_eph); data_left = bb.bytes_left; return; }
-          empty_packet = false;
+          if (bb_read_bit(bb, bit) == false)
+            return false;
+          if (bit)
+            *k = 1;
+          else
+            *v = (ui8)(*v + 1);
         }
 
-        ui32 num_levels = 1 +
+        if (*k == 0)
+        {
+          // Value is at least the threshold; nothing more is known yet.
+          result = *v;
+          return true;
+        }
+
+        lower_bound = *v;
+      }
+
+      result = lower_bound;
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void precinct::parse(int tag_tree_size, ui32* lev_idx,
+                         mem_elastic_allocator *elastic,
+                         ui32 &data_left, infile_base *file, bool skipped,
+                         ui32 num_layers)
+    {
+      assert(data_left > 0);
+      static int parse_call = 0;
+      ++parse_call;
+      if (ojph_debug_layers())
+        fprintf(stderr, "=== parse #%d num_layers=%u data_left=%u\n",
+          parse_call, num_layers, data_left);
+
+      // Inclusion and missing-MSB tag trees must survive from one quality layer
+      // to the next, so they are built once here rather than per packet, and
+      // each subband gets its own storage. This is why all of a precinct's
+      // packets are parsed in a single call: the progression orders that reach
+      // here place quality layers innermost, so those packets are consecutive.
+      tag_tree inc_tag[4], inc_tag_flags[4], mmsb_tag[4], mmsb_tag_flags[4];
+      ui32 num_levels[4] = { 0, 0, 0, 0 };
+
+      for (int s = 0; s < 4; ++s)
+      {
+        if (bands[s].empty || cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
+          continue;
+
+        num_levels[s] = 1 +
           ojph_max(log2ceil(cb_idxs[s].siz.w), log2ceil(cb_idxs[s].siz.h));
 
-        //create quad trees for inclusion and missing msbs
-        tag_tree inc_tag, inc_tag_flags, mmsb_tag, mmsb_tag_flags;
-        inc_tag.init(scratch, lev_idx, num_levels, cb_idxs[s].siz, 0);
-        *inc_tag.get(0, 0, num_levels) = 0;
-        inc_tag_flags.init(scratch + tag_tree_size, lev_idx, num_levels,
+        // Four tables per subband, laid out consecutively in the scratch space.
+        ui8* base = scratch + (size_t)s * 4 * (size_t)tag_tree_size;
+        inc_tag[s].init(base, lev_idx, num_levels[s], cb_idxs[s].siz, 0);
+        *inc_tag[s].get(0, 0, num_levels[s]) = 0;
+        inc_tag_flags[s].init(base + tag_tree_size, lev_idx, num_levels[s],
           cb_idxs[s].siz, 0);
-        *inc_tag_flags.get(0, 0, num_levels) = 0;
-        mmsb_tag.init(scratch + (tag_tree_size<<1), lev_idx, num_levels,
+        *inc_tag_flags[s].get(0, 0, num_levels[s]) = 0;
+        mmsb_tag[s].init(base + (tag_tree_size << 1), lev_idx, num_levels[s],
           cb_idxs[s].siz, 0);
-        *mmsb_tag.get(0, 0, num_levels) = 0;
-        mmsb_tag_flags.init(scratch + (tag_tree_size<<1) + tag_tree_size,
-          lev_idx, num_levels, cb_idxs[s].siz, 0);
-        *mmsb_tag_flags.get(0, 0, num_levels) = 0;
+        *mmsb_tag[s].get(0, 0, num_levels[s]) = 0;
+        mmsb_tag_flags[s].init(base + (tag_tree_size << 1) + tag_tree_size,
+          lev_idx, num_levels[s], cb_idxs[s].siz, 0);
+        *mmsb_tag_flags[s].get(0, 0, num_levels[s]) = 0;
 
-        //
+        // Per-codeblock inclusion state also spans layers.
         ui32 band_width = bands[s].num_blocks.w;
-        ui32 width = cb_idxs[s].siz.w;
-        ui32 height = cb_idxs[s].siz.h;
-        for (ui32 y = 0; y < height; ++y)
+        for (ui32 y = 0; y < cb_idxs[s].siz.h; ++y)
         {
-          coded_cb_header *cp = bands[s].coded_cbs;
+          coded_cb_header* cp = bands[s].coded_cbs;
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (ui32 x = 0; x < width; ++x, ++cp)
+          for (ui32 x = 0; x < cb_idxs[s].siz.w; ++x, ++cp)
           {
-            //process inclusion
-            bool empty_cb = false;
-            for (ui32 cl = num_levels; cl > 0; --cl)
+            cp->included = 0;
+            cp->in_layer = 0;
+            cp->Lblock_m3 = 0;
+          }
+        }
+      }
+
+      for (ui32 layer = 0; layer < num_layers && data_left > 0; ++layer)
+      {
+        if (ojph_debug_layers())
+          fprintf(stderr, ">>> layer %u data_left=%u\n", layer, data_left);
+        bit_read_buf bb;
+        bb_init(&bb, data_left, file);
+        if (may_use_sop)
+          bb_skip_sop(&bb);
+
+        // Only codeblocks contributing to this packet have bytes in it, so the
+        // flag is cleared for everyone before the header is read. Their
+        // pass_length values are left alone: they still describe the last set
+        // each codeblock contributed, which is what the decoder needs.
+        for (int s = 0; s < 4; ++s)
+        {
+          if (bands[s].empty || cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
+            continue;
+          ui32 band_width = bands[s].num_blocks.w;
+          for (ui32 y = 0; y < cb_idxs[s].siz.h; ++y)
+          {
+            coded_cb_header* cp = bands[s].coded_cbs;
+            cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
+            for (ui32 x = 0; x < cb_idxs[s].siz.w; ++x, ++cp)
+              cp->in_layer = 0;
+          }
+        }
+
+        bool non_empty_bit_read = false;
+        bool zero_length_packet = false;
+
+        for (int s = 0; s < 4; ++s)
+        {
+          if (bands[s].empty)
+            continue;
+
+          if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
+            continue;
+
+          if (!non_empty_bit_read) //one bit to check if the packet is empty
+          {
+            ui32 bit;
+            bb_read_bit(&bb, bit);
+            non_empty_bit_read = true;
+            if (ojph_debug_layers())
+              fprintf(stderr, "    non_empty_bit=%u (s=%d)\n", bit, s);
+            if (bit == 0) //empty packet
+            { zero_length_packet = true; break; }
+          }
+
+          //
+          ui32 band_width = bands[s].num_blocks.w;
+          ui32 width = cb_idxs[s].siz.w;
+          ui32 height = cb_idxs[s].siz.h;
+          for (ui32 y = 0; y < height; ++y)
+          {
+            coded_cb_header *cp = bands[s].coded_cbs;
+            cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
+            for (ui32 x = 0; x < width; ++x, ++cp)
             {
-              ui32 cur_lev = cl - 1;
-              empty_cb = *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) == 1;
-              if (empty_cb)
-                break;
-              //check received
-              if (*inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+              //process inclusion
+              if (cp->included)
               {
+                // Already contributing: one bit says whether this layer adds
+                // anything.
                 ui32 bit;
                 if (bb_read_bit(&bb, bit) == false)
                 { data_left = 0; throw "error reading from file p1"; }
-                empty_cb = (bit == 0);
-                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
-                *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
+                if (ojph_debug_layers())
+                  fprintf(stderr, "    L%u s%d cb(%u,%u) again-inc=%u\n",
+                    layer, s, x, y, bit);
+                if (bit == 0)
+                  continue;
               }
-              if (empty_cb)
-                break;
-            }
-
-            if (empty_cb)
-              continue;
-
-            //process missing msbs
-            ui32 mmsbs = 0;
-            for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
-            {
-              ui32 cur_lev = levp1 - 1;
-              mmsbs = *mmsb_tag.get(x>>levp1, y>>levp1, levp1);
-              //check received
-              if (*mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+              else
               {
-                ui32 bit = 0;
-                while (bit == 0)
+                // Not yet contributing: the tag tree codes the layer of first
+                // inclusion, decoded up to this layer's threshold.
+                ui32 first_layer = 0;
+                if (tag_tree_decode(&bb, inc_tag[s], inc_tag_flags[s], x, y,
+                      num_levels[s], layer + 1, first_layer) == false)
+                { data_left = 0; throw "error reading from file p1"; }
+                if (ojph_debug_layers())
+                  fprintf(stderr, "    L%u s%d cb(%u,%u) first_layer=%u\n",
+                    layer, s, x, y, first_layer);
+                if (first_layer > layer)
+                  continue;
+
+                //process missing msbs
+                ui32 mmsbs = 0;
+                for (ui32 levp1 = num_levels[s]; levp1 > 0; --levp1)
                 {
-                  if (bb_read_bit(&bb, bit) == false)
-                  { data_left = 0; throw "error reading from file p2"; }
-                  mmsbs += 1 - bit;
+                  ui32 cur_lev = levp1 - 1;
+                  mmsbs = *mmsb_tag[s].get(x>>levp1, y>>levp1, levp1);
+                  //check received
+                  if (*mmsb_tag_flags[s].get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+                  {
+                    ui32 bit = 0;
+                    while (bit == 0)
+                    {
+                      if (bb_read_bit(&bb, bit) == false)
+                      { data_left = 0; throw "error reading from file p2"; }
+                      mmsbs += 1 - bit;
+                    }
+                    *mmsb_tag[s].get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
+                    *mmsb_tag_flags[s].get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
+                  }
                 }
-                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
-                *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
+
+                if (mmsbs > cp->Kmax)
+                  throw "error in parsing a tile header; "
+                  "missing msbs are larger or equal to Kmax. The most likely "
+                  "cause is a corruption in the bitstream.";
+                cp->missing_msbs = mmsbs;
+                cp->included = 1;
               }
-            }
 
-            if (mmsbs > cp->Kmax)
-              throw "error in parsing a tile header; "
-              "missing msbs are larger or equal to Kmax. The most likely "
-              "cause is a corruption in the bitstream.";
-            cp->missing_msbs = mmsbs;
-
-            //get number of passes
-            ui32 bit, num_passes = 1;
-            if (bb_read_bit(&bb, bit) == false)
-            { data_left = 0; throw "error reading from file p3"; }
-            if (bit)
-            {
-              num_passes = 2;
+              //get number of passes
+              ui32 bit, num_passes = 1;
               if (bb_read_bit(&bb, bit) == false)
-              { data_left = 0; throw "error reading from file p4"; }
+              { data_left = 0; throw "error reading from file p3"; }
               if (bit)
               {
-                if (bb_read_bits(&bb, 2, bit) == false)
-                { data_left = 0; throw "error reading from file p5";  }
-                num_passes = 3 + bit;
-                if (bit == 3)
+                num_passes = 2;
+                if (bb_read_bit(&bb, bit) == false)
+                { data_left = 0; throw "error reading from file p4"; }
+                if (bit)
                 {
-                  if (bb_read_bits(&bb, 5, bit) == false)
-                  { data_left = 0; throw "error reading from file p6"; }
-                  num_passes = 6 + bit;
-                  if (bit == 31)
+                  if (bb_read_bits(&bb, 2, bit) == false)
+                  { data_left = 0; throw "error reading from file p5";  }
+                  num_passes = 3 + bit;
+                  if (bit == 3)
                   {
-                    if (bb_read_bits(&bb, 7, bit) == false)
-                    { data_left = 0; throw "error reading from file p7"; }
-                    num_passes = 37 + bit;
+                    if (bb_read_bits(&bb, 5, bit) == false)
+                    { data_left = 0; throw "error reading from file p6"; }
+                    num_passes = 6 + bit;
+                    if (bit == 31)
+                    {
+                      if (bb_read_bits(&bb, 7, bit) == false)
+                      { data_left = 0; throw "error reading from file p7"; }
+                      num_passes = 37 + bit;
+                    }
                   }
                 }
               }
-            }
-            cp->num_passes = num_passes;
 
-            // Parse pass lengths
-            // When number of passes is one, one length.
-            // When number of passes is two or three, two lengths.
-            // When number of passes > 3, we have place holder passes;
-            // In this case, subtract multiples of 3 from the number of
-            // passes; for example, if we have 10 passes, we subtract 9,
-            // producing 1 pass.
+              // Parse pass lengths
+              // When number of passes is one, one length.
+              // When number of passes is two or three, two lengths.
+              // When number of passes > 3, we have place holder passes;
+              // In this case, subtract multiples of 3 from the number of
+              // passes; for example, if we have 10 passes, we subtract 9,
+              // producing 1 pass.
 
-            // 1 => 1, 2 => 2, 3 => 3, 4 => 1, 5 => 2, 6 => 3
-            ui32 num_phld_passes = (num_passes - 1) / 3;
-            cp->missing_msbs += num_phld_passes;
+              // 1 => 1, 2 => 2, 3 => 3, 4 => 1, 5 => 2, 6 => 3
+              ui32 num_phld_passes = (num_passes - 1) / 3;
+              cp->missing_msbs += num_phld_passes;
 
-            num_phld_passes *= 3;
-            cp->num_passes = num_passes - num_phld_passes;
-            cp->pass_length[0] = cp->pass_length[1] = 0;
+              num_phld_passes *= 3;
+              cp->num_passes = num_passes - num_phld_passes;
+              cp->pass_length[0] = cp->pass_length[1] = 0;
 
-            int Lblock = 3;
-            bit = 1;
-            while (bit)
-            {
-              // add any extra bits here
-              if (bb_read_bit(&bb, bit) == false)
-              { data_left = 0; throw "error reading from file p8"; }
-              Lblock += bit;
-            }
+              // Lblock grows monotonically over the layers that include this
+              // codeblock, so it lives with the codeblock rather than being
+              // reset per packet.
+              int Lblock = 3 + cp->Lblock_m3;
+              bit = 1;
+              while (bit)
+              {
+                // add any extra bits here
+                if (bb_read_bit(&bb, bit) == false)
+                { data_left = 0; throw "error reading from file p8"; }
+                Lblock += bit;
+              }
+              cp->Lblock_m3 = (ui8)(Lblock - 3);
 
-            int bits = Lblock + 31 -
-              (int)count_leading_zeros(num_phld_passes + 1);
-            if (bb_read_bits(&bb, bits, bit) == false)
-            { data_left = 0; throw "error reading from file p9"; }
-            if (bit < 2)
-              throw "The cleanup segment of an HT codeblock cannot contain "
-                "less than 2 bytes";
-            if (bit >= 65535)
-              throw "The cleanup segment of an HT codeblock must contain "
-                "less than 65535 bytes";
-            cp->pass_length[0] = bit;
-
-            if (cp->num_passes > 1)
-            {
-              //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
-              // The following is simpler than the above, I think?
-              bits = Lblock + (cp->num_passes > 2 ? 1 : 0);
+              int bits = Lblock + 31 -
+                (int)count_leading_zeros(num_phld_passes + 1);
               if (bb_read_bits(&bb, bits, bit) == false)
-              { data_left = 0; throw "error reading from file p10"; }
-              if (bit >= 2047)
-                throw "The refinement segment (SigProp and MagRep passes) of "
-                  "an HT codeblock must contain less than 2047 bytes";
-              cp->pass_length[1] = bit;
+              { data_left = 0; throw "error reading from file p9"; }
+
+              if (ojph_debug_layers())
+                fprintf(stderr, "L%u s%d cb(%u,%u) inc=%u np=%u phld=%u "
+                  "Lblock=%d bits=%d len0=%u\n", layer, s, x, y, cp->included,
+                  num_passes, num_phld_passes, Lblock, bits, bit);
+
+              if (bit < 2)
+                throw "The cleanup segment of an HT codeblock cannot contain "
+                  "less than 2 bytes";
+              if (bit >= 65535)
+                throw "The cleanup segment of an HT codeblock must contain "
+                  "less than 65535 bytes";
+              cp->pass_length[0] = bit;
+
+              if (cp->num_passes > 1)
+              {
+                //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
+                // The following is simpler than the above, I think?
+                bits = Lblock + (cp->num_passes > 2 ? 1 : 0);
+                if (bb_read_bits(&bb, bits, bit) == false)
+                { data_left = 0; throw "error reading from file p10"; }
+                if (bit >= 2047)
+                  throw "The refinement segment (SigProp and MagRep passes) of "
+                    "an HT codeblock must contain less than 2047 bytes";
+                cp->pass_length[1] = bit;
+                if (ojph_debug_layers())
+                  fprintf(stderr, "        len1=%u (bits=%d)\n", bit, bits);
+              }
+
+              cp->in_layer = 1;
             }
           }
         }
-      }
-      if (empty_packet)
-      { // all subbands are empty
-        ui32 bit = 0;
-        bb_read_bit(&bb, bit);
-        //assert(bit == 0);
-      }
-      bb_terminate(&bb, uses_eph);
-      //read codeblock data
-      for (int s = 0; s < 4; ++s)
-      {
-        if (bands[s].empty)
-          continue;
 
-        ui32 band_width = bands[s].num_blocks.w;
-        ui32 width = cb_idxs[s].siz.w;
-        ui32 height = cb_idxs[s].siz.h;
-        for (ui32 y = 0; y < height; ++y)
+        if (!non_empty_bit_read)
+        { // all subbands are empty, so the zero length bit was never read
+          ui32 bit = 0;
+          bb_read_bit(&bb, bit);
+          //assert(bit == 0);
+        }
+        if (ojph_debug_layers())
+          fprintf(stderr, "    header done, bytes_left=%u\n", bb.bytes_left);
+        bb_terminate(&bb, uses_eph);
+        if (ojph_debug_layers())
+          fprintf(stderr, "    after terminate, bytes_left=%u\n", bb.bytes_left);
+
+        //read codeblock data
+        if (!zero_length_packet)
         {
-          coded_cb_header *cp = bands[s].coded_cbs;
-          cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (ui32 x = 0; x < width; ++x, ++cp)
+          for (int s = 0; s < 4; ++s)
           {
-            ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
-            if (data_left)
+            if (bands[s].empty)
+              continue;
+
+            ui32 band_width = bands[s].num_blocks.w;
+            ui32 width = cb_idxs[s].siz.w;
+            ui32 height = cb_idxs[s].siz.h;
+            for (ui32 y = 0; y < height; ++y)
             {
-              if (num_bytes)
+              coded_cb_header *cp = bands[s].coded_cbs;
+              cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
+              for (ui32 x = 0; x < width; ++x, ++cp)
               {
-                if (skipped)
-                { //no need to read
-                  si64 cur_loc = file->tell();
-                  ui32 t = ojph_min(num_bytes, bb.bytes_left);
-                  file->seek(t, infile_base::OJPH_SEEK_CUR);
-                  ui32 bytes_read = (ui32)(file->tell() - cur_loc);
-                  cp->pass_length[0] = cp->pass_length[1] = 0;
-                  bb.bytes_left -= bytes_read;
-                  assert(bytes_read == t || bb.bytes_left == 0);
+                // Codeblocks that did not contribute to this packet have no
+                // bytes in it; their pass_length still refers to an earlier
+                // packet and must not be read again.
+                if (cp->in_layer == 0)
+                  continue;
+
+                ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
+                if (data_left)
+                {
+                  if (num_bytes)
+                  {
+                    if (skipped)
+                    { //no need to read
+                      si64 cur_loc = file->tell();
+                      ui32 t = ojph_min(num_bytes, bb.bytes_left);
+                      file->seek(t, infile_base::OJPH_SEEK_CUR);
+                      ui32 bytes_read = (ui32)(file->tell() - cur_loc);
+                      cp->pass_length[0] = cp->pass_length[1] = 0;
+                      bb.bytes_left -= bytes_read;
+                      assert(bytes_read == t || bb.bytes_left == 0);
+                    }
+                    else
+                    {
+                      // A later layer carrying a new HT set supersedes the
+                      // earlier one: get_buffer hands back a fresh buffer, so
+                      // the codeblock keeps the last set it was given, which is
+                      // the highest quality one.
+                      if (!bb_read_chunk(&bb, num_bytes, cp->next_coded,
+                            elastic))
+                      {
+                        //no need to decode a broken codeblock
+                        cp->pass_length[0] = cp->pass_length[1] = 0;
+                        data_left = 0;
+                      }
+                    }
+                  }
                 }
                 else
-                {
-                  if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
-                  {
-                    //no need to decode a broken codeblock
-                    cp->pass_length[0] = cp->pass_length[1] = 0;
-                    data_left = 0;
-                  }
-                }
+                  cp->pass_length[0] = cp->pass_length[1] = 0;
               }
             }
-            else
-              cp->pass_length[0] = cp->pass_length[1] = 0;
           }
         }
+        data_left = bb.bytes_left;
+        if (ojph_debug_layers())
+          fprintf(stderr, "<<< layer %u done zero_pkt=%d data_left=%u\n",
+            layer, (int)zero_length_packet, data_left);
       }
-      data_left = bb.bytes_left;
     }
 
   }

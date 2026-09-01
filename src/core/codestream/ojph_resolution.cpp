@@ -457,6 +457,7 @@ namespace ojph {
       for (ui32 i = 1; i <= max_num_levels; ++i, val >>= 2)
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
+      this->num_layers = cdp->get_num_layers();
 
       //allocate lines
       if (skipped_res_for_recon == false)
@@ -1007,7 +1008,7 @@ namespace ojph {
         if (data_left == 0)
           break;
         p[i].parse(tag_tree_size, level_index, elastic, data_left, file,
-          skipped_res_for_read);
+          skipped_res_for_read, num_layers);
         if (++cur_precinct_loc.x >= num_precincts.w)
         {
           cur_precinct_loc.x = 0;
@@ -1026,7 +1027,7 @@ namespace ojph {
         return;
       precinct* p = precincts + idx;
       p->parse(tag_tree_size, level_index, elastic, data_left, file,
-        skipped_res_for_read);
+        skipped_res_for_read, num_layers);
       if (++cur_precinct_loc.x >= num_precincts.w)
       {
         cur_precinct_loc.x = 0;

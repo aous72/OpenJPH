@@ -116,6 +116,7 @@ namespace ojph {
       size log_PP;
       ui32 max_num_levels;
       int tag_tree_size;
+      ui32 num_layers;
       ui32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
       const param_atk* atk;

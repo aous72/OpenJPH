@@ -211,8 +211,11 @@ namespace ojph {
       // We need 4 such tables. These tables store
       // 1. missing msbs and 2. their flags,
       // 3. number of layers and 4. their flags
+      // Multiple quality layers need the tag trees of all four subbands
+      // alive at once, because they carry state from one layer to the next,
+      // hence 4 subbands x 4 tables.
       precinct_scratch_needed_bytes =
-        4 * ((max_ratio * max_ratio * 4 + 2) / 3);
+        16 * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
     }
@@ -793,9 +796,20 @@ namespace ojph {
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
           if (num_qlayers != 1)
-            OJPH_ERROR(0x00030053, "The current implementation supports "
-              "1 quality layer only.  This codestream has %d quality layers",
-              num_qlayers);
+          {
+            // Quality layers are decoded by parsing all of a precinct's
+            // packets together, which only works when the progression order
+            // puts layers innermost so those packets are consecutive. LRCP
+            // and RLCP interleave layers across a whole resolution and would
+            // need tag tree state kept for every precinct at once.
+            int po = c.get_progression_order();
+            if (po != OJPH_PO_RPCL && po != OJPH_PO_PCRL &&
+                po != OJPH_PO_CPRL)
+              OJPH_ERROR(0x00030053, "This codestream has %d quality layers "
+                "with a progression order that places them outside the "
+                "precinct loop, which is not supported yet; only RPCL, PCRL "
+                "and CPRL are.", num_qlayers);
+          }
         }
         else if (marker_idx == 4)
         {

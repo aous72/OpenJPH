@@ -64,9 +64,12 @@ namespace ojph {
       ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
       void write(outfile_base *file);
+      // Parses every quality layer of this precinct in one call; see the
+      // comment in precinct::parse for why they are handled together.
       void parse(int tag_tree_size, ui32* lev_idx,
                  mem_elastic_allocator *elastic,
-                 ui32& data_left, infile_base *file, bool skipped);
+                 ui32& data_left, infile_base *file, bool skipped,
+                 ui32 num_layers);
 
       ui8 *scratch;
       point img_point; //the precinct projected to full resolution

@@ -119,6 +119,14 @@ namespace ojph {
       ui32 Kmax;
       ui32 missing_msbs;
       coded_lists *next_coded;
+      // Multi-layer parsing state, live while a precinct is parsed.
+      // included: has contributed to an earlier quality layer.
+      // in_layer: contributes to the packet being read right now.
+      // Lblock_m3: Lblock biased by 3, so a zeroed header means the
+      //            standard's initial value of 3.
+      ui8 included;
+      ui8 in_layer;
+      ui8 Lblock_m3;
 
       static const int prefix_buf_size = 8;
       static const int suffix_buf_size = 16;

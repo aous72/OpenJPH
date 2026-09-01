@@ -559,6 +559,12 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
+      ui32 get_num_layers() const
+      {
+        return SGCod.num_layers;
+      }
+
+      ////////////////////////////////////////
       bool packets_may_use_sop() const
       {
         if (type == COD_MAIN || type == COD_TILE)

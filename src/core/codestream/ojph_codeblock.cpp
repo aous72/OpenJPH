@@ -38,6 +38,8 @@
 
 
 #include <climits>
+#include <cstdio>
+#include <cstdlib>
 #include <cmath>
 
 #include "ojph_mem.h"
@@ -213,6 +215,11 @@ namespace ojph {
 
         if (result == false)
         {
+          if (getenv("OJPH_DEBUG_LAYERS"))
+            fprintf(stderr, "DECODE FAIL: len0=%u len1=%u num_passes=%u "
+              "missing_msbs=%u Kmax=%u cb=%ux%u\n", coded_cb->pass_length[0],
+              coded_cb->pass_length[1], coded_cb->num_passes,
+              coded_cb->missing_msbs, coded_cb->Kmax, cb_size.w, cb_size.h);
           if (resilient == true) {
             OJPH_INFO(0x000300A1, "Error decoding a codeblock.");
             zero_block = true;

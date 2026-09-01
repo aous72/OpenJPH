@@ -120,14 +120,30 @@ namespace ojph {
       ui32 missing_msbs;
       coded_lists *next_coded;
       // Multi-layer parsing state, live while a precinct is parsed.
-      // included: has contributed to an earlier quality layer.
-      // in_layer: contributes to the packet being read right now.
-      // Lblock_m3: Lblock biased by 3, so a zeroed header means the
-      //            standard's initial value of 3.
+      // included        : has contributed to an earlier quality layer
+      // in_layer        : contributes to the packet being read now
+      // has_cleanup     : holds a real HT cleanup segment
+      // starts_new_set  : this packet began a new HT set
+      // Lblock_m3       : Lblock biased by 3, so zero means 3
+      // set_passes      : coding passes gathered in the current HT set
+      // placeholder_passes / pass_index / sets_seen / zero_bitplanes:
+      //                   3*P0, the next coding pass index, the number
+      //                   of HT sets seen, and P (T.814 B.1-B.3)
+      // pkt_*           : per-packet byte counts for the data pass
       ui8 included;
       ui8 in_layer;
-      ui8 Lblock_m3;
       ui8 has_cleanup;
+      ui8 starts_new_set;
+      ui8 Lblock_m3;
+      ui8 set_passes;
+      ui32 placeholder_passes;
+      ui32 pass_index;
+      ui32 sets_seen;
+      ui32 decoded_set_skip;
+      ui32 zero_bitplanes;
+      ui32 pkt_pre_skip;
+      ui32 pkt_cleanup;
+      ui32 pkt_refine;
 
       static const int prefix_buf_size = 8;
       static const int suffix_buf_size = 16;

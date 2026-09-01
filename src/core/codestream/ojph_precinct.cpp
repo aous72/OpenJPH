@@ -403,6 +403,11 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    // 3*P0 is not known while a codeblock is still inside its placeholder run,
+    // which can be spread over several packets.
+    static const ui32 placeholder_passes_unknown = 0xFFFFFFFFu;
+
+    //////////////////////////////////////////////////////////////////////////
     // Consumes bytes of an HT set that a later set supersedes.
     static void skip_bytes(bit_read_buf* bbp, infile_base* file, ui32 num_bytes)
     {
@@ -462,7 +467,7 @@ namespace ojph {
             cp->has_cleanup = 0;
             cp->starts_new_set = 0;
             cp->set_passes = 0;
-            cp->placeholder_passes = 0;
+            cp->placeholder_passes = placeholder_passes_unknown;
             cp->pass_index = 0;
             cp->sets_seen = 0;
             cp->zero_bitplanes = 0;
@@ -528,8 +533,6 @@ namespace ojph {
             cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
             for (ui32 x = 0; x < width; ++x, ++cp)
             {
-              bool first_contribution = false;
-
               //process inclusion
               if (cp->included)
               {
@@ -579,7 +582,6 @@ namespace ojph {
                   "cause is a corruption in the bitstream.";
                 cp->zero_bitplanes = mmsbs;
                 cp->included = 1;
-                first_contribution = true;
               }
 
               //get number of passes
@@ -623,14 +625,6 @@ namespace ojph {
               }
               cp->Lblock_m3 = (ui8)(Lblock - 3);
 
-              // A codeblock's placeholder passes come in groups of three, all
-              // ahead of its first HT set, and share a codeword segment with
-              // the first HT cleanup pass (T.814 B.1, B.2). A first
-              // contribution therefore carries 3*P0 + 1..3 passes, which is
-              // what fixes P0.
-              if (first_contribution)
-                cp->placeholder_passes = ((num_passes - 1) / 3) * 3;
-
               // T.814 B.2: segment boundaries lie at pass indices
               //   T = union over k of (3*P0 + ceil(3k/2)),
               // so past the placeholder run a cleanup segment covers one pass
@@ -646,29 +640,89 @@ namespace ojph {
               {
                 bool is_cleanup;
                 ui32 seg_passes;
+                ui32 seg_len;
+                int bits;
 
-                if (cp->pass_index <= cp->placeholder_passes)
+                if (cp->placeholder_passes == placeholder_passes_unknown)
                 {
-                  // The placeholder passes and the first cleanup pass form one
-                  // codeword segment.
+                  // A codeblock's 3*P0 placeholder passes carry no bytes and
+                  // all lie ahead of its first HT set (T.814 B.1), but the run
+                  // can be split over several packets like any other run of
+                  // coding passes, so P0 is not known from the first
+                  // contribution alone. What is known is that a real first HT
+                  // cleanup segment is longer than one byte (T.814 B.3), so a
+                  // length of zero means the run is still open.
+                  //
+                  // While it is open there is exactly one codeword segment
+                  // either way, because no member of T lies below 3*P0, so
+                  // only the width of that one length field is in question.
+                  // Read the narrower field first; a zero picks the wider
+                  // reading, whose remaining bits must be zero as well.
+                  ui32 triple = 3 * ((cp->pass_index + remaining - 1) / 3);
+                  int wide = Lblock + 31 - (int)count_leading_zeros(remaining);
+                  int narrow = wide;
+                  bool cleanup_in_reach = triple >= cp->pass_index;
+                  if (cleanup_in_reach)
+                  {
+                    ui32 n = triple - cp->pass_index + 1;
+                    narrow = Lblock + 31 - (int)count_leading_zeros(n);
+                  }
+                  if (bb_read_bits(&bb, narrow, bit) == false)
+                  { data_left = 0; throw "error reading from file p9"; }
+                  seg_len = bit;
+
+                  if (seg_len != 0 && !cleanup_in_reach)
+                    throw "error in parsing a packet header; a codeblock "
+                      "still inside its placeholder run reports codeword "
+                      "segment bytes, but the segment cannot contain an HT "
+                      "cleanup pass. The most likely cause is a corruption "
+                      "in the bitstream.";
+
+                  if (seg_len == 0)
+                  { // still placeholder passes: no segment, no bytes
+                    if (wide > narrow
+                        && bb_read_bits(&bb, wide - narrow, bit) == false)
+                    { data_left = 0; throw "error reading from file p10"; }
+                    if (ojph_debug_layers())
+                      fprintf(stderr, "    L%u s%d cb(%u,%u) np=%u idx=%u "
+                        "placeholders passes=%u Lblock=%d bits=%d\n", layer, s,
+                        x, y, num_passes, cp->pass_index, remaining, Lblock,
+                        wide);
+                    cp->pass_index += remaining;
+                    remaining = 0;
+                    continue;
+                  }
+
+                  cp->placeholder_passes = triple;
                   is_cleanup = true;
-                  seg_passes = cp->placeholder_passes + 1 - cp->pass_index;
+                  seg_passes = triple - cp->pass_index + 1;
+                  bits = narrow;
                 }
                 else
                 {
-                  ui32 rel = cp->pass_index - cp->placeholder_passes;
-                  if (rel % 3 == 0)      { is_cleanup = true;  seg_passes = 1; }
-                  else if (rel % 3 == 1) { is_cleanup = false; seg_passes = 2; }
-                  else                   { is_cleanup = false; seg_passes = 1; }
+                  if (cp->pass_index <= cp->placeholder_passes)
+                  {
+                    // the tail of the placeholder run shares a codeword
+                    // segment with the first HT cleanup pass
+                    is_cleanup = true;
+                    seg_passes = cp->placeholder_passes + 1 - cp->pass_index;
+                  }
+                  else
+                  {
+                    ui32 rel = cp->pass_index - cp->placeholder_passes;
+                    if (rel % 3 == 0)   { is_cleanup = true;  seg_passes = 1; }
+                    else if (rel % 3 == 1) { is_cleanup = false; seg_passes = 2; }
+                    else                { is_cleanup = false; seg_passes = 1; }
+                  }
+
+                  if (seg_passes > remaining)
+                    seg_passes = remaining;
+
+                  bits = Lblock + 31 - (int)count_leading_zeros(seg_passes);
+                  if (bb_read_bits(&bb, bits, bit) == false)
+                  { data_left = 0; throw "error reading from file p9"; }
+                  seg_len = bit;
                 }
-
-                if (seg_passes > remaining)
-                  seg_passes = remaining;
-
-                int bits = Lblock + 31 - (int)count_leading_zeros(seg_passes);
-                if (bb_read_bits(&bb, bits, bit) == false)
-                { data_left = 0; throw "error reading from file p9"; }
-                ui32 seg_len = bit;
 
                 if (ojph_debug_layers())
                   fprintf(stderr, "    L%u s%d cb(%u,%u) np=%u p0=%u idx=%u "
@@ -691,7 +745,10 @@ namespace ojph {
                     cp->pkt_cleanup = seg_len;
                     cp->pkt_refine = 0;
                     cp->starts_new_set = 1;
-                    cp->set_passes = (ui8)seg_passes;
+                    // Z_blk counts the coding passes of the HT set, so a
+                    // cleanup segment contributes exactly one however many
+                    // placeholder passes share its codeword segment.
+                    cp->set_passes = 1;
                     // T.814 B.3: S_skip counts the HT sets ahead of the one
                     // being decoded, so it has to be taken now. Empty sets
                     // arriving later must not inflate it.
@@ -798,6 +855,21 @@ namespace ojph {
                   cp->pass_length[1] += cp->pkt_refine;
                 }
 
+                // T.814 B.3 bounds the concatenated HT segments: a cleanup
+                // segment is either empty or longer than one byte, and both
+                // have an upper limit. Checked here rather than per codeword
+                // segment because a refinement segment can be split over two
+                // of them.
+                if (cp->pass_length[0] == 1)
+                  throw "The cleanup segment of an HT codeblock cannot "
+                    "contain exactly one byte";
+                if (cp->pass_length[0] >= 65535)
+                  throw "The cleanup segment of an HT codeblock must contain "
+                    "less than 65535 bytes";
+                if (cp->pass_length[1] >= 2047)
+                  throw "The refinement segment (SigProp and MagRef passes) of "
+                    "an HT codeblock must contain less than 2047 bytes";
+
                 // T.814 B.3: Z_blk, the number of coding passes the decoder
                 // processes, is 1 when the cleanup segment is the only
                 // non-empty segment of the set.
@@ -805,14 +877,17 @@ namespace ojph {
                   ? 1u : (ui32)cp->set_passes;
 
                 // T.814 B.3: S_blk = P + P0 + S_skip, where S_skip counts the
-                // HT sets ahead of the one being decoded.
+                // HT sets ahead of the one being decoded. Reaching here means
+                // a cleanup segment was committed, so P0 is known.
+                assert(cp->placeholder_passes != placeholder_passes_unknown);
                 cp->missing_msbs = cp->zero_bitplanes
                   + cp->placeholder_passes / 3
                   + cp->decoded_set_skip;
 
                 if (ojph_debug_layers())
-                  fprintf(stderr, "    -> cb(%u,%u) len0=%u len1=%u Zblk=%u "
-                    "P=%u P0=%u Sskip=%u Sblk=%u\n", x, y, cp->pass_length[0],
+                  fprintf(stderr, "    -> s%d cb(%u,%u) len0=%u len1=%u "
+                    "Zblk=%u P=%u P0=%u Sskip=%u Sblk=%u\n",
+                    s, x, y, cp->pass_length[0],
                     cp->pass_length[1], cp->num_passes, cp->zero_bitplanes,
                     cp->placeholder_passes / 3, cp->decoded_set_skip,
                     cp->missing_msbs);

@@ -809,6 +809,13 @@ namespace ojph {
                 "with a progression order that places them outside the "
                 "precinct loop, which is not supported yet; only RPCL, PCRL "
                 "and CPRL are.", num_qlayers);
+
+            // The inclusion tag tree stores the layer of first inclusion in
+            // one byte per node, so it cannot represent a layer index above
+            // 255.
+            if (num_qlayers > 256)
+              OJPH_ERROR(0x00030054, "This codestream has %d quality layers; "
+                "at most 256 are supported.", num_qlayers);
           }
         }
         else if (marker_idx == 4)

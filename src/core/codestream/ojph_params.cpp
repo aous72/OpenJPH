@@ -37,6 +37,7 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <climits>
 
 #include "ojph_arch.h"
 #include "ojph_base.h"

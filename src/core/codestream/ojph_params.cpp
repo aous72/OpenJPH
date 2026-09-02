@@ -2222,7 +2222,7 @@ namespace ojph {
       if (decoded_bit_depth == 0 || decoded_bit_depth > 38)
         OJPH_ERROR(0x000501A3, "decoded_bit_depth must be larger than 0 and "
           "smaller than or equal to 38; you provided, %d", decoded_bit_depth);
-      if (d_min <= d_max)
+      if (d_min >= d_max)
         OJPH_ERROR(0x000501A4, "d_max must be larger than d_min; you "
           "provided %d and %d", d_min, d_max);
       if (num_points < 2 || num_points > 8192)
@@ -2235,7 +2235,7 @@ namespace ojph {
       if (p == NULL)
         p = add_object(comp_num);
 
-      p->Lnlt = (ui16)(11u + (ui32)num_points * (ui32)p->rec.bytes_per_point);
+      p->Lnlt = (ui16)(17u + (ui32)num_points * (ui32)p->rec.get_bpp(pt_val));
       p->rec.BDnlt = (decoded_bit_depth - 1) | (decoded_signedness ? 0x80 : 0);
       p->rec.Tnlt = nl_type;
 
@@ -2248,41 +2248,47 @@ namespace ojph {
       // Check that the LUT has increasing entries or has almost flat segments
       ui32 v_min, v_max;
       ui32 smallest_gap = UINT_MAX;
-      for (int k = 0; k < num_points - 1; ++k)
+      if (p->rec.bytes_per_point == 1)
       {
-        if (p->rec.bytes_per_point = 1)
+        ui8* p = (ui8*)points;
+        for (int k = 0; k < num_points - 1; ++k)
         {
-          ui8* p = (ui8*)points;
           if (p[k+1] > p[k])
             smallest_gap = ojph_min(smallest_gap, (ui32)(p[k+1] - p[k]));
           else
             OJPH_ERROR(0x000501A6, "The LUT must have increasing sequence "
               "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
               "%d and %d.", k, k, p[k+1], p[k]);
-          v_min = p[0]; v_max = p[num_points - 1];
         }
-        else if (p->rec.bytes_per_point = 2)
+        v_min = (ui32)p[0]; v_max = (ui32)p[num_points - 1];
+      }
+      else if (p->rec.bytes_per_point == 2)
+      {
+        ui16* p = (ui16*)points;
+        for (int k = 0; k < num_points - 1; ++k)
         {
-          ui16* p = (ui16*)points;
           if (p[k+1] > p[k])
             smallest_gap = ojph_min(smallest_gap, (ui32)(p[k+1] - p[k]));
           else
             OJPH_ERROR(0x000501A7, "The LUT must have increasing sequence "
               "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
               "%d and %d.", k, k, p[k+1], p[k]);
-          v_min = p[0]; v_max = p[num_points - 1];
         }
-        else if (p->rec.bytes_per_point = 4)
+        v_min = (ui32)p[0]; v_max = (ui32)p[num_points - 1];
+      }
+      else if (p->rec.bytes_per_point == 4)
+      {
+        ui32* p = (ui32*)points;
+        for (int k = 0; k < num_points - 1; ++k)
         {
-          ui32* p = (ui32*)points;
           if (p[k+1] > p[k])
             smallest_gap = ojph_min(smallest_gap, p[k+1] - p[k]);
           else
             OJPH_ERROR(0x000501A8, "The LUT must have increasing sequence "
               "of numbers; here we have at LUT[%d+1] <= LUT[%d], with values "
               "%d and %d.", k, k, p[k+1], p[k]);
-          v_min = p[0]; v_max = p[num_points - 1];
         }
+        v_min = (ui32)p[0]; v_max = (ui32)p[num_points - 1];
       }
 
       // find ceil of the ratio to a power of 2
@@ -2299,8 +2305,8 @@ namespace ojph {
           "LUT table might be ignored during encoding.")
       }
       else {
-        ui32 ienc_pnts = (ui32)enc_pnts;
-        ienc_pnts = 31 - count_leading_zeros(ienc_pnts);
+        ienc_pnts = (ui32)enc_pnts;
+        ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
         ienc_pnts = 1u << ienc_pnts;
       }
 
@@ -2315,7 +2321,7 @@ namespace ojph {
           OJPH_ERROR(0x000501A9, "Failed to allocated memory");
       }
       p->rec.assign_pointers_for_encoding();
-      memcpy(p->rec.marker_points, points, len);
+      memcpy(p->rec.marker_points, points, num_points * p->rec.bytes_per_point);
       p->rec.prepare_for_encoding();
 
       p->enabled = true;
@@ -2368,7 +2374,8 @@ namespace ojph {
           if (p->rec.Tnlt == nonlinearity::OJPH_NLT_LUT_STYLE_NLT ||
             p->rec.Tnlt == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
           {
-            buf2 = (ui16)swap_bytes_if_le(p->rec.num_points - 1);
+            buf2 = (ui16)(p->rec.num_points - 1);
+            buf2 = swap_bytes_if_le(buf2);
             result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
             buf4 = swap_bytes_if_le(p->rec.d_min);
             result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
@@ -2449,7 +2456,7 @@ namespace ojph {
       p->enabled = true;
       p->Cnlt = comp;
       p->rec.BDnlt = buf1_BDnlt;
-      if ((buf1_BDnlt & 0x7F) + 1 > 37)
+      if ((buf1_BDnlt & 0x7F) + 1 > 38)
         OJPH_ERROR(0x00050144, "The NLT marker segment has an invalid bit "
           "depth of %d", (buf1_BDnlt & 0x7F) + 1);
       p->rec.Tnlt = buf1_Tnlt;
@@ -2466,14 +2473,14 @@ namespace ojph {
         result &= file->read(&buf4_d_max, sizeof(ui32)) == sizeof(ui32);
         result &= file->read(&buf_pt_val, sizeof(ui8)) == sizeof(ui8);
 
-        buf2_num_points = swap_bytes_if_be(buf2_num_points);
-        buf4_d_min = swap_bytes_if_be(buf4_d_min);
-        buf4_d_max = swap_bytes_if_be(buf4_d_max);
+        buf2_num_points = swap_bytes_if_le(buf2_num_points);
+        buf4_d_min = swap_bytes_if_le(buf4_d_min);
+        buf4_d_max = swap_bytes_if_le(buf4_d_max);
 
         if (buf2_num_points < 1 || buf2_num_points > 8191)
           OJPH_ERROR(0x00050145, "The NLT marker segment has an invalid "
             "number of points field", buf2_num_points);
-        if (buf4_d_min <= buf4_d_max)
+        if (buf4_d_min >= buf4_d_max)
           OJPH_ERROR(0x00050146, "In an NLT marker segment, Dmin must smaller "
             "than Dmax; here we have %d and %d", buf4_d_min, buf4_d_max);
         if (buf_pt_val == 0 || buf_pt_val > 32)
@@ -2499,7 +2506,6 @@ namespace ojph {
             OJPH_ERROR(0x00050148, "Failed to allocated memory");
         }
         p->rec.assign_pointers_for_decoding();
-        p->rec.prepare_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
           result &= file->read(p->rec.marker_points, len) == len;
@@ -2525,6 +2531,7 @@ namespace ojph {
             memcpy(dp, &buf4, 4); // not to violate strict aliasing
           }
         }
+        p->rec.prepare_for_decoding();
       }
 
       return result;

@@ -842,6 +842,7 @@ namespace ojph {
     struct nlt_rec {
       using nonlinearity = ojph::param_nlt::nonlinearity;
 
+      static ui8 get_bpp(ui8 t) { return (t <= 8) ? 1 : ((t <= 16) ? 2 : 4); }
       nlt_rec() { points_store = NULL; store_size = 0; init(); }
       void init() {
         BDnlt = 0; Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
@@ -854,9 +855,8 @@ namespace ojph {
         enc_points = NULL; enc_num_points = 0;
       }
       ui8 get_type() const { return Tnlt; }
-      ui8 get_bit_depth() const { return BDnlt & 0x7F; }
+      ui8 get_bit_depth() const { return (BDnlt & 0x7F) + 1; }
       ui8 get_bpp() const { return get_bpp(pt_val); }
-      ui8 get_bpp(ui8 t) const { return (t <= 8) ? 1 : ((t <= 16) ? 2 : 4); }
       bool is_signed() const { return (BDnlt & 0x80) != 0; }
       ui32 cal_marker_points_size() const
       { return (ui32)num_points * (ui32)get_bpp(); }
@@ -891,7 +891,7 @@ namespace ojph {
         fd_max = (float)((double)d_max * d);
         delta = (fd_max - fd_min) / (num_points - 1);
         inv_delta = (num_points - 1) / (fd_max - fd_min);
-        multiplier = (float)(1ull << get_bpp());
+        multiplier = (float)(1ull << get_bit_depth());
         float divider = 1 / multiplier;
         if (bytes_per_point == 1) {
           ui8* sp = (ui8*)marker_points;
@@ -932,56 +932,92 @@ namespace ojph {
         double d = 1.0 / (double)((1ull << 32) - 1);
         fd_min = (float)((double)d_min * d);
         fd_max = (float)((double)d_max * d);
-        float id = (fd_max - fd_min) / (float)(num_points - 1);
 
         // create lookup table for encoding
         float mul = (float)(1ull << pt_val);
         float div = 1.0f / mul;
         if (bytes_per_point == 1) {
           ui8* p = (ui8*)marker_points;
-          enc_points[0] = ft_min = p[0] * div;
-          enc_points[num_points - 1] = ft_max = p[num_points - 1] * div;
+          enc_points[0] = ft_min = (float)p[0] * div;
+          ft_max = (float)p[num_points - 1] * div;
+          enc_points[enc_num_points - 1] = ft_max;
           delta = (ft_max - ft_min) / (enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
+          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
+          float fd = (ft_max - ft_min) * (float)(num_points - 1);
+          float factor = fn / fd;
           ui32 k = 0;
-          float t_k = p[k] * div, t_kp1 = p[k + 1] * div;
+          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
+          float d_k = fd_min;
+          float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float d_k = ft_min + i * delta;
-            enc_points[i] = t_k + (d_k - t_k) / (id * (t_kp1 - t_k));
+            float z = ft_min + i * delta;
+            while (z >= y_kp1 && k < num_points - 1)
+            {
+              ++k;
+              d_k = fd_min + k * dt;
+              y_k = y_kp1;
+              y_kp1 = (float)p[k + 1] * div;
+            }
+            enc_points[i] = d_k + (z - y_k) * factor;
           }
         }
         else if (bytes_per_point == 2) {
           ui16* p = (ui16*)marker_points;
-          enc_points[0] = ft_min = p[0] * div;
-          enc_points[num_points - 1] = ft_max = p[num_points - 1] * div;
+          enc_points[0] = ft_min = (float)p[0] * div;
+          ft_max = (float)p[num_points - 1] * div;
+          enc_points[enc_num_points - 1] = ft_max;
           delta = (ft_max - ft_min) / (enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
-          float id = (fd_max - fd_min) / (float)(num_points - 1);
+          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
+          float fd = (ft_max - ft_min) * (float)(num_points - 1);
+          float factor = fn / fd;
           ui32 k = 0;
-          float t_k = p[k] * div, t_kp1 = p[k + 1] * div;
+          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
+          float d_k = fd_min;
+          float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float d_k = ft_min + i * delta;
-            enc_points[i] = t_k + (d_k - t_k) / (id * (t_kp1 - t_k));
+            float z = ft_min + i * delta;
+            while (z >= y_kp1 && k < num_points - 1)
+            {
+              ++k;
+              d_k = fd_min + k * dt;
+              y_k = y_kp1;
+              y_kp1 = (float)p[k + 1] * div;
+            }
+            enc_points[i] = d_k + (z - y_k) * factor;
           }
         }
         else if (bytes_per_point == 4) {
           ui32* p = (ui32*)marker_points;
-          enc_points[0] = ft_min = p[0] * div;
-          enc_points[num_points - 1] = ft_max = p[num_points - 1] * div;
+          enc_points[0] = ft_min = (float)p[0] * div;
+          ft_max = (float)p[num_points - 1] * div;
+          enc_points[enc_num_points - 1] = ft_max;
           delta = (ft_max - ft_min) / (enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
-          float id = (fd_max - fd_min) / (float)(num_points - 1);
+          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
+          float fd = (ft_max - ft_min) * (float)(num_points - 1);
+          float factor = fn / fd;
           ui32 k = 0;
-          float t_k = p[k] * div, t_kp1 = p[k + 1] * div;
+          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
+          float d_k = fd_min;
+          float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float d_k = ft_min + i * delta;
-            enc_points[i] = t_k + (d_k - t_k) / (id * (t_kp1 - t_k));
+            float z = ft_min + i * delta;
+            while (z >= y_kp1 && k < num_points - 1)
+            {
+              ++k;
+              d_k = fd_min + k * dt;
+              y_k = y_kp1;
+              y_kp1 = (float)p[k + 1] * div;
+            }
+            enc_points[i] = d_k + (z - y_k) * factor;
           }
         }
       }

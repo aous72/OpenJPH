@@ -456,6 +456,7 @@ namespace ojph {
       if (rec->is_signed())
       {
         const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
           float t = *sp++ + 0.5f; // convert to [0, 1]
           t = ojph_max(t, d_min);
@@ -466,9 +467,7 @@ namespace ojph {
           float t_kp1 = lut[k + 1];
           float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
 
-          z -= 0.5f;
-          z *= mul;
-          si32 v = ojph_round(z);
+          si32 v = ojph_round(z * mul - half);
           if (NLT_TYPE == 4)
             v = (v >= 0) ? v : (- v - bias);
           *dp++ = v;
@@ -476,7 +475,7 @@ namespace ojph {
       }
       else
       {
-        const si32 half = (si32)(1ULL << (rec->get_bit_depth() - 1));
+        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
           float t = *sp++;
           t = ojph_max(t, d_min);
@@ -487,9 +486,8 @@ namespace ojph {
           float t_kp1 = lut[k + 1];
           float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
 
-          z *= mul;
-          si32 v = ojph_round(z);
-          *dp++ = v + half;
+          si32 v = ojph_round(z * mul);
+          *dp++ = v;
         }
       }
     }

@@ -909,7 +909,7 @@ namespace ojph {
           ui32* sp = (ui32*)marker_points;
           float* dp = dec_points;
           for (ui32 i = 0; i < num_points; ++i)
-            *dp++ = *sp++ * divider;
+            *dp++ = (float)*sp++ * divider;
         }
       }
 
@@ -953,11 +953,11 @@ namespace ojph {
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float z = ft_min + i * delta;
+            float z = ft_min + (float)i * delta;
             while (z >= y_kp1 && k < num_points - 1)
             {
               ++k;
-              d_k = fd_min + k * dt;
+              d_k = fd_min + (float)k * dt;
               y_k = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
@@ -981,11 +981,11 @@ namespace ojph {
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float z = ft_min + i * delta;
+            float z = ft_min + (float)i * delta;
             while (z >= y_kp1 && k < num_points - 1)
             {
               ++k;
-              d_k = fd_min + k * dt;
+              d_k = fd_min + (float)k * dt;
               y_k = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
@@ -1009,11 +1009,11 @@ namespace ojph {
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
-            float z = ft_min + i * delta;
+            float z = ft_min + (float)i * delta;
             while (z >= y_kp1 && k < num_points - 1)
             {
               ++k;
-              d_k = fd_min + k * dt;
+              d_k = fd_min + (float)k * dt;
               y_k = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }

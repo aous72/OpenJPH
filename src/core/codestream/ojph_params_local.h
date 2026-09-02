@@ -842,7 +842,7 @@ namespace ojph {
     struct nlt_rec {
       using nonlinearity = ojph::param_nlt::nonlinearity;
 
-      static ui8 get_bpp(ui8 t) { return (t <= 8) ? 1 : ((t <= 16) ? 2 : 4); }
+      static ui8 get_bpp(ui32 t) { return (t <= 8) ? 1 : ((t <= 16) ? 2 : 4); }
       nlt_rec() { points_store = NULL; store_size = 0; init(); }
       void init() {
         BDnlt = 0; Tnlt = nonlinearity::OJPH_NLT_UNDEFINED;
@@ -889,8 +889,8 @@ namespace ojph {
         double d = 1.0 / (double)((1ull << 32) - 1);
         fd_min = (float)((double)d_min * d);
         fd_max = (float)((double)d_max * d);
-        delta = (fd_max - fd_min) / (num_points - 1);
-        inv_delta = (num_points - 1) / (fd_max - fd_min);
+        delta = (fd_max - fd_min) / (float)(num_points - 1);
+        inv_delta = (float)(num_points - 1) / (fd_max - fd_min);
         multiplier = (float)(1ull << get_bit_depth());
         float divider = 1 / multiplier;
         if (bytes_per_point == 1) {
@@ -941,7 +941,7 @@ namespace ojph {
           enc_points[0] = ft_min = (float)p[0] * div;
           ft_max = (float)p[num_points - 1] * div;
           enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (enc_num_points - 1);
+          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
           float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
@@ -969,7 +969,7 @@ namespace ojph {
           enc_points[0] = ft_min = (float)p[0] * div;
           ft_max = (float)p[num_points - 1] * div;
           enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (enc_num_points - 1);
+          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
           float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
@@ -997,7 +997,7 @@ namespace ojph {
           enc_points[0] = ft_min = (float)p[0] * div;
           ft_max = (float)p[num_points - 1] * div;
           enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (enc_num_points - 1);
+          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
           float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);

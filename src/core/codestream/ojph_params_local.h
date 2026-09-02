@@ -565,11 +565,15 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
+      // SOP and EPH usage is signalled only in Scod of the COD marker
+      // segment; Scoc carries just the precinct bit (T.800 Table A.23). A
+      // component that has a COC therefore inherits these two flags from
+      // the COD it overrides, rather than reading them as absent.
       bool packets_may_use_sop() const
       {
         if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 2) == 2;
-        return false;
+        return top_cod != NULL ? top_cod->packets_may_use_sop() : false;
       }
 
       ////////////////////////////////////////
@@ -577,7 +581,7 @@ namespace ojph {
       {
         if (type == COD_MAIN || type == COD_TILE)
           return (Scod & 4) == 4;
-        return false;
+        return top_cod != NULL ? top_cod->packets_use_eph() : false;
       }
 
       ////////////////////////////////////////

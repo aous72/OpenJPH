@@ -944,23 +944,25 @@ namespace ojph {
           delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
-          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
-          float fd = (ft_max - ft_min) * (float)(num_points - 1);
-          float factor = fn / fd;
           ui32 k = 0;
           float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float d_k = fd_min;
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
+          float d_k = fd_min, d_kp1 = fd_min + dt;
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
             float z = ft_min + (float)i * delta;
-            while (z >= y_kp1 && k < num_points - 1)
+            while (k + 1 < num_points - 1 && z >= y_kp1)
             {
               ++k;
-              d_k = fd_min + (float)k * dt;
-              y_k = y_kp1;
+              d_k   = d_kp1;
+              d_kp1 = fd_min + (float)(k + 1) * dt;
+              y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
+
+            float factor = 0.0f;
+            if (y_kp1 != y_k)
+              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
             enc_points[i] = d_k + (z - y_k) * factor;
           }
         }
@@ -972,23 +974,25 @@ namespace ojph {
           delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
-          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
-          float fd = (ft_max - ft_min) * (float)(num_points - 1);
-          float factor = fn / fd;
           ui32 k = 0;
           float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float d_k = fd_min;
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
+          float d_k = fd_min, d_kp1 = fd_min + dt;
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
             float z = ft_min + (float)i * delta;
-            while (z >= y_kp1 && k < num_points - 1)
+            while (k + 1 < num_points - 1 && z >= y_kp1)
             {
               ++k;
-              d_k = fd_min + (float)k * dt;
-              y_k = y_kp1;
+              d_k   = d_kp1;
+              d_kp1 = fd_min + (float)(k + 1) * dt;
+              y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
+
+            float factor = 0.0f;
+            if (y_kp1 != y_k)
+              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
             enc_points[i] = d_k + (z - y_k) * factor;
           }
         }
@@ -1000,23 +1004,25 @@ namespace ojph {
           delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
           inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
-          float fn = (fd_max - fd_min) * (float)(enc_num_points - 1);
-          float fd = (ft_max - ft_min) * (float)(num_points - 1);
-          float factor = fn / fd;
           ui32 k = 0;
           float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float d_k = fd_min;
           float dt = (fd_max - fd_min) / (float)(num_points - 1);
+          float d_k = fd_min, d_kp1 = fd_min + dt;
           for (ui32 i = 1; i < enc_num_points - 1; ++i)
           {
             float z = ft_min + (float)i * delta;
-            while (z >= y_kp1 && k < num_points - 1)
+            while (k + 1 < num_points - 1 && z >= y_kp1)
             {
               ++k;
-              d_k = fd_min + (float)k * dt;
-              y_k = y_kp1;
+              d_k   = d_kp1;
+              d_kp1 = fd_min + (float)(k + 1) * dt;
+              y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
+
+            float factor = 0.0f;
+            if (y_kp1 != y_k)
+              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
             enc_points[i] = d_k + (z - y_k) * factor;
           }
         }

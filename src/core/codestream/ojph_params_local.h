@@ -959,11 +959,7 @@ namespace ojph {
               y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
-
-            float factor = 0.0f;
-            if (y_kp1 != y_k)
-              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
-            enc_points[i] = d_k + (z - y_k) * factor;
+            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
           }
         }
         else if (bytes_per_point == 2) {
@@ -989,11 +985,7 @@ namespace ojph {
               y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
-
-            float factor = 0.0f;
-            if (y_kp1 != y_k)
-              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
-            enc_points[i] = d_k + (z - y_k) * factor;
+            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
           }
         }
         else if (bytes_per_point == 4) {
@@ -1019,11 +1011,7 @@ namespace ojph {
               y_k   = y_kp1;
               y_kp1 = (float)p[k + 1] * div;
             }
-
-            float factor = 0.0f;
-            if (y_kp1 != y_k)
-              factor = (d_kp1 - d_k) / (y_kp1 - y_k);
-            enc_points[i] = d_k + (z - y_k) * factor;
+            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);;
           }
         }
       }

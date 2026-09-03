@@ -192,12 +192,8 @@ namespace ojph {
                               ui32 tile_idx, ui32& offset,
                               ui32 &num_tileparts)
     {
-      constexpr ui8 type2 =
-        param_nlt::nonlinearity::OJPH_NLT_LUT_STYLE_NLT;
       constexpr ui8 type3 =
         param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
-      constexpr ui8 type4 =
-        param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
 
       //this->parent = codestream;
       mem_fixed_allocator* allocator = codestream->get_allocator();

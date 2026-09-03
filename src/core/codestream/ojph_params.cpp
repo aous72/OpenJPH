@@ -2247,7 +2247,7 @@ namespace ojph {
       p->rec.bytes_per_point = p->rec.get_bpp(pt_val);
 
       // Check that the LUT has increasing entries or has almost flat segments
-      ui32 v_min, v_max;
+      ui32 v_min = 0, v_max = 0;
       ui32 smallest_gap = UINT_MAX;
       if (p->rec.bytes_per_point == 1)
       {
@@ -2291,6 +2291,8 @@ namespace ojph {
         }
         v_min = (ui32)p[0]; v_max = (ui32)p[num_points - 1];
       }
+      else
+        assert(0);
 
       // find ceil of the ratio to a power of 2
       ui32 ienc_pnts;

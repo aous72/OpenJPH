@@ -296,7 +296,7 @@ namespace ojph {
           t = ojph_max(t, d_min);
           t = ojph_min(t, d_max);
           ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
+          float d_k = d_min + (float)k * delta;
           float t_k = lut[k];
           float t_kp1 = lut[k + 1];
           float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
@@ -315,7 +315,7 @@ namespace ojph {
           t = ojph_max(t, d_min);
           t = ojph_min(t, d_max);
           ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
+          float d_k = d_min + (float)k * delta;
           float t_k = lut[k];
           float t_kp1 = lut[k + 1];
           float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
@@ -382,7 +382,7 @@ namespace ojph {
           t = ojph_max(t, d_min);
           t = ojph_min(t, d_max);
           ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
+          float d_k = d_min + (float)k * delta;
           float t_k = lut[k];
           float t_kp1 = lut[k + 1];
           float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
@@ -398,7 +398,7 @@ namespace ojph {
           t = ojph_max(t, d_min);
           t = ojph_min(t, d_max);
           ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
+          float d_k = d_min + (float)k * delta;
           float t_k = lut[k];
           float t_kp1 = lut[k + 1];
           float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
@@ -406,7 +406,6 @@ namespace ojph {
         }
       }
     }
-
 
     //////////////////////////////////////////////////////////////////////////
     void gen_irv_convert_to_float_nlt(const line_buf *src_line,
@@ -429,6 +428,22 @@ namespace ojph {
           src_line_offset, dst_line, bit_depth, is_signed, width, rec);
       else
         assert(0);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_encode_nlt(
+      const line_buf *src_line, const ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width,
+      const nlt_rec* rec)
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_rev_decode_nlt(
+      const line_buf *src_line, const ui32 src_line_offset,
+      line_buf *dst_line, const ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
+    {
     }
 
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
@@ -507,22 +522,6 @@ namespace ojph {
           *dp++ = (si32)(v >= 0 ? v : (- v - shift));
         }
       }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_encode_nlt(
-      const line_buf *src_line, const ui32 src_line_offset,
-      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width,
-      const nlt_rec* rec)
-    {
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_rev_decode_nlt(
-      const line_buf *src_line, const ui32 src_line_offset,
-      line_buf *dst_line, const ui32 dst_line_offset,
-      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
-    {
     }
 
     //////////////////////////////////////////////////////////////////////////

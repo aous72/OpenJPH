@@ -477,7 +477,7 @@ namespace ojph {
       {
         const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
-          float t = *sp++;
+          float t = *sp++ + 0.5f;  // convert to [0, 1]
           t = ojph_max(t, d_min);
           t = ojph_min(t, d_max);
           ui32 k = (ui32)floorf((t - d_min) * inv_delta);

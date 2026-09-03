@@ -2543,7 +2543,12 @@ namespace ojph {
     {
       assert(Cnlt == special_comp_num::ALL_COMPS);
       const param_nlt* p = get_nlt_object(comp_num);
-      return (p && p->enabled) ? &p->rec : &rec;
+      if (p && p->enabled)
+        return &p->rec;
+      else if (this->enabled)
+        return &this->rec;
+      else
+        return NULL;
     }
 
     //////////////////////////////////////////////////////////////////////////

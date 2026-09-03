@@ -264,6 +264,173 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
 
+    //////////////////////////////////////////////////////////////////////////
+    template<int NLT_TYPE>
+    static inline
+    void local_gen_irv_convert_to_integer_nlt2or4(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER));
+
+      assert(bit_depth <= 32);
+      const float* sp = src_line->f32;
+      si32* dp = dst_line->i32 + dst_line_offset;
+
+      float mul = rec->multiplier;
+      float d_min = rec->fd_min;
+      float d_max = rec->fd_max;
+      float delta = rec->delta;
+      float inv_delta = rec->inv_delta;
+      float* lut = rec->dec_points;
+
+      if (rec->is_signed())
+      {
+        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
+        for (int i = (int)width; i > 0; --i) {
+          float t = *sp++ + 0.5f; // convert to [0, 1]
+          t = ojph_max(t, d_min);
+          t = ojph_min(t, d_max);
+          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
+          float d_k = d_min + k * delta;
+          float t_k = lut[k];
+          float t_kp1 = lut[k + 1];
+          float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
+
+          si32 v = ojph_round(z * mul - half);
+          if (NLT_TYPE == 4)
+            v = (v >= 0) ? v : (- v - bias);
+          *dp++ = v;
+        }
+      }
+      else
+      {
+        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
+        for (int i = (int)width; i > 0; --i) {
+          float t = *sp++ + 0.5f;  // convert to [0, 1]
+          t = ojph_max(t, d_min);
+          t = ojph_min(t, d_max);
+          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
+          float d_k = d_min + k * delta;
+          float t_k = lut[k];
+          float t_kp1 = lut[k + 1];
+          float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
+
+          si32 v = ojph_round(z * mul);
+          *dp++ = v;
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_integer_nlt(const line_buf *src_line,
+      line_buf *dst_line, ui32 dst_line_offset, ui32 bit_depth,
+      bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      using nl = nlt_rec::nonlinearity;
+      // if (rec->get_type() == nl::OJPH_NLT_NO_NLT)
+      //   local_gen_irv_convert_to_integer_nlt0or3<false>(src_line, dst_line,
+      //     dst_line_offset, bit_depth, is_signed, width);
+      // else
+      if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
+        local_gen_irv_convert_to_integer_nlt2or4<2>(src_line, dst_line,
+          dst_line_offset, bit_depth, is_signed, width, rec);
+      // else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_NLT)
+      //   local_gen_irv_convert_to_integer_nlt0or3<true>(src_line, dst_line,
+      //     dst_line_offset, bit_depth, is_signed, width);
+      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
+        local_gen_irv_convert_to_integer_nlt2or4<4>(src_line, dst_line,
+          dst_line_offset, bit_depth, is_signed, width, rec);
+      else
+        assert(0);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template<int NLT_TYPE>
+    static inline
+    void local_gen_irv_convert_to_float_nlt2or4(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+
+      assert(bit_depth <= 32);
+      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
+      float d_min = rec->ft_min;
+      float d_max = rec->ft_max;
+      float delta = rec->delta;
+      float inv_delta = rec->inv_delta;
+      float* lut = rec->enc_points;
+
+      const si32* sp = src_line->i32 + src_line_offset;
+      float* dp = dst_line->f32;
+      if (rec->is_signed())
+      {
+        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        for (int i = (int)width; i > 0; --i) {
+          si32 v = *sp++;
+          if (NLT_TYPE == 4)
+            v = (v >= 0) ? v : (- v - bias);
+          float t = (float)v * mul + 0.5f;  // convert to [0, 1]
+          t = ojph_max(t, d_min);
+          t = ojph_min(t, d_max);
+          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
+          float d_k = d_min + k * delta;
+          float t_k = lut[k];
+          float t_kp1 = lut[k + 1];
+          float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
+          *dp++ = y - 0.5f;
+        }
+      }
+      else
+      {
+        const si32 half = (si32)(1ULL << (rec->get_bit_depth() - 1));
+        for (int i = (int)width; i > 0; --i) {
+          si32 v = *sp++;
+          float t = (float)v * mul;  // it is in [0, 1]
+          t = ojph_max(t, d_min);
+          t = ojph_min(t, d_max);
+          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
+          float d_k = d_min + k * delta;
+          float t_k = lut[k];
+          float t_kp1 = lut[k + 1];
+          float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
+          *dp++ = y - 0.5f;
+        }
+      }
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_float_nlt(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line, ui32 bit_depth,
+      bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      using nl = nlt_rec::nonlinearity;
+      // if (rec->get_type() == nl::OJPH_NLT_NO_NLT)
+      //   local_gen_irv_convert_to_float_nlt0or3<false>(src_line,
+      //     src_line_offset, dst_line, bit_depth, is_signed, width);
+      // else
+      if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
+        local_gen_irv_convert_to_float_nlt2or4<2>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      // else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_NLT)
+      //   local_gen_irv_convert_to_float_nlt0or3<true>(src_line,
+      //     src_line_offset, dst_line, bit_depth, is_signed, width);
+      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
+        local_gen_irv_convert_to_float_nlt2or4<4>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      else
+        assert(0);
+    }
+
 #if !defined(OJPH_ENABLE_WASM_SIMD) || !defined(OJPH_EMSCRIPTEN)
 
     //////////////////////////////////////////////////////////////////////////
@@ -431,90 +598,6 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    template<int NLT_TYPE>
-    static inline
-    void local_gen_irv_convert_to_integer_nlt2or4(const line_buf *src_line,
-      line_buf *dst_line, ui32 dst_line_offset,
-      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
-    {
-      assert((src_line->flags & line_buf::LFT_32BIT) &&
-             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
-             (dst_line->flags & line_buf::LFT_32BIT) &&
-             (dst_line->flags & line_buf::LFT_INTEGER));
-
-      assert(bit_depth <= 32);
-      const float* sp = src_line->f32;
-      si32* dp = dst_line->i32 + dst_line_offset;
-
-      float mul = rec->multiplier;
-      float d_min = rec->fd_min;
-      float d_max = rec->fd_max;
-      float delta = rec->delta;
-      float inv_delta = rec->inv_delta;
-      float* lut = rec->dec_points;
-
-      if (rec->is_signed())
-      {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
-        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
-        for (int i = (int)width; i > 0; --i) {
-          float t = *sp++ + 0.5f; // convert to [0, 1]
-          t = ojph_max(t, d_min);
-          t = ojph_min(t, d_max);
-          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
-          float t_k = lut[k];
-          float t_kp1 = lut[k + 1];
-          float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
-
-          si32 v = ojph_round(z * mul - half);
-          if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
-          *dp++ = v;
-        }
-      }
-      else
-      {
-        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
-        for (int i = (int)width; i > 0; --i) {
-          float t = *sp++ + 0.5f;  // convert to [0, 1]
-          t = ojph_max(t, d_min);
-          t = ojph_min(t, d_max);
-          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
-          float t_k = lut[k];
-          float t_kp1 = lut[k + 1];
-          float z = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
-
-          si32 v = ojph_round(z * mul);
-          *dp++ = v;
-        }
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_integer_nlt(const line_buf *src_line,
-      line_buf *dst_line, ui32 dst_line_offset, ui32 bit_depth,
-      bool is_signed, ui32 width, const nlt_rec* rec)
-    {
-      using nl = nlt_rec::nonlinearity;
-      if (rec->get_type() == nl::OJPH_NLT_NO_NLT)
-        local_gen_irv_convert_to_integer_nlt0or3<false>(src_line, dst_line,
-          dst_line_offset, bit_depth, is_signed, width);
-      else if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
-        local_gen_irv_convert_to_integer_nlt2or4<2>(src_line, dst_line,
-          dst_line_offset, bit_depth, is_signed, width, rec);
-      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_NLT)
-        local_gen_irv_convert_to_integer_nlt0or3<true>(src_line, dst_line,
-          dst_line_offset, bit_depth, is_signed, width);
-      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
-        local_gen_irv_convert_to_integer_nlt2or4<4>(src_line, dst_line,
-          dst_line_offset, bit_depth, is_signed, width, rec);
-      else
-        assert(0);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     template<bool NLT_TYPE3>
     static inline
     void local_gen_irv_convert_to_float_nlt0or3(const line_buf *src_line,
@@ -568,87 +651,6 @@ namespace ojph {
     {
       local_gen_irv_convert_to_float_nlt0or3<true>(src_line, src_line_offset,
         dst_line, bit_depth, is_signed, width);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    template<int NLT_TYPE>
-    static inline
-    void local_gen_irv_convert_to_float_nlt2or4(const line_buf *src_line,
-      ui32 src_line_offset, line_buf *dst_line,
-      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
-    {
-      assert((src_line->flags & line_buf::LFT_32BIT) &&
-             (src_line->flags & line_buf::LFT_INTEGER) &&
-             (dst_line->flags & line_buf::LFT_32BIT) &&
-             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
-
-      assert(bit_depth <= 32);
-      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
-      float d_min = rec->ft_min;
-      float d_max = rec->ft_max;
-      float delta = rec->delta;
-      float inv_delta = rec->inv_delta;
-      float* lut = rec->enc_points;
-
-      const si32* sp = src_line->i32 + src_line_offset;
-      float* dp = dst_line->f32;
-      if (rec->is_signed())
-      {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
-        for (int i = (int)width; i > 0; --i) {
-          si32 v = *sp++;
-          if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
-          float t = (float)v * mul + 0.5f;  // convert to [0, 1]
-          t = ojph_max(t, d_min);
-          t = ojph_min(t, d_max);
-          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
-          float t_k = lut[k];
-          float t_kp1 = lut[k + 1];
-          float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
-          *dp++ = y - 0.5f;
-        }
-      }
-      else
-      {
-        const si32 half = (si32)(1ULL << (rec->get_bit_depth() - 1));
-        for (int i = (int)width; i > 0; --i) {
-          si32 v = *sp++;
-          float t = (float)v * mul;  // it is in [0, 1]
-          t = ojph_max(t, d_min);
-          t = ojph_min(t, d_max);
-          ui32 k = (ui32)floorf((t - d_min) * inv_delta);
-          float d_k = d_min + k * delta;
-          float t_k = lut[k];
-          float t_kp1 = lut[k + 1];
-          float y = t_k + (t - d_k) * inv_delta * (t_kp1 - t_k);
-          *dp++ = y - 0.5f;
-        }
-      }
-    }
-
-
-    //////////////////////////////////////////////////////////////////////////
-    void gen_irv_convert_to_float_nlt(const line_buf *src_line,
-      ui32 src_line_offset, line_buf *dst_line, ui32 bit_depth,
-      bool is_signed, ui32 width, const nlt_rec* rec)
-    {
-      using nl = nlt_rec::nonlinearity;
-      if (rec->get_type() == nl::OJPH_NLT_NO_NLT)
-        local_gen_irv_convert_to_float_nlt0or3<false>(src_line,
-          src_line_offset, dst_line, bit_depth, is_signed, width);
-      else if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
-        local_gen_irv_convert_to_float_nlt2or4<2>(src_line,
-          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
-      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_NLT)
-        local_gen_irv_convert_to_float_nlt0or3<true>(src_line,
-          src_line_offset, dst_line, bit_depth, is_signed, width);
-      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
-        local_gen_irv_convert_to_float_nlt2or4<4>(src_line,
-          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
-      else
-        assert(0);
     }
 
     //////////////////////////////////////////////////////////////////////////

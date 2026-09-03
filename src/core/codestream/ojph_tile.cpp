@@ -363,34 +363,34 @@ namespace ojph {
         if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            rev_encode_nlt(line, line_offsets[comp_num], tc,
-              num_bits[comp_num], is_signed[comp_num], comp_width,
-              nlt_ptr[comp_num]);
-          else if (is_signed[comp_num] &&
-            nlt_ptr[comp_num]->get_type() == type3)
-            rev_convert_nlt_type3(line, line_offsets[comp_num],
-              tc, 0, shift + 1, comp_width);
-          else {
+          if (nlt_ptr[comp_num] == NULL) {
             shift = is_signed[comp_num] ? 0 : -shift;
             rev_convert(line, line_offsets[comp_num], tc, 0,
               shift, comp_width);
           }
+          else if (is_signed[comp_num] &&
+            nlt_ptr[comp_num]->get_type() == type3)
+            rev_convert_nlt_type3(line, line_offsets[comp_num],
+              tc, 0, shift + 1, comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            rev_encode_nlt(line, line_offsets[comp_num], tc,
+              num_bits[comp_num], is_signed[comp_num], comp_width,
+              nlt_ptr[comp_num]);
         }
         else
         {
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
+          if (nlt_ptr[comp_num] == NULL)
+            irv_convert_to_float(line, line_offsets[comp_num],
+              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type3)
+            irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
+              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
             nlt_ptr[comp_num]->get_type() == type4)
             irv_convert_to_float_nlt(line, line_offsets[comp_num],
               tc, num_bits[comp_num], is_signed[comp_num], comp_width,
               nlt_ptr[comp_num]);
-          else if (nlt_ptr[comp_num]->get_type() == type3)
-            irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
-              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
-          else
-            irv_convert_to_float(line, line_offsets[comp_num],
-              tc, num_bits[comp_num], is_signed[comp_num], comp_width);
         }
         comps[comp_num].push_line();
       }
@@ -400,20 +400,20 @@ namespace ojph {
         ui32 comp_width = comp_rects[comp_num].siz.w;
         if (reversible[comp_num])
         {
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            rev_encode_nlt(line, line_offsets[comp_num],
-              lines + comp_num, num_bits[comp_num],
-              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
-          else if (is_signed[comp_num] &&
-            nlt_ptr[comp_num]->get_type() == type3)
-            rev_convert_nlt_type3(line, line_offsets[comp_num],
-              lines + comp_num, 0, shift + 1, comp_width);
-          else {
+          if (nlt_ptr[comp_num] == NULL) {
             shift = is_signed[comp_num] ? 0 : -shift;
             rev_convert(line, line_offsets[comp_num], lines + comp_num, 0,
               shift, comp_width);
           }
+          else if (is_signed[comp_num] &&
+            nlt_ptr[comp_num]->get_type() == type3)
+            rev_convert_nlt_type3(line, line_offsets[comp_num],
+              lines + comp_num, 0, shift + 1, comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            rev_encode_nlt(line, line_offsets[comp_num],
+              lines + comp_num, num_bits[comp_num],
+              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
 
           if (comp_num == 2)
           { // reversible color transform
@@ -428,19 +428,19 @@ namespace ojph {
         }
         else
         {
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            irv_convert_to_float_nlt(line, line_offsets[comp_num],
+          if (nlt_ptr[comp_num] == NULL)
+            irv_convert_to_float(line, line_offsets[comp_num],
               lines + comp_num, num_bits[comp_num], is_signed[comp_num],
-              comp_width, nlt_ptr[comp_num]);
+              comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type3)
             irv_convert_to_float_nlt_type3(line, line_offsets[comp_num],
               lines + comp_num, num_bits[comp_num], is_signed[comp_num],
               comp_width);
-          else
-            irv_convert_to_float(line, line_offsets[comp_num],
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            irv_convert_to_float_nlt(line, line_offsets[comp_num],
               lines + comp_num, num_bits[comp_num], is_signed[comp_num],
-              comp_width);
+              comp_width, nlt_ptr[comp_num]);
           if (comp_num == 2)
           { // irreversible color transform
             ict_forward(lines[0].f32, lines[1].f32, lines[2].f32,
@@ -483,36 +483,36 @@ namespace ojph {
         if (reversible[comp_num])
         {
           si64 shift = (si64)1 << (num_bits[comp_num] - 1);
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            rev_decode_nlt(src_line, 0, tgt_line,
-              line_offsets[comp_num], num_bits[comp_num],
-              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
-          else if (is_signed[comp_num] &&
-            nlt_ptr[comp_num]->get_type() == type3)
-            rev_convert_nlt_type3(src_line, 0, tgt_line,
-              line_offsets[comp_num], shift + 1, comp_width);
-          else {
+          if (nlt_ptr[comp_num] == NULL) {
             shift = is_signed[comp_num] ? 0 : shift;
             rev_convert(src_line, 0, tgt_line,
               line_offsets[comp_num], shift, comp_width);
           }
+          else if (is_signed[comp_num] &&
+            nlt_ptr[comp_num]->get_type() == type3)
+            rev_convert_nlt_type3(src_line, 0, tgt_line,
+              line_offsets[comp_num], shift + 1, comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            rev_decode_nlt(src_line, 0, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num],
+              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
         }
         else
         {
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            irv_convert_to_integer_nlt(src_line, tgt_line,
+          if (nlt_ptr[comp_num] == NULL)
+            irv_convert_to_integer(src_line, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
-              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
+              is_signed[comp_num], comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type3)
             irv_convert_to_integer_nlt_type3(src_line, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
               is_signed[comp_num], comp_width);
-          else
-            irv_convert_to_integer(src_line, tgt_line,
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            irv_convert_to_integer_nlt(src_line, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
-              is_signed[comp_num], comp_width);
+              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
         }
       }
       else
@@ -537,20 +537,20 @@ namespace ojph {
             src_line = lines + comp_num;
           else
             src_line = comps[comp_num].pull_line();
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            rev_decode_nlt(src_line, 0, tgt_line,
-              line_offsets[comp_num], num_bits[comp_num],
-              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
-          else if (is_signed[comp_num] &&
-            nlt_ptr[comp_num]->get_type() == type3)
-            rev_convert_nlt_type3(src_line, 0, tgt_line,
-              line_offsets[comp_num], shift + 1, comp_width);
-          else {
+          if (nlt_ptr[comp_num] == NULL) {
             shift = is_signed[comp_num] ? 0 : shift;
             rev_convert(src_line, 0, tgt_line,
               line_offsets[comp_num], shift, comp_width);
           }
+          else if (is_signed[comp_num] &&
+            nlt_ptr[comp_num]->get_type() == type3)
+            rev_convert_nlt_type3(src_line, 0, tgt_line,
+              line_offsets[comp_num], shift + 1, comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            rev_decode_nlt(src_line, 0, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num],
+              is_signed[comp_num], comp_width, nlt_ptr[comp_num]);
         }
         else
         {
@@ -559,19 +559,19 @@ namespace ojph {
             lbp = lines + comp_num;
           else
             lbp = comps[comp_num].pull_line();
-          if (nlt_ptr[comp_num]->get_type() == type2 ||
-            nlt_ptr[comp_num]->get_type() == type4)
-            irv_convert_to_integer_nlt(lbp, tgt_line,
-              line_offsets[comp_num], num_bits[comp_num], is_signed[comp_num],
-              comp_width, nlt_ptr[comp_num]);
+          if (nlt_ptr[comp_num] == NULL)
+            irv_convert_to_integer(lbp, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num],
+              is_signed[comp_num], comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type3)
             irv_convert_to_integer_nlt_type3(lbp, tgt_line,
               line_offsets[comp_num], num_bits[comp_num],
               is_signed[comp_num], comp_width);
-          else
-            irv_convert_to_integer(lbp, tgt_line,
-              line_offsets[comp_num], num_bits[comp_num],
-              is_signed[comp_num], comp_width);
+          else if (nlt_ptr[comp_num]->get_type() == type2 ||
+            nlt_ptr[comp_num]->get_type() == type4)
+            irv_convert_to_integer_nlt(lbp, tgt_line,
+              line_offsets[comp_num], num_bits[comp_num], is_signed[comp_num],
+              comp_width, nlt_ptr[comp_num]);
         }
       }
 

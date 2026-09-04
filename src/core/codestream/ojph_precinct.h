@@ -61,6 +61,12 @@ namespace ojph {
         scratch = NULL; bands = NULL; coded = NULL;
         may_use_sop = uses_eph = false;
       }
+
+      // The number of levels the tag trees of a precinct spanning num_cbs
+      // codeblocks in one subband need: one per power of two of the wider
+      // span, plus the root level. Only meaningful for a subband that
+      // exists and that the precinct holds codeblocks of.
+      static ui32 num_tag_tree_levels(size num_cbs);
       ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
       void write(outfile_base *file);

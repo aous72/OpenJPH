@@ -441,18 +441,27 @@ namespace ojph {
         if (bands[i].exists())
           bands[i].get_cb_indices(num_precincts, precincts);
 
-      // determine how to divide scratch into multiple levels of
-      // tag trees
-      size log_cb = cdp->get_log_block_dims();
-      log_PP.w -= (transform_flags & HORZ_TRX) ? 1 : 0;
-      log_PP.h -= (transform_flags & VERT_TRX) ? 1 : 0;
-      size ratio;
-      ratio.w = log_PP.w - ojph_min(log_cb.w, log_PP.w);
-      ratio.h = log_PP.h - ojph_min(log_cb.h, log_PP.h);
-      max_num_levels = ojph_max(ratio.w, ratio.h);
-      ui32 val = 1u << (max_num_levels << 1);
+      // determine how to divide the tag tree storage into multiple levels
+      // of tag trees. The trees of a resolution share one layout, sized by
+      // the most levels any of its precincts needs. That is the precinct to
+      // codeblock ratio for a precinct the resolution is large enough to
+      // hold in full, and less for one clipped by the tile or the image, so
+      // it is taken from the precincts themselves, which have just been
+      // given their codeblock indices.
+      max_num_levels = 1; //the root level is always there
+      for (ui64 i = 0; i < num_precincts.area(); ++i)
+        for (int s = 0; s < 4; ++s)
+        {
+          if (!bands[s].exists())
+            continue;
+          const size& cbs = precincts[i].cb_idxs[s].siz;
+          if (cbs.w == 0 || cbs.h == 0)
+            continue;
+          max_num_levels = ojph_max(max_num_levels,
+            precinct::num_tag_tree_levels(cbs));
+        }
+      ui32 val = 1u << ((max_num_levels - 1) << 1);
       tag_tree_size = (int)((val * 4 + 2) / 3);
-      ++max_num_levels;
       level_index[0] = 0;
       for (ui32 i = 1; i <= max_num_levels; ++i, val >>= 2)
         level_index[i] = level_index[i - 1] + val;

@@ -91,6 +91,12 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    ui32 precinct::num_tag_tree_levels(size num_cbs)
+    {
+      return 1 + ojph_max(log2ceil(num_cbs.w), log2ceil(num_cbs.h));
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     ui32 precinct::prepare_precinct(int tag_tree_size, ui32* lev_idx,
                                     mem_elastic_allocator* elastic)
     {
@@ -107,8 +113,7 @@ namespace ojph {
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
-        ui32 num_levels = 1 +
-          ojph_max(log2ceil(cb_idxs[s].siz.w), log2ceil(cb_idxs[s].siz.h));
+        ui32 num_levels = num_tag_tree_levels(cb_idxs[s].siz);
 
         //create quad trees for inclusion and missing msbs
         tag_tree inc_tag, inc_tag_flags, mmsb_tag, mmsb_tag_flags;
@@ -354,8 +359,7 @@ namespace ojph {
           empty_packet = false;
         }
 
-        ui32 num_levels = 1 +
-          ojph_max(log2ceil(cb_idxs[s].siz.w), log2ceil(cb_idxs[s].siz.h));
+        ui32 num_levels = num_tag_tree_levels(cb_idxs[s].siz);
 
         //create quad trees for inclusion and missing msbs
         tag_tree inc_tag, inc_tag_flags, mmsb_tag, mmsb_tag_flags;

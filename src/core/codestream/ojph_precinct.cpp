@@ -38,6 +38,7 @@
 
 #include <climits>
 #include <cmath>
+#include <cstring>
 
 #include "ojph_mem.h"
 #include "ojph_params.h"
@@ -57,7 +58,12 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     struct tag_tree
     {
-      void init(ui8* buf, ui32 *lev_idx, ui32 num_levels, size s, int init_val)
+      // Points the tree at its storage without touching the contents, so a
+      // tree that an earlier packet of the same precinct left partly decoded
+      // can be picked up where it stopped. The decode path clears the whole
+      // of a precinct's tag tree storage in one go instead, which is enough
+      // because every one of its trees starts out all zeros.
+      void assign(ui8* buf, ui32 *lev_idx, ui32 num_levels, size s)
       {
         for (ui32 i = 0; i <= num_levels; ++i) //on extra level
           levs[i] = buf + lev_idx[i];
@@ -65,13 +71,18 @@ namespace ojph {
           levs[i] = (ui8*)INT_MAX; //make it crash on error
         width = s.w;
         height = s.h;
+        this->num_levels = num_levels;
+      }
+
+      void init(ui8* buf, ui32 *lev_idx, ui32 num_levels, size s, int init_val)
+      {
+        assign(buf, lev_idx, num_levels, s);
         for (ui32 i = 0; i < num_levels; ++i)
         {
           ui32 size = 1u << ((num_levels - 1 - i) << 1);
           memset(levs[i], init_val, size);
         }
         *levs[num_levels] = 0;
-        this->num_levels = num_levels;
       }
 
       ui8* get(ui32 x, ui32 y, ui32 lev)
@@ -330,18 +341,105 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
+    // Decodes one tag tree leaf up to a threshold, keeping partially decoded
+    // state so decoding can continue in a later quality layer.
+    //
+    // A node's value is a lower bound that grows as 0 bits are read; a 1 bit
+    // fixes the value, which the flags tree records. When the value reaches the
+    // threshold before being fixed, decoding stops: the caller only learns the
+    // value is at least the threshold, and a later layer with a higher
+    // threshold resumes from here.
+    //
+    // With one quality layer the threshold is always 1 and this reduces to
+    // reading one bit per level, which is what the single-layer path did.
+    static bool tag_tree_decode(bit_read_buf* bb, tag_tree& val,
+                                tag_tree& known, ui32 x, ui32 y,
+                                ui32 num_levels, ui32 threshold,
+                                ui32& result)
+    {
+      ui32 lower_bound = 0;
+      for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
+      {
+        ui32 cur_lev = levp1 - 1;
+        ui8* v = val.get(x >> cur_lev, y >> cur_lev, cur_lev);
+        ui8* k = known.get(x >> cur_lev, y >> cur_lev, cur_lev);
+
+        if (*v < lower_bound)
+          *v = (ui8)lower_bound;
+
+        while (*k == 0 && *v < threshold)
+        {
+          ui32 bit;
+          if (bb_read_bit(bb, bit) == false)
+            return false;
+          if (bit)
+            *k = 1;
+          else
+            *v = (ui8)(*v + 1);
+        }
+
+        if (*k == 0)
+        {
+          result = *v;
+          return true;
+        }
+
+        lower_bound = *v;
+      }
+
+      result = lower_bound;
+      return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void precinct::parse(int tag_tree_size, ui32* lev_idx,
                          mem_elastic_allocator *elastic,
-                         ui32 &data_left, infile_base *file,
-                         bool skipped)
+                         ui32 &data_left, infile_base *file, bool skipped,
+                         ui32 layer)
     {
       assert(data_left > 0);
+
+      // A precinct's packets arrive in order of increasing quality layer,
+      // whichever progression order the codestream uses, so its first packet
+      // is where the state the others build on is cleared: the tag trees,
+      // which are decoded incrementally, and the per codeblock parse state in
+      // coded_cb_header. Every one of a precinct's tag trees starts out all
+      // zeros, so one memset over their storage does for all of them.
+      bool first_packet = (layer == 0);
+      if (first_packet)
+        memset(scratch, 0,
+               (size_t)num_parse_tag_trees * (size_t)tag_tree_size);
+
+      // Only codeblocks contributing to this packet have bytes in it.
+      for (int s = 0; s < 4; ++s)
+      {
+        if (bands[s].empty || cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
+          continue;
+        ui32 band_width = bands[s].num_blocks.w;
+        for (ui32 y = 0; y < cb_idxs[s].siz.h; ++y)
+        {
+          coded_cb_header* cp = bands[s].coded_cbs;
+          cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
+          for (ui32 x = 0; x < cb_idxs[s].siz.w; ++x, ++cp)
+          {
+            cp->in_layer = 0;
+            if (!first_packet)
+              continue;
+            cp->included = 0;
+            cp->Lblock_m3 = 0;
+          }
+        }
+      }
+
       bit_read_buf bb;
       bb_init(&bb, data_left, file);
       if (may_use_sop)
         bb_skip_sop(&bb);
 
-      bool empty_packet = true;
+      bool non_empty_bit_read = false;
+      bool zero_length_packet = false;
+
       for (int s = 0; s < 4; ++s)
       {
         if (bands[s].empty)
@@ -350,32 +448,31 @@ namespace ojph {
         if (cb_idxs[s].siz.w == 0 || cb_idxs[s].siz.h == 0)
           continue;
 
-        if (empty_packet) //one bit to check if the packet is empty
+        if (!non_empty_bit_read) //one bit to check if the packet is empty
         {
           ui32 bit;
           bb_read_bit(&bb, bit);
+          non_empty_bit_read = true;
           if (bit == 0) //empty packet
-          { bb_terminate(&bb, uses_eph); data_left = bb.bytes_left; return; }
-          empty_packet = false;
+          { zero_length_packet = true; break; }
         }
 
+        // The inclusion and missing MSB tag trees of this subband. They live
+        // in the precinct's own storage whenever it holds more than one
+        // packet, so that a packet picks them up where the packet before it
+        // left them.
         ui32 num_levels = num_tag_tree_levels(cb_idxs[s].siz);
-
-        //create quad trees for inclusion and missing msbs
+        ui8* base = scratch
+          + (size_t)s * num_trees_per_band * (size_t)tag_tree_size;
         tag_tree inc_tag, inc_tag_flags, mmsb_tag, mmsb_tag_flags;
-        inc_tag.init(scratch, lev_idx, num_levels, cb_idxs[s].siz, 0);
-        *inc_tag.get(0, 0, num_levels) = 0;
-        inc_tag_flags.init(scratch + tag_tree_size, lev_idx, num_levels,
-          cb_idxs[s].siz, 0);
-        *inc_tag_flags.get(0, 0, num_levels) = 0;
-        mmsb_tag.init(scratch + (tag_tree_size<<1), lev_idx, num_levels,
-          cb_idxs[s].siz, 0);
-        *mmsb_tag.get(0, 0, num_levels) = 0;
-        mmsb_tag_flags.init(scratch + (tag_tree_size<<1) + tag_tree_size,
-          lev_idx, num_levels, cb_idxs[s].siz, 0);
-        *mmsb_tag_flags.get(0, 0, num_levels) = 0;
+        inc_tag.assign(base, lev_idx, num_levels, cb_idxs[s].siz);
+        inc_tag_flags.assign(base + tag_tree_size, lev_idx, num_levels,
+          cb_idxs[s].siz);
+        mmsb_tag.assign(base + (tag_tree_size << 1), lev_idx, num_levels,
+          cb_idxs[s].siz);
+        mmsb_tag_flags.assign(base + (tag_tree_size << 1) + tag_tree_size,
+          lev_idx, num_levels, cb_idxs[s].siz);
 
-        //
         ui32 band_width = bands[s].num_blocks.w;
         ui32 width = cb_idxs[s].siz.w;
         ui32 height = cb_idxs[s].siz.h;
@@ -386,56 +483,57 @@ namespace ojph {
           for (ui32 x = 0; x < width; ++x, ++cp)
           {
             //process inclusion
-            bool empty_cb = false;
-            for (ui32 cl = num_levels; cl > 0; --cl)
+            if (cp->included)
             {
-              ui32 cur_lev = cl - 1;
-              empty_cb = *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) == 1;
-              if (empty_cb)
-                break;
-              //check received
-              if (*inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
-              {
-                ui32 bit;
-                if (bb_read_bit(&bb, bit) == false)
-                { data_left = 0; throw "error reading from file p1"; }
-                empty_cb = (bit == 0);
-                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
-                *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
-              }
-              if (empty_cb)
-                break;
+              // Already contributing: one bit says whether this layer adds
+              // anything.
+              ui32 bit;
+              if (bb_read_bit(&bb, bit) == false)
+              { data_left = 0; throw "error reading from file p1"; }
+              if (bit == 0)
+                continue;
             }
-
-            if (empty_cb)
-              continue;
-
-            //process missing msbs
-            ui32 mmsbs = 0;
-            for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
+            else
             {
-              ui32 cur_lev = levp1 - 1;
-              mmsbs = *mmsb_tag.get(x>>levp1, y>>levp1, levp1);
-              //check received
-              if (*mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+              // Not yet contributing: the tag tree codes the layer of first
+              // inclusion, decoded up to this layer's threshold.
+              ui32 first_layer = 0;
+              if (tag_tree_decode(&bb, inc_tag, inc_tag_flags, x, y,
+                    num_levels, layer + 1, first_layer) == false)
+              { data_left = 0; throw "error reading from file p1"; }
+              if (first_layer > layer)
+                continue;
+
+              //process missing msbs
+              ui32 mmsbs = 0;
+              for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
               {
-                ui32 bit = 0;
-                while (bit == 0)
+                ui32 cur_lev = levp1 - 1;
+                mmsbs = *mmsb_tag.get(x>>levp1, y>>levp1, levp1);
+                //check received
+                if (*mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev,
+                                        cur_lev) == 0)
                 {
-                  if (bb_read_bit(&bb, bit) == false)
-                  { data_left = 0; throw "error reading from file p2"; }
-                  mmsbs += 1 - bit;
+                  ui32 bit = 0;
+                  while (bit == 0)
+                  {
+                    if (bb_read_bit(&bb, bit) == false)
+                    { data_left = 0; throw "error reading from file p2"; }
+                    mmsbs += 1 - bit;
+                  }
+                  *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) =
+                    (ui8)mmsbs;
+                  *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
                 }
-                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
-                *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
               }
-            }
 
-            if (mmsbs > cp->Kmax)
-              throw "error in parsing a tile header; "
-              "missing msbs are larger or equal to Kmax. The most likely "
-              "cause is a corruption in the bitstream.";
-            cp->missing_msbs = mmsbs;
+              if (mmsbs > cp->Kmax)
+                throw "error in parsing a tile header; "
+                "missing msbs are larger or equal to Kmax. The most likely "
+                "cause is a corruption in the bitstream.";
+              cp->missing_msbs = mmsbs;
+              cp->included = 1;
+            }
 
             //get number of passes
             ui32 bit, num_passes = 1;
@@ -483,7 +581,9 @@ namespace ojph {
             cp->num_passes = num_passes - num_phld_passes;
             cp->pass_length[0] = cp->pass_length[1] = 0;
 
-            int Lblock = 3;
+            // Lblock grows monotonically over the layers that include this
+            // codeblock, so it lives with the codeblock.
+            int Lblock = 3 + cp->Lblock_m3;
             bit = 1;
             while (bit)
             {
@@ -492,6 +592,7 @@ namespace ojph {
               { data_left = 0; throw "error reading from file p8"; }
               Lblock += bit;
             }
+            cp->Lblock_m3 = (ui8)(Lblock - 3);
 
             int bits = Lblock + 31 -
               (int)count_leading_zeros(num_phld_passes + 1);
@@ -517,59 +618,59 @@ namespace ojph {
                   "an HT codeblock must contain less than 2047 bytes";
               cp->pass_length[1] = bit;
             }
+
+            cp->in_layer = 1;
           }
         }
       }
-      if (empty_packet)
-      { // all subbands are empty
+
+      if (!non_empty_bit_read)
+      { // all subbands are empty, so the zero length bit was never read
         ui32 bit = 0;
         bb_read_bit(&bb, bit);
-        //assert(bit == 0);
       }
       bb_terminate(&bb, uses_eph);
-      //read codeblock data
-      for (int s = 0; s < 4; ++s)
-      {
-        if (bands[s].empty)
-          continue;
 
-        ui32 band_width = bands[s].num_blocks.w;
-        ui32 width = cb_idxs[s].siz.w;
-        ui32 height = cb_idxs[s].siz.h;
-        for (ui32 y = 0; y < height; ++y)
+      //read codeblock data
+      if (!zero_length_packet)
+      {
+        for (int s = 0; s < 4; ++s)
         {
-          coded_cb_header *cp = bands[s].coded_cbs;
-          cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
-          for (ui32 x = 0; x < width; ++x, ++cp)
+          if (bands[s].empty)
+            continue;
+
+          ui32 band_width = bands[s].num_blocks.w;
+          ui32 width = cb_idxs[s].siz.w;
+          ui32 height = cb_idxs[s].siz.h;
+          for (ui32 y = 0; y < height; ++y)
           {
-            ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
-            if (data_left)
+            coded_cb_header *cp = bands[s].coded_cbs;
+            cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
+            for (ui32 x = 0; x < width; ++x, ++cp)
             {
-              if (num_bytes)
-              {
-                if (skipped)
-                { //no need to read
-                  si64 cur_loc = file->tell();
-                  ui32 t = ojph_min(num_bytes, bb.bytes_left);
-                  file->seek(t, infile_base::OJPH_SEEK_CUR);
-                  ui32 bytes_read = (ui32)(file->tell() - cur_loc);
-                  cp->pass_length[0] = cp->pass_length[1] = 0;
-                  bb.bytes_left -= bytes_read;
-                  assert(bytes_read == t || bb.bytes_left == 0);
-                }
-                else
-                {
-                  if (!bb_read_chunk(&bb, num_bytes, cp->next_coded, elastic))
-                  {
-                    //no need to decode a broken codeblock
-                    cp->pass_length[0] = cp->pass_length[1] = 0;
-                    data_left = 0;
-                  }
-                }
+              if (cp->in_layer == 0)
+                continue;
+              if (data_left == 0)
+              { cp->pass_length[0] = cp->pass_length[1] = 0; continue; }
+
+              ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
+              if (skipped)
+              { //no need to read
+                si64 cur_loc = file->tell();
+                ui32 t = ojph_min(num_bytes, bb.bytes_left);
+                file->seek(t, infile_base::OJPH_SEEK_CUR);
+                ui32 bytes_read = (ui32)(file->tell() - cur_loc);
+                cp->pass_length[0] = cp->pass_length[1] = 0;
+                bb.bytes_left -= bytes_read;
+                assert(bytes_read == t || bb.bytes_left == 0);
+              }
+              else if (!bb_read_chunk(&bb, num_bytes, cp->next_coded,
+                                      elastic))
+              { //no need to decode a broken codeblock
+                cp->pass_length[0] = cp->pass_length[1] = 0;
+                data_left = 0;
               }
             }
-            else
-              cp->pass_length[0] = cp->pass_length[1] = 0;
           }
         }
       }

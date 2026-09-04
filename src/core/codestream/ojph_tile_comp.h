@@ -80,8 +80,9 @@ namespace ojph {
       void write_precincts(ui32 res_num, outfile_base *file);
       bool get_top_left_precinct(ui32 res_num, point &top_left);
       void write_one_precinct(ui32 res_num, outfile_base *file);
-      void parse_precincts(ui32 res_num, ui32& data_left, infile_base *file);
-      void parse_one_precinct(ui32 res_num, ui32& data_left, 
+      void parse_precincts(ui32 res_num, ui32 layer, ui32& data_left,
+                           infile_base *file);
+      void parse_one_precinct(ui32 res_num, ui32 layer, ui32& data_left, 
                               infile_base *file);
 
       ui32 get_num_bytes() const { return num_bytes; }

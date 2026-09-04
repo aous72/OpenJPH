@@ -159,7 +159,7 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_precincts(ui32 res_num, ui32& data_left,
+    void tile_comp::parse_precincts(ui32 res_num, ui32 layer, ui32& data_left,
                                     infile_base *file)
     {
       assert(res_num <= num_decomps);
@@ -171,13 +171,13 @@ namespace ojph {
         --res_num;
       }
       if (r) //resolution does not exist if r is NULL
-        r->parse_all_precincts(data_left, file);
+        r->parse_all_precincts(layer, data_left, file);
     }
 
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::parse_one_precinct(ui32 res_num, ui32& data_left,
-                                       infile_base *file)
+    void tile_comp::parse_one_precinct(ui32 res_num, ui32 layer,
+                                       ui32& data_left, infile_base *file)
     {
       assert(res_num <= num_decomps);
       res_num = num_decomps - res_num;
@@ -188,7 +188,7 @@ namespace ojph {
         --res_num;
       }
       if (r) //resolution does not exist if r is NULL
-        r->parse_one_precinct(data_left, file);
+        r->parse_one_precinct(layer, data_left, file);
     }
 
     //////////////////////////////////////////////////////////////////////////

@@ -559,6 +559,12 @@ namespace ojph {
       }
 
       ////////////////////////////////////////
+      ui32 get_num_layers() const
+      {
+        return SGCod.num_layers;
+      }
+
+      ////////////////////////////////////////
       // SOP and EPH usage is signalled only in Scod of the COD marker
       // segment; Scoc carries just the precinct bit (T.800 Table A.23). A
       // component that has a COC therefore inherits these two flags from

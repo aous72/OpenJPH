@@ -118,6 +118,15 @@ namespace ojph {
       ui32 num_passes;       // number of passes to be decoded
       ui32 Kmax;
       ui32 missing_msbs;
+      // Parsing state, live while the packets of a precinct are read. It has
+      // to survive from one quality layer of a codeblock to the next, which
+      // is why it lives here and not in precinct::parse.
+      // included   : has contributed to an earlier quality layer
+      // in_layer   : contributes to the packet being read now
+      // Lblock_m3  : Lblock biased by 3, so zero means 3
+      ui8 included;
+      ui8 in_layer;
+      ui8 Lblock_m3;
       coded_lists *next_coded;
 
       static const int prefix_buf_size = 8;

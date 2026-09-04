@@ -43,6 +43,7 @@
 #include "ojph_params.h"
 #include "ojph_codestream_local.h"
 #include "ojph_tile.h"
+#include "ojph_precinct.h" // for precinct::num_parse_tag_trees
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"
@@ -211,8 +212,11 @@ namespace ojph {
       // We need 4 such tables. These tables store
       // 1. missing msbs and 2. their flags,
       // 3. number of layers and 4. their flags
+      // A precinct is parsed with one set of these per subband, so the
+      // buffer holds precinct::num_parse_tag_trees of them.
       precinct_scratch_needed_bytes =
-        4 * ((max_ratio * max_ratio * 4 + 2) / 3);
+        precinct::num_parse_tag_trees
+        * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
     }

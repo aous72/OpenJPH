@@ -2317,9 +2317,9 @@ namespace ojph {
       if (len > p->rec.store_size)
       {
         if (p->rec.points_store)
-          delete[] (ui8*)p->rec.points_store;
+          delete[] p->rec.points_store;
         p->rec.store_size = len;
-        p->rec.points_store = new ui8[p->rec.store_size];
+        p->rec.points_store = new (std::nothrow) ui8[p->rec.store_size];
         if (p->rec.points_store == NULL)
           OJPH_ERROR(0x000501A9, "Failed to allocated memory");
       }
@@ -2502,9 +2502,9 @@ namespace ojph {
         if (p->rec.store_size < len)
         {
           if (p->rec.points_store)
-            delete[] (ui8*)p->rec.points_store;
+            delete[] p->rec.points_store;
           p->rec.store_size = len;
-          p->rec.points_store = new ui8[p->rec.store_size];
+          p->rec.points_store = new (std::nothrow) ui8[p->rec.store_size];
           if (p->rec.points_store == NULL)
             OJPH_ERROR(0x00050148, "Failed to allocated memory");
         }

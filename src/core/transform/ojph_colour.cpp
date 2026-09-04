@@ -309,7 +309,6 @@ namespace ojph {
       }
       else
       {
-        const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
           float t = *sp++ + 0.5f;  // convert to [0, 1]
           t = ojph_max(t, d_min);
@@ -391,7 +390,6 @@ namespace ojph {
       }
       else
       {
-        const si32 half = (si32)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           float t = (float)v * mul;  // it is in [0, 1]

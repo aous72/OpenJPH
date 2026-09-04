@@ -393,6 +393,35 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    // Reads bytes into a caller supplied buffer with the same accounting
+    // bb_read_chunk does. Needed because the segments of one HT set can arrive
+    // in different packets and have to end up contiguous.
+    static bool read_bytes_into(bit_read_buf* bbp, ui8* dst, ui32 num_bytes)
+    {
+      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
+      ui32 bytes_read = (ui32)bbp->file->read(dst, bytes);
+      if (num_bytes > bytes_read)
+        memset(dst + bytes_read, 0, num_bytes - bytes_read);
+      bbp->bytes_left -= bytes_read;
+      return bytes_read == bytes;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // 3*P0 is not known while a codeblock is still inside its placeholder run,
+    // which can be spread over several packets.
+    static const ui32 placeholder_passes_unknown = 0xFFFFFFFFu;
+
+    //////////////////////////////////////////////////////////////////////////
+    // Consumes bytes of an HT set that a later set supersedes.
+    static void skip_bytes(bit_read_buf* bbp, infile_base* file, ui32 num_bytes)
+    {
+      ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
+      si64 start = file->tell();
+      file->seek((si64)bytes, infile_base::OJPH_SEEK_CUR);
+      bbp->bytes_left -= (ui32)(file->tell() - start);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void precinct::parse(int tag_tree_size, ui32* lev_idx,
                          mem_elastic_allocator *elastic,
                          ui32 &data_left, infile_base *file, bool skipped,
@@ -428,6 +457,17 @@ namespace ojph {
               continue;
             cp->included = 0;
             cp->Lblock_m3 = 0;
+            cp->has_cleanup = 0;
+            cp->starts_new_set = 0;
+            cp->set_passes = 0;
+            cp->placeholder_passes = placeholder_passes_unknown;
+            cp->pass_index = 0;
+            cp->sets_seen = 0;
+            cp->zero_bitplanes = 0;
+            cp->decoded_set_skip = 0;
+            cp->pkt_pre_skip = 0;
+            cp->pkt_cleanup = 0;
+            cp->pkt_refine = 0;
           }
         }
       }
@@ -531,7 +571,7 @@ namespace ojph {
                 throw "error in parsing a tile header; "
                 "missing msbs are larger or equal to Kmax. The most likely "
                 "cause is a corruption in the bitstream.";
-              cp->missing_msbs = mmsbs;
+              cp->zero_bitplanes = (ui8)mmsbs;
               cp->included = 1;
             }
 
@@ -563,23 +603,6 @@ namespace ojph {
                 }
               }
             }
-            cp->num_passes = num_passes;
-
-            // Parse pass lengths
-            // When number of passes is one, one length.
-            // When number of passes is two or three, two lengths.
-            // When number of passes > 3, we have place holder passes;
-            // In this case, subtract multiples of 3 from the number of
-            // passes; for example, if we have 10 passes, we subtract 9,
-            // producing 1 pass.
-
-            // 1 => 1, 2 => 2, 3 => 3, 4 => 1, 5 => 2, 6 => 3
-            ui32 num_phld_passes = (num_passes - 1) / 3;
-            cp->missing_msbs += num_phld_passes;
-
-            num_phld_passes *= 3;
-            cp->num_passes = num_passes - num_phld_passes;
-            cp->pass_length[0] = cp->pass_length[1] = 0;
 
             // Lblock grows monotonically over the layers that include this
             // codeblock, so it lives with the codeblock.
@@ -587,39 +610,166 @@ namespace ojph {
             bit = 1;
             while (bit)
             {
-              // add any extra bits here
               if (bb_read_bit(&bb, bit) == false)
               { data_left = 0; throw "error reading from file p8"; }
               Lblock += bit;
             }
             cp->Lblock_m3 = (ui8)(Lblock - 3);
 
-            int bits = Lblock + 31 -
-              (int)count_leading_zeros(num_phld_passes + 1);
-            if (bb_read_bits(&bb, bits, bit) == false)
-            { data_left = 0; throw "error reading from file p9"; }
-            if (bit < 2)
-              throw "The cleanup segment of an HT codeblock cannot contain "
-                "less than 2 bytes";
-            if (bit >= 65535)
-              throw "The cleanup segment of an HT codeblock must contain "
-                "less than 65535 bytes";
-            cp->pass_length[0] = bit;
+            // T.814 B.2: segment boundaries lie at pass indices
+            //   T = union over k of (3*P0 + ceil(3k/2)),
+            // so past the placeholder run a cleanup segment covers one pass
+            // and the refinement segment after it covers up to two. Each
+            // segment carries its own length, so walk them one at a time.
+            ui32 remaining = num_passes;
+            cp->pkt_pre_skip = 0;
+            cp->pkt_cleanup = 0;
+            cp->pkt_refine = 0;
+            cp->starts_new_set = 0;
 
-            if (cp->num_passes > 1)
+            while (remaining > 0)
             {
-              //bits = Lblock + 31 - count_leading_zeros(cp->num_passes - 1);
-              // The following is simpler than the above, I think?
-              bits = Lblock + (cp->num_passes > 2 ? 1 : 0);
-              if (bb_read_bits(&bb, bits, bit) == false)
-              { data_left = 0; throw "error reading from file p10"; }
-              if (bit >= 2047)
-                throw "The refinement segment (SigProp and MagRep passes) of "
-                  "an HT codeblock must contain less than 2047 bytes";
-              cp->pass_length[1] = bit;
+              bool is_cleanup;
+              ui32 seg_passes;
+              ui32 seg_len;
+              int bits;
+
+              if (cp->placeholder_passes == placeholder_passes_unknown)
+              {
+                // A codeblock's 3*P0 placeholder passes carry no bytes and
+                // all lie ahead of its first HT set (T.814 B.1), but the run
+                // can be split over several packets like any other run of
+                // coding passes, so P0 is not known from the first
+                // contribution alone. What is known is that a real first HT
+                // cleanup segment is longer than one byte (T.814 B.3), so a
+                // length of zero means the run is still open.
+                //
+                // While it is open there is exactly one codeword segment
+                // either way, because no member of T lies below 3*P0, so
+                // only the width of that one length field is in question.
+                // Read the narrower field first; a zero picks the wider
+                // reading, whose remaining bits must be zero as well.
+                ui32 triple = 3 * ((cp->pass_index + remaining - 1) / 3);
+                int wide = Lblock + 31 - (int)count_leading_zeros(remaining);
+                int narrow = wide;
+                bool cleanup_in_reach = triple >= cp->pass_index;
+                if (cleanup_in_reach)
+                {
+                  ui32 n = triple - cp->pass_index + 1;
+                  narrow = Lblock + 31 - (int)count_leading_zeros(n);
+                }
+                if (bb_read_bits(&bb, narrow, bit) == false)
+                { data_left = 0; throw "error reading from file p9"; }
+                seg_len = bit;
+
+                if (seg_len != 0 && !cleanup_in_reach)
+                  throw "error in parsing a packet header; a codeblock "
+                    "still inside its placeholder run reports codeword "
+                    "segment bytes, but the segment cannot contain an HT "
+                    "cleanup pass. The most likely cause is a corruption "
+                    "in the bitstream.";
+
+                if (seg_len == 0)
+                { // still placeholder passes: no segment, no bytes
+                  if (wide > narrow
+                      && bb_read_bits(&bb, wide - narrow, bit) == false)
+                  { data_left = 0; throw "error reading from file p10"; }
+                  cp->pass_index += remaining;
+                  remaining = 0;
+                  continue;
+                }
+
+                cp->placeholder_passes = triple;
+                is_cleanup = true;
+                seg_passes = triple - cp->pass_index + 1;
+                bits = narrow;
+              }
+              else
+              {
+                if (cp->pass_index <= cp->placeholder_passes)
+                {
+                  // the tail of the placeholder run shares a codeword
+                  // segment with the first HT cleanup pass
+                  is_cleanup = true;
+                  seg_passes = cp->placeholder_passes + 1 - cp->pass_index;
+                }
+                else
+                {
+                  ui32 rel = cp->pass_index - cp->placeholder_passes;
+                  if (rel % 3 == 0)
+                  { is_cleanup = true;  seg_passes = 1; }
+                  else if (rel % 3 == 1)
+                  { is_cleanup = false; seg_passes = 2; }
+                  else
+                  { is_cleanup = false; seg_passes = 1; }
+                }
+
+                if (seg_passes > remaining)
+                  seg_passes = remaining;
+
+                bits = Lblock + 31 - (int)count_leading_zeros(seg_passes);
+                if (bb_read_bits(&bb, bits, bit) == false)
+                { data_left = 0; throw "error reading from file p9"; }
+                seg_len = bit;
+              }
+
+              // T.814 B.3 bounds a codeword segment's length, and the bound
+              // belongs here, where the length is read, because the packet
+              // body reader sizes an allocation from the accumulated lengths
+              // before it has looked at how many bytes the packet holds. A
+              // segment split over two codeword segments is bounded again
+              // over the concatenation, further below.
+              if (is_cleanup && seg_len == 1)
+                throw "The cleanup segment of an HT codeblock cannot "
+                  "contain exactly one byte";
+              if (is_cleanup && seg_len >= 65535)
+                throw "The cleanup segment of an HT codeblock must "
+                  "contain less than 65535 bytes";
+              if (!is_cleanup && seg_len >= 2047)
+                throw "The refinement segment (SigProp and MagRef passes) "
+                  "of an HT codeblock must contain less than 2047 bytes";
+
+              if (is_cleanup)
+              {
+                ++cp->sets_seen;
+                // A zero length cleanup segment means the HT set contributes
+                // nothing; such sets exist to skip magnitude bit-planes
+                // (T.814 B.3), and the refinement segment of the same set is
+                // empty too.
+                if (seg_len > 0)
+                {
+                  // A new HT set supersedes anything gathered before it.
+                  cp->pkt_pre_skip += cp->pkt_cleanup + cp->pkt_refine;
+                  cp->pkt_cleanup = seg_len;
+                  cp->pkt_refine = 0;
+                  cp->starts_new_set = 1;
+                  // Z_blk counts the coding passes of the HT set, so a
+                  // cleanup segment contributes exactly one however many
+                  // placeholder passes share its codeword segment.
+                  cp->set_passes = 1;
+                  // T.814 B.3: S_skip counts the HT sets ahead of the one
+                  // being decoded, so it has to be taken now. Empty sets
+                  // arriving later must not inflate it.
+                  cp->decoded_set_skip = (ui16)(cp->sets_seen - 1);
+                }
+              }
+              else if (seg_len > 0)
+              {
+                if (cp->starts_new_set || cp->has_cleanup)
+                {
+                  cp->pkt_refine += seg_len;
+                  cp->set_passes = (ui8)(cp->set_passes + seg_passes);
+                }
+                else
+                  cp->pkt_pre_skip += seg_len;
+              }
+
+              cp->pass_index += seg_passes;
+              remaining -= seg_passes;
             }
 
-            cp->in_layer = 1;
+            if (cp->pkt_cleanup || cp->pkt_refine || cp->pkt_pre_skip)
+              cp->in_layer = 1;
           }
         }
       }
@@ -648,28 +798,88 @@ namespace ojph {
             cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
             for (ui32 x = 0; x < width; ++x, ++cp)
             {
-              if (cp->in_layer == 0)
+              if (cp->in_layer == 0 || data_left == 0)
                 continue;
-              if (data_left == 0)
-              { cp->pass_length[0] = cp->pass_length[1] = 0; continue; }
 
-              ui32 num_bytes = cp->pass_length[0] + cp->pass_length[1];
               if (skipped)
               { //no need to read
-                si64 cur_loc = file->tell();
-                ui32 t = ojph_min(num_bytes, bb.bytes_left);
-                file->seek(t, infile_base::OJPH_SEEK_CUR);
-                ui32 bytes_read = (ui32)(file->tell() - cur_loc);
+                skip_bytes(&bb, file,
+                  cp->pkt_pre_skip + cp->pkt_cleanup + cp->pkt_refine);
                 cp->pass_length[0] = cp->pass_length[1] = 0;
-                bb.bytes_left -= bytes_read;
-                assert(bytes_read == t || bb.bytes_left == 0);
+                continue;
               }
-              else if (!bb_read_chunk(&bb, num_bytes, cp->next_coded,
-                                      elastic))
-              { //no need to decode a broken codeblock
-                cp->pass_length[0] = cp->pass_length[1] = 0;
-                data_left = 0;
+
+              // Bytes of HT sets that a later set replaces are consumed and
+              // dropped.
+              if (cp->pkt_pre_skip)
+                skip_bytes(&bb, file, cp->pkt_pre_skip);
+
+              if (cp->starts_new_set)
+              {
+                ui32 total = cp->pkt_cleanup + cp->pkt_refine;
+                if (!bb_read_chunk(&bb, total, cp->next_coded, elastic))
+                {
+                  cp->pass_length[0] = cp->pass_length[1] = 0;
+                  data_left = 0;
+                  continue;
+                }
+                cp->pass_length[0] = cp->pkt_cleanup;
+                cp->pass_length[1] = cp->pkt_refine;
+                cp->has_cleanup = 1;
               }
+              else if (cp->pkt_refine)
+              {
+                // T.814 B.3: an HT segment's bytes are the concatenation of
+                // its codeword segments, so a refinement segment arriving
+                // after its cleanup segment is appended rather than replacing
+                // it.
+                ui32 held = cp->pass_length[0] + cp->pass_length[1];
+                coded_lists* previous = cp->next_coded;
+                elastic->get_buffer(held + cp->pkt_refine
+                  + coded_cb_header::prefix_buf_size
+                  + coded_cb_header::suffix_buf_size, cp->next_coded);
+                if (held && previous)
+                  memcpy(cp->next_coded->buf
+                    + coded_cb_header::prefix_buf_size,
+                    previous->buf + coded_cb_header::prefix_buf_size, held);
+                if (!read_bytes_into(&bb, cp->next_coded->buf
+                      + coded_cb_header::prefix_buf_size + held,
+                      cp->pkt_refine))
+                {
+                  cp->pass_length[0] = cp->pass_length[1] = 0;
+                  data_left = 0;
+                  continue;
+                }
+                cp->pass_length[1] += cp->pkt_refine;
+              }
+
+              // The limits above bound each codeword segment as it is read;
+              // these repeat them over the concatenation, which is what
+              // T.814 B.3 actually bounds, because a refinement segment can
+              // be split over two codeword segments in different packets.
+              if (cp->pass_length[0] == 1)
+                throw "The cleanup segment of an HT codeblock cannot "
+                  "contain exactly one byte";
+              if (cp->pass_length[0] >= 65535)
+                throw "The cleanup segment of an HT codeblock must contain "
+                  "less than 65535 bytes";
+              if (cp->pass_length[1] >= 2047)
+                throw "The refinement segment (SigProp and MagRef passes) of "
+                  "an HT codeblock must contain less than 2047 bytes";
+
+              // T.814 B.3: Z_blk, the number of coding passes the decoder
+              // processes, is 1 when the cleanup segment is the only
+              // non-empty segment of the set.
+              cp->num_passes = cp->pass_length[1] == 0
+                ? 1u : (ui32)cp->set_passes;
+
+              // T.814 B.3: S_blk = P + P0 + S_skip, where S_skip counts the
+              // HT sets ahead of the one being decoded. Reaching here means
+              // a cleanup segment was committed, so P0 is known.
+              assert(cp->placeholder_passes != placeholder_passes_unknown);
+              cp->missing_msbs = cp->zero_bitplanes
+                + cp->placeholder_passes / 3
+                + cp->decoded_set_skip;
             }
           }
         }

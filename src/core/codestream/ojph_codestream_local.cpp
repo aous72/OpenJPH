@@ -796,10 +796,18 @@ namespace ojph {
           received_markers |= 1;
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
-          if (num_qlayers != 1)
-            OJPH_ERROR(0x00030053, "The current implementation supports "
-              "1 quality layer only.  This codestream has %d quality layers",
-              num_qlayers);
+          // T.800 Table A.17: a codestream carries at least one quality
+          // layer. Without this a codestream that says zero would decode to
+          // an empty image rather than being reported.
+          if (num_qlayers < 1)
+            OJPH_ERROR(0x00030053, "This codestream says it has %d quality "
+              "layers; there has to be at least one.", num_qlayers);
+          // The inclusion tag tree stores the layer of first inclusion in
+          // one byte per node, so it cannot represent a layer index above
+          // 255.
+          if (num_qlayers > 256)
+            OJPH_ERROR(0x00030058, "This codestream has %d quality layers; "
+              "at most 256 are supported.", num_qlayers);
         }
         else if (marker_idx == 4)
         {

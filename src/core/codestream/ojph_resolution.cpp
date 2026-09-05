@@ -196,6 +196,27 @@ namespace ojph {
         num_precincts.h = (try1 + (1 << log_PP.h) - 1) >> log_PP.h;
         num_precincts.h -= try0 >> log_PP.h;
         allocator->pre_alloc_obj<precinct>((size_t)num_precincts.area());
+
+        if (cdp->get_num_layers() > 1)
+        {
+          // Tag tree storage for every precinct; see resolution::
+          // finalize_alloc. The codeblocks each precinct holds are not known
+          // yet, so reserve for the most any precinct of this resolution can
+          // span, which is what the precinct to codeblock ratio allows.
+          size log_cb = cdp->get_log_block_dims();
+          size lp = log_PP;
+          if ((transform_flags & HORZ_TRX) && lp.w > 0)
+            --lp.w;
+          if ((transform_flags & VERT_TRX) && lp.h > 0)
+            --lp.h;
+          size max_cbs(1u << (lp.w - ojph_min(log_cb.w, lp.w)),
+                       1u << (lp.h - ojph_min(log_cb.h, lp.h)));
+          size_t bytes = (size_t)precinct::num_parse_tag_trees
+            * (size_t)precinct::num_tag_tree_bytes(
+                         precinct::num_tag_tree_levels(max_cbs));
+          allocator->pre_alloc_obj<ui8>(
+            bytes * (size_t)num_precincts.area());
+        }
       }
 
       //allocate lines
@@ -441,22 +462,48 @@ namespace ojph {
         if (bands[i].exists())
           bands[i].get_cb_indices(num_precincts, precincts);
 
-      // determine how to divide scratch into multiple levels of
-      // tag trees
-      size log_cb = cdp->get_log_block_dims();
-      log_PP.w -= (transform_flags & HORZ_TRX) ? 1 : 0;
-      log_PP.h -= (transform_flags & VERT_TRX) ? 1 : 0;
-      size ratio;
-      ratio.w = log_PP.w - ojph_min(log_cb.w, log_PP.w);
-      ratio.h = log_PP.h - ojph_min(log_cb.h, log_PP.h);
-      max_num_levels = ojph_max(ratio.w, ratio.h);
-      ui32 val = 1u << (max_num_levels << 1);
-      tag_tree_size = (int)((val * 4 + 2) / 3);
-      ++max_num_levels;
+      // determine how to divide the tag tree storage into multiple levels
+      // of tag trees. The trees of a resolution share one layout, sized by
+      // the most levels any of its precincts needs. That is the precinct to
+      // codeblock ratio for a precinct the resolution is large enough to
+      // hold in full, and less for one clipped by the tile or the image, so
+      // it is taken from the precincts themselves, which have just been
+      // given their codeblock indices.
+      max_num_levels = 1; //the root level is always there
+      for (ui64 i = 0; i < num_precincts.area(); ++i)
+        for (int s = 0; s < 4; ++s)
+        {
+          if (!bands[s].exists())
+            continue;
+          const size& cbs = precincts[i].cb_idxs[s].siz;
+          if (cbs.w == 0 || cbs.h == 0)
+            continue;
+          max_num_levels = ojph_max(max_num_levels,
+            precinct::num_tag_tree_levels(cbs));
+        }
+      tag_tree_size = (int)precinct::num_tag_tree_bytes(max_num_levels);
+      ui32 val = precinct::num_tag_tree_leaves(max_num_levels);
       level_index[0] = 0;
       for (ui32 i = 1; i <= max_num_levels; ++i, val >>= 2)
         level_index[i] = level_index[i - 1] + val;
       cur_precinct_loc = point(0, 0);
+      cur_parse_layer = 0;
+      this->num_layers = cdp->get_num_layers();
+
+      if (this->num_layers > 1 && num_precincts.area() > 0)
+      {
+        // A precinct holds one packet per quality layer and its tag trees are
+        // decoded across all of them, so it needs storage of its own. With a
+        // single quality layer a precinct holds one packet, for which the
+        // buffer shared by the whole codestream is enough; that is what the
+        // precincts were given above.
+        size_t bytes = (size_t)precinct::num_parse_tag_trees
+                     * (size_t)tag_tree_size;
+        ui64 num = num_precincts.area();
+        ui8* buf = allocator->post_alloc_obj<ui8>(bytes * (size_t)num);
+        for (ui64 i = 0; i < num; ++i, buf += bytes)
+          precincts[i].scratch = buf;
+      }
 
       //allocate lines
       if (skipped_res_for_recon == false)
@@ -998,27 +1045,49 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_all_precincts(ui32& data_left, infile_base* file)
+    // Reads one quality layer of every precinct of this resolution, which is
+    // what the progression orders that place quality layers outside the
+    // precinct loop, LRCP and RLCP, ask for. A tile part that runs out of
+    // bytes part way leaves cur_precinct_loc where it stopped, and the call
+    // the next tile part makes for the same layer picks up from there.
+    void resolution::parse_all_precincts(ui32 layer, ui32& data_left,
+                                         infile_base* file)
     {
+      if (layer < cur_parse_layer)
+        return; //this layer was read by an earlier tile part
+      if (layer > cur_parse_layer)
+      { cur_parse_layer = layer; cur_precinct_loc = point(0, 0); }
+
       precinct* p = precincts;
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       for (ui32 i = idx; i < num_precincts.area(); ++i)
       {
         if (data_left == 0)
-          break;
+          return;
         p[i].parse(tag_tree_size, level_index, elastic, data_left, file,
-          skipped_res_for_read);
+          skipped_res_for_read, layer);
         if (++cur_precinct_loc.x >= num_precincts.w)
         {
           cur_precinct_loc.x = 0;
           ++cur_precinct_loc.y;
         }
       }
+      //the layer is complete, so the next one starts over at the first
+      //precinct
+      cur_parse_layer = layer + 1;
+      cur_precinct_loc = point(0, 0);
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::parse_one_precinct(ui32& data_left, infile_base* file)
+    // Reads one quality layer of the precinct the spatial progression orders
+    // have reached. They place quality layers innermost, so the caller asks
+    // for every layer of a precinct before moving on to the next one.
+    void resolution::parse_one_precinct(ui32 layer, ui32& data_left,
+                                        infile_base* file)
     {
+      if (layer < cur_parse_layer)
+        return; //this layer was read by an earlier tile part
+
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < num_precincts.area());
 
@@ -1026,7 +1095,13 @@ namespace ojph {
         return;
       precinct* p = precincts + idx;
       p->parse(tag_tree_size, level_index, elastic, data_left, file,
-        skipped_res_for_read);
+        skipped_res_for_read, layer);
+      if (layer + 1 < num_layers)
+      {
+        cur_parse_layer = layer + 1;
+        return;
+      }
+      cur_parse_layer = 0;
       if (++cur_precinct_loc.x >= num_precincts.w)
       {
         cur_precinct_loc.x = 0;

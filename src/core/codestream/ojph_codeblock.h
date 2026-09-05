@@ -118,6 +118,37 @@ namespace ojph {
       ui32 num_passes;       // number of passes to be decoded
       ui32 Kmax;
       ui32 missing_msbs;
+      // Parsing state, live while the packets of a precinct are read. It has
+      // to survive from one quality layer of a codeblock to the next, which
+      // is why it lives here and not in precinct::parse.
+      // placeholder_passes : 3*P0 (T.814 B.1), or all ones while the
+      //                      placeholder run is still open
+      // pass_index         : index of the codeblock's next coding pass
+      // pkt_*              : the byte counts the packet in hand contributes,
+      //                      handed from its header to its data
+      // sets_seen          : HT sets seen so far
+      // decoded_set_skip   : S_skip of the set being decoded (T.814 B.3)
+      // included           : has contributed to an earlier quality layer
+      // in_layer           : contributes to the packet being read now
+      // has_cleanup        : holds a real HT cleanup segment
+      // starts_new_set     : this packet began a new HT set
+      // Lblock_m3          : Lblock biased by 3, so zero means 3
+      // set_passes         : coding passes gathered in the current HT set
+      // zero_bitplanes     : P, the missing MSBs the packet header codes
+      ui32 placeholder_passes;
+      ui32 pass_index;
+      ui32 pkt_pre_skip;
+      ui32 pkt_cleanup;
+      ui32 pkt_refine;
+      ui16 sets_seen;
+      ui16 decoded_set_skip;
+      ui8 included;
+      ui8 in_layer;
+      ui8 has_cleanup;
+      ui8 starts_new_set;
+      ui8 Lblock_m3;
+      ui8 set_passes;
+      ui8 zero_bitplanes;
       coded_lists *next_coded;
 
       static const int prefix_buf_size = 8;

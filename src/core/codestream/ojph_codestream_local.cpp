@@ -43,6 +43,7 @@
 #include "ojph_params.h"
 #include "ojph_codestream_local.h"
 #include "ojph_tile.h"
+#include "ojph_precinct.h" // for precinct::num_parse_tag_trees
 
 #include "../transform/ojph_colour.h"
 #include "../transform/ojph_transform.h"
@@ -211,8 +212,11 @@ namespace ojph {
       // We need 4 such tables. These tables store
       // 1. missing msbs and 2. their flags,
       // 3. number of layers and 4. their flags
+      // A precinct is parsed with one set of these per subband, so the
+      // buffer holds precinct::num_parse_tag_trees of them.
       precinct_scratch_needed_bytes =
-        4 * ((max_ratio * max_ratio * 4 + 2) / 3);
+        precinct::num_parse_tag_trees
+        * ((max_ratio * max_ratio * 4 + 2) / 3);
 
       allocator->pre_alloc_obj<ui8>(precinct_scratch_needed_bytes);
     }
@@ -792,10 +796,18 @@ namespace ojph {
           received_markers |= 1;
           ojph::param_cod c(&cod);
           int num_qlayers = c.get_num_layers();
-          if (num_qlayers != 1)
-            OJPH_ERROR(0x00030053, "The current implementation supports "
-              "1 quality layer only.  This codestream has %d quality layers",
-              num_qlayers);
+          // T.800 Table A.17: a codestream carries at least one quality
+          // layer. Without this a codestream that says zero would decode to
+          // an empty image rather than being reported.
+          if (num_qlayers < 1)
+            OJPH_ERROR(0x00030053, "This codestream says it has %d quality "
+              "layers; there has to be at least one.", num_qlayers);
+          // The inclusion tag tree stores the layer of first inclusion in
+          // one byte per node, so it cannot represent a layer index above
+          // 255.
+          if (num_qlayers > 256)
+            OJPH_ERROR(0x00030058, "This codestream has %d quality layers; "
+              "at most 256 are supported.", num_qlayers);
         }
         else if (marker_idx == 4)
         {

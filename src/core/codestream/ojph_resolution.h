@@ -89,8 +89,9 @@ namespace ojph {
       bool get_top_left_precinct(point &top_left);
       void write_one_precinct(outfile_base *file);
       resolution *next_resolution() { return child_res; }
-      void parse_all_precincts(ui32& data_left, infile_base *file);
-      void parse_one_precinct(ui32& data_left, infile_base *file);
+      void parse_all_precincts(ui32 layer, ui32& data_left,
+                               infile_base *file);
+      void parse_one_precinct(ui32 layer, ui32& data_left, infile_base *file);
 
       ui32 get_num_bytes() const { return num_bytes; }
       ui32 get_num_bytes(ui32 resolution_num) const;
@@ -116,8 +117,14 @@ namespace ojph {
       size log_PP;
       ui32 max_num_levels;
       int tag_tree_size;
+      ui32 num_layers;
       ui32 level_index[20]; //more than enough
       point cur_precinct_loc; //used for progressing spatial modes (2, 3, 4)
+      ui32 cur_parse_layer;   //quality layer the parse expects next; with
+                              //cur_precinct_loc it says how far the parse of
+                              //this resolution has come, so that a tile part
+                              //that runs out of bytes resumes in the right
+                              //place
       const param_atk* atk;
       ui32 transform_flags;
       //wavelet machinery

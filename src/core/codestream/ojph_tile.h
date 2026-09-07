@@ -92,6 +92,7 @@ namespace ojph {
       ui32 *cur_line;
       ui8 *nlt_type3;
       int prog_order;
+      ui32 num_layers;
 
     private:
       param_sot sot;

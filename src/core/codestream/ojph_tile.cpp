@@ -197,6 +197,7 @@ namespace ojph {
 
       sot.init(0, (ui16)tile_idx, 0, 1);
       prog_order = codestream->access_cod().get_progression_order();
+      num_layers = (ui32)codestream->access_cod().get_num_layers();
 
       //allocate tiles_comp
       const param_siz *szp = codestream->get_siz();
@@ -803,13 +804,23 @@ namespace ojph {
       try
       {
         //sequence the reading of precincts according to progression order
-        if (prog_order == OJPH_PO_LRCP || prog_order == OJPH_PO_RLCP)
+        if (prog_order == OJPH_PO_LRCP)
+        {
+          max_decompositions -= skipped_res_for_read;
+          for (ui32 l = 0; l < num_layers; ++l)
+            for (ui32 r = 0; r <= max_decompositions; ++r)
+              for (ui32 c = 0; c < num_comps; ++c)
+                if (data_left > 0)
+                  comps[c].parse_precincts(r, l, data_left, file);
+        }
+        else if (prog_order == OJPH_PO_RLCP)
         {
           max_decompositions -= skipped_res_for_read;
           for (ui32 r = 0; r <= max_decompositions; ++r)
-            for (ui32 c = 0; c < num_comps; ++c)
-              if (data_left > 0)
-                comps[c].parse_precincts(r, data_left, file);
+            for (ui32 l = 0; l < num_layers; ++l)
+              for (ui32 c = 0; c < num_comps; ++c)
+                if (data_left > 0)
+                  comps[c].parse_precincts(r, l, data_left, file);
         }
         else if (prog_order == OJPH_PO_RPCL)
         {
@@ -834,7 +845,11 @@ namespace ojph {
                 { smallest = cur; comp_num = c; }
               }
               if (found == true && data_left > 0)
-                comps[comp_num].parse_one_precinct(r, data_left, file);
+              { //quality layers are innermost, so read all of this
+                //precinct's packets before moving on
+                for (ui32 l = 0; l < num_layers && data_left > 0; ++l)
+                  comps[comp_num].parse_one_precinct(r, l, data_left, file);
+              }
               else
                 break;
             }
@@ -870,7 +885,12 @@ namespace ojph {
               }
             }
             if (found == true && data_left > 0)
-              comps[comp_num].parse_one_precinct(res_num, data_left, file);
+            { //quality layers are innermost, so read all of this precinct's
+              //packets before moving on
+              for (ui32 l = 0; l < num_layers && data_left > 0; ++l)
+                comps[comp_num].parse_one_precinct(res_num, l, data_left,
+                                                   file);
+            }
             else
               break;
           }
@@ -897,7 +917,11 @@ namespace ojph {
                 { smallest = cur; res_num = r; }
               }
               if (found == true && data_left > 0)
-                comps[c].parse_one_precinct(res_num, data_left, file);
+              { //quality layers are innermost, so read all of this
+                //precinct's packets before moving on
+                for (ui32 l = 0; l < num_layers && data_left > 0; ++l)
+                  comps[c].parse_one_precinct(res_num, l, data_left, file);
+              }
               else
                 break;
             }

@@ -2238,7 +2238,8 @@ namespace ojph {
         p = add_object(comp_num);
 
       p->Lnlt = (ui16)(17u + (ui32)num_points * (ui32)p->rec.get_bpp(pt_val));
-      p->rec.BDnlt = (decoded_bit_depth - 1) | (decoded_signedness ? 0x80 : 0);
+      p->rec.BDnlt =
+        (ui8)((decoded_bit_depth - 1) | (decoded_signedness ? 0x80 : 0));
       p->rec.Tnlt = nl_type;
 
       p->rec.d_min = d_min;

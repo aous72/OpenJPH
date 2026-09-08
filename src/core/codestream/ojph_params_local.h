@@ -855,7 +855,7 @@ namespace ojph {
         enc_points = NULL; enc_num_points = 0;
       }
       ui8 get_type() const { return Tnlt; }
-      ui8 get_bit_depth() const { return (BDnlt & 0x7F) + 1; }
+      ui8 get_bit_depth() const { return (ui8)((BDnlt & 0x7F) + 1u); }
       ui8 get_bpp() const { return get_bpp(pt_val); }
       bool is_signed() const { return (BDnlt & 0x80) != 0; }
       ui32 cal_marker_points_size() const

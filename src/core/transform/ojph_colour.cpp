@@ -170,8 +170,10 @@ namespace ojph {
           rev_convert_nlt_type3 = sse2_rev_convert_nlt_type3;
           irv_convert_to_integer = sse2_irv_convert_to_integer;
           irv_convert_to_float = sse2_irv_convert_to_float;
+          irv_convert_to_integer_nlt = sse2_irv_convert_to_integer_nlt;
           irv_convert_to_integer_nlt_type3 =
             sse2_irv_convert_to_integer_nlt_type3;
+          irv_convert_to_float_nlt = sse2_irv_convert_to_float_nlt;
           irv_convert_to_float_nlt_type3 =
             sse2_irv_convert_to_float_nlt_type3;
           rct_forward = sse2_rct_forward;
@@ -194,8 +196,10 @@ namespace ojph {
           rev_convert_nlt_type3 = avx2_rev_convert_nlt_type3;
           irv_convert_to_integer = avx2_irv_convert_to_integer;
           irv_convert_to_float = avx2_irv_convert_to_float;
+          irv_convert_to_integer_nlt = avx2_irv_convert_to_integer_nlt;
           irv_convert_to_integer_nlt_type3 =
             avx2_irv_convert_to_integer_nlt_type3;
+          irv_convert_to_float_nlt = avx2_irv_convert_to_float_nlt;
           irv_convert_to_float_nlt_type3 =
             avx2_irv_convert_to_float_nlt_type3;
           rct_forward = avx2_rct_forward;
@@ -275,8 +279,10 @@ namespace ojph {
              (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER));
+      ojph_unused(bit_depth);
+      ojph_unused(is_signed);
 
-      assert(bit_depth <= 32);
+      assert(rec->get_bit_depth() <= 32);
       const float* sp = src_line->f32;
       si32* dp = dst_line->i32 + dst_line_offset;
 
@@ -359,6 +365,7 @@ namespace ojph {
              (src_line->flags & line_buf::LFT_INTEGER) &&
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+      ojph_unused(is_signed);
 
       assert(bit_depth <= 32);
       float mul = (float)(1.0 / (double)(1ULL << bit_depth));

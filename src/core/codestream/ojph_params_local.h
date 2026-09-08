@@ -1014,9 +1014,12 @@ namespace ojph {
       bool write(outfile_base *file);
 
     private:
-      ui16 Ltlm;
-      ui8 Ztlm;
-      ui8 Stlm;
+      enum : ui32 {
+        // Ltlm is 16 bits and spans itself, Ztlm, Stlm and 6 bytes per entry
+        MAX_PAIRS_PER_SEG = (65535 - 4) / 6,
+        MAX_SEGMENTS      = 256, // Ztlm is 8 bits
+      };
+
       Ttlm_Ptlm_pair* pairs;
       ui32 num_pairs;
       ui32 next_pair_index;

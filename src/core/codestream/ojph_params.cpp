@@ -2473,17 +2473,14 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void param_tlm::init(ui32 num_pairs, Ttlm_Ptlm_pair *store)
     {
-      if (4 + 6 * num_pairs > 65535)
-        OJPH_ERROR(0x000500B1, "Trying to allocate more than 65535 bytes for "
-                   "a TLM marker; this can be resolved by having more than "
-                   "one TLM marker, but the code does not support this. "
-                   "In any case, this limit means that we have 10922 "
-                   "tileparts or more, which is a huge number.");
+      if (num_pairs > MAX_PAIRS_PER_SEG * MAX_SEGMENTS)
+        OJPH_ERROR(0x000500B1, "Trying to store %d tileparts in TLM markers, "
+                   "but at most %d can be indexed; a codestream can carry "
+                   "%d TLM marker segments of %d entries each.",
+                   num_pairs, MAX_PAIRS_PER_SEG * MAX_SEGMENTS,
+                   MAX_SEGMENTS, MAX_PAIRS_PER_SEG);
       this->num_pairs = num_pairs;
       pairs = store;
-      Ltlm = (ui16)(4 + 6 * num_pairs);
-      Ztlm = 0;
-      Stlm = 0x60;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2503,20 +2500,32 @@ namespace ojph {
       ui32 buf4;
       bool result = true;
 
-      buf2 = JP2K_MARKER::TLM;
-      buf2 = swap_bytes_if_le(buf2);
-      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
-      buf2 = swap_bytes_if_le(Ltlm);
-      result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
-      result &= file->write(&Ztlm, 1) == 1;
-      result &= file->write(&Stlm, 1) == 1;
-      for (ui32 i = 0; i < num_pairs; ++i)
+      ui32 written = 0;
+      ui32 z = 0;
+      do
       {
-        buf2 = swap_bytes_if_le(pairs[i].Ttlm);
+        ui32 left = num_pairs - written;
+        ui32 count = left < MAX_PAIRS_PER_SEG ? left : MAX_PAIRS_PER_SEG;
+        ui8 Ztlm = (ui8)z;
+        ui8 Stlm = 0x60; // 2-byte Ttlm, 4-byte Ptlm
+
+        buf2 = JP2K_MARKER::TLM;
+        buf2 = swap_bytes_if_le(buf2);
         result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
-        buf4 = swap_bytes_if_le(pairs[i].Ptlm);
-        result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
-      }
+        buf2 = swap_bytes_if_le((ui16)(4 + 6 * count));
+        result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+        result &= file->write(&Ztlm, 1) == 1;
+        result &= file->write(&Stlm, 1) == 1;
+        for (ui32 i = written; i < written + count; ++i)
+        {
+          buf2 = swap_bytes_if_le(pairs[i].Ttlm);
+          result &= file->write(&buf2, sizeof(ui16)) == sizeof(ui16);
+          buf4 = swap_bytes_if_le(pairs[i].Ptlm);
+          result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
+        }
+        written += count;
+        ++z;
+      } while (written < num_pairs);
       return result;
     }
 

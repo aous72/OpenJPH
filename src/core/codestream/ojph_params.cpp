@@ -2487,10 +2487,11 @@ namespace ojph {
       {
         if (p->rec.points_store)
           delete[] (ui8*)p->rec.points_store;
-        p->rec.store_size = len;
+        p->rec.store_size = 0;
         p->rec.points_store = new (std::nothrow) ui8[p->rec.store_size];
         if (p->rec.points_store == NULL)
           OJPH_ERROR(0x000501A9, "Failed to allocated memory");
+        p->rec.store_size = len;
       }
       p->rec.assign_pointers_for_encoding();
       memcpy(p->rec.marker_points, points, num_points * p->rec.bytes_per_point);
@@ -2672,10 +2673,11 @@ namespace ojph {
         {
           if (p->rec.points_store)
             delete[] (ui8*)p->rec.points_store;
-          p->rec.store_size = len;
+          p->rec.store_size = 0;
           p->rec.points_store = new (std::nothrow) ui8[p->rec.store_size];
           if (p->rec.points_store == NULL)
             OJPH_ERROR(0x00050148, "Failed to allocated memory");
+          p->rec.store_size = len;
         }
         p->rec.assign_pointers_for_decoding();
 

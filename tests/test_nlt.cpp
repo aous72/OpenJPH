@@ -207,7 +207,8 @@ namespace {
     img.width = (ui32)w;
     img.height = (ui32)h;
     img.num_comps = magic[1] == 'f' ? 1 : 3;
-    img.samples.assign(img.num_comps, std::vector<si32>((size_t)w * h, 0));
+    img.samples.assign(img.num_comps,
+      std::vector<si32>((size_t)w * (size_t)h, 0));
 
     std::vector<ui32> line((size_t)w * img.num_comps, 0);
     for (int y = h - 1; y >= 0; --y)    // pfm stores the last line first
@@ -225,7 +226,7 @@ namespace {
           if (swap)
             u = (u >> 24) | ((u >> 8) & 0x0000FF00u) |
                 ((u << 8) & 0x00FF0000u) | (u << 24);
-          img.samples[c][(size_t)y * w + x] = (si32)u;
+          img.samples[c][(size_t)y * (size_t)w + (size_t)x] = (si32)u;
         }
     }
 
@@ -286,13 +287,13 @@ namespace {
   ///////////////////////////////////////////////////////////////////////////
   // The message used when the test images are not available
   ///////////////////////////////////////////////////////////////////////////
-  std::string missing_images_message(const std::string& missing)
-  {
-    return std::string("the test image(s) ") + missing + " could not be "
-      "found; they belong to the repository that stores the test images, "
-      "jp2k_test_codestreams, in the folder openjph/references, and the tests "
-      "that use them are skipped until they are added there";
-  }
+  // std::string missing_images_message(const std::string& missing)
+  // {
+  //   return std::string("the test image(s) ") + missing + " could not be "
+  //     "found; they belong to the repository that stores the test images, "
+  //     "jp2k_test_codestreams, in the folder openjph/references, and the tests "
+  //     "that use them are skipped until they are added there";
+  // }
 
   ///////////////////////////////////////////////////////////////////////////
   // Fills an image with a ramp that covers the range of 32 bit patterns.

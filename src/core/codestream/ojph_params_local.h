@@ -877,7 +877,7 @@ namespace ojph {
       float multiplier;      // multiplier to convert to final integer
       ui32 cal_store_size_for_decoding()
       { // add 2 extra points, one before the dec_points table and one after
-        return (ui32)(num_points + 2) * sizeof(float)
+        return (ui32)(num_points + 2u) * (ui32)sizeof(float)
           + (ui32)num_points * (ui32)get_bpp();
       }
       void assign_pointers_for_decoding()
@@ -894,7 +894,7 @@ namespace ojph {
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
       { // add 2 extra points, one before the enc_num_points table and one after
         this->enc_num_points = enc_num_points;
-        return (ui32)(enc_num_points + 2) * sizeof(float)
+        return (ui32)(enc_num_points + 2u) * (ui32)sizeof(float)
           + (ui32)num_points * (ui32)get_bpp();
       }
       void assign_pointers_for_encoding()

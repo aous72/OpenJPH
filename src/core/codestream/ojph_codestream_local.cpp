@@ -880,11 +880,11 @@ namespace ojph {
       // that combination, but this library cannot decode this codestream yet.
       int unsupported_nlt = nlt.find_unsupported_nlt(siz, cod);
       if (unsupported_nlt >= 0)
-        OJPH_ERROR(0x00030057, "The codestream uses a LUT style nonlinearity "
+        OJPH_ERROR(0x00030059, "The codestream uses a LUT style nonlinearity "
           "(type 2 or type 4) together with the reversible (5/3) wavelet for "
-          "component %d.  This library cannot invert that nonlinearity, so "
-          "the samples of that component are returned without it.",
-          unsupported_nlt);
+          "component %d.  This does not make sense since LUT itself is not "
+          "reversible. This library does not implement the processing path "
+          "needed for this conbination.", unsupported_nlt);
 
       this->infile = file;
       planar = cod.is_employing_color_transform() ? 0 : 1;

@@ -1057,7 +1057,7 @@ TEST(NltTest, LutStyleWithReversibleWaveletIsReportedWhenRead)
   file.open(filename.c_str());
   EXPECT_THROW(cs.read_headers(&file), std::runtime_error);
   EXPECT_GE(capture.errors.num_messages, 1);
-  EXPECT_EQ(capture.errors.last_code, 0x00030057);
+  EXPECT_EQ(capture.errors.last_code, 0x00030059);
 
   ui8 bit_depth = 0, type = 0;
   bool is_signed = false;

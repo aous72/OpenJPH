@@ -2,7 +2,7 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -38,6 +38,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <vector>
+#include <chrono>
 
 #include <ojph_arch.h>
 #include <ojph_file.h>
@@ -136,10 +137,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
     }
 
     // Time budget: abort if decoding takes too long.
-    struct timespec start_ts;
-    clock_gettime(CLOCK_MONOTONIC, &start_ts);
+    auto start_ts = std::chrono::steady_clock::now();
     ojph::ui32 pull_count = 0;
-    const ojph::ui32 MAX_SECONDS = 10;
+    const auto MAX_SECONDS = std::chrono::seconds(10u);
     bool timed_out = false;
 
     if (cs.is_planar())
@@ -153,9 +153,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
           cs.pull(comp_num);
           if (++pull_count % 64 == 0)
           {
-            struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC, &now);
-            if ((ojph::ui32)(now.tv_sec - start_ts.tv_sec) >= MAX_SECONDS)
+            auto now = std::chrono::steady_clock::now();
+            if (now - start_ts >= MAX_SECONDS)
               timed_out = true;
           }
         }
@@ -172,9 +171,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
           cs.pull(comp_num);
           if (++pull_count % 64 == 0)
           {
-            struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC, &now);
-            if ((ojph::ui32)(now.tv_sec - start_ts.tv_sec) >= MAX_SECONDS)
+            auto now = std::chrono::steady_clock::now();
+            if (now - start_ts >= MAX_SECONDS)
               timed_out = true;
           }
         }

@@ -65,7 +65,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
   ojph::ui32 width     = (Data[0] & 0x7F) + 1;
   ojph::ui32 height    = (Data[1] & 0x7F) + 1;
   ojph::ui32 num_comps = (Data[2] & 0x03) + 1;
-  ojph::ui32 bit_depth = (ojph::ui32[]){8, 10, 12, 16}[(Data[2] >> 2) & 0x03];
+  ojph::ui32 tmp_arr[4]= {8, 10, 12, 16};
+  ojph::ui32 bit_depth = tmp_arr[(Data[2] >> 2) & 0x03];
   bool is_signed       = (Data[2] >> 4) & 1;
   bool reversible      = (Data[2] >> 5) & 1;
   bool color_transform = (Data[2] >> 6) & 1;

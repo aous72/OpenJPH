@@ -2100,10 +2100,46 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
-    void param_nlt::check_validity(param_siz& siz)
+    int param_nlt::find_unsupported_nlt(const param_siz& siz,
+                                        const param_cod& cod) const
+    {
+      ui32 num_comps = siz.get_num_components();
+      for (ui32 c = 0; c < num_comps; ++c)
+      {
+        const nlt_rec* rec = get_nlt_rec(c);
+        if (rec == NULL)
+          continue;
+        ui8 type = rec->get_type();
+        // the LUT style nonlinearities are implemented for the irreversible
+        // (9/7) wavelet only
+        if ((type == nonlinearity::OJPH_NLT_LUT_STYLE_NLT ||
+             type == nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT) &&
+            cod.get_coc(c)->is_reversible())
+          return (int)c;
+      }
+      return -1;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_nlt::check_validity(param_siz& siz, const param_cod& cod)
     {
       if (is_any_enabled() == false)
         return;
+
+      // the reversible wavelet cannot be used with a LUT style nonlinearity,
+      // because applying that nonlinearity would need the samples of the
+      // component to be transformed in a way this library cannot invert;
+      // refusing it here is better than writing a codestream whose nonlinearity
+      // a decoder cannot undo
+      int comp = find_unsupported_nlt(siz, cod);
+      if (comp >= 0)
+        OJPH_ERROR(0x000501B1, "The LUT style nonlinearities (type 2, LUT "
+          "style, and type 4, binary complement followed by a LUT) are "
+          "supported with the irreversible (9/7) wavelet only; component %d of "
+          "this codestream is coded with the reversible (5/3) wavelet. Use the "
+          "irreversible wavelet for that component, use the binary complement "
+          "nonlinearity (type 3), or do not use a nonlinearity with it.",
+          comp);
 
       if (this->enabled && this->rec.Tnlt == nonlinearity::OJPH_NLT_UNDEFINED)
         this->enabled = false;

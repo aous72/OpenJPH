@@ -1,4 +1,3 @@
-
 # Fetch googletest
 include(FetchContent)
 FetchContent_Declare(
@@ -57,9 +56,24 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the NLT (non-linearity point transformation) tests; these drive
+# the library directly, so that each of the nonlinearities the library
+# supports can be selected and its look-up table described
+add_executable(
+  test_nlt
+  test_nlt.cpp
+)
+
+target_link_libraries(
+  test_nlt
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
+gtest_add_tests(TARGET test_nlt)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

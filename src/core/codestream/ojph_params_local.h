@@ -1040,7 +1040,16 @@ namespace ojph {
         this->init();
       }
 
-      void check_validity(param_siz& siz);
+      void check_validity(param_siz& siz, const param_cod& cod);
+
+      ////////////////////////////////////////
+      // Returns the index of the first component that uses a LUT nonlinearity
+      // type (types 2 or 4) with a reversible wavelet, which is not supported
+      // yet, as it makes no sense, becausse the LUT itself is not reversible.
+      // This function returns the first component that has this problem or
+      // or -1 when there is no such component.
+      int find_unsupported_nlt(const param_siz& siz,
+                               const param_cod& cod) const;
 
       void set_nonlinear_transform(ui32 comp_num, ui8 nl_type);
 

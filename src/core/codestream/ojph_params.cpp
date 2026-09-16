@@ -2527,6 +2527,7 @@ namespace ojph {
       if (is_any_enabled() == false)
         return true;
 
+      ui8 buf1;
       ui16 buf2;
       ui32 buf4;
       bool result = true;
@@ -2554,7 +2555,12 @@ namespace ojph {
             result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
             buf4 = swap_bytes_if_le(p->rec.d_max);
             result &= file->write(&buf4, sizeof(ui32)) == sizeof(ui32);
-            result &= file->write(&p->rec.pt_val, 1) == 1;
+            // pt_val is a single byte in the marker segment; it must not be
+            // written through the address of the 32 bit member, which would
+            // write its most significant (and usually zero) byte on a
+            // big-endian machine
+            buf1 = (ui8)p->rec.pt_val;
+            result &= file->write(&buf1, sizeof(ui8)) == sizeof(ui8);
 
             ui32 len = p->rec.bytes_per_point * p->rec.num_points;
             if (p->rec.bytes_per_point == 1)

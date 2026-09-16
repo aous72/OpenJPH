@@ -1,4 +1,3 @@
-
 # Fetch googletest
 include(FetchContent)
 FetchContent_Declare(
@@ -57,6 +56,18 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the NLT (non-linearity point transformation) API tests
+add_executable(
+  test_nlt
+  test_nlt.cpp
+)
+
+target_link_libraries(
+  test_nlt
+  openjph
+  GTest::gtest_main
+)
+
 # configure TLM marker tests (library API tests)
 add_executable(
   test_tlm
@@ -72,6 +83,7 @@ target_link_libraries(
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
+gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
 
 if (MSVC)

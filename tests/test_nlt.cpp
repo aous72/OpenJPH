@@ -202,7 +202,13 @@ namespace {
     }
     fgetc(f);    // the single white space that follows the header
 
-    const bool swap = scale > 0.0f;   // a positive scale means big endian
+    // a positive scale means the file is big endian, a negative one means it
+    // is little endian.  The samples are read as 32 bit words, whose byte
+    // order is the machine's, so they have to be swapped whenever the file's
+    // byte order is not the machine's -- the test has to give the same samples
+    // to the library on a little endian and on a big endian machine.
+    const bool file_little_endian = scale < 0.0f;
+    const bool swap = file_little_endian != is_machine_little_endian;
 
     img.width = (ui32)w;
     img.height = (ui32)h;

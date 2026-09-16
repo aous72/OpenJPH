@@ -838,7 +838,7 @@ namespace ojph {
     //
     ///////////////////////////////////////////////////////////////////////////
 
-    // nlt_rec for easy exchange
+    // nlt_rec for easy exchange and processing of NLT types 2 and 4
     struct nlt_rec {
       using nonlinearity = ojph::param_nlt::nonlinearity;
 
@@ -878,143 +878,33 @@ namespace ojph {
       float delta, inv_delta;// delta is (dmax-dmin) / (num_points - 1)
       float multiplier;      // multiplier to convert to final integer
       ui32 cal_store_size_for_decoding()
-      { return (ui32)num_points * (ui32)(get_bpp() + sizeof(float)); }
+      { // add 2 extra points, one before the dec_points table and one after
+        return (ui32)(num_points + 2) * sizeof(float)
+          + (ui32)num_points * (ui32)get_bpp();
+      }
       void assign_pointers_for_decoding()
-      {
-        dec_points = (float*)points_store;  enc_points = NULL;
-        marker_points = (ui8*)dec_points + num_points * sizeof(float);
+      { // 2 extra points, one before the dec_points table and one after
+        dec_points = (float*)points_store + 1;  enc_points = NULL;
+        marker_points = (ui8*)dec_points + (num_points + 1) * sizeof(float);
       }
-      void prepare_for_decoding()
-      {
-        double d = 1.0 / (double)((1ull << 32) - 1);
-        fd_min = (float)((double)d_min * d);
-        fd_max = (float)((double)d_max * d);
-        delta = (fd_max - fd_min) / (float)(num_points - 1);
-        inv_delta = (float)(num_points - 1) / (fd_max - fd_min);
-        multiplier = (float)(1ull << get_bit_depth());
-        float divider = 1 / multiplier;
-        if (bytes_per_point == 1) {
-          ui8* sp = (ui8*)marker_points;
-          float* dp = dec_points;
-          for (ui32 i = 0; i < num_points; ++i)
-            *dp++ = *sp++ * divider;
-        }
-        else if (bytes_per_point == 2) {
-          ui16* sp = (ui16*)marker_points;
-          float* dp = dec_points;
-          for (ui32 i = 0; i < num_points; ++i)
-            *dp++ = *sp++ * divider;
-        }
-        else if (bytes_per_point == 4) {
-          ui32* sp = (ui32*)marker_points;
-          float* dp = dec_points;
-          for (ui32 i = 0; i < num_points; ++i)
-            *dp++ = (float)*sp++ * divider;
-        }
-      }
+      void prepare_for_decoding();
 
       // memebers for encoding -- we also use some from decoding
       float* enc_points;     // LUT points for encoding -- must be float
       ui32 enc_num_points;   // # of points for encoding (larger than decoding)
       float ft_min, ft_max;  // float d_min and d_max
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
-      {
+      { // add 2 extra points, one before the enc_num_points table and one after
         this->enc_num_points = enc_num_points;
-        return (ui32)enc_num_points * (ui32)(get_bpp() + sizeof(float));
+        return (ui32)(enc_num_points + 2) * sizeof(float)
+          + (ui32)num_points * (ui32)get_bpp();
       }
       void assign_pointers_for_encoding()
-      {
-        enc_points = (float*)points_store;  dec_points = NULL;
-        marker_points = (ui8*)enc_points + enc_num_points * sizeof(float);
+      { // 2 extra points, one before the enc_num_points table and one after
+        enc_points = (float*)points_store + 1;  dec_points = NULL;
+        marker_points = (ui8*)enc_points + (enc_num_points + 1) * sizeof(float);
       }
-      void prepare_for_encoding()
-      {
-        double d = 1.0 / (double)((1ull << 32) - 1);
-        fd_min = (float)((double)d_min * d);
-        fd_max = (float)((double)d_max * d);
-
-        // create lookup table for encoding
-        float mul = (float)(1ull << pt_val);
-        float div = 1.0f / mul;
-        if (bytes_per_point == 1) {
-          ui8* p = (ui8*)marker_points;
-          enc_points[0] = ft_min = (float)p[0] * div;
-          ft_max = (float)p[num_points - 1] * div;
-          enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-          inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
-
-          ui32 k = 0;
-          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float dt = (fd_max - fd_min) / (float)(num_points - 1);
-          float d_k = fd_min, d_kp1 = fd_min + dt;
-          for (ui32 i = 1; i < enc_num_points - 1; ++i)
-          {
-            float z = ft_min + (float)i * delta;
-            while (k + 1 < num_points - 1 && z >= y_kp1)
-            {
-              ++k;
-              d_k   = d_kp1;
-              d_kp1 = fd_min + (float)(k + 1) * dt;
-              y_k   = y_kp1;
-              y_kp1 = (float)p[k + 1] * div;
-            }
-            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
-          }
-        }
-        else if (bytes_per_point == 2) {
-          ui16* p = (ui16*)marker_points;
-          enc_points[0] = ft_min = (float)p[0] * div;
-          ft_max = (float)p[num_points - 1] * div;
-          enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-          inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
-
-          ui32 k = 0;
-          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float dt = (fd_max - fd_min) / (float)(num_points - 1);
-          float d_k = fd_min, d_kp1 = fd_min + dt;
-          for (ui32 i = 1; i < enc_num_points - 1; ++i)
-          {
-            float z = ft_min + (float)i * delta;
-            while (k + 1 < num_points - 1 && z >= y_kp1)
-            {
-              ++k;
-              d_k   = d_kp1;
-              d_kp1 = fd_min + (float)(k + 1) * dt;
-              y_k   = y_kp1;
-              y_kp1 = (float)p[k + 1] * div;
-            }
-            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
-          }
-        }
-        else if (bytes_per_point == 4) {
-          ui32* p = (ui32*)marker_points;
-          enc_points[0] = ft_min = (float)p[0] * div;
-          ft_max = (float)p[num_points - 1] * div;
-          enc_points[enc_num_points - 1] = ft_max;
-          delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-          inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
-
-          ui32 k = 0;
-          float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-          float dt = (fd_max - fd_min) / (float)(num_points - 1);
-          float d_k = fd_min, d_kp1 = fd_min + dt;
-          for (ui32 i = 1; i < enc_num_points - 1; ++i)
-          {
-            float z = ft_min + (float)i * delta;
-            while (k + 1 < num_points - 1 && z >= y_kp1)
-            {
-              ++k;
-              d_k   = d_kp1;
-              d_kp1 = fd_min + (float)(k + 1) * dt;
-              y_k   = y_kp1;
-              y_kp1 = (float)p[k + 1] * div;
-            }
-            enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);;
-          }
-        }
-      }
+      void prepare_for_encoding();
     };
 
     // data structures used by param_nlt

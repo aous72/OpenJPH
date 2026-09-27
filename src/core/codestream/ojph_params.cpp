@@ -953,7 +953,13 @@ namespace ojph {
       point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
       const param_cod* cdp = cod->get_coc(comp_num);
       if (dfs && cdp && cdp->is_dfs_defined()) {
-        const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
+        ui16 dfs_idx = cdp->get_dfs_index();
+        const param_dfs* d = dfs->get_dfs(dfs_idx);
+        if (d == NULL)
+          OJPH_ERROR(0x00050060, "There is a problem with codestream "
+            "marker segments. COD/COC specifies the use of a DFS marker "
+            "with index %d, but there are no such marker within the "
+            "main codestream headers", dfs_idx);
         factor = d->get_res_downsamp(skipped_resolutions);
       }
       factor.x *= (ui32)cptr[comp_num].XRsiz;

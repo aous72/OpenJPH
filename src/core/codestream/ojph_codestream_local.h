@@ -107,8 +107,6 @@ namespace ojph {
       void set_profile(const char *s);
       void set_tilepart_divisions(ui32 value);
       void request_tlm_marker(bool needed);
-      void set_use_exact_nlt_inverse(bool exact)
-      { use_exact_nlt_inverse = exact; }
       line_buf* pull(ui32 &comp_num);
       void flush();
       void close();
@@ -117,7 +115,6 @@ namespace ojph {
       si32 get_profile() const { return profile; };
       ui32 get_tilepart_div() const { return tilepart_div; };
       bool is_tlm_needed() const { return need_tlm; };
-      bool is_using_exact_nlt_inverse() const { return use_exact_nlt_inverse; }
 
       void check_imf_validity();
       void check_broadcast_validity();
@@ -151,7 +148,6 @@ namespace ojph {
       int profile;
       ui32 tilepart_div;     // tilepart division value
       bool need_tlm;         // true if tlm markers are needed
-      bool use_exact_nlt_inverse; // true: the encoder inverts NLT LUTs exactly
 
     private:
       param_siz siz;         // image and tile size

@@ -91,7 +91,6 @@ namespace ojph {
       bool *is_signed;
       ui32 *cur_line;
       const nlt_rec **nlt_ptr;
-      bool use_exact_nlt_inverse;  // true: LUT style NLTs are inverted exactly
       int prog_order;
 
     private:

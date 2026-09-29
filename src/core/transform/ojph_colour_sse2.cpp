@@ -219,8 +219,8 @@ namespace ojph {
       si32* dp = dst_line->i32 + dst_line_offset;
 
       __m128 mul = _mm_set1_ps(rec->multiplier);
-      __m128 d_min = _mm_set1_ps(rec->fd_min);
-      __m128 d_max = _mm_set1_ps(rec->fd_max);
+      __m128 fd_min = _mm_set1_ps(rec->fd_min);
+      __m128 fd_max = _mm_set1_ps(rec->fd_max);
       __m128 delta = _mm_set1_ps(rec->delta);
       __m128 inv_delta = _mm_set1_ps(rec->inv_delta);
       const float* lut = rec->dec_points;
@@ -236,11 +236,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_add_ps(t, half_ps);                 // convert to [0, 1]
-          t = _mm_max_ps(t, d_min);
-          t = _mm_min_ps(t, d_max);
+          t = _mm_max_ps(t, fd_min);
+          t = _mm_min_ps(t, fd_max);
           __m128i k = _mm_cvttps_epi32(
-            _mm_mul_ps(_mm_sub_ps(t, d_min), inv_delta));
-          __m128 d_k = _mm_add_ps(d_min,
+            _mm_mul_ps(_mm_sub_ps(t, fd_min), inv_delta));
+          __m128 d_k = _mm_add_ps(fd_min,
             _mm_mul_ps(_mm_cvtepi32_ps(k), delta));
           // SSE2 has no gather; perform the LUT lookup 4 times and build
           // the vector from the individual results
@@ -271,11 +271,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128 t = _mm_loadu_ps(sp);
           t = _mm_add_ps(t, half_ps);                 // convert to [0, 1]
-          t = _mm_max_ps(t, d_min);
-          t = _mm_min_ps(t, d_max);
+          t = _mm_max_ps(t, fd_min);
+          t = _mm_min_ps(t, fd_max);
           __m128i k = _mm_cvttps_epi32(
-            _mm_mul_ps(_mm_sub_ps(t, d_min), inv_delta));
-          __m128 d_k = _mm_add_ps(d_min,
+            _mm_mul_ps(_mm_sub_ps(t, fd_min), inv_delta));
+          __m128 d_k = _mm_add_ps(fd_min,
             _mm_mul_ps(_mm_cvtepi32_ps(k), delta));
           // SSE2 has no gather; perform the LUT lookup 4 times and build
           // the vector from the individual results
@@ -596,11 +596,11 @@ namespace ojph {
 
       assert(bit_depth <= 32);
       __m128 mul = _mm_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
-      __m128 d_min = _mm_set1_ps(rec->ft_min);
-      __m128 d_max = _mm_set1_ps(rec->ft_max);
+      __m128 ft_min = _mm_set1_ps(rec->ft_min);
+      __m128 ft_max = _mm_set1_ps(rec->ft_max);
       __m128 delta = _mm_set1_ps(rec->delta);
       __m128 inv_delta = _mm_set1_ps(rec->inv_delta);
-      const float* lut = rec->enc_points;
+      const float* lut = rec->approx_enc_points;
 
       __m128 half_ps = _mm_set1_ps(0.5f);
 
@@ -623,11 +623,11 @@ namespace ojph {
           }
           __m128 t = _mm_add_ps(                      // convert to [0, 1]
             _mm_mul_ps(_mm_cvtepi32_ps(v), mul), half_ps);
-          t = _mm_max_ps(t, d_min);
-          t = _mm_min_ps(t, d_max);
+          t = _mm_max_ps(t, ft_min);
+          t = _mm_min_ps(t, ft_max);
           __m128i k = _mm_cvttps_epi32(
-            _mm_mul_ps(_mm_sub_ps(t, d_min), inv_delta));
-          __m128 d_k = _mm_add_ps(d_min,
+            _mm_mul_ps(_mm_sub_ps(t, ft_min), inv_delta));
+          __m128 d_k = _mm_add_ps(ft_min,
             _mm_mul_ps(_mm_cvtepi32_ps(k), delta));
           // SSE2 has no gather; perform the LUT lookup 4 times and build
           // the vector from the individual results
@@ -648,11 +648,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
           __m128i v = _mm_loadu_si128((__m128i*)sp);
           __m128 t = _mm_mul_ps(_mm_cvtepi32_ps(v), mul);  // in [0, 1]
-          t = _mm_max_ps(t, d_min);
-          t = _mm_min_ps(t, d_max);
+          t = _mm_max_ps(t, ft_min);
+          t = _mm_min_ps(t, ft_max);
           __m128i k = _mm_cvttps_epi32(
-            _mm_mul_ps(_mm_sub_ps(t, d_min), inv_delta));
-          __m128 d_k = _mm_add_ps(d_min,
+            _mm_mul_ps(_mm_sub_ps(t, ft_min), inv_delta));
+          __m128 d_k = _mm_add_ps(ft_min,
             _mm_mul_ps(_mm_cvtepi32_ps(k), delta));
           // SSE2 has no gather; perform the LUT lookup 4 times and build
           // the vector from the individual results

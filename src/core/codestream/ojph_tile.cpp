@@ -221,7 +221,6 @@ namespace ojph {
       profile = codestream->get_profile();
       tilepart_div = codestream->get_tilepart_div();
       need_tlm = codestream->is_tlm_needed();
-      use_exact_nlt_inverse = codestream->is_using_exact_nlt_inverse();
       {
         ui32 tilepart_div = codestream->get_tilepart_div();
         ui32 t = tilepart_div & OJPH_TILEPART_MASK;
@@ -385,20 +384,9 @@ namespace ojph {
               tc, num_bits[comp_num], is_signed[comp_num], comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type2 ||
             nlt_ptr[comp_num]->get_type() == type4)
-          {
-            if (use_exact_nlt_inverse)
-            {
-              irv_convert_to_float_nlt_exact(line, line_offsets[comp_num],
-                tc, num_bits[comp_num], is_signed[comp_num], comp_width,
-                nlt_ptr[comp_num]);
-            }
-            else
-            {
-              irv_convert_to_float_nlt(line, line_offsets[comp_num],
-                tc, num_bits[comp_num], is_signed[comp_num], comp_width,
-                nlt_ptr[comp_num]);
-            }
-          }
+            irv_convert_to_float_nlt(line, line_offsets[comp_num],
+              tc, num_bits[comp_num], is_signed[comp_num], comp_width,
+              nlt_ptr[comp_num]);
         }
         comps[comp_num].push_line();
       }
@@ -446,20 +434,9 @@ namespace ojph {
               comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type2 ||
             nlt_ptr[comp_num]->get_type() == type4)
-          {
-            if (use_exact_nlt_inverse)
-            {
-              irv_convert_to_float_nlt_exact(line, line_offsets[comp_num],
-                lines + comp_num, num_bits[comp_num], is_signed[comp_num],
-                comp_width, nlt_ptr[comp_num]);
-            }
-            else
-            {
-              irv_convert_to_float_nlt(line, line_offsets[comp_num],
-                lines + comp_num, num_bits[comp_num], is_signed[comp_num],
-                comp_width, nlt_ptr[comp_num]);
-            }
-          }
+            irv_convert_to_float_nlt(line, line_offsets[comp_num],
+              lines + comp_num, num_bits[comp_num], is_signed[comp_num],
+              comp_width, nlt_ptr[comp_num]);
           if (comp_num == 2)
           { // irreversible color transform
             ict_forward(lines[0].f32, lines[1].f32, lines[2].f32,

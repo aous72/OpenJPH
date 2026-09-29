@@ -436,9 +436,9 @@ namespace {
         points = (void*)identityLutPoints;
       }
       nlt.set_nonlinear_transform(param_nlt::ALL_COMPS, 32, true,
-        d_min, d_max, 32, (ui16)num_points, points, setting.type);
+        d_min, d_max, 32, (ui16)num_points, points, setting.type,
+        setting.use_exact_inverse);
     }
-    cs.set_use_exact_nlt_inverse(setting.use_exact_inverse);
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -791,7 +791,7 @@ namespace {
 
     cs.access_nlt().set_nonlinear_transform(nlt_comp, 32, true,
       pfmLutDmin, pfmLutDmax, 32, (ui16)pfmLutNumPoints, (void*)pfmLutPoints,
-      param_nlt::OJPH_NLT_LUT_STYLE_NLT);
+      param_nlt::OJPH_NLT_LUT_STYLE_NLT, false);
 
     cs.set_planar(true);
 
@@ -1051,45 +1051,49 @@ TEST(NltTest, RoundTripOfTestImages)
   const ui8 types[3] = { param_nlt::OJPH_NLT_LUT_STYLE_NLT,
                          param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT,
                          param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT };
-
-  for (size_t n = 0; n < num_images; ++n)
+  for (int precise = 0; precise < 2; ++precise)
   {
     nlt_setting baseline;
-    baseline.type = param_nlt::OJPH_NLT_NO_NLT;
-    baseline.use_pfm_lut = true;
-    baseline.reversible = false;
-    baseline.qstep = default_qstep();
-    comparison plain = round_trip(std::string("nlt_plain_") + image_names[n],
-      images[n], baseline);
-
-    for (size_t t = 0; t < 3; ++t)
+    baseline.use_exact_inverse = (precise == 1);
+    for (size_t n = 0; n < num_images; ++n)
     {
-      nlt_setting setting = baseline;
-      setting.type = types[t];
-      const std::string tag = std::string("nlt_") +
-        std::to_string((int)types[t]) + "_" + image_names[n];
-      comparison nlt = round_trip(tag, images[n], setting);
+      baseline.type = param_nlt::OJPH_NLT_NO_NLT;
+      baseline.use_pfm_lut = true;
+      baseline.reversible = false;
+      baseline.qstep = default_qstep();
+      comparison plain = round_trip(std::string("nlt_plain_")
+      + (precise == 0 ? "approx_" : "precise_") + image_names[n],
+        images[n], baseline);
 
-      std::cout << image_names[n] << " with nonlinearity " << (int)types[t]
-        << ": mean absolute error " << nlt.mean_abs_error
-        << ", mean relative error " << nlt.mean_rel_error
-        << ", largest relative error " << nlt.max_rel_error
-        << " (without a nonlinearity the mean absolute error is "
-        << plain.mean_abs_error << ")" << std::endl;
+      for (size_t t = 0; t < 3; ++t)
+      {
+        nlt_setting setting = baseline;
+        setting.type = types[t];
+        const std::string tag = std::string("nlt_") +
+          std::to_string((int)types[t]) + "_" + image_names[n];
+        comparison nlt = round_trip(tag, images[n], setting);
 
-      // type 3 is a reversible transformation of the samples, so it has to
-      // behave much like no nonlinearity at all
-      const double factor =
-        types[t] == param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT ? 2.0 : 5.0;
+        std::cout << image_names[n] << " with nonlinearity " << (int)types[t]
+          << ": mean absolute error " << nlt.mean_abs_error
+          << ", mean relative error " << nlt.mean_rel_error
+          << ", largest relative error " << nlt.max_rel_error
+          << " (without a nonlinearity the mean absolute error is "
+          << plain.mean_abs_error << ")" << std::endl;
 
-      EXPECT_LE(nlt.mean_abs_error, factor * plain.mean_abs_error + 1024.0)
-        << image_names[n] << " with nonlinearity " << (int)types[t]
-        << ": mean absolute error " << nlt.mean_abs_error << " against "
-        << plain.mean_abs_error << " for a round trip without a nonlinearity";
-      EXPECT_LT(nlt.mean_rel_error, 0.05)
-        << image_names[n] << " with nonlinearity " << (int)types[t];
-      EXPECT_LT(nlt.max_rel_error, 0.30)
-        << image_names[n] << " with nonlinearity " << (int)types[t];
+        // type 3 is a reversible transformation of the samples, so it has to
+        // behave much like no nonlinearity at all
+        const double factor =
+          types[t] == param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT ? 2.0 : 5.0;
+
+        EXPECT_LE(nlt.mean_abs_error, factor * plain.mean_abs_error + 1024.0)
+          << image_names[n] << " with nonlinearity " << (int)types[t]
+          << ": mean absolute error " << nlt.mean_abs_error << " against "
+          << plain.mean_abs_error << " for a round trip without a nonlinearity";
+        EXPECT_LT(nlt.mean_rel_error, 0.05)
+          << image_names[n] << " with nonlinearity " << (int)types[t];
+        EXPECT_LT(nlt.max_rel_error, 0.30)
+          << image_names[n] << " with nonlinearity " << (int)types[t];
+      }
     }
   }
 }

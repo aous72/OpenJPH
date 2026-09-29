@@ -367,11 +367,23 @@ namespace ojph {
      * @param nlt_type: desired non-linearity from enum nonlinearity, only
      *        OJPH_NLT_LUT_STYLE_NLT and OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT
      *        are allowed
+     *
+     *
+     * @param precise_encoding_nlt: set the option to true when you want to use
+     *        a precise representation of non‑linearity during encoding. With
+     *        this setting, the encoding directly uses the decoding LUT
+     *        instead of inverting it. The precise approach is accurate up to
+     *        floating‑point rounding errors but is slower than the
+     *        approximate method. For LUTs that have near‑flat sections, the
+     *        precise encoding can be considerably slower; a warning is
+     *        issued if this occurs. If the option is set to false, a fast,
+     *        high‑quality approximation is used instead.
      */
     void set_nonlinear_transform(ui32 comp_num,
                                  ui8 decoded_bit_depth, bool decoded_signedness,
                                  ui32 d_min, ui32 d_max, ui8 pt_val,
-                                 ui16 num_points, void* points, ui8 nl_type);
+                                 ui16 num_points, void* points, ui8 nl_type,
+                                 bool precise_encoding_nlt);
 
     /*************************************************************************
      * @brief get the nonlinearity type associated with comp_num, which

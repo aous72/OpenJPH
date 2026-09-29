@@ -1,3 +1,10 @@
+if (OJPH_LOCAL_TEST)
+  set(FETCHCONTENT_SOURCE_DIR_GOOGLETEST
+      "../../googletest")
+  set(FETCHCONTENT_SOURCE_DIR_JP2K_TEST_CODESTREAMS
+      "../../jp2k_test_codestreams")
+endif()
+
 # Fetch googletest
 include(FetchContent)
 FetchContent_Declare(
@@ -18,6 +25,17 @@ FetchContent_Declare(
   SOURCE_DIR        jp2k_test_codestreams/
 )
 FetchContent_MakeAvailable(jp2k_test_codestreams)
+
+if (OJPH_LOCAL_TEST)
+  # The tests look for the codestreams relative to their runtime directory
+  # (".\\jp2k_test_codestreams\\..."), so copy the Desktop copy there.
+  if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/jp2k_test_codestreams/openjph")
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+              "${FETCHCONTENT_SOURCE_DIR_JP2K_TEST_CODESTREAMS}"
+              "${CMAKE_CURRENT_BINARY_DIR}/jp2k_test_codestreams")
+  endif()
+endif()
 
 # create the mse_pae executable
 include(mse_pae.cmake)

@@ -211,27 +211,6 @@ namespace ojph {
     bool is_tlm_requested();
 
     /**
-     *  @brief Selects how the encoder inverts the look-up table of a LUT
-     *  style nonlinearity (type 2 or type 4); this applies to all
-     *  components.  This request should occur before writing codestream
-     *  headers ojph::codestream::write_headers())
-     *
-     *  @param exact false, the default, inverts the LUT with a uniformly
-     *         sampled table, which is fast but approximate; true inverts
-     *         it exactly, up to floating point rounding, which is slower.
-     */
-    void set_use_exact_nlt_inverse(bool exact);
-
-    /**
-     *  @brief Query if the encoder inverts the look-up table of a LUT style
-     *  nonlinearity exactly.
-     *
-     *  @return true if the LUT is inverted exactly.
-     *  @return false if the LUT is inverted with a uniformly sampled table.
-     */
-    bool is_using_exact_nlt_inverse() const;
-
-    /**
      *  @brief Writes codestream headers when the codestream is used for
      *  writing.  This function should be called after setting all the
      *  codestream parameters, but before pushing image lines using

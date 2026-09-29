@@ -102,15 +102,6 @@ namespace ojph {
     ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec *rec);
 
   ////////////////////////////////////////////////////////////////////////////
-  // The same conversion as irv_convert_to_float_nlt, but applying the exact
-  // piecewise-linear inverse of the LUT, up to floating point rounding; it
-  // is used when codestream::set_use_exact_nlt_inverse(true) is called.  There
-  // is one implementation, in C++.
-  void irv_convert_to_float_nlt_exact(
-    const line_buf *src_line, ui32 src_line_offset, line_buf *dst_line,
-    ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec *rec);
-
-  ////////////////////////////////////////////////////////////////////////////
   extern void (*irv_convert_to_float_nlt_type3) (
     const line_buf *src_line, ui32 src_line_offset,
     line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width);

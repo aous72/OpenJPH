@@ -369,8 +369,8 @@ namespace ojph {
       si32* dp = dst_line->i32 + dst_line_offset;
 
       __m256 mul = _mm256_set1_ps(rec->multiplier);
-      __m256 d_min = _mm256_set1_ps(rec->fd_min);
-      __m256 d_max = _mm256_set1_ps(rec->fd_max);
+      __m256 fd_min = _mm256_set1_ps(rec->fd_min);
+      __m256 fd_max = _mm256_set1_ps(rec->fd_max);
       __m256 delta = _mm256_set1_ps(rec->delta);
       __m256 inv_delta = _mm256_set1_ps(rec->inv_delta);
       const float* lut = rec->dec_points;
@@ -388,11 +388,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_add_ps(t, half_ps);                 // convert to [0, 1]
-          t = _mm256_max_ps(t, d_min);
-          t = _mm256_min_ps(t, d_max);
+          t = _mm256_max_ps(t, fd_min);
+          t = _mm256_min_ps(t, fd_max);
           __m256i k = _mm256_cvttps_epi32(
-            _mm256_mul_ps(_mm256_sub_ps(t, d_min), inv_delta));
-          __m256 d_k = _mm256_add_ps(d_min,
+            _mm256_mul_ps(_mm256_sub_ps(t, fd_min), inv_delta));
+          __m256 d_k = _mm256_add_ps(fd_min,
             _mm256_mul_ps(_mm256_cvtepi32_ps(k), delta));
           __m256 t_k = _mm256_i32gather_ps(lut, k, 4);
           __m256 t_kp1 = _mm256_i32gather_ps(lut, _mm256_add_epi32(k, one), 4);
@@ -417,11 +417,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256 t = _mm256_loadu_ps(sp);
           t = _mm256_add_ps(t, half_ps);                 // convert to [0, 1]
-          t = _mm256_max_ps(t, d_min);
-          t = _mm256_min_ps(t, d_max);
+          t = _mm256_max_ps(t, fd_min);
+          t = _mm256_min_ps(t, fd_max);
           __m256i k = _mm256_cvttps_epi32(
-            _mm256_mul_ps(_mm256_sub_ps(t, d_min), inv_delta));
-          __m256 d_k = _mm256_add_ps(d_min,
+            _mm256_mul_ps(_mm256_sub_ps(t, fd_min), inv_delta));
+          __m256 d_k = _mm256_add_ps(fd_min,
             _mm256_mul_ps(_mm256_cvtepi32_ps(k), delta));
           __m256 t_k = _mm256_i32gather_ps(lut, k, 4);
           __m256 t_kp1 =
@@ -534,11 +534,11 @@ namespace ojph {
 
       assert(bit_depth <= 32);
       __m256 mul = _mm256_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
-      __m256 d_min = _mm256_set1_ps(rec->ft_min);
-      __m256 d_max = _mm256_set1_ps(rec->ft_max);
+      __m256 ft_min = _mm256_set1_ps(rec->ft_min);
+      __m256 ft_max = _mm256_set1_ps(rec->ft_max);
       __m256 delta = _mm256_set1_ps(rec->delta);
       __m256 inv_delta = _mm256_set1_ps(rec->inv_delta);
-      const float* lut = rec->enc_points;
+      const float* lut = rec->approx_enc_points;
 
       __m256 half_ps = _mm256_set1_ps(0.5f);
       __m256i one = _mm256_set1_epi32(1);
@@ -562,11 +562,11 @@ namespace ojph {
           }
           __m256 t = _mm256_add_ps(                  // convert to [0, 1]
             _mm256_mul_ps(_mm256_cvtepi32_ps(v), mul), half_ps);
-          t = _mm256_max_ps(t, d_min);
-          t = _mm256_min_ps(t, d_max);
+          t = _mm256_max_ps(t, ft_min);
+          t = _mm256_min_ps(t, ft_max);
           __m256i k = _mm256_cvttps_epi32(
-            _mm256_mul_ps(_mm256_sub_ps(t, d_min), inv_delta));
-          __m256 d_k = _mm256_add_ps(d_min,
+            _mm256_mul_ps(_mm256_sub_ps(t, ft_min), inv_delta));
+          __m256 d_k = _mm256_add_ps(ft_min,
             _mm256_mul_ps(_mm256_cvtepi32_ps(k), delta));
           __m256 t_k = _mm256_i32gather_ps(lut, k, 4);
           __m256 t_kp1 =
@@ -582,11 +582,11 @@ namespace ojph {
         for (int i = (int)width; i > 0; i -= 8, sp += 8, dp += 8) {
           __m256i v = _mm256_loadu_si256((__m256i*)sp);
           __m256 t = _mm256_mul_ps(_mm256_cvtepi32_ps(v), mul);  // in [0, 1]
-          t = _mm256_max_ps(t, d_min);
-          t = _mm256_min_ps(t, d_max);
+          t = _mm256_max_ps(t, ft_min);
+          t = _mm256_min_ps(t, ft_max);
           __m256i k = _mm256_cvttps_epi32(
-            _mm256_mul_ps(_mm256_sub_ps(t, d_min), inv_delta));
-          __m256 d_k = _mm256_add_ps(d_min,
+            _mm256_mul_ps(_mm256_sub_ps(t, ft_min), inv_delta));
+          __m256 d_k = _mm256_add_ps(ft_min,
             _mm256_mul_ps(_mm256_cvtepi32_ps(k), delta));
           __m256 t_k = _mm256_i32gather_ps(lut, k, 4);
           __m256 t_kp1 =

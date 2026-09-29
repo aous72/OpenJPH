@@ -850,7 +850,15 @@ namespace ojph {
         dec_points = NULL;
         fd_min = fd_max = delta = inv_delta = multiplier = 0.0f;
         // encode
-        enc_points = NULL; enc_num_points = 0;
+        precise_encoding_nlt = false;
+        enc_num_points = 0;
+        ft_min = ft_max = 0.0f;
+        //// approx
+        approx_enc_points = NULL;
+        //// precise
+        precise_max_steps = 0;
+        precise_enc_dec_indices = NULL;
+        precise_dec_lut = NULL;
       }
       ui8 get_type() const { return Tnlt; }
       ui8 get_bit_depth() const { return (ui8)((BDnlt & 0x7F) + 1u); }
@@ -863,7 +871,7 @@ namespace ojph {
       ui32 d_min, d_max; // Dmin and Dmax
       ui32 pt_val;       // Precision of points in bits
       ui32 num_points;   // number of points in LUT points from 2 to 8192
-      void* marker_points; // pointer to marker points
+      void* marker_points;  // pointer to marker points
       ui8 bytes_per_point;  // number of bytes per point, derived from pt_val
 
       // point storage
@@ -882,27 +890,63 @@ namespace ojph {
       }
       void assign_pointers_for_decoding()
       { // 2 extra points, one before the dec_points table and one after
-        dec_points = (float*)points_store + 1;  enc_points = NULL;
+        dec_points = (float*)points_store + 1;  approx_enc_points = NULL;
         marker_points = (ui8*)dec_points + (num_points + 1) * sizeof(float);
       }
       void prepare_for_decoding();
 
       // memebers for encoding -- we also use some from decoding
-      float* enc_points;     // LUT points for encoding -- must be float
       ui32 enc_num_points;   // # of points for encoding (larger than decoding)
-      float ft_min, ft_max;  // float first and last LUT points
+      float ft_min, ft_max;      // float first and last LUT points
+      bool precise_encoding_nlt; // use precise encoding non-linearity
+      //// approx
+      float* approx_enc_points;  // LUT points for encoding -- must be float
+      //// precise
+      ui32 precise_max_steps;     // max needed steps to find LUT data node
+      ui16* precise_enc_dec_indices; // LUT indices into decoder LUT
+      float* precise_dec_lut;    // decoder LUT in float
+
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
-      { // add 2 extra points, one before the enc_num_points table and one after
+      {
+        assert((enc_num_points & (enc_num_points - 1)) == 0); // a power of 2
         this->enc_num_points = enc_num_points;
-        return (ui32)(enc_num_points + 2u) * (ui32)sizeof(float)
-          + (ui32)num_points * (ui32)get_bpp();
+
+        // add 4 extra points, two before enc_num_points table and two after
+        if (!precise_encoding_nlt)
+          return (ui32)(enc_num_points + 4u) * (ui32)sizeof(float)
+            + (ui32)num_points * (ui32)get_bpp();
+        else
+          return (ui32)(enc_num_points + 4u) * (ui32)sizeof(ui16)
+            + (ui32)(num_points + 4u) * (ui32)sizeof(float)
+            + (ui32)num_points * (ui32)get_bpp();
       }
       void assign_pointers_for_encoding()
-      { // 2 extra points, one before the enc_num_points table and one after
-        enc_points = (float*)points_store + 1;  dec_points = NULL;
-        marker_points = (ui8*)enc_points + (enc_num_points + 1) * sizeof(float);
+      {
+        dec_points = NULL;
+
+        // add 4 extra points, two before enc_num_points table and two after
+        if (!precise_encoding_nlt)
+        {
+          approx_enc_points = (float*)points_store + 2u;
+          precise_enc_dec_indices = NULL;
+          precise_dec_lut = NULL;
+          marker_points = (ui8*)points_store
+          + (enc_num_points + 4u) * sizeof(float);
+        }
+        else
+        { // add 6 extra points, 3 before enc_num_points table and 3 after
+          approx_enc_points = NULL;
+          precise_enc_dec_indices = (ui16*)points_store + 2u;
+          precise_dec_lut = (float*)((ui8*)points_store +
+            (ui32)(enc_num_points + 4u) * (ui32)sizeof(ui16)) + 2u;
+          marker_points = (ui8*)points_store
+          + (ui32)(enc_num_points + 4u) * (ui32)sizeof(ui16)
+          + (ui32)(num_points + 4u) * (ui32)sizeof(float);
+        }
       }
       void prepare_for_encoding();
+      void prepare_for_encoding_approx();
+      void prepare_for_encoding_precise();
     };
 
     // data structures used by param_nlt
@@ -945,7 +989,8 @@ namespace ojph {
                                    ui8 decoded_bit_depth,
                                    bool decoded_signedness,
                                    ui32 d_min, ui32 d_max, ui8 pt_val,
-                                   ui16 num_points, void* points, ui8 nl_type);
+                                   ui16 num_points, void* points, ui8 nl_type,
+                                   bool precise_encoding_nlt);
 
       bool get_nonlinear_transform(ui32 comp_num,
                                    ui8& decoded_bit_depth,

@@ -150,18 +150,6 @@ namespace ojph {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  void codestream::set_use_exact_nlt_inverse(bool exact)
-  {
-    state->set_use_exact_nlt_inverse(exact);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  bool codestream::is_using_exact_nlt_inverse() const
-  {
-    return state->is_using_exact_nlt_inverse();
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
   bool codestream::is_planar() const
   {
     return state->is_planar();

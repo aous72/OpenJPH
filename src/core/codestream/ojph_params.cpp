@@ -2697,15 +2697,9 @@ namespace ojph {
         p->rec.assign_pointers_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-        {
-          // marker_points points partway into the points_store
-          // allocation (after the float table used for decoding), so
-          // only num_points bytes -- not the full store size `len` --
-          // may be written there without overflowing the allocation.
-          ui32 points_len = p->rec.num_points;
-          result &= file->read(p->rec.marker_points, points_len) ==
-            points_len;
-        }
+          result &= 
+            file->read(p->rec.marker_points, p->rec.num_points) 
+              == p->rec.num_points;
         else if (p->rec.bytes_per_point == 2)
         {
           ui16 buf2;

@@ -2733,7 +2733,9 @@ namespace ojph {
         p->rec.assign_pointers_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-          result &= file->read(p->rec.marker_points, len) == len;
+          result &= 
+            file->read(p->rec.marker_points, p->rec.num_points) 
+              == p->rec.num_points;
         else if (p->rec.bytes_per_point == 2)
         {
           ui16 buf2;

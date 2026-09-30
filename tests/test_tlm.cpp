@@ -266,8 +266,9 @@ TEST(TestTLM, MultipleSegmentsAboveLimit) {
   {
     EXPECT_EQ(segs[i].Ztlm, (ojph::ui8)i);
     EXPECT_EQ(segs[i].Stlm, 0x60);
-    if (i + 1 < segs.size())
+    if (i + 1 < segs.size()) {
       EXPECT_EQ(segs[i].count, MAX_PAIRS_PER_SEG);
+    }
     total += segs[i].count;
   }
   EXPECT_EQ(total, (ojph::ui32)parts.size());

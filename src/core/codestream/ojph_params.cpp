@@ -955,8 +955,10 @@ namespace ojph {
       point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
       const param_cod* cdp = cod->get_coc(comp_num);
       if (dfs && cdp && cdp->is_dfs_defined()) {
-        const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
-        factor = d->get_res_downsamp(skipped_resolutions);
+        ui16 dfs_idx = cdp->get_dfs_index();
+        const param_dfs* d = dfs->get_dfs(dfs_idx);
+        if (d != NULL)
+          factor = d->get_res_downsamp(skipped_resolutions);
       }
       factor.x *= (ui32)cptr[comp_num].XRsiz;
       factor.y *= (ui32)cptr[comp_num].YRsiz;

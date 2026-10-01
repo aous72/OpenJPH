@@ -114,21 +114,6 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::write_precincts(ui32 res_num, outfile_base *file)
-    {
-      assert(res_num <= num_decomps);
-      res_num = num_decomps - res_num; //how many levels to go down
-      resolution *r = res;
-      while (res_num > 0 && r != NULL)
-      {
-        r = r->next_resolution();
-        --res_num;
-      }
-      if (r) //resolution does not exist if r is NULL
-        r->write_precincts(file);
-    }
-
-    //////////////////////////////////////////////////////////////////////////
     bool tile_comp::get_top_left_precinct(ui32 res_num, point &top_left)
     {
       resolution *r = get_resolution(res_num);
@@ -147,17 +132,19 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void tile_comp::write_one_precinct(ui32 res_num, outfile_base *file)
+    ui32 tile_comp::get_num_precincts() const
     {
-      int resolution_num = (int)num_decomps - (int)res_num;
-      resolution *r = res;
-      while (resolution_num > 0 && r != NULL)
-      {
-        r = r->next_resolution();
-        --resolution_num;
-      }
-      if (r) //resolution does not exist if r is NULL
-        r->write_one_precinct(file);
+      ui32 count = 0;
+      for (resolution *r = res; r != NULL; r = r->next_resolution())
+        count += r->get_num_precincts();
+      return count;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile_comp::rewind_precincts()
+    {
+      for (resolution *r = res; r != NULL; r = r->next_resolution())
+        r->rewind_precincts();
     }
 
     //////////////////////////////////////////////////////////////////////////

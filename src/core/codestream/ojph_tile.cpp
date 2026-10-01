@@ -45,6 +45,7 @@
 #include "ojph_codestream_local.h"
 #include "ojph_tile.h"
 #include "ojph_tile_comp.h"
+#include "ojph_resolution.h"
 
 #include "../transform/ojph_colour.h"
 
@@ -221,6 +222,11 @@ namespace ojph {
       profile = codestream->get_profile();
       tilepart_div = codestream->get_tilepart_div();
       need_tlm = codestream->is_tlm_needed();
+      need_plt = codestream->is_plt_needed();
+      recording = false;
+      plt_lengths = plt_end = plt_part_start = NULL;
+      plt_cursor = NULL;
+      cur_part = 0;
       {
         ui32 tilepart_div = codestream->get_tilepart_div();
         ui32 t = tilepart_div & OJPH_TILEPART_MASK;
@@ -576,19 +582,187 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
-    void tile::prepare_for_flush()
+    void tile::prepare_for_flush(mem_elastic_allocator *elastic)
     {
       this->num_bytes = 0;
       //prepare precinct headers
       for (ui32 c = 0; c < num_comps; ++c)
         num_bytes += comps[c].prepare_precincts();
+      if (need_plt)
+        record_packet_lengths(elastic);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile::record_packet_lengths(mem_elastic_allocator *elastic)
+    {
+      ui32 num_packets = 0, max_decs = 0;
+      for (ui32 c = 0; c < num_comps; ++c)
+      {
+        num_packets += comps[c].get_num_precincts();
+        max_decs = ojph_max(max_decs, comps[c].get_num_decompositions());
+      }
+      //at most one tile-part per resolution and component
+      ui32 max_parts = num_comps * (max_decs + 1);
+
+      coded_lists *buf;
+      elastic->get_buffer((num_packets + max_parts + 1)
+                          * (ui32)sizeof(ui32), buf);
+      plt_lengths = (ui32*)buf->buf;
+      plt_end = plt_lengths + num_packets;
+      plt_part_start = plt_lengths + num_packets;
+
+      //a dry run of flush records the packet lengths in order
+      plt_cursor = plt_lengths;
+      recording = true;
+      flush(NULL);
+      recording = false;
+      plt_part_start[cur_part] = (ui32)(plt_cursor - plt_lengths);
+      for (ui32 c = 0; c < num_comps; ++c)
+        comps[c].rewind_precincts();
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    static inline ui32 iplt_bytes(ui32 len)
+    {
+      ui32 n = 1;
+      while (len >>= 7)
+        ++n;
+      return n;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 tile::end_of_plt_segment(ui32 first, ui32 end, ui32 &seg_bytes) const
+    {
+      // A.7.3: Lplt is 16 bits and covers itself and Zplt, and no packet
+      // length is split between two marker segments
+      const ui32 max_seg_bytes = 65535 - 3;
+      seg_bytes = 0;
+      ui32 i = first;
+      for (; i < end; ++i)
+      {
+        ui32 n = iplt_bytes(plt_lengths[i]);
+        if (seg_bytes + n > max_seg_bytes)
+          break;
+        seg_bytes += n;
+      }
+      return i;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    ui32 tile::plt_size(ui32 part) const
+    {
+      ui32 total = 0, num_segs = 0;
+      ui32 i = plt_part_start[part], end = plt_part_start[part + 1];
+      while (i < end)
+      {
+        ui32 seg_bytes;
+        i = end_of_plt_segment(i, end, seg_bytes);
+        total += seg_bytes + 5;
+        ++num_segs;
+      }
+      if (num_segs > 256)
+        OJPH_ERROR(0x000300D2, "Tile %d needs more than 256 PLT marker "
+          "segments in one tile-part header; use larger precincts or more "
+          "tile-parts.", sot.get_tile_index());
+      return total;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool tile::write_plt(outfile_base *file, ui32 part) const
+    {
+      bool result = true;
+      ui8 buf[256];
+      ui32 i = plt_part_start[part], end = plt_part_start[part + 1];
+      for (ui32 Zplt = 0; i < end; ++Zplt)
+      {
+        ui32 seg_bytes, first = i;
+        i = end_of_plt_segment(first, end, seg_bytes);
+
+        ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::PLT);
+        result &= file->write(&t, 2) == 2;
+        t = swap_bytes_if_le((ui16)(seg_bytes + 3));
+        result &= file->write(&t, 2) == 2;
+        buf[0] = (ui8)Zplt;
+        ui32 n = 1;
+        for (ui32 j = first; j < i; ++j)
+        {
+          if (n + 5 > sizeof(buf))
+          { result &= file->write(buf, n) == n; n = 0; }
+          ui32 len = plt_lengths[j];
+          for (ui32 k = iplt_bytes(len) - 1; k > 0; --k)
+            buf[n++] = (ui8)(0x80 | ((len >> (7 * k)) & 0x7F));
+          buf[n++] = (ui8)(len & 0x7F);
+        }
+        result &= file->write(buf, n) == n;
+      }
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    bool tile::start_tilepart(outfile_base *file, ui32 bytes, ui8 TPsot,
+                              ui8 TNsot)
+    {
+      if (recording)
+      {
+        plt_part_start[cur_part++] = (ui32)(plt_cursor - plt_lengths);
+        return true;
+      }
+
+      bool result = sot.write(file, bytes + plt_bytes(cur_part), TPsot, TNsot);
+      if (need_plt)
+        result &= write_plt(file, cur_part);
+      ++cur_part;
+
+      ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
+      result &= file->write(&t, 2) == 2;
+      return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile::write_precincts(ui32 comp_num, ui32 res_num,
+                               outfile_base *file)
+    {
+      resolution *r = comps[comp_num].get_resolution(res_num);
+      if (r == NULL) //this component has fewer resolutions
+        return;
+      if (!recording)
+        r->write_precincts(file);
+      else
+      {
+        reserve_lengths(r->get_num_precincts());
+        r->record_precincts(plt_cursor);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile::write_one_precinct(ui32 comp_num, ui32 res_num,
+                                  outfile_base *file)
+    {
+      resolution *r = comps[comp_num].get_resolution(res_num);
+      if (!recording)
+        r->write_one_precinct(file);
+      else
+      {
+        reserve_lengths(1);
+        r->record_one_precinct(plt_cursor);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void tile::reserve_lengths(ui32 count) const
+    {
+      if (count > (ui32)(plt_end - plt_cursor))
+        OJPH_ERROR(0x000300D4, "Too many packets in tile %d.",
+          sot.get_tile_index());
     }
 
     //////////////////////////////////////////////////////////////////////////
     void tile::fill_tlm(param_tlm *tlm)
     {
+      ui32 part = 0;
       if (tilepart_div == OJPH_TILEPART_NO_DIVISIONS) {
-        tlm->set_next_pair(sot.get_tile_index(), this->num_bytes);
+        tlm->set_next_pair(sot.get_tile_index(),
+                           this->num_bytes + plt_bytes(part++));
       }
       else if (tilepart_div == OJPH_TILEPART_RESOLUTIONS)
       {
@@ -601,7 +775,8 @@ namespace ojph {
           ui32 bytes = 0;
           for (ui32 c = 0; c < num_comps; ++c)
             bytes += comps[c].get_num_bytes(r);
-          tlm->set_next_pair(sot.get_tile_index(), bytes);
+          tlm->set_next_pair(sot.get_tile_index(),
+                             bytes + plt_bytes(part++));
         }
       }
       else if (tilepart_div == OJPH_TILEPART_COMPONENTS)
@@ -615,11 +790,12 @@ namespace ojph {
             for (ui32 c = 0; c < num_comps; ++c)
               if (r <= comps[c].get_num_decompositions())
                 tlm->set_next_pair(sot.get_tile_index(),
-                                   comps[c].get_num_bytes(r));
+                  comps[c].get_num_bytes(r) + plt_bytes(part++));
         }
         else if (prog_order == OJPH_PO_CPRL)
           for (ui32 c = 0; c < num_comps; ++c)
-            tlm->set_next_pair(sot.get_tile_index(), comps[c].get_num_bytes());
+            tlm->set_next_pair(sot.get_tile_index(),
+              comps[c].get_num_bytes() + plt_bytes(part++));
         else
           assert(0); // should not be here
       }
@@ -633,7 +809,7 @@ namespace ojph {
           for (ui32 c = 0; c < num_comps; ++c)
             if (r <= comps[c].get_num_decompositions())
               tlm->set_next_pair(sot.get_tile_index(),
-                                 comps[c].get_num_bytes(r));
+                comps[c].get_num_bytes(r) + plt_bytes(part++));
       }
     }
 
@@ -641,6 +817,8 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void tile::flush(outfile_base *file)
     {
+      assert(file != NULL || recording);
+      cur_part = 0;
       ui32 max_decompositions = 0;
       for (ui32 c = 0; c < num_comps; ++c)
         max_decompositions = ojph_max(max_decompositions,
@@ -648,14 +826,9 @@ namespace ojph {
 
       if (tilepart_div == OJPH_TILEPART_NO_DIVISIONS)
       {
-        //write tile header
-        if (!sot.write(file, this->num_bytes))
+        //write tile header and start of data
+        if (!start_tilepart(file, this->num_bytes, 0, 1))
           OJPH_ERROR(0x00030081, "Error writing to file");
-
-        //write start of data
-        ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
-        if (!file->write(&t, 2))
-          OJPH_ERROR(0x00030082, "Error writing to file");
       }
 
 
@@ -666,7 +839,7 @@ namespace ojph {
         {
           for (ui32 r = 0; r <= max_decompositions; ++r)
             for (ui32 c = 0; c < num_comps; ++c)
-              comps[c].write_precincts(r, file);
+              write_precincts(c, r, file);
         }
         else if (tilepart_div == OJPH_TILEPART_RESOLUTIONS)
         {
@@ -676,18 +849,14 @@ namespace ojph {
             for (ui32 c = 0; c < num_comps; ++c)
               bytes += comps[c].get_num_bytes(r);
 
-            //write tile header
-            if (!sot.write(file, bytes, (ui8)r, (ui8)(max_decompositions + 1)))
+            //write tile header and start of data
+            if (!start_tilepart(file, bytes, (ui8)r,
+                                (ui8)(max_decompositions + 1)))
               OJPH_ERROR(0x00030083, "Error writing to file");
-
-            //write start of data
-            ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
-            if (!file->write(&t, 2))
-              OJPH_ERROR(0x00030084, "Error writing to file");
 
             //write precincts
             for (ui32 c = 0; c < num_comps; ++c)
-              comps[c].write_precincts(r, file);
+              write_precincts(c, r, file);
           }
         }
         else
@@ -696,15 +865,12 @@ namespace ojph {
           for (ui32 r = 0; r <= max_decompositions; ++r)
             for (ui32 c = 0; c < num_comps; ++c)
               if (r <= comps[c].get_num_decompositions()) {
-                //write tile header
-                if (!sot.write(file, comps[c].get_num_bytes(r),
-                               (ui8)(c + r * num_comps), (ui8)num_tileparts))
+                //write tile header and start of data
+                if (!start_tilepart(file, comps[c].get_num_bytes(r),
+                                    (ui8)(c + r * num_comps),
+                                    (ui8)num_tileparts))
                   OJPH_ERROR(0x00030085, "Error writing to file");
-                //write start of data
-                ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
-                if (!file->write(&t, 2))
-                  OJPH_ERROR(0x00030086, "Error writing to file");
-                comps[c].write_precincts(r, file);
+                write_precincts(c, r, file);
               }
         }
       }
@@ -717,14 +883,10 @@ namespace ojph {
             ui32 bytes = 0;
             for (ui32 c = 0; c < num_comps; ++c)
               bytes += comps[c].get_num_bytes(r);
-            //write tile header
-            if (!sot.write(file, bytes, (ui8)r, (ui8)(max_decompositions + 1)))
+            //write tile header and start of data
+            if (!start_tilepart(file, bytes, (ui8)r,
+                                (ui8)(max_decompositions + 1)))
               OJPH_ERROR(0x00030087, "Error writing to file");
-
-            //write start of data
-            ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
-            if (!file->write(&t, 2))
-              OJPH_ERROR(0x00030088, "Error writing to file");
           }
           while (true)
           {
@@ -744,7 +906,7 @@ namespace ojph {
               { smallest = cur; comp_num = c; }
             }
             if (found == true)
-              comps[comp_num].write_one_precinct(r, file);
+              write_one_precinct(comp_num, r, file);
             else
               break;
           }
@@ -780,7 +942,7 @@ namespace ojph {
             }
           }
           if (found == true)
-            comps[comp_num].write_one_precinct(res_num, file);
+            write_one_precinct(comp_num, res_num, file);
           else
             break;
         }
@@ -792,14 +954,9 @@ namespace ojph {
           if (tilepart_div == OJPH_TILEPART_COMPONENTS)
           {
             ui32 bytes = comps[c].get_num_bytes();
-            //write tile header
-            if (!sot.write(file, bytes, (ui8)c, (ui8)num_comps))
+            //write tile header and start of data
+            if (!start_tilepart(file, bytes, (ui8)c, (ui8)num_comps))
               OJPH_ERROR(0x0003008A, "Error writing to file");
-
-            //write start of data
-            ui16 t = swap_bytes_if_le((ui16)JP2K_MARKER::SOD);
-            if (!file->write(&t, 2))
-              OJPH_ERROR(0x0003008B, "Error writing to file");
           }
 
           while (true)
@@ -820,7 +977,7 @@ namespace ojph {
               { smallest = cur; res_num = r; }
             }
             if (found == true)
-              comps[c].write_one_precinct(res_num, file);
+              write_one_precinct(c, res_num, file);
             else
               break;
           }

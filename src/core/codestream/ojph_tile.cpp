@@ -866,7 +866,7 @@ namespace ojph {
           max_decompositions -= skipped_res_for_read;
           for (ui32 r = 0; r <= max_decompositions; ++r)
             for (ui32 c = 0; c < num_comps; ++c)
-              if (data_left > 0)
+              if (data_left > 0 && r <= comps[c].get_num_decompositions())
                 comps[c].parse_precincts(r, data_left, file);
         }
         else if (prog_order == OJPH_PO_RPCL)

@@ -79,6 +79,7 @@ namespace ojph {
       ui32 prepare_precincts();
       void write_precincts(ui32 res_num, outfile_base *file);
       bool get_top_left_precinct(ui32 res_num, point &top_left);
+      resolution* get_resolution(ui32 res_num);
       void write_one_precinct(ui32 res_num, outfile_base *file);
       void parse_precincts(ui32 res_num, ui32& data_left, infile_base *file);
       void parse_one_precinct(ui32 res_num, ui32& data_left, 

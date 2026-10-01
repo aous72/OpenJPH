@@ -131,17 +131,19 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     bool tile_comp::get_top_left_precinct(ui32 res_num, point &top_left)
     {
-      int resolution_num = (int)num_decomps - (int)res_num;
+      resolution *r = get_resolution(res_num);
+      return r ? r->get_top_left_precinct(top_left) : false;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    resolution* tile_comp::get_resolution(ui32 res_num)
+    {
+      if (res_num > num_decomps)
+        return NULL;
       resolution *r = res;
-       while (resolution_num > 0 && r != NULL)
-      {
+      for (ui32 i = num_decomps; i > res_num && r != NULL; --i)
         r = r->next_resolution();
-        --resolution_num;
-      }
-      if (r) //resolution does not exist if r is NULL
-        return r->get_top_left_precinct(top_left);
-      else
-        return false;
+      return r;
     }
 
     //////////////////////////////////////////////////////////////////////////

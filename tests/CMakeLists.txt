@@ -80,11 +80,24 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the quantization weights tests (library API tests)
+add_executable(
+  test_quant_weights
+  test_quant_weights.cpp
+)
+
+target_link_libraries(
+  test_quant_weights
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
 gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
+gtest_add_tests(TARGET test_quant_weights)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

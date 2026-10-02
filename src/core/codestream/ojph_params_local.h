@@ -703,6 +703,8 @@ namespace ojph {
 
       ////////////////////////////////////////
       const float QFACTOR_UNSET = 0.0f;
+      // 1 LL subband + 3 subbands for each of at most 32 decomposition levels
+      static constexpr ui32 MAX_SUBBAND_COUNT = 97;
 
       ////////////////////////////////////////
       using comp_type = ojph::param_qcd::comp_type;
@@ -729,6 +731,7 @@ namespace ojph {
                          const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
       void set_qfactor(float qfactor);
+      void set_weights(const float *weights, size_t len);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
@@ -743,6 +746,8 @@ namespace ojph {
       void read_qcc(infile_base *file, ui32 num_comps);
 
       void set_delta(ui32 comp_idx, float delta);
+      void set_delta(ui32 comp_idx, float delta,
+                     const float *weights, size_t len);
       void set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor);
       param_qcd* get_qcc(ui32 comp_idx);
       const param_qcd* get_qcc(ui32 comp_idx) const;
@@ -761,6 +766,7 @@ namespace ojph {
         num_subbands = 0;
         base_delta = -1.0f;
         qfactor = QFACTOR_UNSET;
+        num_weights = 0;
         ctype = comp_type::OJPH_COMP_Y;
         sampling = ojph::point(1, 1);
         enabled = true;
@@ -801,8 +807,8 @@ namespace ojph {
       ui8 Sqcd;
       union
       {
-        ui8 u8[97];
-        ui16 u16[97];
+        ui8 u8[MAX_SUBBAND_COUNT];
+        ui16 u16[MAX_SUBBAND_COUNT];
       } SPqcd;
       ui32 num_subbands;  // number of subbands
       bool enabled;       // enabled if two, and ignored if false
@@ -813,6 +819,10 @@ namespace ojph {
       float base_delta;   // base quantization step size -- all other
                           // step sizes are derived from it.
       float qfactor;
+      ui32 num_weights;   // number of coefficients in `weights`; 0 if none
+      // weight coefficients, in subband order
+      // {LH1, HL1, HH1, ..., LHN, HLN, HHN, LLN}
+      float weights[MAX_SUBBAND_COUNT];
       comp_type ctype;
       bool is_color_trans;
       ui32 num_decomps;

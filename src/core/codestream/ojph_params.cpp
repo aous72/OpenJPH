@@ -1613,7 +1613,7 @@ namespace ojph {
       // returns weight coefficient w_b for a decomposition level and subband
       // (0:LL, 1:HL, 2:LH, 3:HH); coefficients are ordered {LH1,
       // HL1, HH1, ..., LLN}
-      auto get_w = [&](ui32 d, ui32 sb) -> float
+      auto get_sqrt_weight = [&](ui32 d, ui32 sb) -> float
       {
         if (num_weights == 0)
           return visual_weights::get_weight(weights, d, sb);
@@ -1627,7 +1627,7 @@ namespace ojph {
       ui32 b = 0;
       float w_b;
       float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
-      w_b = get_w(num_decomps, b);
+      w_b = get_sqrt_weight(num_decomps, b);
       w_b = std::pow(w_b, power);
       encode_SPqcd(b++, delta_ref / (gain_l * gain_l * g_c * w_b));
 
@@ -1638,13 +1638,13 @@ namespace ojph {
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        w_b = get_w(d, 1);
+        w_b = get_sqrt_weight(d, 1);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
-        w_b = get_w(d, 2);
+        w_b = get_sqrt_weight(d, 2);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
-        w_b = get_w(d, 3);
+        w_b = get_sqrt_weight(d, 3);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
       }

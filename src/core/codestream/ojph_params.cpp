@@ -427,6 +427,13 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
+  void param_qcd::set_irrev_quant(ui32 comp_idx, float delta,
+                                  float weights[], size_t len)
+  {
+    state->set_delta(comp_idx, delta, weights, len);
+  }
+
+  //////////////////////////////////////////////////////////////////////////
   void param_qcd::set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor)
   {
     state->set_qfactor(comp_idx, ctype, qfactor);
@@ -1470,6 +1477,20 @@ namespace ojph {
       this->sampling = siz.get_downsampling(comp_num);
       this->num_subbands = 1 + 3 * this->num_decomps;
 
+      if (this->num_weights != 0)
+      {
+        if (this->wavelet_kern != param_cod::DWT_IRV97)
+          OJPH_ERROR(0x00040003, "Quantization weights for component %d can "
+            "only be used with the irreversible transform.", comp_num);
+        if (this->qfactor != QFACTOR_UNSET)
+          OJPH_ERROR(0x00040004, "Quantization weights for component %d "
+            "cannot be used together with qfactor.", comp_num);
+        if (this->num_weights != this->num_subbands)
+          OJPH_ERROR(0x00040005, "Component %d has %d quantization weights, "
+            "but %d are needed for %d decomposition levels.", comp_num,
+            this->num_weights, this->num_subbands, this->num_decomps);
+      }
+
       if (this->wavelet_kern == param_cod::DWT_REV53)
         this->set_rev_quant(this->num_decomps, this->bit_depth,
                             comp_num < 3 ? this->is_color_trans : false);
@@ -1593,11 +1614,24 @@ namespace ojph {
         weights = visual_weights::get_weights(format, this->ctype);
       }
 
+      // returns weight coefficient w_b for a decomposition level and subband
+      // (0:LL, 1:HL, 2:LH, 3:HH); coefficients are ordered {LH1,
+      // HL1, HH1, ..., LLN}
+      auto get_sqrt_weight = [&](ui32 d, ui32 sb) -> float
+      {
+        if (num_weights == 0)
+          return visual_weights::get_weight(weights, d, sb);
+        if (sb == 0)
+          return std::sqrt(this->weights[num_weights - 1]);
+        static const ui32 pos[4] = { 0, 1, 0, 2 };
+        return std::sqrt(this->weights[(d - 1) * 3 + pos[sb]]);
+      };
+
       // LL band
       ui32 b = 0;
       float w_b;
       float gain_l = sqrt_energy_gains::get_gain_l(num_decomps, false);
-      w_b = visual_weights::get_weight(weights, num_decomps, b);
+      w_b = get_sqrt_weight(num_decomps, b);
       w_b = std::pow(w_b, power);
       encode_SPqcd(b++, delta_ref / (gain_l * gain_l * g_c * w_b));
 
@@ -1608,13 +1642,13 @@ namespace ojph {
         float gain_l = sqrt_energy_gains::get_gain_l(d, false);
         float gain_h = sqrt_energy_gains::get_gain_h(d - 1, false);
 
-        w_b = visual_weights::get_weight(weights, d, 1);
+        w_b = get_sqrt_weight(d, 1);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_h * gain_l * g_c * w_b));
-        w_b = visual_weights::get_weight(weights, d, 2);
+        w_b = get_sqrt_weight(d, 2);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_l * gain_h * g_c * w_b));
-        w_b = visual_weights::get_weight(weights, d, 3);
+        w_b = get_sqrt_weight(d, 3);
         w_b = std::pow(w_b, power);
         encode_SPqcd(b++, delta_ref / (gain_h * gain_h * g_c * w_b));
       }
@@ -1935,7 +1969,7 @@ namespace ojph {
         if (num_subbands == 0)
           OJPH_ERROR(0x0005008A, "QCD marker segment that specifies no "
             "quantization informtion");
-        if (num_subbands > 97 || Lqcd != 3 + num_subbands)
+        if (num_subbands > MAX_SUBBAND_COUNT || Lqcd != 3 + num_subbands)
           OJPH_ERROR(0x00050083, "wrong Lqcd value of %d in QCD marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&SPqcd.u8[i], 1) != 1)
@@ -1955,7 +1989,7 @@ namespace ojph {
         if (num_subbands == 0)
           OJPH_ERROR(0x0005008B, "QCD marker segment that specifies no "
             "quantization informtion");
-        if (num_subbands > 97 || Lqcd != 3 + 2 * num_subbands)
+        if (num_subbands > MAX_SUBBAND_COUNT || Lqcd != 3 + 2 * num_subbands)
           OJPH_ERROR(0x00050086, "wrong Lqcd value of %d in QCD marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
         {
@@ -1996,7 +2030,7 @@ namespace ojph {
         if (num_subbands == 0)
           OJPH_ERROR(0x000500AC, "QCC marker segment that specifies no "
             "quantization informtion");
-        if (num_subbands > 97 || Lqcd != offset + num_subbands)
+        if (num_subbands > MAX_SUBBAND_COUNT || Lqcd != offset + num_subbands)
           OJPH_ERROR(0x000500A5, "wrong Lqcd value of %d in QCC marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
           if (file->read(&SPqcd.u8[i], 1) != 1)
@@ -2016,7 +2050,7 @@ namespace ojph {
         if (num_subbands == 0)
           OJPH_ERROR(0x000500AD, "QCC marker segment that specifies no "
             "quantization informtion");
-        if (num_subbands > 97 || Lqcd != offset + 2 * num_subbands)
+        if (num_subbands > MAX_SUBBAND_COUNT || Lqcd != offset + 2 * num_subbands)
           OJPH_ERROR(0x000500A8, "wrong Lqcc value of %d in QCC marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
         {
@@ -2034,9 +2068,34 @@ namespace ojph {
     {
       assert(type == QCD_MAIN);
       param_qcd *p = get_qcc(comp_idx);
-      if (p == NULL)
+      if (p == this)
         p = add_qcc_object(comp_idx);
       p->set_delta(delta);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_weights(const float *weights, size_t len)
+    {
+      if (weights == NULL || len == 0 || len > MAX_SUBBAND_COUNT)
+        OJPH_ERROR(0x000501A1, "The number of quantization weights must be "
+          "between 1 and %d, but %zu were provided.", MAX_SUBBAND_COUNT, len);
+      for (size_t i = 0; i < len; ++i)
+        if (!(weights[i] > 0.0f))
+          OJPH_ERROR(0x000501A2, "Quantization weights must be positive.");
+      memcpy(this->weights, weights, len * sizeof(float));
+      this->num_weights = (ui32)len;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void param_qcd::set_delta(ui32 comp_idx, float delta,
+                              const float *weights, size_t len)
+    {
+      assert(type == QCD_MAIN);
+      param_qcd *p = get_qcc(comp_idx);
+      if (p == this)
+        p = add_qcc_object(comp_idx);
+      p->set_delta(delta);
+      p->set_weights(weights, len);
     }
 
     //////////////////////////////////////////////////////////////////////////

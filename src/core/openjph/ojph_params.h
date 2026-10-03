@@ -216,6 +216,25 @@ namespace ojph {
     void set_qfactor(float qfactor);
 
     /**
+     * @brief Set the irreversible reference quantization step size `delta_r`
+     *        and weight coefficients `w_b` for a specific component.
+     *
+     * The quantization step size `delta_b` for subband `b` is given by:
+     * `delta_b = delta_r / sqrt(G_b * w_b * M_c)` where `G_b` is the energy
+     * gain factor for the sub-band synthesis operator, `w_b` is the visual
+     * weight, and `M_c` accounts for the gain from the MCT/ICT. The `b`
+     * corresponds to the subband order:
+     *
+     * `{LH1, HL1, HH1, LH2, HL2, HH2 … , HHN, LLN}`
+     *
+     * @param comp_idx Target component
+     * @param delta Reference quantization step size `delta_r`
+     * @param weights Array of weight coefficients `w_b` in subband order
+     * @param len Number of coefficients in weights
+     */
+    void set_irrev_quant(ui32 comp_idx, float delta, float weights[], size_t len);
+
+    /**
      * @brief Set the irreversible quantization base delta for a specific
      *        component
      *

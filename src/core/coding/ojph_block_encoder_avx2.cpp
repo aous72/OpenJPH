@@ -842,14 +842,29 @@ static void proc_ms_encode(ms_struct *msp,
         qo = _mm256_or_si256(qo, _mm256_sllv_epi64(
           _mm256_srli_epi64(cwd_vec[3], 32), _mm256_srli_epi64(o3, 32)));
 
-        ui64 q_even[4], q_odd[4];
-        ui32 q_len[8];
-        _mm256_storeu_si256((__m256i*)q_even, qe);
-        _mm256_storeu_si256((__m256i*)q_odd, qo);
-        _mm256_storeu_si256((__m256i*)q_len, len);
-        for (int j = 0; j < 4; ++j) {
-            ms_emit(msp, q_even[j], (int)q_len[2 * j]);
-            ms_emit(msp, q_odd[j], (int)q_len[2 * j + 1]);
+        /* the bits of quads 2j and 2j + 1 together, where they fit in 64
+         * bits; the lengths are in the low halves of the 64 bit lanes */
+        __m256i len_e = _mm256_and_si256(len, lo32);
+        __m256i len_p = _mm256_add_epi32(len_e, _mm256_srli_epi64(len, 32));
+        if (likely(_mm256_testz_si256(
+              _mm256_cmpgt_epi32(len_p, _mm256_set1_epi32(64)), ONE))) {
+            __m256i qp = _mm256_or_si256(qe, _mm256_sllv_epi64(qo, len_e));
+            ui64 q_pair[4], q_len[4];
+            _mm256_storeu_si256((__m256i*)q_pair, qp);
+            _mm256_storeu_si256((__m256i*)q_len, len_p);
+            for (int j = 0; j < 4; ++j)
+                ms_emit(msp, q_pair[j], (int)q_len[j]);
+        }
+        else {
+            ui64 q_even[4], q_odd[4];
+            ui32 q_len[8];
+            _mm256_storeu_si256((__m256i*)q_even, qe);
+            _mm256_storeu_si256((__m256i*)q_odd, qo);
+            _mm256_storeu_si256((__m256i*)q_len, len);
+            for (int j = 0; j < 4; ++j) {
+                ms_emit(msp, q_even[j], (int)q_len[2 * j]);
+                ms_emit(msp, q_odd[j], (int)q_len[2 * j + 1]);
+            }
         }
     }
     else {

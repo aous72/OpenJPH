@@ -447,23 +447,61 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    // Writes the bits of lo, then of hi, byte by byte with the bit stuffing,
+    // until fewer than 64 bits remain; used (64 to 127) is the number of
+    // bits in lo and hi.  Taken when a word needs a stuffed bit.
+    static void
+    vlc_flush_stuffed(vlc_struct* vlcp, ui64 lo, ui64 hi, int used)
+    {
+      while (used >= 64) {
+        int escape = (int)vlcp->last_greater_than_8F;
+        int is_7f = (int)((lo & 0x7F) == 0x7F);
+        int bits = 8 - (escape & is_7f);
+        ui8 byte = (ui8)(lo & ((1u << bits) - 1));
+        *(vlcp->buf - vlcp->pos) = byte;
+        vlcp->pos++;
+        vlcp->last_greater_than_8F = byte > 0x8F;
+        lo = (lo >> bits) | (hi << (64 - bits));
+        hi >>= bits;
+        used -= bits;
+      }
+      vlcp->tmp = lo;
+      vlcp->used_bits = used;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // Appends a codeword of at most 64 bits; vlcp->used_bits stays below
+    // 64.  A full word that needs no stuffed bit is written as 8 bytes at
+    // once.  A stuffed bit is needed where a byte follows one above 0x8F and
+    // has its 7 low bits set.
     static inline void
     vlc_encode(vlc_struct* vlcp, ui64 cwd, int cwd_len)
     {
-      while (true) {
-        int avail = 64 - vlcp->used_bits;
-        if (likely(avail > 0 && cwd_len <= avail)) {
-          vlcp->tmp |= cwd << vlcp->used_bits;
-          vlcp->used_bits += cwd_len;
-          return;
-        }
-        if (likely(avail > 0)) // available space smaller than needed
-          vlcp->tmp |= cwd << vlcp->used_bits;
-        vlcp->used_bits = 64;
-        vlc_drain(vlcp);
-        cwd >>= avail;
-        cwd_len -= avail;
+      int used = vlcp->used_bits;
+      ui64 lo = vlcp->tmp | (cwd << used);
+      used += cwd_len;
+      if (used < 64) {
+        vlcp->tmp = lo;
+        vlcp->used_bits = used;
+        return;
       }
+      ui64 hi = (cwd >> 1) >> (63 - vlcp->used_bits);
+      const ui64 msbs = 0x8080808080808080ULL;
+      ui64 low7 = lo & 0x7F7F7F7F7F7F7F7FULL;
+      ui64 all7 = (low7 + 0x0101010101010101ULL) & msbs;  // low 7 bits set
+      ui64 gt8f = (low7 + 0x7070707070707070ULL) & lo & msbs; // above 0x8F
+      ui64 after = (gt8f << 8) | ((ui64)vlcp->last_greater_than_8F << 7);
+      if (likely((after & all7) == 0)) {
+        // the bytes go to decreasing addresses
+        ui64 rev = swap_bytes_if_le(lo);
+        memcpy(vlcp->buf - vlcp->pos - 7, &rev, 8);
+        vlcp->pos += 8;
+        vlcp->last_greater_than_8F = (gt8f >> 63) != 0;
+        vlcp->tmp = hi;
+        vlcp->used_bits = used - 64;
+      }
+      else
+        vlc_flush_stuffed(vlcp, lo, hi, used);
     }
 
     //////////////////////////////////////////////////////////////////////////

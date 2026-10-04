@@ -726,19 +726,6 @@ namespace ojph {
 #define ZERO _mm256_setzero_si256()
 #define ONE  _mm256_set1_epi32(1)
 
-// https://stackoverflow.com/a/58827596
-inline __m256i avx2_lzcnt_epi32(__m256i v) {
-    // prevent value from being rounded up to the next power of two
-    v = _mm256_andnot_si256(_mm256_srli_epi32(v, 8), v);  // keep 8 MSB
-
-    v = _mm256_castps_si256(_mm256_cvtepi32_ps(v));    // convert an integer to float
-    v = _mm256_srli_epi32(v, 23);                   // shift down the exponent
-    v = _mm256_subs_epu16(_mm256_set1_epi32(158), v);  // undo bias
-    v = _mm256_min_epi16(v, _mm256_set1_epi32(32));    // clamp at 32
-
-    return v;
-}
-
 inline __m256i avx2_cmpneq_epi32(__m256i v, __m256i v2) {
     return _mm256_xor_si256(_mm256_cmpeq_epi32(v, v2), _mm256_set1_epi32((int32_t)0xffffffff));
 }
@@ -747,88 +734,62 @@ static void proc_pixel(__m256i *src_vec, ui32 p,
                        __m256i *eq_vec, __m256i *s_vec,
                        __m256i &rho_vec, __m256i &e_qmax_vec)
 {
-    __m256i val_vec[4];
-    __m256i _eq_vec[4];
-    __m256i _s_vec[4];
-    __m256i _rho_vec[4];
-
-    for (ui32 i = 0; i < 4; ++i) {
-        /* val = t + t; //multiply by 2 and get rid of sign */
-        val_vec[i] = _mm256_add_epi32(src_vec[i], src_vec[i]);
-
-        /* val >>= p;  // 2 \mu_p + x */
-        val_vec[i] = _mm256_srli_epi32(val_vec[i], (int)p);
-
-        /* val &= ~1u; // 2 \mu_p */
-        val_vec[i] = _mm256_and_si256(val_vec[i], _mm256_set1_epi32((int)~1u));
-
-        /* if (val) { */
-        const __m256i val_notmask = avx2_cmpneq_epi32(val_vec[i], ZERO);
-
-        /*   rho[i] = 1 << i;
-         *   rho is processed below.
-         */
-
-        /*   e_q[i] = 32 - (int)count_leading_ZEROs(--val); //2\mu_p - 1 */
-        val_vec[i] = _mm256_sub_epi32(val_vec[i], ONE);
-        _eq_vec[i] = avx2_lzcnt_epi32(val_vec[i]);
-        _eq_vec[i] = _mm256_sub_epi32(_mm256_set1_epi32(32), _eq_vec[i]);
-
-        /*   e_qmax[i] = ojph_max(e_qmax[i], e_q[j]);
-         *   e_qmax is processed below
-         */
-
-        /*   s[0] = --val + (t >> 31); //v_n = 2(\mu_p-1) + s_n */
-        val_vec[i] = _mm256_sub_epi32(val_vec[i], ONE);
-        _s_vec[i] = _mm256_srli_epi32(src_vec[i], 31);
-        _s_vec[i] = _mm256_add_epi32(_s_vec[i], val_vec[i]);
-
-        _eq_vec[i] = _mm256_and_si256(_eq_vec[i], val_notmask);
-        _s_vec[i] = _mm256_and_si256(_s_vec[i], val_notmask);
-        val_vec[i] = _mm256_srli_epi32(val_notmask, 31);
-        /* } */
+    /* Reorder the samples from
+     * src_vec[0]:[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7]
+     * src_vec[1]:[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5],.[1, 6], [1, 7]
+     * src_vec[2]:[0, 8], [0, 9], [0,10], [0,11], [0,12], [0,13], [0,14], [0,15]
+     * src_vec[3]:[1, 8], [1, 9], [1,10], [1,11], [1,12], [1,13], [1,14], [1,15]
+     * to
+     * t[0]:[0, 0], [0, 2], [0, 4], [0, 6], [0, 8], [0,10], [0,12], [0,14]
+     * t[1]:[1, 0], [1, 2], [1, 4], [1, 6], [1, 8], [1,10], [1,12], [1,14]
+     * t[2]:[0, 1], [0, 3], [0, 5], [0, 7], [0, 9], [0,11], [0,13], [0,15]
+     * t[3]:[1, 1], [1, 3], [1, 5], [1, 7], [1, 9], [1,11], [1,13], [1,15]
+     * that is, one lane per quad, and t[i] holds sample i of the quads.
+     * Everything below works lane by lane.
+     */
+    const __m256i idx = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+    __m256i t[4];
+    for (ui32 i = 0; i < 2; ++i) {
+        __m256i tmp1 = _mm256_permutevar8x32_epi32(src_vec[0 + i], idx);
+        __m256i tmp2 = _mm256_permutevar8x32_epi32(src_vec[2 + i], idx);
+        t[0 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (0 << 0) + (2 << 4));
+        t[2 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (1 << 0) + (3 << 4));
     }
 
-    const __m256i idx = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+    __m256i rho[4];
+    for (ui32 i = 0; i < 4; ++i) {
+        /* mu = (t + t) >> (p + 1); // \mu_p, the sign dropped */
+        __m256i mu = _mm256_add_epi32(t[i], t[i]);
+        mu = _mm256_srli_epi32(mu, (int)p + 1);
 
-    /* Reorder from
-     * *_vec[0]:[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7]
-     * *_vec[1]:[1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5],.[1, 6], [1, 7]
-     * *_vec[2]:[0, 8], [0, 9], [0,10], [0,11], [0,12], [0,13], [0,14], [0,15]
-     * *_vec[3]:[1, 8], [1, 9], [1,10], [1,11], [1,12], [1,13], [1,14], [1,15]
-     * to
-     * *_vec[0]:[0, 0], [0, 2], [0, 4], [0, 6], [0, 8], [0,10], [0,12], [0,14]
-     * *_vec[1]:[1, 0], [1, 2], [1, 4], [1, 6], [1, 8], [1,10], [1,12], [1,14]
-     * *_vec[2]:[0, 1], [0, 3], [0, 5], [0, 7], [0, 9], [0,11], [0,13], [0,15]
-     * *_vec[3]:[1, 1], [1, 3], [1, 5], [1, 7], [1, 9], [1,11], [1,13], [1,15]
-     */
-    __m256i tmp1, tmp2;
-    for (ui32 i = 0; i < 2; ++i) {
-        tmp1 = _mm256_permutevar8x32_epi32(_eq_vec[0 + i], idx);
-        tmp2 = _mm256_permutevar8x32_epi32(_eq_vec[2 + i], idx);
-        eq_vec[0 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (0 << 0) + (2 << 4));
-        eq_vec[2 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (1 << 0) + (3 << 4));
+        /* rho bit: mu != 0 */
+        rho[i] = _mm256_min_epu32(mu, ONE);
 
-        tmp1 = _mm256_permutevar8x32_epi32(_s_vec[0 + i], idx);
-        tmp2 = _mm256_permutevar8x32_epi32(_s_vec[2 + i], idx);
-        s_vec[0 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (0 << 0) + (2 << 4));
-        s_vec[2 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (1 << 0) + (3 << 4));
+        /* y = mu - 1, or 0 where mu == 0 */
+        __m256i y = _mm256_sub_epi32(mu, rho[i]);
 
-        tmp1 = _mm256_permutevar8x32_epi32(val_vec[0 + i], idx);
-        tmp2 = _mm256_permutevar8x32_epi32(val_vec[2 + i], idx);
-        _rho_vec[0 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (0 << 0) + (2 << 4));
-        _rho_vec[2 + i] = _mm256_permute2x128_si256(tmp1, tmp2, (1 << 0) + (3 << 4));
+        /* e_q = 32 - count_leading_zeros(2 mu - 1) = 1 + bit length of y
+         * where mu != 0, else 0.  The bit length of y (below 2^31) is read
+         * from the exponent of its float conversion; only its 8 most
+         * significant bits are kept, so that the conversion cannot round up
+         * to the next power of two. */
+        __m256i x = _mm256_andnot_si256(_mm256_srli_epi32(y, 8), y);
+        x = _mm256_srli_epi32(_mm256_castps_si256(_mm256_cvtepi32_ps(x)), 23);
+        x = _mm256_subs_epu16(x, _mm256_set1_epi32(126));
+        eq_vec[i] = _mm256_add_epi32(x, rho[i]);
+
+        /* s = 2 (mu - 1) + (t >> 31); //v_n = 2(\mu_p-1) + s_n
+         * only used where mu != 0 */
+        s_vec[i] = _mm256_add_epi32(_mm256_add_epi32(y, y),
+                                    _mm256_srli_epi32(t[i], 31));
     }
 
     e_qmax_vec = _mm256_max_epi32(eq_vec[0], eq_vec[1]);
     e_qmax_vec = _mm256_max_epi32(e_qmax_vec, eq_vec[2]);
     e_qmax_vec = _mm256_max_epi32(e_qmax_vec, eq_vec[3]);
-    _rho_vec[1] = _mm256_slli_epi32(_rho_vec[1], 1);
-    _rho_vec[2] = _mm256_slli_epi32(_rho_vec[2], 2);
-    _rho_vec[3] = _mm256_slli_epi32(_rho_vec[3], 3);
-    rho_vec = _mm256_or_si256(_rho_vec[0], _rho_vec[1]);
-    rho_vec = _mm256_or_si256(rho_vec, _rho_vec[2]);
-    rho_vec = _mm256_or_si256(rho_vec, _rho_vec[3]);
+    rho_vec = _mm256_or_si256(rho[0], _mm256_slli_epi32(rho[1], 1));
+    rho_vec = _mm256_or_si256(rho_vec, _mm256_slli_epi32(rho[2], 2));
+    rho_vec = _mm256_or_si256(rho_vec, _mm256_slli_epi32(rho[3], 3));
 }
 
 static void proc_ms_encode(ms_struct *msp,

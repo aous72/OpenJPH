@@ -1104,6 +1104,90 @@ static void proc_vlc_encode(vlc_struct *vlcp, ui32 *tuple,
     }
 }
 
+// The same as proc_vlc_encode with uvlc_tbl_pair2 (the quad rows after the
+// first), with the codewords put together in vector registers: the VLC
+// codewords of quads i and i + 1 (i even), then the UVLC prefixes of u_q[i]
+// and u_q[i + 1], then their suffixes; quads 0 to 3 in one codeword and
+// quads 4 to 7 in another, of at most 60 bits each.
+static void proc_vlc_encode_vec(vlc_struct *vlcp, __m256i tuple_vec,
+                                __m256i u_q_vec, ui32 ignore)
+{
+    // the quads from i_max on are outside the codeblock and code nothing
+    ui32 i_max = 8 - (ignore / 2);
+    if (i_max < 8) {
+        __m256i keep = _mm256_cmpgt_epi32(_mm256_set1_epi32((int)i_max),
+          _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7));
+        tuple_vec = _mm256_and_si256(tuple_vec, keep);
+        u_q_vec = _mm256_and_si256(u_q_vec, keep);
+    }
+
+    // the VLC codeword and its length; tuple is (cwd << 8) + (len << 4) + e_k
+    __m256i vlc_cwd = _mm256_srli_epi32(tuple_vec, 8);
+    __m256i vlc_len = _mm256_and_si256(_mm256_srli_epi32(tuple_vec, 4),
+                                       _mm256_set1_epi32(7));
+
+    // the UVLC prefix and suffix of u_q (at most 32), as uvlc_init_tables
+    // makes them, from tables indexed by min(u_q, 5) (bytes 1 to 3 of the
+    // index have their top bit set, and give 0)
+    const __m256i pre_tbl = _mm256_setr_epi8(
+      0, 1, 2, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 1, 2, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256i pre_len_tbl = _mm256_setr_epi8(
+      0, 1, 2, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 1, 2, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256i suf_len_tbl = _mm256_setr_epi8(
+      0, 0, 0, 1, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 1, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256i suf_base_tbl = _mm256_setr_epi8(
+      0, 0, 0, 3, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 3, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    __m256i idx = _mm256_or_si256(
+      _mm256_min_epu32(u_q_vec, _mm256_set1_epi32(5)),
+      _mm256_set1_epi32((int)0x80808000));
+    __m256i pre = _mm256_shuffle_epi8(pre_tbl, idx);
+    __m256i pre_len = _mm256_shuffle_epi8(pre_len_tbl, idx);
+    __m256i suf_len = _mm256_shuffle_epi8(suf_len_tbl, idx);
+    __m256i suf = _mm256_sub_epi32(u_q_vec,
+      _mm256_shuffle_epi8(suf_base_tbl, idx));
+    suf = _mm256_and_si256(suf,
+      _mm256_sub_epi32(_mm256_sllv_epi32(ONE, suf_len), ONE));
+
+    // pairs of quads: the even lanes take the values of the odd lanes after
+    // them; the odd lanes are cleared at the end
+    __m256i uvlc = _mm256_or_si256(pre,
+      _mm256_sllv_epi32(_mm256_srli_epi64(pre, 32), pre_len));
+    __m256i len = _mm256_add_epi32(pre_len, _mm256_srli_epi64(pre_len, 32));
+    uvlc = _mm256_or_si256(uvlc, _mm256_sllv_epi32(suf, len));
+    len = _mm256_add_epi32(len, suf_len);
+    uvlc = _mm256_or_si256(uvlc,
+      _mm256_sllv_epi32(_mm256_srli_epi64(suf, 32), len));
+    len = _mm256_add_epi32(len, _mm256_srli_epi64(suf_len, 32));
+
+    __m256i val = _mm256_or_si256(vlc_cwd,
+      _mm256_sllv_epi32(_mm256_srli_epi64(vlc_cwd, 32), vlc_len));
+    __m256i val_len = _mm256_add_epi32(vlc_len,
+      _mm256_srli_epi64(vlc_len, 32));
+    val = _mm256_or_si256(val, _mm256_sllv_epi32(uvlc, val_len));
+    val_len = _mm256_add_epi32(val_len, len);
+
+    const __m256i lo32 = _mm256_set1_epi64x(0xFFFFFFFF);
+    val = _mm256_and_si256(val, lo32);          // at most 30 bits
+    val_len = _mm256_and_si256(val_len, lo32);
+
+    // two pairs together: the high 64 bits of each 128 bit lane go after
+    // the low 64 bits
+    __m256i sh = _mm256_sllv_epi64(val, _mm256_slli_si256(val_len, 8));
+    val = _mm256_or_si256(sh, _mm256_srli_si256(sh, 8));
+    val_len = _mm256_add_epi32(val_len, _mm256_srli_si256(val_len, 8));
+
+    ui64 w[4];
+    ui32 n[8];
+    _mm256_storeu_si256((__m256i*)w, val);
+    _mm256_storeu_si256((__m256i*)n, val_len);
+    vlc_encode(vlcp, w[0], (int)n[0]);
+    vlc_encode(vlcp, w[2], (int)n[4]);
+}
+
 template<int PASS>
 OJPH_FORCE_INLINE void encode_x_loop(
     ui32 *sp, ui32 stride, ui32 height, ui32 y,
@@ -1248,18 +1332,21 @@ OJPH_FORCE_INLINE void encode_x_loop(
 
         proc_ms_encode(&ms, tuple_vec, uq_vec, rho_vec, s_vec);
 
-        ui32 u_q[10];
-        ui32 tuple[10];
-        tuple_vec = _mm256_srli_epi32(tuple_vec, 4);
-        _mm256_storeu_si256((__m256i*)tuple, tuple_vec);
-        _mm256_storeu_si256((__m256i*)u_q, u_q_vec);
-        {
-          ui32 i_max = 8 - (_ignore / 2);
-          if (i_max & 1) { tuple[i_max] = 0; u_q[i_max] = 0; }
-          tuple[8] = 0; u_q[8] = 0;
+        if (PASS == 1) {
+            ui32 u_q[10];
+            ui32 tuple[10];
+            tuple_vec = _mm256_srli_epi32(tuple_vec, 4);
+            _mm256_storeu_si256((__m256i*)tuple, tuple_vec);
+            _mm256_storeu_si256((__m256i*)u_q, u_q_vec);
+            {
+              ui32 i_max = 8 - (_ignore / 2);
+              if (i_max & 1) { tuple[i_max] = 0; u_q[i_max] = 0; }
+              tuple[8] = 0; u_q[8] = 0;
+            }
+            proc_vlc_encode(&vlc, tuple, u_q, _ignore, uvlc_tbl_pair1);
         }
-        proc_vlc_encode(&vlc, tuple, u_q, _ignore,
-            (PASS == 1) ? uvlc_tbl_pair1 : uvlc_tbl_pair2);
+        else
+            proc_vlc_encode_vec(&vlc, tuple_vec, u_q_vec, _ignore);
     }
 }
 

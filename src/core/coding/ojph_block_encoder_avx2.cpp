@@ -878,22 +878,19 @@ static __m256i cal_eps_vec(__m256i *eq_vec, __m256i &u_q_vec,
     auto u_q_mask = _mm256_cmpgt_epi32(u_q_vec, ZERO);
 
     auto mask = _mm256_cmpeq_epi32(eq_vec[0], e_qmax_vec);
-    auto eps_vec = _mm256_srli_epi32(mask, 31);
+    auto eps_vec = _mm256_and_si256(mask, ONE);
 
     mask = _mm256_cmpeq_epi32(eq_vec[1], e_qmax_vec);
-    auto tmp = _mm256_srli_epi32(mask, 31);
-    tmp = _mm256_slli_epi32(tmp, 1);
-    eps_vec = _mm256_or_si256(eps_vec, tmp);
+    mask = _mm256_and_si256(mask, _mm256_set1_epi32(2));
+    eps_vec = _mm256_or_si256(eps_vec, mask);
 
     mask = _mm256_cmpeq_epi32(eq_vec[2], e_qmax_vec);
-    tmp = _mm256_srli_epi32(mask, 31);
-    tmp = _mm256_slli_epi32(tmp, 2);
-    eps_vec = _mm256_or_si256(eps_vec, tmp);
+    mask = _mm256_and_si256(mask, _mm256_set1_epi32(4));
+    eps_vec = _mm256_or_si256(eps_vec, mask);
 
     mask = _mm256_cmpeq_epi32(eq_vec[3], e_qmax_vec);
-    tmp = _mm256_srli_epi32(mask, 31);
-    tmp = _mm256_slli_epi32(tmp, 3);
-    eps_vec = _mm256_or_si256(eps_vec, tmp);
+    mask = _mm256_and_si256(mask, _mm256_set1_epi32(8));
+    eps_vec = _mm256_or_si256(eps_vec, mask);
 
     return  _mm256_and_si256(u_q_mask, eps_vec);
 }
@@ -906,9 +903,10 @@ static void update_lep(ui32 x, __m256i &prev_e_val_vec,
      * lep[0] = (ui8)e_q[3];
      * Compare e_q[1] with e_q[3] of the prevous round.
      */
-    auto tmp = _mm256_permutevar8x32_epi32(eq_vec[3], left_shift);
-    tmp = _mm256_insert_epi32(tmp, _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_e_val_vec)), 0);
-    prev_e_val_vec = _mm256_insert_epi32(ZERO, _mm256_extract_epi32(eq_vec[3], 7), 0);
+    // only lane 0 of prev_e_val_vec is used: e_q[3] of the last quad
+    auto rot = _mm256_permutevar8x32_epi32(eq_vec[3], left_shift);
+    auto tmp = _mm256_blend_epi32(rot, prev_e_val_vec, 0x01);
+    prev_e_val_vec = rot;
     e_val_vec[x] = _mm256_max_epi32(eq_vec[1], tmp);
 }
 
@@ -921,9 +919,10 @@ static void update_lcxp(ui32 x, __m256i &prev_cx_val_vec,
      * lcxp[0] = (ui8)((rho[0] & 8) >> 3);
      * Or (rho[0] & 2) and (rho[0] of the previous round & 8).
      */
-    auto tmp = _mm256_permutevar8x32_epi32(rho_vec, left_shift);
-    tmp = _mm256_insert_epi32(tmp, _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_cx_val_vec)), 0);
-    prev_cx_val_vec = _mm256_insert_epi32(ZERO, _mm256_extract_epi32(rho_vec, 7), 0);
+    // only lane 0 of prev_cx_val_vec is used: rho of the last quad
+    auto rot = _mm256_permutevar8x32_epi32(rho_vec, left_shift);
+    auto tmp = _mm256_blend_epi32(rot, prev_cx_val_vec, 0x01);
+    prev_cx_val_vec = rot;
 
     tmp = _mm256_and_si256(tmp, _mm256_set1_epi32(8));
     tmp = _mm256_srli_epi32(tmp, 3);
@@ -962,32 +961,20 @@ static __m256i proc_cq2(ui32 x, __m256i *cx_val_vec, __m256i &rho_vec,
 {
     // c_q[i + 1] = (lcxp[i + 1] + (lcxp[i + 2] << 2))
     //            | (((rho[i] & 4) >> 1) | ((rho[i] & 8) >> 2));
-    auto lcxp1_vec = _mm256_permutevar8x32_epi32(cx_val_vec[x], right_shift);
-    auto tmp = _mm256_permutevar8x32_epi32(lcxp1_vec, right_shift);
+    // lcxp[i + 1] and lcxp[i + 2] are the lanes of cx_val_vec[x] moved down
+    // by one and by two, with the first lanes of cx_val_vec[x + 1] after
+    // them
+    const __m256i right_shift2 = _mm256_set_epi32(1, 0, 7, 6, 5, 4, 3, 2);
+    auto lcxp1_vec = _mm256_permutevar8x32_epi32(
+      _mm256_blend_epi32(cx_val_vec[x], cx_val_vec[x + 1], 0x01), right_shift);
+    auto lcxp2_vec = _mm256_permutevar8x32_epi32(
+      _mm256_blend_epi32(cx_val_vec[x], cx_val_vec[x + 1], 0x03), right_shift2);
+    auto tmp = _mm256_add_epi32(lcxp1_vec, _mm256_slli_epi32(lcxp2_vec, 2));
 
-#ifdef OJPH_ARCH_X86_64
-    tmp = _mm256_insert_epi64(tmp,
-      _mm_cvtsi128_si64(_mm256_castsi256_si128(cx_val_vec[x + 1])), 3);
-#elif (defined OJPH_ARCH_I386)
-    int lsb = _mm_cvtsi128_si32(_mm256_castsi256_si128(cx_val_vec[x + 1]));
-    tmp = _mm256_insert_epi32(tmp, lsb, 6);
-    int msb = _mm_extract_epi32(_mm256_castsi256_si128(cx_val_vec[x + 1]), 1);
-    tmp = _mm256_insert_epi32(tmp, msb, 7);
-#else
-    #error Error unsupport compiler
-#endif
-    tmp = _mm256_slli_epi32(tmp, 2);
-    auto tmp1 = _mm256_insert_epi32(lcxp1_vec,
-      _mm_cvtsi128_si32(_mm256_castsi256_si128(cx_val_vec[x + 1])), 7);
-    tmp = _mm256_add_epi32(tmp1, tmp);
-
-    tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(4));
-    tmp1 = _mm256_srli_epi32(tmp1, 1);
-    tmp = _mm256_or_si256(tmp, tmp1);
-
-    tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(8));
-    tmp1 = _mm256_srli_epi32(tmp1, 2);
-
+    // ((rho[i] & 4) >> 1) | ((rho[i] & 8) >> 2): 2 where bit 2 or bit 3
+    // of rho is set
+    auto tmp1 = _mm256_min_epu32(_mm256_and_si256(rho_vec,
+      _mm256_set1_epi32(12)), _mm256_set1_epi32(2));
     return _mm256_or_si256(tmp, tmp1);
 }
 
@@ -1109,7 +1096,7 @@ OJPH_FORCE_INLINE void encode_x_loop(
     mel_struct &mel, vlc_struct &vlc, ms_struct &ms,
     __m256i *e_val_vec, __m256i &prev_e_val_vec,
     __m256i *cx_val_vec, __m256i &prev_cx_val_vec,
-    ui32 &prev_cq,
+    __m256i &prev_cq_vec,
     const __m256i &right_shift, const __m256i &left_shift)
 {
     ui32 *vlc_tbl = (PASS == 1) ? vlc_tbl0 : vlc_tbl1;
@@ -1175,20 +1162,18 @@ OJPH_FORCE_INLINE void encode_x_loop(
               tmp = proc_cq1(x, cx_val_vec, zero_rho, right_shift);
             else
               tmp = proc_cq2(x, cx_val_vec, zero_rho, right_shift);
-            __m256i cq_vec = _mm256_permutevar8x32_epi32(tmp, left_shift);
-            cq_vec = _mm256_insert_epi32(cq_vec, (int)prev_cq, 0);
+            __m256i rot = _mm256_permutevar8x32_epi32(tmp, left_shift);
+            __m256i cq_vec = _mm256_blend_epi32(rot, prev_cq_vec, 0x01);
             if (_mm256_testz_si256(cq_vec, cq_vec))
             {
-              prev_cq = (ui32)_mm256_extract_epi32(tmp, 7);
+              prev_cq_vec = rot;
               mel_advance_run(&mel, 8);
               // update_lep with e_q == 0 everywhere
-              __m256i t = _mm256_insert_epi32(ZERO,
-                _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_e_val_vec)), 0);
+              __m256i t = _mm256_blend_epi32(ZERO, prev_e_val_vec, 0x01);
               prev_e_val_vec = ZERO;
               e_val_vec[x] = t;
               // update_lcxp with rho == 0 everywhere
-              t = _mm256_insert_epi32(ZERO,
-                _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_cx_val_vec)), 0);
+              t = _mm256_blend_epi32(ZERO, prev_cx_val_vec, 0x01);
               prev_cx_val_vec = ZERO;
               t = _mm256_and_si256(t, _mm256_set1_epi32(8));
               cx_val_vec[x] = _mm256_srli_epi32(t, 3);
@@ -1201,31 +1186,32 @@ OJPH_FORCE_INLINE void encode_x_loop(
         proc_pixel(src_vec, p, eq_vec, s_vec, rho_vec, e_qmax_vec);
 
         // max_e[(i + 1) % num] = ojph_max(lep[i + 1], lep[i + 2]) - 1;
-        tmp = _mm256_permutevar8x32_epi32(e_val_vec[x], right_shift);
-        tmp = _mm256_insert_epi32(tmp, _mm_cvtsi128_si32(_mm256_castsi256_si128(e_val_vec[x + 1])), 7);
+        // lep[i + 2]: the lanes of e_val_vec[x] moved down by one, with the
+        // first lane of e_val_vec[x + 1] after them
+        tmp = _mm256_permutevar8x32_epi32(
+          _mm256_blend_epi32(e_val_vec[x], e_val_vec[x + 1], 0x01),
+          right_shift);
 
         auto max_e_vec = _mm256_max_epi32(tmp, e_val_vec[x]);
         max_e_vec = _mm256_sub_epi32(max_e_vec, ONE);
 
         // kappa[i] = (rho[i] & (rho[i] - 1)) ? ojph_max(1, max_e[i]) : 1;
-        tmp = _mm256_max_epi32(max_e_vec, ONE);
         tmp1 = _mm256_sub_epi32(rho_vec, ONE);
         tmp1 = _mm256_and_si256(rho_vec, tmp1);
-
         auto cmp = _mm256_cmpeq_epi32(tmp1, ZERO);
-        auto kappa_vec1_ = _mm256_and_si256(cmp, ONE);
-        auto kappa_vec2_ = _mm256_and_si256(_mm256_xor_si256(cmp, _mm256_set1_epi32((int32_t)0xffffffff)), tmp);
-        const __m256i kappa_vec = _mm256_max_epi32(kappa_vec1_, kappa_vec2_);
+        const __m256i kappa_vec =
+          _mm256_max_epi32(_mm256_andnot_si256(cmp, max_e_vec), ONE);
 
         if (PASS == 1)
             tmp = proc_cq1(x, cx_val_vec, rho_vec, right_shift);
         else
             tmp = proc_cq2(x, cx_val_vec, rho_vec, right_shift);
 
-        auto cq_vec = _mm256_permutevar8x32_epi32(tmp, left_shift);
-        ui32 cq0 = prev_cq;
-        cq_vec = _mm256_insert_epi32(cq_vec, (int)cq0, 0);
-        prev_cq = (ui32)_mm256_extract_epi32(tmp, 7);
+        // only lane 0 of prev_cq_vec is used: c_q of the first quad of the
+        // next group
+        auto rot = _mm256_permutevar8x32_epi32(tmp, left_shift);
+        auto cq_vec = _mm256_blend_epi32(rot, prev_cq_vec, 0x01);
+        prev_cq_vec = rot;
 
         update_lep(x, prev_e_val_vec, eq_vec, e_val_vec, left_shift);
         update_lcxp(x, prev_cx_val_vec, rho_vec, cx_val_vec, left_shift);
@@ -1319,17 +1305,21 @@ void ojph_encode_codeblock_avx2(ui32* buf, ui32 missing_msbs,
     __m256i cx_val_vec[65];
     __m256i prev_cx_val_vec = ZERO;
 
-    ui32 prev_cq = 0;
+    // lane 0 is c_q of the first quad of the next group of quads
+    __m256i prev_cq_vec = ZERO;
 
     __m256i tmp;
 
     /* 2 lines per iteration */
     for (ui32 y = 0; y < height; y += 2)
     {
-        e_val_vec[n_loop] = prev_e_val_vec;
+        // the lanes of prev_e_val_vec and prev_cx_val_vec above lane 0 are
+        // not zero
+        e_val_vec[n_loop] = _mm256_blend_epi32(ZERO, prev_e_val_vec, 0x01);
         /* lcxp[0] = (ui8)((rho[0] & 8) >> 3); */
         tmp = _mm256_and_si256(prev_cx_val_vec, _mm256_set1_epi32(8));
-        cx_val_vec[n_loop] = _mm256_srli_epi32(tmp, 3);
+        cx_val_vec[n_loop] =
+          _mm256_blend_epi32(ZERO, _mm256_srli_epi32(tmp, 3), 0x01);
 
         prev_e_val_vec = ZERO;
         prev_cx_val_vec = ZERO;
@@ -1340,19 +1330,19 @@ void ojph_encode_codeblock_avx2(ui32* buf, ui32 missing_msbs,
             encode_x_loop<1>(sp, stride, height, y, n_loop, _width,
                              ignore, p, mel, vlc, ms,
                              e_val_vec, prev_e_val_vec,
-                             cx_val_vec, prev_cx_val_vec, prev_cq,
+                             cx_val_vec, prev_cx_val_vec, prev_cq_vec,
                              right_shift, left_shift);
         else
             encode_x_loop<2>(sp, stride, height, y, n_loop, _width,
                              ignore, p, mel, vlc, ms,
                              e_val_vec, prev_e_val_vec,
-                             cx_val_vec, prev_cx_val_vec, prev_cq,
+                             cx_val_vec, prev_cx_val_vec, prev_cq_vec,
                              right_shift, left_shift);
 
+        // c_q of the first quad of the next row: lane 0
         tmp = _mm256_permutevar8x32_epi32(cx_val_vec[0], right_shift);
         tmp = _mm256_slli_epi32(tmp, 2);
-        tmp = _mm256_add_epi32(tmp, cx_val_vec[0]);
-        prev_cq = (ui32)_mm_cvtsi128_si32(_mm256_castsi256_si128(tmp));
+        prev_cq_vec = _mm256_add_epi32(tmp, cx_val_vec[0]);
     }
 
     ms_terminate(&ms);

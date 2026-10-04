@@ -371,12 +371,26 @@ namespace ojph {
           lev_idx, num_levels, cb_idxs[s].siz, 0);
         *mmsb_tag_flags.get(0, 0, num_levels) = 0;
 
-        //
+        // The four trees have the same layout, so a node has the same
+        // offset in each: lev_idx[l] + (y >> l) * row_width[l] + (x >> l)
+        // for level l, where row_width[l] is the width of level l, as
+        // tag_tree::get works it out.  row_off has the first two terms
+        // for the current row of codeblocks.
+        ui8* inc_p = scratch;
+        ui8* inc_flags_p = scratch + tag_tree_size;
+        ui8* mmsb_p = scratch + (tag_tree_size << 1);
+        ui8* mmsb_flags_p = scratch + (tag_tree_size << 1) + tag_tree_size;
+        ui32 row_width[16], row_off[16];
+        for (ui32 l = 0; l <= num_levels; ++l)
+          row_width[l] = (cb_idxs[s].siz.w + (1u << l) - 1) >> l;
+
         ui32 band_width = bands[s].num_blocks.w;
         ui32 width = cb_idxs[s].siz.w;
         ui32 height = cb_idxs[s].siz.h;
         for (ui32 y = 0; y < height; ++y)
         {
+          for (ui32 l = 0; l <= num_levels; ++l)
+            row_off[l] = lev_idx[l] + (y >> l) * row_width[l];
           coded_cb_header *cp = bands[s].coded_cbs;
           cp += cb_idxs[s].org.x + (y + cb_idxs[s].org.y) * band_width;
           for (ui32 x = 0; x < width; ++x, ++cp)
@@ -386,18 +400,19 @@ namespace ojph {
             for (ui32 cl = num_levels; cl > 0; --cl)
             {
               ui32 cur_lev = cl - 1;
-              empty_cb = *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) == 1;
+              ui32 o = row_off[cur_lev] + (x >> cur_lev);
+              empty_cb = inc_p[o] == 1;
               if (empty_cb)
                 break;
               //check received
-              if (*inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+              if (inc_flags_p[o] == 0)
               {
                 ui32 bit;
                 if (bb_read_bit(&bb, bit) == false)
                 { data_left = 0; throw "error reading from file p1"; }
                 empty_cb = (bit == 0);
-                *inc_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)(1 - bit);
-                *inc_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
+                inc_p[o] = (ui8)(1 - bit);
+                inc_flags_p[o] = 1;
               }
               if (empty_cb)
                 break;
@@ -411,9 +426,10 @@ namespace ojph {
             for (ui32 levp1 = num_levels; levp1 > 0; --levp1)
             {
               ui32 cur_lev = levp1 - 1;
-              mmsbs = *mmsb_tag.get(x>>levp1, y>>levp1, levp1);
+              mmsbs = mmsb_p[row_off[levp1] + (x >> levp1)];
               //check received
-              if (*mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) == 0)
+              ui32 o = row_off[cur_lev] + (x >> cur_lev);
+              if (mmsb_flags_p[o] == 0)
               {
                 ui32 bit = 0;
                 while (bit == 0)
@@ -422,8 +438,8 @@ namespace ojph {
                   { data_left = 0; throw "error reading from file p2"; }
                   mmsbs += 1 - bit;
                 }
-                *mmsb_tag.get(x>>cur_lev, y>>cur_lev, cur_lev) = (ui8)mmsbs;
-                *mmsb_tag_flags.get(x>>cur_lev, y>>cur_lev, cur_lev) = 1;
+                mmsb_p[o] = (ui8)mmsbs;
+                mmsb_flags_p[o] = 1;
               }
             }
 

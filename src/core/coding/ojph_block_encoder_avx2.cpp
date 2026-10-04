@@ -730,7 +730,7 @@ inline __m256i avx2_cmpneq_epi32(__m256i v, __m256i v2) {
     return _mm256_xor_si256(_mm256_cmpeq_epi32(v, v2), _mm256_set1_epi32((int32_t)0xffffffff));
 }
 
-static void proc_pixel(__m256i *src_vec, ui32 p,
+OJPH_FORCE_INLINE void proc_pixel(__m256i *src_vec, ui32 p,
                        __m256i *eq_vec, __m256i *s_vec,
                        __m256i &rho_vec, __m256i &e_qmax_vec)
 {
@@ -792,7 +792,7 @@ static void proc_pixel(__m256i *src_vec, ui32 p,
     rho_vec = _mm256_or_si256(rho_vec, _mm256_slli_epi32(rho[3], 3));
 }
 
-static void proc_ms_encode(ms_struct *msp,
+OJPH_FORCE_INLINE void proc_ms_encode(ms_struct *msp,
                            __m256i &tuple_vec,
                            __m256i &uq_vec,
                            __m256i &rho_vec,

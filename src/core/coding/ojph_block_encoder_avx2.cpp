@@ -595,23 +595,52 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    static inline void
-    ms_encode_nodefer(ms_struct* msp, ui64 cwd, int cwd_len)
+    // Writes the bits of lo, then of hi, byte by byte with the bit stuffing
+    // after 0xFF, until fewer than 64 bits remain; used (64 to 127) is the
+    // number of bits in lo and hi.  Taken when a word has a 0xFF byte or
+    // follows one.
+    static void
+    ms_flush_stuffed(ms_struct* msp, ui64 lo, ui64 hi, int used)
     {
-      while (true) {
-        int avail = 64 - msp->used_bits;
-        if (likely(avail > 0 && cwd_len <= avail)) {
-          msp->tmp |= cwd << msp->used_bits;
-          msp->used_bits += cwd_len;
-          return;
-        }
-        if (likely(avail > 0)) // available space smaller than needed
-          msp->tmp |= cwd << msp->used_bits;
-        msp->used_bits = 64;
-        ms_drain(msp);
-        cwd >>= avail;
-        cwd_len -= avail;
+      while (used >= 64) {
+        int bits = msp->last_was_ff ? 7 : 8;
+        ui8 byte = (ui8)(lo & ((1u << bits) - 1));
+        msp->buf[msp->pos++] = byte;
+        msp->last_was_ff = (byte == 0xFF);
+        lo = (lo >> bits) | (hi << (64 - bits));
+        hi >>= bits;
+        used -= bits;
       }
+      msp->tmp = lo;
+      msp->used_bits = used;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // Appends a codeword of at most 64 bits; msp->used_bits stays below 64.
+    // A full word without a 0xFF byte, after a byte that is not 0xFF, is
+    // written as 8 bytes at once.
+    static inline void
+    ms_emit(ms_struct* msp, ui64 cwd, int cwd_len)
+    {
+      int used = msp->used_bits;
+      ui64 lo = msp->tmp | (cwd << used);
+      used += cwd_len;
+      if (used < 64) {
+        msp->tmp = lo;
+        msp->used_bits = used;
+        return;
+      }
+      ui64 hi = (cwd >> 1) >> (63 - msp->used_bits);
+      ui64 ff = ((lo & 0x7F7F7F7F7F7F7F7FULL) + 0x0101010101010101ULL)
+              & lo & 0x8080808080808080ULL;
+      if (likely(ff == 0 && !msp->last_was_ff)) {
+        memcpy(msp->buf + msp->pos, &lo, 8);
+        msp->pos += 8;
+        msp->tmp = hi;
+        msp->used_bits = used - 64;
+      }
+      else
+        ms_flush_stuffed(msp, lo, hi, used);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -764,123 +793,77 @@ static void proc_pixel(__m256i *src_vec, ui32 p,
     rho_vec = _mm256_or_si256(rho_vec, _rho_vec[3]);
 }
 
-/* from [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, ...]
- *      [0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, ...]
- *      [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, ...]
- *      [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, ...]
- *
- * to   [0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31,
- *       0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33]
- *
- *      [0x04, 0x14, 0x24, 0x34, 0x05, 0x15, 0x25, 0x35,
- *       0x06, 0x16, 0x26, 0x36, 0x07, 0x17, 0x27, 0x37]
- *
- *      [..]
- */
-static void rotate_matrix(__m256i *matrix)
-{
-    __m256i tmp1 = _mm256_unpacklo_epi32(matrix[0], matrix[1]);
-    __m256i tmp2 = _mm256_unpacklo_epi32(matrix[2], matrix[3]);
-    __m256i tmp3 = _mm256_unpackhi_epi32(matrix[0], matrix[1]);
-    __m256i tmp4 = _mm256_unpackhi_epi32(matrix[2], matrix[3]);
-
-    matrix[0] = _mm256_unpacklo_epi64(tmp1, tmp2);
-    matrix[1] = _mm256_unpacklo_epi64(tmp3, tmp4);
-    matrix[2] = _mm256_unpackhi_epi64(tmp1, tmp2);
-    matrix[3] = _mm256_unpackhi_epi64(tmp3, tmp4);
-
-    tmp1 = _mm256_permute2x128_si256(matrix[0], matrix[2], 0x20);
-    matrix[2] = _mm256_permute2x128_si256(matrix[0], matrix[2], 0x31);
-    matrix[0] = tmp1;
-
-    tmp1 = _mm256_permute2x128_si256(matrix[1], matrix[3], 0x20);
-    matrix[3] = _mm256_permute2x128_si256(matrix[1], matrix[3], 0x31);
-    matrix[1] = tmp1;
-}
-
 static void proc_ms_encode(ms_struct *msp,
                            __m256i &tuple_vec,
                            __m256i &uq_vec,
                            __m256i &rho_vec,
                            __m256i *s_vec)
 {
-    __m256i m_vec[4];
+    /* s_vec[k] and the vectors below have one lane per quad; k is the
+     * sample of the quad.  For sample k:
+     *   m = (rho & (1 << k)) ? Uq - ((tuple >> k) & 1) : 0;
+     *   cwd = s & ((1U << m) - 1), of m bits
+     */
+    __m256i m_vec[4], cwd_vec[4];
+    for (int k = 0; k < 4; ++k) {
+        const __m256i bit = _mm256_set1_epi32(1 << k);
+        // all ones (minus one) where bit k of e_k is set
+        __m256i e_k = _mm256_cmpeq_epi32(_mm256_and_si256(tuple_vec, bit), bit);
+        __m256i mask = _mm256_cmpeq_epi32(_mm256_and_si256(rho_vec, bit), bit);
+        m_vec[k] = _mm256_and_si256(mask, _mm256_add_epi32(uq_vec, e_k));
+        __m256i ones = _mm256_sub_epi32(_mm256_sllv_epi32(ONE, m_vec[k]), ONE);
+        cwd_vec[k] = _mm256_and_si256(s_vec[k], ones);
+    }
 
-    /* Prepare parameters for ms_encode */
-    /* m = (rho[i] & 1) ? Uq[i] - ((tuple[i] & 1) >> 0) : 0; */
-    auto tmp = _mm256_and_si256(tuple_vec, ONE);
-    tmp = _mm256_sub_epi32(uq_vec, tmp);
-    auto tmp1 = _mm256_and_si256(rho_vec, ONE);
-    auto mask = avx2_cmpneq_epi32(tmp1, ZERO);
-    m_vec[0] = _mm256_and_si256(mask, tmp);
+    /* the position of each codeword within the bits of its quad, and the
+     * number of bits of the quad */
+    __m256i o1 = m_vec[0];
+    __m256i o2 = _mm256_add_epi32(o1, m_vec[1]);
+    __m256i o3 = _mm256_add_epi32(o2, m_vec[2]);
+    __m256i len = _mm256_add_epi32(o3, m_vec[3]);
 
-    /* m = (rho[i] & 2) ? Uq[i] - ((tuple[i] & 2) >> 1) : 0; */
-    tmp = _mm256_and_si256(tuple_vec, _mm256_set1_epi32(2));
-    tmp = _mm256_srli_epi32(tmp, 1);
-    tmp = _mm256_sub_epi32(uq_vec, tmp);
-    tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(2));
-    mask = avx2_cmpneq_epi32(tmp1, ZERO);
-    m_vec[1] = _mm256_and_si256(mask, tmp);
+    if (likely(_mm256_testz_si256(
+          _mm256_cmpgt_epi32(len, _mm256_set1_epi32(64)), ONE))) {
+        /* the bits of each quad fit in 64 bits: the even quads are put
+         * together in the low halves of the 64 bit lanes, the odd quads in
+         * the high halves */
+        const __m256i lo32 = _mm256_set1_epi64x(0xFFFFFFFF);
+        __m256i qe = _mm256_and_si256(cwd_vec[0], lo32);
+        __m256i qo = _mm256_srli_epi64(cwd_vec[0], 32);
+        qe = _mm256_or_si256(qe, _mm256_sllv_epi64(
+          _mm256_and_si256(cwd_vec[1], lo32), _mm256_and_si256(o1, lo32)));
+        qo = _mm256_or_si256(qo, _mm256_sllv_epi64(
+          _mm256_srli_epi64(cwd_vec[1], 32), _mm256_srli_epi64(o1, 32)));
+        qe = _mm256_or_si256(qe, _mm256_sllv_epi64(
+          _mm256_and_si256(cwd_vec[2], lo32), _mm256_and_si256(o2, lo32)));
+        qo = _mm256_or_si256(qo, _mm256_sllv_epi64(
+          _mm256_srli_epi64(cwd_vec[2], 32), _mm256_srli_epi64(o2, 32)));
+        qe = _mm256_or_si256(qe, _mm256_sllv_epi64(
+          _mm256_and_si256(cwd_vec[3], lo32), _mm256_and_si256(o3, lo32)));
+        qo = _mm256_or_si256(qo, _mm256_sllv_epi64(
+          _mm256_srli_epi64(cwd_vec[3], 32), _mm256_srli_epi64(o3, 32)));
 
-    /* m = (rho[i] & 4) ? Uq[i] - ((tuple[i] & 4) >> 2) : 0; */
-    tmp = _mm256_and_si256(tuple_vec, _mm256_set1_epi32(4));
-    tmp = _mm256_srli_epi32(tmp, 2);
-    tmp = _mm256_sub_epi32(uq_vec, tmp);
-    tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(4));
-    mask = avx2_cmpneq_epi32(tmp1, ZERO);
-    m_vec[2] = _mm256_and_si256(mask, tmp);
-
-    /* m = (rho[i] & 8) ? Uq[i] - ((tuple[i] & 8) >> 3) : 0; */
-    tmp = _mm256_and_si256(tuple_vec, _mm256_set1_epi32(8));
-    tmp = _mm256_srli_epi32(tmp, 3);
-    tmp = _mm256_sub_epi32(uq_vec, tmp);
-    tmp1 = _mm256_and_si256(rho_vec, _mm256_set1_epi32(8));
-    mask = avx2_cmpneq_epi32(tmp1, ZERO);
-    m_vec[3] = _mm256_and_si256(mask, tmp);
-
-    rotate_matrix(m_vec);
-    rotate_matrix(s_vec);
-
-    ui32 cwd[8];
-    int cwd_len[8];
-
-    /* Each iteration process 8 bytes * 2 lines */
-    for (ui32 i = 0; i < 4; ++i) {
-        /* cwd = s[i * 4 + 0] & ((1U << m) - 1)
-         * cwd_len = m
-         */
-        _mm256_storeu_si256((__m256i *)cwd_len, m_vec[i]);
-        tmp = _mm256_sllv_epi32(ONE, m_vec[i]);
-        tmp = _mm256_sub_epi32(tmp, ONE);
-        tmp = _mm256_and_si256(tmp, s_vec[i]);
-        _mm256_storeu_si256((__m256i*)cwd, tmp);
-
-        for (ui32 j = 0; j < 4; j += 2) {
-            ui32 idx0 = j * 2;
-            ui64 _cwd     = cwd[idx0];
-            int  _cwd_len = cwd_len[idx0];
-            _cwd     |= ((ui64)cwd[idx0 + 1]) << _cwd_len;
-            _cwd_len += cwd_len[idx0 + 1];
-
-            ui32 idx1 = (j + 1) * 2;
-            int len1 = cwd_len[idx1] + cwd_len[idx1 + 1];
-            if (likely(_cwd_len + len1 <= 64)) {
-                _cwd     |= ((ui64)cwd[idx1]) << _cwd_len;
-                _cwd_len += cwd_len[idx1];
-                _cwd     |= ((ui64)cwd[idx1 + 1]) << _cwd_len;
-                _cwd_len += cwd_len[idx1 + 1];
-                ms_encode_nodefer(msp, _cwd, _cwd_len);
-            } else {
-                ms_encode_nodefer(msp, _cwd, _cwd_len);
-                _cwd     = cwd[idx1];
-                _cwd_len = cwd_len[idx1];
-                _cwd     |= ((ui64)cwd[idx1 + 1]) << _cwd_len;
-                _cwd_len += cwd_len[idx1 + 1];
-                ms_encode_nodefer(msp, _cwd, _cwd_len);
-            }
+        ui64 q_even[4], q_odd[4];
+        ui32 q_len[8];
+        _mm256_storeu_si256((__m256i*)q_even, qe);
+        _mm256_storeu_si256((__m256i*)q_odd, qo);
+        _mm256_storeu_si256((__m256i*)q_len, len);
+        for (int j = 0; j < 4; ++j) {
+            ms_emit(msp, q_even[j], (int)q_len[2 * j]);
+            ms_emit(msp, q_odd[j], (int)q_len[2 * j + 1]);
         }
     }
-    ms_drain(msp);
+    else {
+        /* a quad has more than 64 bits; codeword by codeword */
+        ui32 cwd[4][8], m[4][8];
+        for (int k = 0; k < 4; ++k) {
+            _mm256_storeu_si256((__m256i*)cwd[k], cwd_vec[k]);
+            _mm256_storeu_si256((__m256i*)m[k], m_vec[k]);
+        }
+        for (int j = 0; j < 8; ++j)
+            for (int k = 0; k < 4; ++k)
+                ms_emit(msp, cwd[k][j], (int)m[k][j]);
+    }
 }
 
 static __m256i cal_eps_vec(__m256i *eq_vec, __m256i &u_q_vec,

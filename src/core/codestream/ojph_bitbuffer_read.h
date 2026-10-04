@@ -54,6 +54,11 @@ namespace ojph {
 
 
     //////////////////////////////////////////////////////////////////////////
+    // The bytes of a packet header are read from the file ahead, up to
+    // sizeof(ahead) at a time, instead of one call to file->read for each
+    // byte; bb_give_back returns those not used to the file, by a seek,
+    // before anything else reads the file.  bytes_left counts the bytes
+    // that are not used yet, as before.
     struct bit_read_buf
     {
       infile_base *file;
@@ -61,6 +66,8 @@ namespace ojph {
       int avail_bits;
       bool unstuff;
       ui32 bytes_left;
+      ui32 ahead_pos, ahead_len;  // ahead[ahead_pos..ahead_len) not used yet
+      ui8 ahead[64];
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -72,6 +79,34 @@ namespace ojph {
       bbp->bytes_left = bytes_left;
       bbp->tmp = 0;
       bbp->unstuff = false;
+      bbp->ahead_pos = bbp->ahead_len = 0;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // reads up to sizeof(ahead) of the bytes_left bytes; bytes_left > 0
+    static inline
+    void bb_read_ahead(bit_read_buf *bbp)
+    {
+      size_t n = ojph_min((size_t)bbp->bytes_left, sizeof(bbp->ahead));
+      size_t r = bbp->file->read(bbp->ahead, n);
+      if (r == 0)
+        throw "error reading from file";
+      bbp->ahead_pos = 0;
+      bbp->ahead_len = (ui32)r;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // returns the bytes read ahead but not used to the file
+    static inline
+    void bb_give_back(bit_read_buf *bbp)
+    {
+      if (bbp->ahead_pos < bbp->ahead_len)
+      {
+        si64 n = (si64)(bbp->ahead_len - bbp->ahead_pos);
+        if (bbp->file->seek(-n, infile_base::OJPH_SEEK_CUR) != 0)
+          throw "error seeking file";
+      }
+      bbp->ahead_pos = bbp->ahead_len = 0;
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -80,9 +115,9 @@ namespace ojph {
     {
       if (bbp->bytes_left > 0)
       {
-        ui8 t = 0;
-        if (bbp->file->read(&t, 1) != 1)
-          throw "error reading from file";
+        if (bbp->ahead_pos == bbp->ahead_len)
+          bb_read_ahead(bbp);
+        ui8 t = bbp->ahead[bbp->ahead_pos++];
         bbp->tmp = t;
         bbp->avail_bits = 8 - bbp->unstuff;
         bbp->unstuff = (t == 0xFF);
@@ -136,6 +171,7 @@ namespace ojph {
                        mem_elastic_allocator *elastic)
     {
       assert(bbp->avail_bits == 0 && bbp->unstuff == false);
+      assert(bbp->ahead_pos == bbp->ahead_len);
       elastic->get_buffer(num_bytes + coded_cb_header::prefix_buf_size
         + coded_cb_header::suffix_buf_size, cur_coded_list);
       ui32 bytes = ojph_min(num_bytes, bbp->bytes_left);
@@ -172,6 +208,7 @@ namespace ojph {
       if (bbp->unstuff)
         result = bb_read(bbp);
       assert(bbp->unstuff == false);
+      bb_give_back(bbp);
       if (uses_eph)
         bb_skip_eph(bbp);
       bbp->tmp = 0;

@@ -211,6 +211,23 @@ namespace ojph {
     bool is_tlm_requested();
 
     /**
+     *  @brief Request the addition of the optional PLT marker segments,
+     *  which list the length of every packet in each tile-part header.
+     *  This request should occur before writing codestream headers
+     *  (ojph::codestream::write_headers())
+     *
+     *  @param needed true when the markers are needed.
+     */
+    void request_plt_marker(bool needed);
+
+    /**
+     *  @brief Query if the optional PLT marker segments are to be added.
+     *
+     *  @return true if the addition of PLT marker segments was requested.
+     */
+    bool is_plt_requested();
+
+    /**
      *  @brief Writes codestream headers when the codestream is used for
      *  writing.  This function should be called after setting all the
      *  codestream parameters, but before pushing image lines using

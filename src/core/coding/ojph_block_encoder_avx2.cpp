@@ -366,24 +366,26 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // static inline void
-    // mel_advance_run(mel_struct* melp, ui32 n)
-    // {
-    //   ui32 remaining = n;
-    //   while (remaining > 0) {
-    //     ui32 space = (ui32)melp->threshold - (ui32)melp->run;
-    //     if (remaining >= space) {
-    //       remaining -= space;
-    //       mel_emit_bits(melp, 1, 1);
-    //       melp->run = 0;
-    //       melp->k = ojph_min(12, melp->k + 1);
-    //       melp->threshold = 1 << mel_exp[melp->k];
-    //     } else {
-    //       melp->run += (int)remaining;
-    //       remaining = 0;
-    //     }
-    //   }
-    // }
+    // Advances the MEL run by n zero events; bit-identical to calling
+    // mel_encode(melp, false) n times.
+    static inline void
+    mel_advance_run(mel_struct* melp, ui32 n)
+    {
+      ui32 remaining = n;
+      while (remaining > 0) {
+        ui32 space = (ui32)melp->threshold - (ui32)melp->run;
+        if (remaining >= space) {
+          remaining -= space;
+          mel_emit_bits(melp, 1, 1);
+          melp->run = 0;
+          melp->k = ojph_min(12, melp->k + 1);
+          melp->threshold = 1 << mel_exp[melp->k];
+        } else {
+          melp->run += (int)remaining;
+          remaining = 0;
+        }
+      }
+    }
 
     //////////////////////////////////////////////////////////////////////////
     // static inline void
@@ -1169,6 +1171,50 @@ OJPH_FORCE_INLINE void encode_x_loop(
             sp += 16;
         }
 
+        ui32 _ignore = ((n_loop - 1) == x) ? ignore : 0;
+
+        // Fast path: when none of the 32 samples is significant at bitplane
+        // p, every quad has rho == 0.  If, in addition, every quad context
+        // is 0, the only thing coded for this group is one MEL zero event
+        // per quad; no VLC, UVLC or MagSgn bits are produced.  The state
+        // passed on to the right and to the next quad row is updated
+        // exactly as the general path would update it with all-zero inputs.
+        {
+          __m256i m = _mm256_or_si256(_mm256_or_si256(src_vec[0], src_vec[1]),
+                                      _mm256_or_si256(src_vec[2], src_vec[3]));
+          // significance test: |t| >= 2^p  <=>  ((t + t) >> p) & ~1 != 0
+          m = _mm256_add_epi32(m, m);          // drops the sign bits
+          m = _mm256_srli_epi32(m, (int)p);
+          m = _mm256_and_si256(m, _mm256_set1_epi32((int)~1u));
+          if (_mm256_testz_si256(m, m) && _ignore == 0)
+          {
+            __m256i zero_rho = ZERO;
+            if (PASS == 1)
+              tmp = proc_cq1(x, cx_val_vec, zero_rho, right_shift);
+            else
+              tmp = proc_cq2(x, cx_val_vec, zero_rho, right_shift);
+            __m256i cq_vec = _mm256_permutevar8x32_epi32(tmp, left_shift);
+            cq_vec = _mm256_insert_epi32(cq_vec, (int)prev_cq, 0);
+            if (_mm256_testz_si256(cq_vec, cq_vec))
+            {
+              prev_cq = (ui32)_mm256_extract_epi32(tmp, 7);
+              mel_advance_run(&mel, 8);
+              // update_lep with e_q == 0 everywhere
+              __m256i t = _mm256_insert_epi32(ZERO,
+                _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_e_val_vec)), 0);
+              prev_e_val_vec = ZERO;
+              e_val_vec[x] = t;
+              // update_lcxp with rho == 0 everywhere
+              t = _mm256_insert_epi32(ZERO,
+                _mm_cvtsi128_si32(_mm256_castsi256_si128(prev_cx_val_vec)), 0);
+              prev_cx_val_vec = ZERO;
+              t = _mm256_and_si256(t, _mm256_set1_epi32(8));
+              cx_val_vec[x] = _mm256_srli_epi32(t, 3);
+              continue;
+            }
+          }
+        }
+
         __m256i rho_vec, e_qmax_vec;
         proc_pixel(src_vec, p, eq_vec, s_vec, rho_vec, e_qmax_vec);
 
@@ -1209,7 +1255,6 @@ OJPH_FORCE_INLINE void encode_x_loop(
 
         auto eps_vec = cal_eps_vec(eq_vec, u_q_vec, e_qmax_vec);
         __m256i tuple_vec = cal_tuple(cq_vec, rho_vec, eps_vec, vlc_tbl);
-        ui32 _ignore = ((n_loop - 1) == x) ? ignore : 0;
 
         if (PASS == 1)
             proc_mel_encode1(&mel, cq_vec, rho_vec, u_q_vec, _ignore,

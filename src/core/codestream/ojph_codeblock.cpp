@@ -108,7 +108,7 @@ namespace ojph {
       this->zero_block = false;
       this->coded_cb = coded_cb;
 
-      this->codeblock_functions.init(reversible);
+      this->codeblock_functions = codestream->get_codeblock_fun(reversible);
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -122,7 +122,7 @@ namespace ojph {
           ? (const void*)(line->i32 + line_offset)
           : (const void*)(line->f32 + line_offset);
         ui32 *dp = buf32 + cur_line * stride;
-        this->codeblock_functions.tx_to_cb32(sp, dp, K_max, delta_inv,
+        this->codeblock_functions->tx_to_cb32(sp, dp, K_max, delta_inv,
                                              cb_size.w, max_val32);
         ++cur_line;
       }
@@ -132,7 +132,7 @@ namespace ojph {
         assert(line->flags & line_buf::LFT_64BIT);
         const si64 *sp = line->i64 + line_offset;
         ui64 *dp = buf64 + cur_line * stride;
-        this->codeblock_functions.tx_to_cb64(sp, dp, K_max, delta_inv,
+        this->codeblock_functions->tx_to_cb64(sp, dp, K_max, delta_inv,
                                              cb_size.w, max_val64);
         ++cur_line;
       }
@@ -143,7 +143,7 @@ namespace ojph {
     {
       if (precision == BUF32)
       {
-        ui32 mv = this->codeblock_functions.find_max_val32(max_val32);
+        ui32 mv = this->codeblock_functions->find_max_val32(max_val32);
         if (mv >= 1u << (31 - K_max))
         {
           coded_cb->missing_msbs = K_max - 1;
@@ -151,7 +151,7 @@ namespace ojph {
           assert(coded_cb->missing_msbs < K_max);
           coded_cb->num_passes = 1;
 
-          this->codeblock_functions.encode_cb32(buf32, K_max-1, 1,
+          this->codeblock_functions->encode_cb32(buf32, K_max-1, 1,
             cb_size.w, cb_size.h, stride, coded_cb->pass_length,
             elastic, coded_cb->next_coded);
         }
@@ -159,7 +159,7 @@ namespace ojph {
       else
       {
         assert(precision == BUF64);
-        ui64 mv = this->codeblock_functions.find_max_val64(max_val64);
+        ui64 mv = this->codeblock_functions->find_max_val64(max_val64);
         if (mv >= 1ULL << (63 - K_max))
         {
           coded_cb->missing_msbs = K_max - 1;
@@ -167,7 +167,7 @@ namespace ojph {
           assert(coded_cb->missing_msbs < K_max);
           coded_cb->num_passes = 1;
 
-          this->codeblock_functions.encode_cb64(buf64, K_max-1, 1,
+          this->codeblock_functions->encode_cb64(buf64, K_max-1, 1,
             cb_size.w, cb_size.h, stride, coded_cb->pass_length,
             elastic, coded_cb->next_coded);
         }
@@ -195,7 +195,7 @@ namespace ojph {
         bool result;
         if (precision == BUF32)
         {
-          result = this->codeblock_functions.decode_cb32(
+          result = this->codeblock_functions->decode_cb32(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf32, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
@@ -204,7 +204,7 @@ namespace ojph {
         else
         {
           assert(precision == BUF64);
-          result = this->codeblock_functions.decode_cb64(
+          result = this->codeblock_functions->decode_cb64(
             coded_cb->next_coded->buf + coded_cb_header::prefix_buf_size,
             buf64, coded_cb->missing_msbs, coded_cb->num_passes,
             coded_cb->pass_length[0], coded_cb->pass_length[1],
@@ -239,11 +239,11 @@ namespace ojph {
         if (!zero_block)
         {
           const ui32 *sp = buf32 + cur_line * stride;
-          this->codeblock_functions.tx_from_cb32(sp, dp, K_max, delta,
+          this->codeblock_functions->tx_from_cb32(sp, dp, K_max, delta,
                                                  cb_size.w);
         }
         else
-          this->codeblock_functions.mem_clear(dp, cb_size.w * sizeof(ui32));
+          this->codeblock_functions->mem_clear(dp, cb_size.w * sizeof(ui32));
       }
       else
       {
@@ -254,11 +254,11 @@ namespace ojph {
         if (!zero_block)
         {
           const ui64 *sp = buf64 + cur_line * stride;
-          this->codeblock_functions.tx_from_cb64(sp, dp, K_max, delta,
+          this->codeblock_functions->tx_from_cb64(sp, dp, K_max, delta,
                                                  cb_size.w);
         }
         else
-          this->codeblock_functions.mem_clear(dp, cb_size.w * sizeof(*dp));
+          this->codeblock_functions->mem_clear(dp, cb_size.w * sizeof(*dp));
       }
 
       ++cur_line;

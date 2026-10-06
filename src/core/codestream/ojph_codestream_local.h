@@ -42,6 +42,7 @@
 #include "ojph_defs.h"
 #include "ojph_arch.h"
 #include "ojph_params_local.h"
+#include "ojph_codeblock_fun.h"
 
 namespace ojph {
 
@@ -119,6 +120,11 @@ namespace ojph {
       void check_imf_validity();
       void check_broadcast_validity();
 
+      // the codeblock coding functions for reversible or irreversible
+      // coding, chosen once; codeblocks keep a pointer to one of them
+      const codeblock_fun* get_codeblock_fun(bool reversible) const
+      { return cb_funs + (reversible ? 1 : 0); }
+
       ui8* get_precinct_scratch() { return precinct_scratch; }
       ui32 get_skipped_res_for_recon()
       { return skipped_res_for_recon; }
@@ -128,6 +134,7 @@ namespace ojph {
     private:
       ui32 precinct_scratch_needed_bytes;
       ui8* precinct_scratch;
+      codeblock_fun cb_funs[2]; // [0] irreversible, [1] reversible
 
     private:
       ui32 cur_line;

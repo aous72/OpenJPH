@@ -61,6 +61,8 @@ namespace ojph {
 
       init_colour_transform_functions();
       init_wavelet_transform_functions();
+      cb_funs[0].init(false);
+      cb_funs[1].init(true);
 
       restart();
     }

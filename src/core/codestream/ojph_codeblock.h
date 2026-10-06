@@ -108,7 +108,7 @@ namespace ojph {
         ui64 max_val64[4]; // supports up to 256 bits
       };
       coded_cb_header* coded_cb;
-      codeblock_fun codeblock_functions;
+      const codeblock_fun* codeblock_functions; // see codestream::get_codeblock_fun
     };
 
     //////////////////////////////////////////////////////////////////////////

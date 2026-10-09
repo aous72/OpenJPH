@@ -730,10 +730,10 @@ namespace ojph {
       bool is_qcc_needed(ui32 comp_num, const param_cod &cod,
                          const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
-      void set_delta(float delta, const float *weights, size_t num_weights)
-      { set_delta(delta); set_weights(weights, num_weights); }
+      void set_delta(float delta, size_t num_weights, const float *weights)
+      { set_delta(delta); set_weights(num_weights, weights); }
       void set_qfactor(float qfactor);
-      void set_weights(const float *weights, size_t num_weights);
+      void set_weights(size_t num_weights, const float *weights);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
@@ -749,7 +749,7 @@ namespace ojph {
 
       void set_delta(ui32 comp_idx, float delta);
       void set_delta(ui32 comp_idx, float delta,
-                     const float *weights, size_t num_weights);
+                     size_t num_weights, const float *weights);
       void set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor);
       param_qcd* get_qcc(ui32 comp_idx);
       const param_qcd* get_qcc(ui32 comp_idx) const;

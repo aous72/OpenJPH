@@ -195,7 +195,7 @@ TEST(QuantWeights, ValuesInQcc)
   ojph::mem_outfile out;
   make_headers(out, 2, n, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
-    qcd.set_irrev_quant(1, 0.02f, w.data(), w.size());
+    qcd.set_irrev_quant(1, 0.02f, w.size(), w.data());
   });
 
   quant q1 = find_quant(out, 1, n);
@@ -218,7 +218,7 @@ TEST(QuantWeights, ValuesInQcdForAllComponents)
   std::vector<float> w = CB_W;
   ojph::mem_outfile out;
   make_headers(out, 2, n, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(0.01f, w.data(), w.size());
+    qcd.set_irrev_quant(0.01f, w.size(), w.data());
   });
 
   quant q = find_quant(out, -1, n);
@@ -238,7 +238,7 @@ TEST(QuantWeights, UnitWeightsMatchNoWeights)
   ojph::mem_outfile a, b;
   make_headers(a, 2, n, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
-    qcd.set_irrev_quant(1, 0.02f, w.data(), w.size());
+    qcd.set_irrev_quant(1, 0.02f, w.size(), w.data());
   });
   make_headers(b, 2, n, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
@@ -259,7 +259,7 @@ TEST(QuantWeights, FewerDecompositionLevels)
   std::vector<float> w(sqrt_w, sqrt_w + 4);
   ojph::mem_outfile out;
   make_headers(out, 1, n, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(0, 0.05f, w.data(), w.size());
+    qcd.set_irrev_quant(0, 0.05f, w.size(), w.data());
   });
   quant q = find_quant(out, 0, n);
   ASSERT_TRUE(q.found);
@@ -273,7 +273,7 @@ TEST(QuantWeights, WrongNumberOfWeights)
   std::vector<float> w(9, 1.0f); // 10 are needed for 3 levels
   ojph::mem_outfile out;
   EXPECT_THROW(make_headers(out, 1, 3, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(0, 0.01f, w.data(), w.size());
+    qcd.set_irrev_quant(0, 0.01f, w.size(), w.data());
   }), std::runtime_error);
 }
 
@@ -285,7 +285,7 @@ TEST(QuantWeights, InvalidWeights)
   w[4] = 0.0f;
   ojph::mem_outfile out;
   EXPECT_THROW(make_headers(out, 1, 3, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(0, 0.01f, w.data(), w.size());
+    qcd.set_irrev_quant(0, 0.01f, w.size(), w.data());
   }), std::runtime_error);
 }
 
@@ -297,7 +297,7 @@ TEST(QuantWeights, ReversibleRejected)
   std::vector<float> w(10, 1.0f);
   ojph::mem_outfile out;
   EXPECT_THROW(make_headers(out, 1, 3, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(0, 0.01f, w.data(), w.size());
+    qcd.set_irrev_quant(0, 0.01f, w.size(), w.data());
   }, true), std::runtime_error);
 }
 
@@ -376,7 +376,7 @@ TEST(QuantMix, GlobalQfactorWithWeightsOnOneComponent)
   qfactor_only(ref);
   mixed(out, [&](ojph::param_qcd qcd) {
     qcd.set_qfactor(QF);
-    qcd.set_irrev_quant(2, 0.02f, w.data(), w.size());
+    qcd.set_irrev_quant(2, 0.02f, w.size(), w.data());
   });
   expect_like_qfactor(out, ref, 0);
   expect_like_qfactor(out, ref, 1);
@@ -416,7 +416,7 @@ TEST(QuantMix, QfactorOnOneComponentWeightsOnAnother)
   mixed(out, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
     qcd.set_qfactor(0, ctype_t::OJPH_COMP_Y, QF);
-    qcd.set_irrev_quant(2, 0.03f, w.data(), w.size());
+    qcd.set_irrev_quant(2, 0.03f, w.size(), w.data());
   });
   expect_like_qfactor(out, ref, 0);
   EXPECT_FALSE(find_quant(out, 1, NQ).found);
@@ -462,13 +462,13 @@ TEST(QuantMix, QfactorWinsOverDeltaOnSameComponent)
 TEST(QuantMix, QfactorAndWeightsOnSameComponentRejected)
 {
   std::vector<float> w(1 + 3 * NQ, 1.0f);
-  ojph::mem_outfile out;
-  EXPECT_THROW(mixed(out, [&](ojph::param_qcd qcd) {
+  ojph::mem_outfile a, b;
+  EXPECT_THROW(mixed(a, [&](ojph::param_qcd qcd) {
     qcd.set_qfactor(1, ctype_t::OJPH_COMP_CB, QF);
-    qcd.set_irrev_quant(1, 0.02f, w.data(), w.size());
+    qcd.set_irrev_quant(1, 0.02f, w.size(), w.data());
   }), std::runtime_error);
-  EXPECT_THROW(mixed(out, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(1, 0.02f, w.data(), w.size());
+  EXPECT_THROW(mixed(b, [&](ojph::param_qcd qcd) {
+    qcd.set_irrev_quant(1, 0.02f, w.size(), w.data());
     qcd.set_qfactor(1, ctype_t::OJPH_COMP_CB, QF);
   }), std::runtime_error);
 }
@@ -490,10 +490,10 @@ TEST(QuantDeltaWeights, GlobalDeltaWithWeightsOnOneComponent)
   ojph::mem_outfile a, b;
   mixed(a, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
   });
   mixed(b, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
     qcd.set_irrev_quant(0.01f);
   });
   for (ojph::mem_outfile* out : { &a, &b })
@@ -519,11 +519,11 @@ TEST(QuantDeltaWeights, ComponentDeltaIndependentOfGlobalDelta)
   ojph::mem_outfile a, b;
   mixed(a, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
   });
   mixed(b, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.07f);
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
   });
   EXPECT_EQ(find_quant(a, 1, NQ).delta, find_quant(b, 1, NQ).delta);
   EXPECT_NE(find_quant(a, -1, NQ).delta, find_quant(b, -1, NQ).delta);
@@ -536,7 +536,7 @@ TEST(QuantDeltaWeights, DefaultGlobalDeltaWithWeights)
 {
   ojph::mem_outfile out;
   mixed(out, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(2, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(2, 0.02f, W1.size(), W1.data());
   });
   quant q = find_quant(out, 2, NQ);
   ASSERT_TRUE(q.found);
@@ -557,8 +557,8 @@ TEST(QuantDeltaWeights, DifferentWeightsOnDifferentComponents)
   ojph::mem_outfile out;
   mixed(out, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0.01f);
-    qcd.set_irrev_quant(0, 0.02f, (float*)W1.data(), W1.size());
-    qcd.set_irrev_quant(2, 0.03f, (float*)W2.data(), W2.size());
+    qcd.set_irrev_quant(0, 0.02f, W1.size(), W1.data());
+    qcd.set_irrev_quant(2, 0.03f, W2.size(), W2.data());
   });
   quant q0 = find_quant(out, 0, NQ), q2 = find_quant(out, 2, NQ);
   ASSERT_TRUE(q0.found && q2.found);
@@ -574,8 +574,8 @@ TEST(QuantDeltaWeights, WeightsReplacedOnSecondCall)
 {
   ojph::mem_outfile out;
   mixed(out, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
-    qcd.set_irrev_quant(1, 0.04f, (float*)W2.data(), W2.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
+    qcd.set_irrev_quant(1, 0.04f, W2.size(), W2.data());
   });
   expect_close(find_quant(out, 1, NQ).delta, expected(0.04f, W2, NQ));
 }
@@ -586,7 +586,7 @@ TEST(QuantDeltaWeights, ComponentDeltaAfterWeights)
 {
   ojph::mem_outfile out;
   mixed(out, [&](ojph::param_qcd qcd) {
-    qcd.set_irrev_quant(1, 0.02f, (float*)W1.data(), W1.size());
+    qcd.set_irrev_quant(1, 0.02f, W1.size(), W1.data());
     qcd.set_irrev_quant(1, 0.04f);
   });
   expect_close(find_quant(out, 1, NQ).delta, expected(0.04f, W1, NQ));

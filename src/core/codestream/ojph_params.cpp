@@ -416,10 +416,10 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
-  void param_qcd::set_irrev_quant(float delta, float weights[],
-                                  size_t num_weights)
+  void param_qcd::set_irrev_quant(float delta, size_t num_weights,
+                                  const float weights[])
   {
-    state->set_delta(delta, weights, num_weights);
+    state->set_delta(delta, num_weights, weights);
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -435,9 +435,9 @@ namespace ojph {
 
   //////////////////////////////////////////////////////////////////////////
   void param_qcd::set_irrev_quant(ui32 comp_idx, float delta,
-                                  float weights[], size_t num_weights)
+                                  size_t num_weights, const float weights[])
   {
-    state->set_delta(comp_idx, delta, weights, num_weights);
+    state->set_delta(comp_idx, delta, num_weights, weights);
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -1468,7 +1468,7 @@ namespace ojph {
                                      const param_siz &siz)
     {
       if (this->is_init)
-        OJPH_ERROR(0x00040001, "Quantization step sizes already initialized.");
+        OJPH_ERROR(0x000501C1, "Quantization step sizes already initialized.");
 
       this->is_init = true;
 
@@ -1483,13 +1483,13 @@ namespace ojph {
       if (this->num_weights != 0)
       {
         if (this->wavelet_kern != param_cod::DWT_IRV97)
-          OJPH_ERROR(0x00040003, "Quantization weights for component %d can "
+          OJPH_ERROR(0x000501C2, "Quantization weights for component %d can "
             "only be used with the irreversible transform.", comp_num);
         if (this->qfactor != QFACTOR_UNSET)
-          OJPH_ERROR(0x00040004, "Quantization weights for component %d "
+          OJPH_ERROR(0x000501C3, "Quantization weights for component %d "
             "cannot be used together with qfactor.", comp_num);
         if (this->num_weights != this->num_subbands)
-          OJPH_ERROR(0x00040005, "Component %d has %d quantization weights, "
+          OJPH_ERROR(0x000501C4, "Component %d has %d quantization weights, "
             "but %d are needed for %d decomposition levels.", comp_num,
             this->num_weights, this->num_subbands, this->num_decomps);
       }
@@ -1505,7 +1505,7 @@ namespace ojph {
           this->base_delta = 1.0f / (float)(1 << t);
         }
         else if (qfactor != QFACTOR_UNSET)
-          OJPH_WARN(0x00040002, "qstep for component %d is ignored, because "
+          OJPH_WARN(0x000501C5, "qstep for component %d is ignored, because "
             "qfactor is set.", comp_num);
 
         this->set_irrev_quant(this->num_decomps);
@@ -1517,7 +1517,7 @@ namespace ojph {
                                   const param_siz &siz)
     {
       if (! this->is_init)
-        OJPH_ERROR(0x00040001, "Quantization step sizes not initialized.");
+        OJPH_ERROR(0x000501D1, "Quantization step sizes not initialized.");
 
       return this->num_decomps != cod.get_num_decompositions() ||
               this->bit_depth != siz.get_bit_depth(comp_num) ||
@@ -1617,9 +1617,9 @@ namespace ojph {
         weights = visual_weights::get_weights(format, this->ctype);
       }
 
-      // returns sqrt(w_b), the square root of the weight, for a decomposition level and subband
-      // (0:LL, 1:HL, 2:LH, 3:HH); coefficients are ordered {LH1,
-      // HL1, HH1, ..., LLN}
+      // returns sqrt(w_b), the square root of the weight, for a decomposition
+      // level and subband (0:LL, 1:HL, 2:LH, 3:HH); coefficients are ordered
+      // {LH1, HL1, HH1, ..., LLN}
       auto get_sqrt_weight = [&](ui32 d, ui32 sb) -> float
       {
         if (num_weights == 0)
@@ -2053,7 +2053,7 @@ namespace ojph {
         if (num_subbands == 0)
           OJPH_ERROR(0x000500AD, "QCC marker segment that specifies no "
             "quantization informtion");
-        if (num_subbands > MAX_SUBBAND_COUNT || Lqcd != offset + 2 * num_subbands)
+        if (num_subbands>MAX_SUBBAND_COUNT || Lqcd != offset + 2*num_subbands)
           OJPH_ERROR(0x000500A8, "wrong Lqcc value of %d in QCC marker", Lqcd);
         for (ui32 i = 0; i < num_subbands; ++i)
         {
@@ -2077,11 +2077,12 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_weights(const float *weights, size_t num_weights)
+    void param_qcd::set_weights(size_t num_weights, const float *weights)
     {
-      if (weights == NULL || num_weights == 0 || num_weights > MAX_SUBBAND_COUNT)
+      if (weights == NULL || num_weights==0 || num_weights > MAX_SUBBAND_COUNT)
         OJPH_ERROR(0x000501A1, "The number of quantization weights must be "
-          "between 1 and %d, but %zu were provided.", MAX_SUBBAND_COUNT, num_weights);
+          "between 1 and %d, but %zu were provided.",
+          MAX_SUBBAND_COUNT, num_weights);
       for (size_t i = 0; i < num_weights; ++i)
         if (!(weights[i] > 0.0f))
           OJPH_ERROR(0x000501A2, "Quantization weights must be positive.");
@@ -2091,14 +2092,14 @@ namespace ojph {
 
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::set_delta(ui32 comp_idx, float delta,
-                              const float *weights, size_t num_weights)
+                              size_t num_weights, const float *weights)
     {
       assert(type == QCD_MAIN);
       param_qcd *p = get_qcc(comp_idx);
       if (p == this)
         p = add_qcc_object(comp_idx);
       p->set_delta(delta);
-      p->set_weights(weights, num_weights);
+      p->set_weights(num_weights, weights);
     }
 
     //////////////////////////////////////////////////////////////////////////

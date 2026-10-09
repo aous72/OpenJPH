@@ -43,11 +43,11 @@
 #include "gtest/gtest.h"
 
 ///////////////////////////////////////////////////////////////////////////////
-// Tests for param_qcd::set_irrev_quant(comp_idx, delta, weights, len).
+// Tests for param_qcd::set_irrev_quant(comp_idx, delta, weights, num_weights).
 //
 // The headers are generated in memory, and the QCD and QCC marker segments
 // are parsed to check that the step sizes they carry are the ones expected
-// from delta_b = delta_r / sqrt(G_b * w_b), with the expected values
+// from delta_b = delta_r / (sqrt(G_b) * sqrt(w_b)), with the expected values
 // computed here independently of the library.
 
 namespace {
@@ -74,16 +74,9 @@ namespace {
                                 0.4130f, 0.4130f, 0.2598f,
                                 0.6464f, 0.6464f, 0.5040f, 1.0f };
 
-  // the visual weights w_b themselves, as expected by set_irrev_quant
-  std::vector<float> squared(const float* sqrt_w, size_t len)
-  {
-    std::vector<float> w;
-    for (size_t i = 0; i < len; ++i)
-      w.push_back(sqrt_w[i] * sqrt_w[i]);
-    return w;
-  }
-  const std::vector<float> CB_W = squared(CB_SQRT_W, 10);
-  const std::vector<float> CR_W = squared(CR_SQRT_W, 10);
+  // the square roots of the visual weights, as expected by set_irrev_quant
+  const std::vector<float> CB_W(CB_SQRT_W, CB_SQRT_W + 10);
+  const std::vector<float> CR_W(CR_SQRT_W, CR_SQRT_W + 10);
 
   // decoded step sizes of a QCD/QCC, in codestream order: LL, then for each
   // level from the coarsest to the finest HL, LH, HH
@@ -166,13 +159,13 @@ namespace {
                               ojph::ui32 n)
   {
     std::vector<float> e;
-    e.push_back(delta / (GAIN_L[n] * GAIN_L[n] * std::sqrt(w[3 * n])));
+    e.push_back(delta / (GAIN_L[n] * GAIN_L[n] * w[3 * n]));
     for (ojph::ui32 d = n; d > 0; --d)
     {
       float gl = GAIN_L[d], gh = GAIN_H[d - 1];
-      e.push_back(delta / (gh * gl * std::sqrt(w[(d - 1) * 3 + 1]))); // HL
-      e.push_back(delta / (gl * gh * std::sqrt(w[(d - 1) * 3 + 0]))); // LH
-      e.push_back(delta / (gh * gh * std::sqrt(w[(d - 1) * 3 + 2]))); // HH
+      e.push_back(delta / (gh * gl * w[(d - 1) * 3 + 1])); // HL
+      e.push_back(delta / (gl * gh * w[(d - 1) * 3 + 0])); // LH
+      e.push_back(delta / (gh * gh * w[(d - 1) * 3 + 2])); // HH
     }
     return e;
   }
@@ -191,7 +184,7 @@ namespace {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Weights on one component of two end up in that component's QCC, with every
-// subband's step size equal to delta / sqrt(G_b * w_b). The weights are all
+// subband's step size equal to delta / (sqrt(G_b) * sqrt(w_b)). The weights are all
 // different, so a subband mapped to the wrong weight is detected. The other
 // component keeps using the QCD, with unit weights.
 TEST(QuantWeights, ValuesInQcc)
@@ -214,6 +207,25 @@ TEST(QuantWeights, ValuesInQcc)
   quant q0 = find_quant(out, -1, n);
   ASSERT_TRUE(q0.found);
   expect_close(q0.delta, expected(0.01f, std::vector<float>(10, 1.0f), n));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Weights set for the whole image end up in the QCD and apply to every
+// component that has no QCC.
+TEST(QuantWeights, ValuesInQcdForAllComponents)
+{
+  const ojph::ui32 n = 3;
+  std::vector<float> w = CB_W;
+  ojph::mem_outfile out;
+  make_headers(out, 2, n, [&](ojph::param_qcd qcd) {
+    qcd.set_irrev_quant(0.01f, w.data(), w.size());
+  });
+
+  quant q = find_quant(out, -1, n);
+  ASSERT_TRUE(q.found);
+  expect_close(q.delta, expected(0.01f, w, n));
+  EXPECT_FALSE(find_quant(out, 0, n).found);
+  EXPECT_FALSE(find_quant(out, 1, n).found);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -244,7 +256,7 @@ TEST(QuantWeights, FewerDecompositionLevels)
 {
   const ojph::ui32 n = 1;
   const float sqrt_w[4] = { 0.0863f, 0.0863f, 0.0263f, 1.0f }; // Cb, 1 level
-  std::vector<float> w = squared(sqrt_w, 4);
+  std::vector<float> w(sqrt_w, sqrt_w + 4);
   ojph::mem_outfile out;
   make_headers(out, 1, n, [&](ojph::param_qcd qcd) {
     qcd.set_irrev_quant(0, 0.05f, w.data(), w.size());

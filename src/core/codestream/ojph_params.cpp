@@ -416,6 +416,13 @@ namespace ojph {
   }
 
   //////////////////////////////////////////////////////////////////////////
+  void param_qcd::set_irrev_quant(float delta, float weights[],
+                                  size_t num_weights)
+  {
+    state->set_delta(delta, weights, num_weights);
+  }
+
+  //////////////////////////////////////////////////////////////////////////
   void param_qcd::set_qfactor(float qfactor) {
     state->set_qfactor(qfactor);
   }
@@ -428,9 +435,9 @@ namespace ojph {
 
   //////////////////////////////////////////////////////////////////////////
   void param_qcd::set_irrev_quant(ui32 comp_idx, float delta,
-                                  float weights[], size_t len)
+                                  float weights[], size_t num_weights)
   {
-    state->set_delta(comp_idx, delta, weights, len);
+    state->set_delta(comp_idx, delta, weights, num_weights);
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -1610,7 +1617,7 @@ namespace ojph {
         weights = visual_weights::get_weights(format, this->ctype);
       }
 
-      // returns weight coefficient w_b for a decomposition level and subband
+      // returns sqrt(w_b), the square root of the weight, for a decomposition level and subband
       // (0:LL, 1:HL, 2:LH, 3:HH); coefficients are ordered {LH1,
       // HL1, HH1, ..., LLN}
       auto get_sqrt_weight = [&](ui32 d, ui32 sb) -> float
@@ -1618,9 +1625,9 @@ namespace ojph {
         if (num_weights == 0)
           return visual_weights::get_weight(weights, d, sb);
         if (sb == 0)
-          return std::sqrt(this->weights[num_weights - 1]);
+          return this->weights[num_weights - 1];
         static const ui32 pos[4] = { 0, 1, 0, 2 };
-        return std::sqrt(this->weights[(d - 1) * 3 + pos[sb]]);
+        return this->weights[(d - 1) * 3 + pos[sb]];
       };
 
       // LL band
@@ -2070,28 +2077,28 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void param_qcd::set_weights(const float *weights, size_t len)
+    void param_qcd::set_weights(const float *weights, size_t num_weights)
     {
-      if (weights == NULL || len == 0 || len > MAX_SUBBAND_COUNT)
+      if (weights == NULL || num_weights == 0 || num_weights > MAX_SUBBAND_COUNT)
         OJPH_ERROR(0x000501A1, "The number of quantization weights must be "
-          "between 1 and %d, but %zu were provided.", MAX_SUBBAND_COUNT, len);
-      for (size_t i = 0; i < len; ++i)
+          "between 1 and %d, but %zu were provided.", MAX_SUBBAND_COUNT, num_weights);
+      for (size_t i = 0; i < num_weights; ++i)
         if (!(weights[i] > 0.0f))
           OJPH_ERROR(0x000501A2, "Quantization weights must be positive.");
-      memcpy(this->weights, weights, len * sizeof(float));
-      this->num_weights = (ui32)len;
+      memcpy(this->weights, weights, num_weights * sizeof(float));
+      this->num_weights = (ui32)num_weights;
     }
 
     //////////////////////////////////////////////////////////////////////////
     void param_qcd::set_delta(ui32 comp_idx, float delta,
-                              const float *weights, size_t len)
+                              const float *weights, size_t num_weights)
     {
       assert(type == QCD_MAIN);
       param_qcd *p = get_qcc(comp_idx);
       if (p == this)
         p = add_qcc_object(comp_idx);
       p->set_delta(delta);
-      p->set_weights(weights, len);
+      p->set_weights(weights, num_weights);
     }
 
     //////////////////////////////////////////////////////////////////////////

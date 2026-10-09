@@ -196,6 +196,18 @@ namespace ojph {
     void set_irrev_quant(float delta);
 
     /**
+     * @brief Set the irreversible reference quantization step size `delta_r`
+     *        and weight coefficients `sqrt(w_b)` for all components
+     *
+     * @sa set_irrev_quant(ui32, float, float*, size_t)
+     *
+     * @param delta Reference quantization step size `delta_r`
+     * @param weights Array of weight coefficients `sqrt(w_b)` in subband order
+     * @param num_weights Number of coefficients in weights
+     */
+    void set_irrev_quant(float delta, float weights[], size_t num_weights);
+
+    /**
      * @brief Sets Qfactor
      *
      * This is a top level Qfactor; it will automatically set the qfactor;
@@ -217,7 +229,7 @@ namespace ojph {
 
     /**
      * @brief Set the irreversible reference quantization step size `delta_r`
-     *        and weight coefficients `w_b` for a specific component.
+     *        and weight coefficients `sqrt(w_b)` for a specific component.
      *
      * The quantization step size `delta_b` for subband `b` is given by:
      * `delta_b = delta_r / sqrt(G_b * w_b * M_c)` where `G_b` is the energy
@@ -229,10 +241,10 @@ namespace ojph {
      *
      * @param comp_idx Target component
      * @param delta Reference quantization step size `delta_r`
-     * @param weights Array of weight coefficients `w_b` in subband order
-     * @param len Number of coefficients in weights
+     * @param weights Array of weight coefficients `sqrt(w_b)` in subband order
+     * @param num_weights Number of coefficients in weights
      */
-    void set_irrev_quant(ui32 comp_idx, float delta, float weights[], size_t len);
+    void set_irrev_quant(ui32 comp_idx, float delta, float weights[], size_t num_weights);
 
     /**
      * @brief Set the irreversible quantization base delta for a specific

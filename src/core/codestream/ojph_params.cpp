@@ -2534,6 +2534,7 @@ namespace ojph {
           ienc_pnts = (ui32)enc_pnts;
           ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
           ienc_pnts = 1u << ienc_pnts;
+          ienc_pnts = ojph_max(ienc_pnts, 2);
         }
       }
 

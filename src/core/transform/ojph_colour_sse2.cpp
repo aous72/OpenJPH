@@ -813,11 +813,12 @@ namespace ojph {
     // The precise inverse of the look-up table, for a table whose derived
     // version is coarse enough that one step of it can cross more than one
     // entry of the table that was supplied.  The entry that a value falls in
-    // then has to be found by searching, which does not vectorize, so this
-    // is a copy of the corresponding part of
-    // local_gen_irv_convert_to_float_nlt2or4 in ojph_colour.cpp, the generic
-    // implementation; it is here only so that the SIMD path covers the whole
-    // of the precise inverse.  Keep the two in step when that one changes.
+    // is found with a fixed-depth binary search over the entries the step can
+    // reach; the depth is the worst case, ceil(log2(precise_max_steps + 1)),
+    // so every lane performs the same number of steps.  SSE2 has no gather,
+    // so the table entries are looked up one at a time and assembled into
+    // vectors.  This mirrors local_gen_irv_convert_to_float_nlt2or4_precise_search
+    // in ojph_colour.cpp, so keep the two in step when that one changes.
     //////////////////////////////////////////////////////////////////////////
     template<int NLT_TYPE>
     static inline
@@ -833,79 +834,145 @@ namespace ojph {
 
       assert(bit_depth <= 32);
       assert(rec->precise_max_steps > 1);
-      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
-      float ft_min = rec->ft_min;
-      float ft_max = rec->ft_max;
-      float fd_min = rec->fd_min;
-      float delta = rec->delta;
-      float inv_delta = rec->inv_delta;
-      ui16* indices= rec->precise_enc_dec_indices;
-      float* lut = rec->precise_dec_lut;
+      __m128 mul = _mm_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
+      __m128 ft_min = _mm_set1_ps(rec->ft_min);
+      __m128 ft_max = _mm_set1_ps(rec->ft_max);
+      __m128 fd_min = _mm_set1_ps(rec->fd_min);
+      __m128 delta = _mm_set1_ps(rec->delta);
+      __m128 inv_delta = _mm_set1_ps(rec->inv_delta);
+      const float* lut = rec->precise_dec_lut;
+      const ui16* indices = rec->precise_enc_dec_indices;
       ui32 num_points = rec->num_points;
+
+      // the search interval is at most precise_max_steps + 1 entries wide;
+      // run the worst-case number of binary-search steps on every lane,
+      // which is ceil(log2(span))
+      ui32 span = rec->precise_max_steps + 1;
+      int steps = 32 - (int)count_leading_zeros(rec->precise_max_steps);
+
+      __m128 half_ps = _mm_set1_ps(0.5f);
+      __m128 one_ps = _mm_set1_ps(1.0f);
+      __m128 zero_ps = _mm_setzero_ps();
+      __m128i span_epi32 = _mm_set1_epi32((si32)span);
+      __m128i num_epi32 = _mm_set1_epi32((si32)num_points);
 
       const si32* sp = src_line->i32 + src_line_offset;
       float* dp = dst_line->f32;
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
-        for (int i = (int)width; i > 0; --i) {
-          si32 v = *sp++;
+        __m128i bias =
+          _mm_set1_epi32(-(si32)((1ULL << (rec->get_bit_depth() - 1)) + 1));
+        __m128i zero = _mm_setzero_si128();
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128i v = _mm_loadu_si128((__m128i*)sp);
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
-          float t = (float)v * mul + 0.5f;  // convert to [0, 1]
-
-          t = ojph_max(t, ft_min);
-          t = ojph_min(t, ft_max);
-          ui32 k = (ui32)floorf((t - ft_min) * inv_delta);
-          k = indices[k];
-
-          ui32 lo = k;
-          ui32 hi = ojph_min(k + rec->precise_max_steps + 1, num_points);
-          while (hi - lo > 1)
           {
-            ui32 mid = (lo + hi) >> 1;
-            if (t >= lut[mid])
-              lo = mid;
-            else
-              hi = mid;
+            __m128i c = _mm_cmpgt_epi32(zero, v); // 0xFFFFFFFF for -ve val
+            __m128i neg = _mm_sub_epi32(bias, v); // - bias - value
+            neg = _mm_and_si128(c, neg);          // keep only - bias - val
+            v = _mm_andnot_si128(c, v);           // keep only +ve or 0
+            v = _mm_or_si128(neg, v);             // combine
+          }
+          __m128 t = _mm_add_ps(                      // convert to [0, 1]
+            _mm_mul_ps(_mm_cvtepi32_ps(v), mul), half_ps);
+          t = _mm_max_ps(t, ft_min);
+          t = _mm_min_ps(t, ft_max);
+          __m128i kk = _mm_cvttps_epi32(
+            _mm_mul_ps(_mm_sub_ps(t, ft_min), inv_delta));
+          // SSE2 has no gather; look the indices up one at a time
+          si32 e[4], k[4];
+          _mm_storeu_si128((__m128i*)e, kk);
+          for (int j = 0; j < 4; ++j)
+            k[j] = (si32)indices[e[j]];
+          __m128i lo = _mm_setr_epi32(k[0], k[1], k[2], k[3]);
+          // hi = min(k + span, num_points); SSE2 has no 32-bit min, so
+          // select with a signed compare
+          __m128i kspan = _mm_add_epi32(lo, span_epi32);
+          __m128i m = _mm_cmpgt_epi32(kspan, num_epi32);
+          __m128i hi = _mm_or_si128(_mm_and_si128(m, num_epi32),
+                                    _mm_andnot_si128(m, kspan));
+
+          for (int step = 0; step < steps; ++step)
+          {
+            __m128i mid = _mm_srli_epi32(_mm_add_epi32(lo, hi), 1);
+            si32 m4[4];
+            _mm_storeu_si128((__m128i*)m4, mid);
+            __m128 lmid = _mm_set_ps(lut[m4[3]], lut[m4[2]],
+                                     lut[m4[1]], lut[m4[0]]);
+            __m128 ge = _mm_cmpge_ps(t, lmid);
+            __m128i g = _mm_castps_si128(ge);
+            lo = _mm_or_si128(_mm_and_si128(g, mid),
+                              _mm_andnot_si128(g, lo));
+            hi = _mm_or_si128(_mm_and_si128(g, hi),
+                              _mm_andnot_si128(g, mid));
           }
 
-          float y0 = lut[lo];
-          float y1 = lut[hi];
-          float y = fd_min + (float)lo * delta +
-            (y1 > y0 ? (t - y0) * delta / (y1 - y0) : 0.0f);
-
-          *dp++ = y - 0.5f;
+          si32 l4[4], h4[4];
+          _mm_storeu_si128((__m128i*)l4, lo);
+          _mm_storeu_si128((__m128i*)h4, hi);
+          __m128 y0 = _mm_set_ps(lut[l4[3]], lut[l4[2]], lut[l4[1]], lut[l4[0]]);
+          __m128 y1 = _mm_set_ps(lut[h4[3]], lut[h4[2]], lut[h4[1]], lut[h4[0]]);
+          // interpolate, but only over a segment that has a width; the last
+          // entry of the table is repeated, and a segment without a width
+          // contributes nothing
+          __m128 den = _mm_sub_ps(y1, y0);
+          __m128 has = _mm_cmpgt_ps(den, zero_ps);
+          den = _mm_or_ps(_mm_and_ps(has, den), _mm_andnot_ps(has, one_ps));
+          __m128 y = _mm_add_ps(
+            _mm_add_ps(fd_min, _mm_mul_ps(_mm_cvtepi32_ps(lo), delta)),
+            _mm_and_ps(has, _mm_div_ps(
+              _mm_mul_ps(_mm_sub_ps(t, y0), delta), den)));
+          _mm_storeu_ps(dp, _mm_sub_ps(y, half_ps));
         }
       }
       else
       {
-        for (int i = (int)width; i > 0; --i) {
-          si32 v = *sp++;
-          float t = (float)v * mul;  // it is in [0, 1]
+        for (int i = (int)width; i > 0; i -= 4, sp += 4, dp += 4) {
+          __m128i v = _mm_loadu_si128((__m128i*)sp);
+          __m128 t = _mm_mul_ps(_mm_cvtepi32_ps(v), mul);  // in [0, 1]
+          t = _mm_max_ps(t, ft_min);
+          t = _mm_min_ps(t, ft_max);
+          __m128i kk = _mm_cvttps_epi32(
+            _mm_mul_ps(_mm_sub_ps(t, ft_min), inv_delta));
+          // SSE2 has no gather; look the indices up one at a time
+          si32 e[4], k[4];
+          _mm_storeu_si128((__m128i*)e, kk);
+          for (int j = 0; j < 4; ++j)
+            k[j] = (si32)indices[e[j]];
+          __m128i lo = _mm_setr_epi32(k[0], k[1], k[2], k[3]);
+          __m128i kspan = _mm_add_epi32(lo, span_epi32);
+          __m128i m = _mm_cmpgt_epi32(kspan, num_epi32);
+          __m128i hi = _mm_or_si128(_mm_and_si128(m, num_epi32),
+                                    _mm_andnot_si128(m, kspan));
 
-          t = ojph_max(t, ft_min);
-          t = ojph_min(t, ft_max);
-          ui32 k = (ui32)floorf((t - ft_min) * inv_delta);
-          k = indices[k];
-
-          ui32 lo = k;
-          ui32 hi = ojph_min(k + rec->precise_max_steps + 1, num_points);
-          while (hi - lo > 1)
+          for (int step = 0; step < steps; ++step)
           {
-            ui32 mid = (lo + hi) >> 1;
-            if (t >= lut[mid])
-              lo = mid;
-            else
-              hi = mid;
+            __m128i mid = _mm_srli_epi32(_mm_add_epi32(lo, hi), 1);
+            si32 m4[4];
+            _mm_storeu_si128((__m128i*)m4, mid);
+            __m128 lmid = _mm_set_ps(lut[m4[3]], lut[m4[2]],
+                                     lut[m4[1]], lut[m4[0]]);
+            __m128 ge = _mm_cmpge_ps(t, lmid);
+            __m128i g = _mm_castps_si128(ge);
+            lo = _mm_or_si128(_mm_and_si128(g, mid),
+                              _mm_andnot_si128(g, lo));
+            hi = _mm_or_si128(_mm_and_si128(g, hi),
+                              _mm_andnot_si128(g, mid));
           }
 
-          float y0 = lut[lo];
-          float y1 = lut[hi];
-          float y = fd_min + (float)lo * delta +
-            (y1 > y0 ? (t - y0) * delta / (y1 - y0) : 0.0f);
-
-          *dp++ = y - 0.5f;
+          si32 l4[4], h4[4];
+          _mm_storeu_si128((__m128i*)l4, lo);
+          _mm_storeu_si128((__m128i*)h4, hi);
+          __m128 y0 = _mm_set_ps(lut[l4[3]], lut[l4[2]], lut[l4[1]], lut[l4[0]]);
+          __m128 y1 = _mm_set_ps(lut[h4[3]], lut[h4[2]], lut[h4[1]], lut[h4[0]]);
+          __m128 den = _mm_sub_ps(y1, y0);
+          __m128 has = _mm_cmpgt_ps(den, zero_ps);
+          den = _mm_or_ps(_mm_and_ps(has, den), _mm_andnot_ps(has, one_ps));
+          __m128 y = _mm_add_ps(
+            _mm_add_ps(fd_min, _mm_mul_ps(_mm_cvtepi32_ps(lo), delta)),
+            _mm_and_ps(has, _mm_div_ps(
+              _mm_mul_ps(_mm_sub_ps(t, y0), delta), den)));
+          _mm_storeu_ps(dp, _mm_sub_ps(y, half_ps));
         }
       }
     }

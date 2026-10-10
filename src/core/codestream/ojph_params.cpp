@@ -466,10 +466,12 @@ namespace ojph {
                                           bool decoded_signedness,
                                           ui32 d_min, ui32 d_max, ui8 pt_val,
                                           ui16 num_points, void* points,
-                                          ui8 nl_type)
+                                          ui8 nl_type,
+                                          bool precise_encoding_nlt)
   {
     state->set_nonlinear_transform(comp_num, decoded_bit_depth,
-      decoded_signedness, d_min, d_max, pt_val, num_points, points, nl_type);
+      decoded_signedness, d_min, d_max, pt_val, num_points, points, nl_type,
+      precise_encoding_nlt);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -967,8 +969,10 @@ namespace ojph {
       point factor(1u << skipped_resolutions, 1u << skipped_resolutions);
       const param_cod* cdp = cod->get_coc(comp_num);
       if (dfs && cdp && cdp->is_dfs_defined()) {
-        const param_dfs* d = dfs->get_dfs(cdp->get_dfs_index());
-        factor = d->get_res_downsamp(skipped_resolutions);
+        ui16 dfs_idx = cdp->get_dfs_index();
+        const param_dfs* d = dfs->get_dfs(dfs_idx);
+        if (d != NULL)
+          factor = d->get_res_downsamp(skipped_resolutions);
       }
       factor.x *= (ui32)cptr[comp_num].XRsiz;
       factor.y *= (ui32)cptr[comp_num].YRsiz;
@@ -2207,94 +2211,135 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void nlt_rec::prepare_for_encoding()
+    template<typename T>
+    static inline void
+    prepare_for_encoding_approx_for_type(const void* marker_points, float div,
+      float& ft_min, float& ft_max, float& delta, float& inv_delta,
+      float fd_min, float fd_max, ui32 num_points, ui32 enc_num_points,
+      float* approx_enc_points)
+    {
+      const T* p = (const T*)marker_points;
+      ft_min = (float)p[0] * div;
+      ft_max = (float)p[num_points - 1] * div;
+      delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
+      inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
+
+      ui32 k = 0;
+      float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
+      float dt = (fd_max - fd_min) / (float)(num_points - 1);
+      float d_k = fd_min, d_kp1 = fd_min + dt;
+      for (ui32 i = 1; i < enc_num_points - 1; ++i)
+      {
+        float z = ft_min + (float)i * delta;
+        while (k + 1 < num_points - 1 && z >= y_kp1)
+        {
+          ++k;
+          d_k   = d_kp1;
+          d_kp1 = fd_min + (float)(k + 1) * dt;
+          y_k   = y_kp1;
+          y_kp1 = (float)p[k + 1] * div;
+        }
+        approx_enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void nlt_rec::prepare_for_encoding_approx()
     {
       double d = 1.0 / (double)((1ull << 32) - 1);
       fd_min = (float)((double)d_min * d);
       fd_max = (float)((double)d_max * d);
 
+      // enc_points holds positions in the domain of the LUT, whose first
+      // and last entries are fd_min and fd_max, not LUT values
+      approx_enc_points[-2] = fd_min;
+      approx_enc_points[-1] = fd_min;
+      approx_enc_points[ 0] = fd_min;
+      approx_enc_points[enc_num_points - 1] = fd_max;
+      approx_enc_points[enc_num_points] = fd_max;
+      approx_enc_points[enc_num_points + 1] = fd_max;
+
       // create lookup table for encoding
       float mul = (float)(1ull << pt_val);
       float div = 1.0f / mul;
       if (bytes_per_point == 1)
-      {
-        ui8* p = (ui8*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
-        ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
-        delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-        inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
+        prepare_for_encoding_approx_for_type<ui8>(marker_points, div,
+          ft_min, ft_max, delta, inv_delta,
+          fd_min, fd_max, num_points, enc_num_points,
+          approx_enc_points);
+      else if (bytes_per_point == 2)
+        prepare_for_encoding_approx_for_type<ui16>(marker_points, div,
+          ft_min, ft_max, delta, inv_delta,
+          fd_min, fd_max, num_points, enc_num_points,
+          approx_enc_points);
+      else if (bytes_per_point == 4)
+        prepare_for_encoding_approx_for_type<ui32>(marker_points, div,
+          ft_min, ft_max, delta, inv_delta,
+          fd_min, fd_max, num_points, enc_num_points,
+          approx_enc_points);
+    }
 
-        ui32 k = 0;
-        float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-        float dt = (fd_max - fd_min) / (float)(num_points - 1);
-        float d_k = fd_min, d_kp1 = fd_min + dt;
-        for (ui32 i = 1; i < enc_num_points - 1; ++i)
-        {
-          float z = ft_min + (float)i * delta;
-          while (k + 1 < num_points - 1 && z >= y_kp1)
-          {
-            ++k;
-            d_k   = d_kp1;
-            d_kp1 = fd_min + (float)(k + 1) * dt;
-            y_k   = y_kp1;
-            y_kp1 = (float)p[k + 1] * div;
-          }
-          enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
-        }
+    //////////////////////////////////////////////////////////////////////////
+    void nlt_rec::prepare_for_encoding_precise()
+    {
+      double d = 1.0 / (double)((1ull << 32) - 1);
+      fd_min = (float)((double)d_min * d);
+      fd_max = (float)((double)d_max * d);
+
+      float mul = (float)(1ull << pt_val);
+      float div = 1.0f / mul;
+
+      // convert decoder lookup table to floats
+      if (bytes_per_point == 1) {
+        const ui8* p = (const ui8*)marker_points;
+        for (ui32 i = 0; i < num_points; ++i)
+          precise_dec_lut[i] = (float)p[i] * div;
+        ft_min = precise_dec_lut[0];
+        ft_max = precise_dec_lut[num_points - 1];
       }
       else if (bytes_per_point == 2) {
-        ui16* p = (ui16*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
-        ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
-        delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-        inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
-
-        ui32 k = 0;
-        float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-        float dt = (fd_max - fd_min) / (float)(num_points - 1);
-        float d_k = fd_min, d_kp1 = fd_min + dt;
-        for (ui32 i = 1; i < enc_num_points - 1; ++i)
-        {
-          float z = ft_min + (float)i * delta;
-          while (k + 1 < num_points - 1 && z >= y_kp1)
-          {
-            ++k;
-            d_k   = d_kp1;
-            d_kp1 = fd_min + (float)(k + 1) * dt;
-            y_k   = y_kp1;
-            y_kp1 = (float)p[k + 1] * div;
-          }
-          enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);
-        }
+        const ui16* p = (const ui16*)marker_points;
+        for (ui32 i = 0; i < num_points; ++i)
+          precise_dec_lut[i] = (float)p[i] * div;
+        ft_min = precise_dec_lut[0];
+        ft_max = precise_dec_lut[num_points - 1];
       }
       else if (bytes_per_point == 4) {
-        ui32* p = (ui32*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
-        ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
-        delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
-        inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
-
-        ui32 k = 0;
-        float y_k = (float)p[k] * div, y_kp1 = (float)p[k + 1] * div;
-        float dt = (fd_max - fd_min) / (float)(num_points - 1);
-        float d_k = fd_min, d_kp1 = fd_min + dt;
-        for (ui32 i = 1; i < enc_num_points - 1; ++i)
-        {
-          float z = ft_min + (float)i * delta;
-          while (k + 1 < num_points - 1 && z >= y_kp1)
-          {
-            ++k;
-            d_k   = d_kp1;
-            d_kp1 = fd_min + (float)(k + 1) * dt;
-            y_k   = y_kp1;
-            y_kp1 = (float)p[k + 1] * div;
-          }
-          enc_points[i] = d_k + (z - y_k) * dt / (y_kp1 - y_k);;
-        }
+        const ui32* p = (const ui32*)marker_points;
+        for (ui32 i = 0; i < num_points; ++i)
+          precise_dec_lut[i] = (float)p[i] * div;
+        ft_min = precise_dec_lut[0];
+        ft_max = precise_dec_lut[num_points - 1];
       }
+      precise_dec_lut[-2] = precise_dec_lut[0];
+      precise_dec_lut[-1] = precise_dec_lut[0];
+      precise_dec_lut[num_points]     = precise_dec_lut[num_points - 1];
+      precise_dec_lut[num_points + 1] = precise_dec_lut[num_points - 1];
+      delta = (fd_max - fd_min) / (float)(num_points - 1);
+      inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
+
+      // find index into decoder lookup table
+      float td = (ft_max - ft_min) / (float)(enc_num_points - 1);
+      precise_max_steps = 0;
+      ui16 k = 0, old_k = 0;
+      for (ui32 i = 0; i < enc_num_points; ++i)
+      {
+        float z = ft_min + (float)i * td;
+        while (k < num_points - 1 && z >= precise_dec_lut[k + 1])
+          ++k;
+        precise_enc_dec_indices[i] = k;
+        precise_max_steps = ojph_max(precise_max_steps, (ui32)(k - old_k));
+        old_k = k;
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void nlt_rec::prepare_for_encoding()
+    {
+      if (!precise_encoding_nlt)
+        prepare_for_encoding_approx();
+      else
+        prepare_for_encoding_precise();
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2444,7 +2489,8 @@ namespace ojph {
                                             bool decoded_signedness,
                                             ui32 d_min, ui32 d_max, ui8 pt_val,
                                             ui16 num_points, void* points,
-                                            ui8 nl_type)
+                                            ui8 nl_type,
+                                            bool precise_encoding_nlt)
     {
       if (nl_type != ojph::param_nlt::OJPH_NLT_LUT_STYLE_NLT &&
           nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
@@ -2481,6 +2527,7 @@ namespace ojph {
       p->rec.pt_val = pt_val;
       p->rec.num_points = num_points;
       p->rec.bytes_per_point = p->rec.get_bpp(pt_val);
+      p->rec.precise_encoding_nlt = precise_encoding_nlt;
 
       // Check that the LUT has increasing entries or has almost flat segments
       ui32 v_min = 0, v_max = 0;
@@ -2755,7 +2802,9 @@ namespace ojph {
         p->rec.assign_pointers_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-          result &= file->read(p->rec.marker_points, len) == len;
+          result &= 
+            file->read(p->rec.marker_points, p->rec.num_points) 
+              == p->rec.num_points;
         else if (p->rec.bytes_per_point == 2)
         {
           ui16 buf2;

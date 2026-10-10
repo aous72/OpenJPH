@@ -152,7 +152,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 #v2.32.0
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e #v2.33.0
         with:
           msystem: ${{ matrix.msystem }}
           update: false
@@ -211,7 +211,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
+      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
         with:
           arch: armv7
           distro: ubuntu22.04
@@ -236,7 +236,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
+      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
         with:
           arch: s390x
           distro: ubuntu22.04
@@ -264,7 +264,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
+      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
         with:
           arch: ppc64le
           distro: ${{ matrix.dist }}

@@ -367,23 +367,38 @@ namespace ojph {
      * @param nlt_type: desired non-linearity from enum nonlinearity, only
      *        OJPH_NLT_LUT_STYLE_NLT and OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT
      *        are allowed
-     *
-     *
-     * @param precise_encoding_nlt: set the option to true when you want to use
-     *        a precise representation of non‑linearity during encoding. With
-     *        this setting, the encoding directly uses the decoding LUT
-     *        instead of inverting it. The precise approach is accurate up to
-     *        floating‑point rounding errors but is slower than the
-     *        approximate method. For LUTs that have near‑flat sections, the
-     *        precise encoding can be considerably slower; a warning is
-     *        issued if this occurs. If the option is set to false, a fast,
-     *        high‑quality approximation is used instead.
+     * @param approx_encoding_nlt: Selects how the non-linearity is represented
+     *        during encoding; the encoding process can either use
+     *        a fast approximate representation of the LUT during encoding, or
+     *        use the decoder's LUT directly (which we name `precise`).
+     *        Set this option to true to use the fast approximate
+     *        representation of the non‑linearity or set it to false for the
+     *        encoder to directly use the decoder's LUT. The precise approach
+     *        is accurate up to floating‑point rounding errors but is slower
+     *        than the approximate method. For LUTs that have near‑flat
+     *        sections, the precise encoding can be considerably slower; a
+     *        warning is issued if this occurs.
+     * @param num_enc_points: sets the number of points to use in the encoding
+     *        LUT.  For the approximate method, the more points you have the
+     *        more accurate representation of the LUT is.
+     *        The precise encoding process is basically a search to find the
+     *        closest no-larger entry in the decoder's LUT. We improve
+     *        performance of this slow search operation by using an encoder LUT
+     *        with num_enc_points entries.  If the num_enc_points is large
+     *        enough such that each edge in the decoder's LUT is accessed by
+     *        at least one entry in the encoder's LUT, a quick one step search
+     *        is sufficient; otherwise, we need multiple steps.
+     *        The one-step search is accelerated using SIMD instructions where
+     *        applicable, while it is not clear how useful it would be
+     *        to accelerate multi-step searches, so it was not implemented it.
+     *        If unsure set it to 0, and let the function call decide.
      */
-    void set_nonlinear_transform(ui32 comp_num,
-                                 ui8 decoded_bit_depth, bool decoded_signedness,
-                                 ui32 d_min, ui32 d_max, ui8 pt_val,
-                                 ui16 num_points, void* points, ui8 nl_type,
-                                 bool precise_encoding_nlt);
+    void set_nonlinear_transform(ui32 comp_num, ui8 decoded_bit_depth,
+                                 bool decoded_signedness, ui32 d_min,
+                                 ui32 d_max, ui8 pt_val, ui16 num_points,
+                                 void* points, ui8 nl_type,
+                                 bool approx_encoding_nlt = false,
+                                 ui32 num_enc_points = 0);
 
     /*************************************************************************
      * @brief get the nonlinearity type associated with comp_num, which

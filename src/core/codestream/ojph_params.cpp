@@ -453,11 +453,12 @@ namespace ojph {
                                           ui32 d_min, ui32 d_max, ui8 pt_val,
                                           ui16 num_points, void* points,
                                           ui8 nl_type,
-                                          bool precise_encoding_nlt)
+                                          bool approx_encoding_nlt,
+                                          ui32 num_enc_points)
   {
     state->set_nonlinear_transform(comp_num, decoded_bit_depth,
       decoded_signedness, d_min, d_max, pt_val, num_points, points, nl_type,
-      precise_encoding_nlt);
+      approx_encoding_nlt, num_enc_points);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1458,7 +1459,7 @@ namespace ojph {
                                      const param_siz &siz)
     {
       if (this->is_init)
-        OJPH_ERROR(0x00040001, "Quantization step sizes already initialized.");
+        OJPH_ERROR(0x00040031, "Quantization step sizes already initialized.");
 
       this->is_init = true;
 
@@ -1493,7 +1494,7 @@ namespace ojph {
                                   const param_siz &siz)
     {
       if (! this->is_init)
-        OJPH_ERROR(0x00040001, "Quantization step sizes not initialized.");
+        OJPH_ERROR(0x00040021, "Quantization step sizes not initialized.");
 
       return this->num_decomps != cod.get_num_decompositions() ||
               this->bit_depth != siz.get_bit_depth(comp_num) ||
@@ -2193,7 +2194,7 @@ namespace ojph {
       approx_enc_points[enc_num_points + 1] = fd_max;
 
       // create lookup table for encoding
-      float mul = (float)(1ull << pt_val);
+      float mul = (float)((1ull << pt_val) - 1);
       float div = 1.0f / mul;
       if (bytes_per_point == 1)
         prepare_for_encoding_approx_for_type<ui8>(marker_points, div,
@@ -2219,7 +2220,7 @@ namespace ojph {
       fd_min = (float)((double)d_min * d);
       fd_max = (float)((double)d_max * d);
 
-      float mul = (float)(1ull << pt_val);
+      float mul = (float)((1ull << pt_val) - 1);
       float div = 1.0f / mul;
 
       // convert decoder lookup table to floats
@@ -2269,7 +2270,7 @@ namespace ojph {
     //////////////////////////////////////////////////////////////////////////
     void nlt_rec::prepare_for_encoding()
     {
-      if (!precise_encoding_nlt)
+      if (approx_encoding_nlt)
         prepare_for_encoding_approx();
       else
         prepare_for_encoding_precise();
@@ -2423,7 +2424,8 @@ namespace ojph {
                                             ui32 d_min, ui32 d_max, ui8 pt_val,
                                             ui16 num_points, void* points,
                                             ui8 nl_type,
-                                            bool precise_encoding_nlt)
+                                            bool approx_encoding_nlt,
+                                            ui32 num_enc_points)
     {
       if (nl_type != ojph::param_nlt::OJPH_NLT_LUT_STYLE_NLT &&
           nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
@@ -2445,6 +2447,8 @@ namespace ojph {
           "to 2 and smaller or equal to 8192 -- the code will convert this "
           "number to a number in the range 1 to 8191 for the NLT marker "
           "segement; you provided %d", num_points);
+      if (num_enc_points == 1)
+        OJPH_ERROR(0x000501AA, "The num_enc_points cannot be 1");
 
       param_nlt* p = get_nlt_object(comp_num);
       if (p == NULL)
@@ -2460,7 +2464,7 @@ namespace ojph {
       p->rec.pt_val = pt_val;
       p->rec.num_points = num_points;
       p->rec.bytes_per_point = p->rec.get_bpp(pt_val);
-      p->rec.precise_encoding_nlt = precise_encoding_nlt;
+      p->rec.approx_encoding_nlt = approx_encoding_nlt;
 
       // Check that the LUT has increasing entries or has almost flat segments
       ui32 v_min = 0, v_max = 0;
@@ -2511,22 +2515,27 @@ namespace ojph {
         assert(0);
 
       // find ceil of the ratio to a power of 2
-      ui32 ienc_pnts;
-      float enc_pnts = std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
-      if (enc_pnts > 8192.0f)
+      ui32 ienc_pnts = num_enc_points;
+      if (num_enc_points == 0)
       {
-        ienc_pnts = 8192;
-        OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "
-          "encoding LUT, derived from the LUT you provided; however, "
-          "because the provided LUT has almost flat segment or segments, "
-          "these are hard to invert.  We are limiting the encoding "
-          "LUT to 8192 entries, which means that some segment of the "
-          "LUT table might be ignored during encoding.")
-      }
-      else {
-        ienc_pnts = (ui32)enc_pnts;
-        ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
-        ienc_pnts = 1u << ienc_pnts;
+        float enc_pnts =
+          std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
+        if (enc_pnts > 8192.0f)
+        {
+          ienc_pnts = 8192;
+          OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "
+            "encoding LUT, derived from the LUT you provided; however, "
+            "because the provided LUT has almost flat segment or segments, "
+            "these are hard to invert.  We are limiting the encoding "
+            "LUT to 8192 entries, which means that some segment of the "
+            "LUT table might be ignored during encoding.")
+        }
+        else {
+          ienc_pnts = (ui32)enc_pnts;
+          ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
+          ienc_pnts = 1u << ienc_pnts;
+          ienc_pnts = ojph_max(ienc_pnts, 2);
+        }
       }
 
       ui32 len = p->rec.cal_store_size_for_encoding(ienc_pnts);
@@ -2735,8 +2744,8 @@ namespace ojph {
         p->rec.assign_pointers_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-          result &= 
-            file->read(p->rec.marker_points, p->rec.num_points) 
+          result &=
+            file->read(p->rec.marker_points, p->rec.num_points)
               == p->rec.num_points;
         else if (p->rec.bytes_per_point == 2)
         {

@@ -420,7 +420,7 @@ namespace {
     bool use_narrow_lut = false;  // true: the table of narrowLutPoints
     bool use_bent_lut = false;    // true: the table of bentLutPoints
     bool use_clustered_lut = false;   // true: the table of clusteredLutPoints
-    bool use_exact_inverse = false;   // true: invert the LUT exactly
+    bool use_approx_inverse = false;  // true: approx encoding LUT
     bool reversible;     // false: the 9/7 wavelet, true: the 5/3 wavelet
     float qstep;         // the quantization step used with the 9/7 wavelet
   };
@@ -490,7 +490,7 @@ namespace {
       }
       nlt.set_nonlinear_transform(param_nlt::ALL_COMPS, 32, true,
         d_min, d_max, 32, (ui16)num_points, points, setting.type,
-        setting.use_exact_inverse);
+        setting.use_approx_inverse, 0);
     }
   }
 
@@ -844,7 +844,7 @@ namespace {
 
     cs.access_nlt().set_nonlinear_transform(nlt_comp, 32, true,
       pfmLutDmin, pfmLutDmax, 32, (ui16)pfmLutNumPoints, (void*)pfmLutPoints,
-      param_nlt::OJPH_NLT_LUT_STYLE_NLT, false);
+      param_nlt::OJPH_NLT_LUT_STYLE_NLT, true, 0);
 
     cs.set_planar(true);
 
@@ -888,6 +888,7 @@ TEST(NltTest, MarkerSegmentRoundTrip)
     nlt_setting setting;
     setting.type = types[i];
     setting.use_pfm_lut = true;
+    setting.use_approx_inverse = true;
     setting.reversible = false;
     setting.qstep = default_qstep();
 
@@ -920,6 +921,7 @@ TEST(NltTest, NoMarkerSegmentWithoutNlt)
   nlt_setting setting;
   setting.type = param_nlt::OJPH_NLT_NO_NLT;
   setting.use_pfm_lut = true;
+  setting.use_approx_inverse = true;
   setting.reversible = false;
   setting.qstep = default_qstep();
 
@@ -950,6 +952,7 @@ TEST(NltTest, LutStyleWithIdentityLutKeepsSamples)
   nlt_setting baseline;
   baseline.type = param_nlt::OJPH_NLT_NO_NLT;
   baseline.use_pfm_lut = false;
+  baseline.use_approx_inverse = true;
   baseline.reversible = false;
   baseline.qstep = 1e-5f;
   comparison plain = round_trip("nlt_identity_plain", img, baseline);
@@ -1016,6 +1019,7 @@ TEST(NltTest, LutWithNarrowRangeOfEntriesKeepsSamples)
     setting.type = types[t];
     setting.use_pfm_lut = false;
     setting.use_narrow_lut = true;
+    setting.use_approx_inverse = true;
     setting.reversible = false;
     setting.qstep = 1e-5f;
 
@@ -1059,17 +1063,13 @@ TEST(NltTest, BinaryComplementIsLossless)
 {
   test_image images[num_images];
   std::string missing = load_test_images(images);
-  // if (!missing.empty())
-  // {
-  //   GTEST_SKIP() << missing_images_message(missing);
-  //   return;
-  // }
 
   for (size_t i = 0; i < num_images; ++i)
   {
     nlt_setting setting;
     setting.type = param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT;
     setting.use_pfm_lut = false;
+    setting.use_approx_inverse = true;
     setting.reversible = true;
     setting.qstep = default_qstep();
 
@@ -1107,7 +1107,7 @@ TEST(NltTest, RoundTripOfTestImages)
   for (int precise = 0; precise < 2; ++precise)
   {
     nlt_setting baseline;
-    baseline.use_exact_inverse = (precise == 1);
+    baseline.use_approx_inverse = (precise == 0);
     for (size_t n = 0; n < num_images; ++n)
     {
       baseline.type = param_nlt::OJPH_NLT_NO_NLT;
@@ -1194,7 +1194,7 @@ TEST(NltTest, ExactInverseOfLutWithBentCurveKeepsSamples)
       setting.type = types[t];
       setting.use_pfm_lut = false;
       setting.use_bent_lut = true;
-      setting.use_exact_inverse = e == 1;
+      setting.use_approx_inverse = e == 0;
       setting.reversible = false;
       setting.qstep = 1e-5f;
 
@@ -1288,7 +1288,7 @@ TEST(NltTest, ExactInverseOfLutWithFlatSegmentsKeepsSamples)
       nlt_setting setting;
       setting.type = types[t];
       setting.use_clustered_lut = true;
-      setting.use_exact_inverse = e == 1;
+      setting.use_approx_inverse = e == 0;
       setting.reversible = false;
       setting.qstep = 1e-6f;
 
@@ -1357,6 +1357,7 @@ TEST(NltTest, LutStyleIsRejectedWithReversibleWavelet)
     nlt_setting setting;
     setting.type = types[i];
     setting.use_pfm_lut = true;
+    setting.use_approx_inverse = true;
     setting.reversible = true;             // the combination that is refused
     setting.qstep = default_qstep();
 
@@ -1426,6 +1427,7 @@ TEST(NltTest, LutStyleWithReversibleWaveletIsReportedWhenRead)
   nlt_setting setting;
   setting.type = param_nlt::OJPH_NLT_NO_NLT;
   setting.use_pfm_lut = true;
+  setting.use_approx_inverse = true;
   setting.reversible = true;
   setting.qstep = default_qstep();
 

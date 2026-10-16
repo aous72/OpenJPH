@@ -110,12 +110,25 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the tests of signed samples on paths that double a sample
+add_executable(
+  test_signed_shift
+  test_signed_shift.cpp
+)
+
+target_link_libraries(
+  test_signed_shift
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
 gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
 gtest_add_tests(TARGET test_quant_weights)
+gtest_add_tests(TARGET test_signed_shift)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

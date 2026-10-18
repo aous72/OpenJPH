@@ -231,6 +231,8 @@ namespace {
   struct test_image
   {
     ui32 width = 0, height = 0, num_comps = 0;
+    ui32 bit_depth = 32;    // of every component
+    bool is_signed = true;  // of every component
     std::vector<std::vector<si32> > samples;    // one entry per component
 
     size_t num_samples() const
@@ -421,6 +423,8 @@ namespace {
     bool use_bent_lut = false;    // true: the table of bentLutPoints
     bool use_clustered_lut = false;   // true: the table of clusteredLutPoints
     bool use_approx_inverse = false;  // true: approx encoding LUT
+    int no_nlt_comp = -1;  // >= 0: this component gets a type 0 record
+    bool color_transform = false;  // true: the colour transform is employed
     bool reversible;     // false: the 9/7 wavelet, true: the 5/3 wavelet
     float qstep;         // the quantization step used with the 9/7 wavelet
   };
@@ -492,6 +496,9 @@ namespace {
         d_min, d_max, 32, (ui16)num_points, points, setting.type,
         setting.use_approx_inverse, 0);
     }
+    if (setting.no_nlt_comp >= 0)
+      nlt.set_nonlinear_transform((ui32)setting.no_nlt_comp,
+        param_nlt::OJPH_NLT_NO_NLT);
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -506,7 +513,7 @@ namespace {
     siz.set_image_extent(point(img.width, img.height));
     siz.set_num_components(img.num_comps);
     for (ui32 c = 0; c < img.num_comps; ++c)
-      siz.set_component(c, point(1, 1), 32, true);
+      siz.set_component(c, point(1, 1), img.bit_depth, img.is_signed);
     siz.set_image_offset(point(0, 0));
     siz.set_tile_size(size(img.width, img.height));
     siz.set_tile_offset(point(0, 0));
@@ -514,14 +521,16 @@ namespace {
     param_cod cod = cs.access_cod();
     cod.set_num_decomposition(5);
     cod.set_block_dims(64, 64);
-    cod.set_color_transform(false);
+    cod.set_color_transform(setting.color_transform);
     cod.set_reversible(setting.reversible);
     if (!setting.reversible)
       cs.access_qcd().set_irrev_quant(setting.qstep);
 
     apply_nlt(cs, setting);
 
-    cs.set_planar(true);
+    // the colour transform needs the lines of the components interleaved
+    const bool planar = !setting.color_transform;
+    cs.set_planar(planar);
 
     j2c_outfile file;
     file.open(filename.c_str());
@@ -530,14 +539,15 @@ namespace {
     ui32 next_comp;
     line_buf* cur_line = cs.exchange(NULL, next_comp);
     ASSERT_TRUE(cur_line != NULL) << filename;
-    for (ui32 c = 0; c < img.num_comps; ++c)
-      for (ui32 y = 0; y < img.height; ++y)
-      {
-        ASSERT_EQ(next_comp, c) << filename;
-        for (ui32 x = 0; x < img.width; ++x)
-          cur_line->i32[x] = img.samples[c][(size_t)y * img.width + x];
-        cur_line = cs.exchange(cur_line, next_comp);
-      }
+    for (ui32 n = 0; n < img.num_comps * img.height; ++n)
+    {
+      ui32 c = planar ? n / img.height : n % img.num_comps;
+      ui32 y = planar ? n % img.height : n / img.num_comps;
+      ASSERT_EQ(next_comp, c) << filename;
+      for (ui32 x = 0; x < img.width; ++x)
+        cur_line->i32[x] = img.samples[c][(size_t)y * img.width + x];
+      cur_line = cs.exchange(cur_line, next_comp);
+    }
 
     cs.flush();
     cs.close();
@@ -570,25 +580,30 @@ namespace {
 
     param_siz siz = cs.access_siz();
     img.num_comps = siz.get_num_components();
+    img.bit_depth = siz.get_bit_depth(0);
+    img.is_signed = siz.is_signed(0);
     img.width = siz.get_recon_width(0);
     img.height = siz.get_recon_height(0);
     img.samples.assign(img.num_comps,
       std::vector<si32>((size_t)img.width * img.height, 0));
 
     cs.restrict_input_resolution(0, 0);
-    cs.set_planar(true);
+    // the colour transform needs the lines of the components interleaved
+    const bool planar = !cs.access_cod().is_using_color_transform();
+    cs.set_planar(planar);
     cs.create();
 
-    for (ui32 c = 0; c < img.num_comps; ++c)
-      for (ui32 y = 0; y < img.height; ++y)
-      {
-        ui32 comp_num = 0;
-        line_buf* line = cs.pull(comp_num);
-        ASSERT_TRUE(line != NULL) << filename;
-        ASSERT_EQ(comp_num, c) << filename;
-        for (ui32 x = 0; x < img.width; ++x)
-          img.samples[c][(size_t)y * img.width + x] = line->i32[x];
-      }
+    for (ui32 n = 0; n < img.num_comps * img.height; ++n)
+    {
+      ui32 c = planar ? n / img.height : n % img.num_comps;
+      ui32 y = planar ? n % img.height : n / img.num_comps;
+      ui32 comp_num = 0;
+      line_buf* line = cs.pull(comp_num);
+      ASSERT_TRUE(line != NULL) << filename;
+      ASSERT_EQ(comp_num, c) << filename;
+      for (ui32 x = 0; x < img.width; ++x)
+        img.samples[c][(size_t)y * img.width + x] = line->i32[x];
+    }
 
     cs.close();
   }
@@ -747,12 +762,11 @@ namespace {
   };
 
   ///////////////////////////////////////////////////////////////////////////
-  // Inserts an NLT marker segment for a LUT style nonlinearity into a
-  // codestream, right before its first tile part.  The library refuses to
-  // write that combination, so a codestream that carries it has to be put
-  // together here, the way another encoder may have produced it.
+  // Inserts a marker segment into a codestream, right before its first tile
+  // part
   ///////////////////////////////////////////////////////////////////////////
-  bool insert_lut_nlt_marker(const std::string& filename, ui8 nlt_type)
+  bool insert_main_header_marker(const std::string& filename,
+                                 const std::vector<ui8>& marker)
   {
     FILE* f = fopen(filename.c_str(), "rb");
     if (f == NULL)
@@ -776,6 +790,24 @@ namespace {
     if (sot == data.size())
       return false;
 
+    data.insert(data.begin() + (long)sot, marker.begin(), marker.end());
+
+    f = fopen(filename.c_str(), "wb");
+    if (f == NULL)
+      return false;
+    bool ok = fwrite(&data[0], 1, data.size(), f) == data.size();
+    fclose(f);
+    return ok;
+  }
+
+  ///////////////////////////////////////////////////////////////////////////
+  // Inserts an NLT marker segment for a LUT style nonlinearity into a
+  // codestream, right before its first tile part.  The library refuses to
+  // write that combination, so a codestream that carries it has to be put
+  // together here, the way another encoder may have produced it.
+  ///////////////////////////////////////////////////////////////////////////
+  bool insert_lut_nlt_marker(const std::string& filename, ui8 nlt_type)
+  {
     const ui16 num_points = 17;
     const ui32 d_min = 0, d_max = 0xFFFFFFFFu;
     const ui32 length = 17u + 4u * (ui32)num_points;  // as the library does
@@ -804,14 +836,27 @@ namespace {
         marker.push_back((ui8)(point >> (8 * b)));
     }
 
-    data.insert(data.begin() + (long)sot, marker.begin(), marker.end());
+    return insert_main_header_marker(filename, marker);
+  }
 
-    f = fopen(filename.c_str(), "wb");
-    if (f == NULL)
-      return false;
-    bool ok = fwrite(&data[0], 1, data.size(), f) == data.size();
-    fclose(f);
-    return ok;
+  ///////////////////////////////////////////////////////////////////////////
+  // Inserts an NLT marker segment of type 0, no nonlinearity, for all the
+  // components into a codestream whose components are 32 bit signed samples,
+  // right before its first tile part.  Type 0 is a legal value of Tnlt, so
+  // another encoder may write such a marker segment.
+  ///////////////////////////////////////////////////////////////////////////
+  bool insert_no_nlt_marker(const std::string& filename)
+  {
+    std::vector<ui8> marker;
+    marker.push_back(0xFF);
+    marker.push_back(0x76);                       // NLT
+    marker.push_back(0x00);
+    marker.push_back(0x06);                       // Lnlt = 6
+    marker.push_back(0xFF);
+    marker.push_back(0xFF);                       // Cnlt = ALL_COMPS
+    marker.push_back(0x9F);                       // BDnlt: 32 bits, signed
+    marker.push_back(param_nlt::OJPH_NLT_NO_NLT);
+    return insert_main_header_marker(filename, marker);
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1450,4 +1495,163 @@ TEST(NltTest, LutStyleWithReversibleWaveletIsReportedWhenRead)
     bit_depth, is_signed, type));
   EXPECT_EQ((int)type, (int)param_nlt::OJPH_NLT_LUT_STYLE_NLT);
   cs.close();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// A component can be given an NLT record of type 0, no nonlinearity, of its
+// own, to keep it out of the nonlinearity the other components use.  Such a
+// component is coded as if the codestream had no nonlinearity, so its samples
+// have to come back exactly as they come back from a codestream without a
+// nonlinearity, with either wavelet; with the reversible wavelet, that means
+// bit for bit.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, TypeZeroRecordOfOneComponentKeepsSamples)
+{
+  test_image img;
+  make_synthetic_image(img, 64, 64);
+  // a second component, which holds the samples of the first in reverse
+  img.num_comps = 2;
+  img.samples.push_back(std::vector<si32>(img.samples[0].rbegin(),
+                                          img.samples[0].rend()));
+
+  for (int reversible = 0; reversible < 2; ++reversible)
+  {
+    nlt_setting plain;
+    plain.type = param_nlt::OJPH_NLT_NO_NLT;
+    plain.use_pfm_lut = false;
+    plain.reversible = reversible != 0;
+    plain.qstep = default_qstep();
+
+    // type 3 for all the components, except component 1, which gets type 0
+    nlt_setting mixed = plain;
+    mixed.type = param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+    mixed.no_nlt_comp = 1;
+
+    const std::string tag = reversible ? "_rev" : "_irv";
+    const std::string plain_file =
+      std::string(OUT_FILE_DIR) + "nlt_type0_plain" + tag + ".j2c";
+    const std::string mixed_file =
+      std::string(OUT_FILE_DIR) + "nlt_type0_mixed" + tag + ".j2c";
+    encode_image(plain_file, img, plain);
+    encode_image(mixed_file, img, mixed);
+
+    {
+      codestream cs;
+      j2c_infile file;
+      file.open(mixed_file.c_str());
+      cs.read_headers(&file);
+      ui8 bit_depth = 0, type = 0xFF;
+      bool is_signed = false;
+      EXPECT_TRUE(cs.access_nlt().get_nonlinear_transform(1, bit_depth,
+        is_signed, type)) << tag;
+      EXPECT_EQ((int)type, (int)param_nlt::OJPH_NLT_NO_NLT) << tag;
+      cs.close();
+    }
+
+    test_image from_plain, from_mixed;
+    decode_image(plain_file, from_plain, NULL, NULL, NULL, NULL);
+    decode_image(mixed_file, from_mixed, NULL, NULL, NULL, NULL);
+    ASSERT_EQ(from_plain.num_comps, 2u) << tag;
+    ASSERT_EQ(from_mixed.num_comps, 2u) << tag;
+
+    size_t num_changed = 0;
+    for (size_t i = 0; i < from_plain.samples[1].size(); ++i)
+      if (from_mixed.samples[1][i] != from_plain.samples[1][i])
+        ++num_changed;
+    EXPECT_EQ(num_changed, (size_t)0) << tag << ": " << num_changed
+      << " samples of component 1 differ from those of a codestream without "
+      << "a nonlinearity";
+
+    if (reversible)
+    {
+      comparison result = compare_images(img, from_mixed);
+      EXPECT_TRUE(result.is_bit_exact()) << tag << ": "
+        << (result.num_samples - result.num_bit_exact) << " of "
+        << result.num_samples << " samples changed";
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Another encoder may write an NLT marker segment of type 0, no nonlinearity.
+// A codestream that carries one has to decode to the same samples as the same
+// codestream without it, with either wavelet.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, TypeZeroMarkerSegmentKeepsSamples)
+{
+  test_image img;
+  make_synthetic_image(img, 64, 64);
+
+  for (int reversible = 0; reversible < 2; ++reversible)
+  {
+    nlt_setting setting;
+    setting.type = param_nlt::OJPH_NLT_NO_NLT;
+    setting.use_pfm_lut = false;
+    setting.reversible = reversible != 0;
+    setting.qstep = default_qstep();
+
+    const std::string tag = reversible ? "_rev" : "_irv";
+    const std::string filename =
+      std::string(OUT_FILE_DIR) + "nlt_type0_marker" + tag + ".j2c";
+    encode_image(filename, img, setting);
+
+    test_image without;
+    decode_image(filename, without, NULL, NULL, NULL, NULL);
+
+    ASSERT_TRUE(insert_no_nlt_marker(filename)) << tag;
+    bool has_nlt = false;
+    ui8 type = 0xFF;
+    test_image with;
+    decode_image(filename, with, &has_nlt, &type, NULL, NULL);
+    EXPECT_TRUE(has_nlt) << tag;
+    EXPECT_EQ((int)type, (int)param_nlt::OJPH_NLT_NO_NLT) << tag;
+
+    comparison result = compare_images(without, with);
+    EXPECT_TRUE(result.is_bit_exact()) << tag << ": "
+      << (result.num_samples - result.num_bit_exact) << " of "
+      << result.num_samples << " samples differ from those decoded without "
+      << "the marker segment";
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// The binary complement nonlinearity (type 3) leaves unsigned samples as they
+// are, so a reversible round trip of unsigned samples with it in effect
+// returns them bit for bit; so does one in which a component is given a type
+// 0 record of its own.  Both are checked with and without the colour
+// transform, which takes its own path through the library.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, BinaryComplementOfUnsignedSamplesIsLossless)
+{
+  test_image img;
+  img.width = 64;
+  img.height = 64;
+  img.num_comps = 3;
+  img.bit_depth = 8;
+  img.is_signed = false;
+  img.samples.assign(3, std::vector<si32>((size_t)img.width * img.height));
+  for (ui32 c = 0; c < 3; ++c)
+    for (size_t i = 0; i < img.samples[c].size(); ++i)
+      img.samples[c][i] =
+        (si32)((i * (7 + 2 * c) + (i / img.width) * (3 + c)) & 0xFF);
+
+  for (int color_transform = 0; color_transform < 2; ++color_transform)
+    for (int type0 = 0; type0 < 2; ++type0)
+    {
+      nlt_setting setting;
+      setting.type = param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+      setting.use_pfm_lut = false;
+      setting.no_nlt_comp = type0 ? 1 : -1;
+      setting.color_transform = color_transform != 0;
+      setting.reversible = true;
+      setting.qstep = default_qstep();
+
+      const std::string tag = std::string("nlt_type3_unsigned") +
+        (color_transform ? "_ct" : "") + (type0 ? "_type0" : "");
+      comparison result = round_trip(tag, img, setting);
+      EXPECT_TRUE(result.is_bit_exact()) << tag << ": "
+        << (result.num_samples - result.num_bit_exact) << " of "
+        << result.num_samples << " samples changed; the largest change is "
+        << result.max_abs_error;
+    }
 }

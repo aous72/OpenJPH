@@ -909,7 +909,7 @@ namespace ojph {
         for (ui32 i = repeat; i > 0; --i)
         {
           si32 rr = *rp++, gg = *gp++, bb = *bp++;
-          *yp++ = (rr + (gg << 1) + bb) >> 2;
+          *yp++ = (rr + 2 * gg + bb) >> 2;
           *cbp++ = (bb - gg);
           *crp++ = (rr - gg);
         }
@@ -927,7 +927,7 @@ namespace ojph {
         for (ui32 i = repeat; i > 0; --i)
         {
           si64 rr = *rp++, gg = *gp++, bb = *bp++;
-          *yp++ = (rr + (gg << 1) + bb) >> 2;
+          *yp++ = (rr + 2 * gg + bb) >> 2;
           *cbp++ = (bb - gg);
           *crp++ = (rr - gg);
         }

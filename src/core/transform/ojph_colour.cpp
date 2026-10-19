@@ -606,7 +606,7 @@ namespace ojph {
       // else
       if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
       {
-        if (!rec->precise_encoding_nlt)
+        if (rec->approx_encoding_nlt)
           local_gen_irv_convert_to_float_nlt2or4<2>(src_line,
             src_line_offset, dst_line, bit_depth, is_signed, width, rec);
         else if (rec->precise_max_steps == 1)
@@ -621,7 +621,7 @@ namespace ojph {
       //     src_line_offset, dst_line, bit_depth, is_signed, width);
       else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
       {
-        if (!rec->precise_encoding_nlt)
+        if (rec->approx_encoding_nlt)
           local_gen_irv_convert_to_float_nlt2or4<4>(src_line,
             src_line_offset, dst_line, bit_depth, is_signed, width, rec);
         else if (rec->precise_max_steps == 1)

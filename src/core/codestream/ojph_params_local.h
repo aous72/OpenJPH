@@ -703,6 +703,8 @@ namespace ojph {
 
       ////////////////////////////////////////
       const float QFACTOR_UNSET = 0.0f;
+      // 1 LL subband + 3 subbands for each of at most 32 decomposition levels
+      static constexpr ui32 MAX_SUBBAND_COUNT = 97;
 
       ////////////////////////////////////////
       using comp_type = ojph::param_qcd::comp_type;
@@ -728,7 +730,10 @@ namespace ojph {
       bool is_qcc_needed(ui32 comp_num, const param_cod &cod,
                          const param_siz &siz);
       void set_delta(float delta) { base_delta = delta; }
+      void set_delta(float delta, size_t num_weights, const float *weights)
+      { set_delta(delta); set_weights(num_weights, weights); }
       void set_qfactor(float qfactor);
+      void set_weights(size_t num_weights, const float *weights);
       ui32 get_num_guard_bits() const;
       ui32 get_MAGB() const;
       ui32 get_Kmax(const param_dfs* dfs, ui32 num_decompositions,
@@ -743,6 +748,8 @@ namespace ojph {
       void read_qcc(infile_base *file, ui32 num_comps);
 
       void set_delta(ui32 comp_idx, float delta);
+      void set_delta(ui32 comp_idx, float delta,
+                     size_t num_weights, const float *weights);
       void set_qfactor(ui32 comp_idx, comp_type ctype, float qfactor);
       param_qcd* get_qcc(ui32 comp_idx);
       const param_qcd* get_qcc(ui32 comp_idx) const;
@@ -761,6 +768,7 @@ namespace ojph {
         num_subbands = 0;
         base_delta = -1.0f;
         qfactor = QFACTOR_UNSET;
+        num_weights = 0;
         ctype = comp_type::OJPH_COMP_Y;
         sampling = ojph::point(1, 1);
         enabled = true;
@@ -801,8 +809,8 @@ namespace ojph {
       ui8 Sqcd;
       union
       {
-        ui8 u8[97];
-        ui16 u16[97];
+        ui8 u8[MAX_SUBBAND_COUNT];
+        ui16 u16[MAX_SUBBAND_COUNT];
       } SPqcd;
       ui32 num_subbands;  // number of subbands
       bool enabled;       // enabled if two, and ignored if false
@@ -813,6 +821,10 @@ namespace ojph {
       float base_delta;   // base quantization step size -- all other
                           // step sizes are derived from it.
       float qfactor;
+      ui32 num_weights;   // number of coefficients in `weights`; 0 if none
+      // weight coefficients, in subband order
+      // {LH1, HL1, HH1, ..., LHN, HLN, HHN, LLN}
+      float weights[MAX_SUBBAND_COUNT];
       comp_type ctype;
       bool is_color_trans;
       ui32 num_decomps;
@@ -850,7 +862,7 @@ namespace ojph {
         dec_points = NULL;
         fd_min = fd_max = delta = inv_delta = multiplier = 0.0f;
         // encode
-        precise_encoding_nlt = false;
+        approx_encoding_nlt = false;
         enc_num_points = 0;
         ft_min = ft_max = 0.0f;
         //// approx
@@ -898,7 +910,7 @@ namespace ojph {
       // memebers for encoding -- we also use some from decoding
       ui32 enc_num_points;   // # of points for encoding (larger than decoding)
       float ft_min, ft_max;      // float first and last LUT points
-      bool precise_encoding_nlt; // use precise encoding non-linearity
+      bool approx_encoding_nlt; // use approx encoding non-linearity
       //// approx
       float* approx_enc_points;  // LUT points for encoding -- must be float
       //// precise
@@ -908,11 +920,10 @@ namespace ojph {
 
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
       {
-        assert((enc_num_points & (enc_num_points - 1)) == 0); // a power of 2
         this->enc_num_points = enc_num_points;
 
         // add 4 extra points, two before enc_num_points table and two after
-        if (!precise_encoding_nlt)
+        if (approx_encoding_nlt)
           return (ui32)(enc_num_points + 4u) * (ui32)sizeof(float)
             + (ui32)num_points * (ui32)get_bpp();
         else
@@ -925,7 +936,7 @@ namespace ojph {
         dec_points = NULL;
 
         // add 4 extra points, two before enc_num_points table and two after
-        if (!precise_encoding_nlt)
+        if (approx_encoding_nlt)
         {
           approx_enc_points = (float*)points_store + 2u;
           precise_enc_dec_indices = NULL;
@@ -990,7 +1001,8 @@ namespace ojph {
                                    bool decoded_signedness,
                                    ui32 d_min, ui32 d_max, ui8 pt_val,
                                    ui16 num_points, void* points, ui8 nl_type,
-                                   bool precise_encoding_nlt);
+                                   bool approx_encoding_nlt,
+                                   ui32 num_enc_points);
 
       bool get_nonlinear_transform(ui32 comp_num,
                                    ui8& decoded_bit_depth,

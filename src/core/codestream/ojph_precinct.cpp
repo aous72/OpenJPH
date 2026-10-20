@@ -274,7 +274,8 @@ namespace ojph {
         ph_bytes += cur_coded_list->buf_size - cur_coded_list->avail_size;
       }
 
-      return coded ? cb_bytes + ph_bytes : 1; // 1 for empty packet
+      num_bytes = coded ? cb_bytes + ph_bytes : 1; // 1 for empty packet
+      return num_bytes;
     }
 
     //////////////////////////////////////////////////////////////////////////

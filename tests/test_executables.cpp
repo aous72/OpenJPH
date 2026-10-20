@@ -1727,6 +1727,49 @@ TEST(TestExecutables, SimpleEncRev53Raw32Unsigned) {
   run_raw_round_trip_test("simple_enc_rev53_raw32_unsigned", 32, false);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// ojph_compress -plt_marker true puts PLT in the tile-part header, and
+// without it there is none. The markers themselves are tested in test_plt.
+static bool has_plt_in_first_tile_part(const std::string& filename)
+{
+  std::string data;
+  FILE* f = fopen(filename.c_str(), "rb");
+  if (f == NULL)
+    return false;
+  char buf[4096];
+  size_t n;
+  while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+    data.append(buf, n);
+  fclose(f);
+
+  // walk the marker segments from after SOC to the first SOD
+  size_t pos = 2;
+  while (pos + 4 <= data.size())
+  {
+    ojph::ui16 marker = (ojph::ui16)(((ojph::ui8)data[pos] << 8)
+                                   | (ojph::ui8)data[pos + 1]);
+    if (marker == 0xFF93) // SOD
+      return false;
+    if (marker == 0xFF58) // PLT
+      return true;
+    ojph::ui16 len = (ojph::ui16)(((ojph::ui8)data[pos + 2] << 8)
+                                | (ojph::ui8)data[pos + 3]);
+    pos += 2 + len;
+  }
+  return false;
+}
+
+TEST(TestExecutables, PltMarker) {
+  run_ojph_compress("Malamute.ppm", "plt_marker", "", "j2c",
+                    "-reversible true -plt_marker true");
+  run_ojph_compress("Malamute.ppm", "plt_marker_off", "", "j2c",
+                    "-reversible true");
+  EXPECT_TRUE(has_plt_in_first_tile_part(
+    std::string(OUT_FILE_DIR) + "plt_marker.j2c"));
+  EXPECT_FALSE(has_plt_in_first_tile_part(
+    std::string(OUT_FILE_DIR) + "plt_marker_off.j2c"));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                   main
 ////////////////////////////////////////////////////////////////////////////////

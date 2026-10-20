@@ -49,6 +49,7 @@ namespace ojph {
   //defined elsewhere
   class line_buf;
   class codestream;
+  class mem_elastic_allocator;
 
   namespace local {
 
@@ -66,7 +67,7 @@ namespace ojph {
                           ui32 tile_idx, ui32& offset, ui32 &num_tileparts);
 
       bool push(line_buf *line, ui32 comp_num);
-      void prepare_for_flush();
+      void prepare_for_flush(mem_elastic_allocator *elastic);
       void fill_tlm(param_tlm* tlm);
       void flush(outfile_base *file);
       void parse_tile_header(const param_sot& sot, infile_base *file,
@@ -98,9 +99,31 @@ namespace ojph {
       int next_tile_part;
 
     private:
+      bool start_tilepart(outfile_base *file, ui32 bytes, ui8 TPsot,
+                          ui8 TNsot);
+      void write_precincts(ui32 comp_num, ui32 res_num, outfile_base *file);
+      void write_one_precinct(ui32 comp_num, ui32 res_num,
+                              outfile_base *file);
+      void record_packet_lengths(mem_elastic_allocator *elastic);
+      void reserve_lengths(ui32 count) const;
+      ui32 end_of_plt_segment(ui32 first, ui32 end, ui32 &seg_bytes) const;
+      ui32 plt_size(ui32 part) const;
+      bool write_plt(outfile_base *file, ui32 part) const;
+      ui32 plt_bytes(ui32 part) const
+      { return need_plt ? plt_size(part) : 0; }
+
+    private:
       int profile;
       ui32 tilepart_div;    // tilepart division value
       bool need_tlm;        // true if tlm markers are needed
+      bool need_plt;        // true if plt markers are needed
+
+      bool recording;       // true while packet lengths are recorded
+      ui32 *plt_lengths;    // packet lengths, in codestream order
+      ui32 *plt_end;        // end of plt_lengths
+      ui32 *plt_part_start; // index of first packet of each tile-part
+      ui32 *plt_cursor;     // where the next packet length is recorded
+      ui32 cur_part;        // tile-part being recorded or written
 
       ui32 num_bytes; // number of bytes in this tile
                       // used for tile length

@@ -295,7 +295,7 @@ namespace ojph {
 
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (rec->get_bit_depth() - 1)) + 1u;
         const float half = (float)(1ULL << (rec->get_bit_depth() - 1));
         for (int i = (int)width; i > 0; --i) {
           float t = *sp++ + 0.5f; // convert to [0, 1]
@@ -309,7 +309,7 @@ namespace ojph {
 
           si32 v = ojph_round(z * mul - half);
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           *dp++ = v;
         }
       }
@@ -379,11 +379,11 @@ namespace ojph {
       float* dp = dst_line->f32;
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (rec->get_bit_depth() - 1)) + 1u;
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -450,11 +450,11 @@ namespace ojph {
       float* dp = dst_line->f32;
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (rec->get_bit_depth() - 1)) + 1u;
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -531,11 +531,11 @@ namespace ojph {
       float* dp = dst_line->f32;
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (rec->get_bit_depth() - 1)) + 1u;
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -786,14 +786,14 @@ namespace ojph {
 
       if (is_signed)
       {
-        const si32 bias = (si32)((1ULL << (bit_depth - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (bit_depth - 1)) + 1u;
         for (int i = (int)width; i > 0; --i) {
           float t = *sp++ * mul;
           si32 v = ojph_round(t);
           v = t >= fl_low_lim ? v : s32_low_lim;
           v = t <  fl_up_lim  ? v : s32_up_lim;
           if (NLT_TYPE3)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           *dp++ = v;
         }
       }
@@ -847,11 +847,11 @@ namespace ojph {
       float* dp = dst_line->f32;
       if (is_signed)
       {
-        const si32 bias = (si32)((1ULL << (bit_depth - 1)) + 1);
+        const ui32 bias = (ui32)(1ULL << (bit_depth - 1)) + 1u;
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE3)
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
           *dp++ = (float)v * mul;
         }
       }

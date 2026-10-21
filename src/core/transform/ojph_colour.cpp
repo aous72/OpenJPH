@@ -368,7 +368,7 @@ namespace ojph {
       ojph_unused(is_signed);
 
       assert(bit_depth <= 32);
-      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
+      float mul = rec->multiplier;
       float ft_min = rec->ft_min;
       float ft_max = rec->ft_max;
       float delta = rec->delta;
@@ -437,7 +437,7 @@ namespace ojph {
       ojph_unused(is_signed);
 
       assert(bit_depth <= 32);
-      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
+      float mul = rec->multiplier;
       float ft_min = rec->ft_min;
       float ft_max = rec->ft_max;
       float fd_min = rec->fd_min;
@@ -517,7 +517,7 @@ namespace ojph {
 
       assert(bit_depth <= 32);
       assert(rec->precise_max_steps > 1);
-      float mul = (float)(1.0 / (double)(1ULL << bit_depth));
+      float mul = rec->multiplier;
       float ft_min = rec->ft_min;
       float ft_max = rec->ft_max;
       float fd_min = rec->fd_min;

@@ -71,6 +71,17 @@ namespace ojph {
         ui32 missing_msbs, ui32 num_passes, ui32 lengths1, ui32 lengths2,
         ui32 width, ui32 height, ui32 stride, bool stripe_causal);
 
+    // AVX2 batched decoder: N-way interleaves the step-1 VLC/MEL chains of
+    // same-width codeblocks in a subband row. Parallel arrays of length n;
+    // height/stride shared. results[k] receives each block's success flag.
+    void
+      ojph_decode_codeblock_avx2_batch(ui32 n,
+        ui8* const* coded_data, ui32* const* decoded_data,
+        const ui32* missing_msbs, const ui32* num_passes,
+        const ui32* lengths1, const ui32* lengths2,
+        const ui32* widths, ui32 height, ui32 stride,
+        bool stripe_causal, bool* results);
+
     // WASM SIMD-accelerated decoder
     bool
       ojph_decode_codeblock_wasm(ui8* coded_data, ui32* decoded_data,

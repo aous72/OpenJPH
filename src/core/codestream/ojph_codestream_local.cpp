@@ -860,7 +860,10 @@ namespace ojph {
         else if (marker_idx == 15)
           atk.read(file);
         else if (marker_idx == 16)
-          nlt.read(file);
+        {
+          if (!nlt.read(file))
+            OJPH_ERROR(0x00030058, "error reading NLT marker");
+        }
         else if (marker_idx == 17)
           break;
         else

@@ -177,6 +177,10 @@ namespace {
   // its entries run from 1/4 to 3/4 of that range.
   ///////////////////////////////////////////////////////////////////////////
   const ui32 bentLutNumPoints = 3;
+  const ui8 bentLutPoints8[bentLutNumPoints] =
+    { 0x40u, 0x50u, 0xC0u };
+  const ui16 bentLutPoints16[bentLutNumPoints] =
+    { 0x4000u, 0x5000u, 0xC000u };
   const ui32 bentLutPoints[bentLutNumPoints] =
     { 0x40000000u, 0x50000000u, 0xC0000000u };
 
@@ -421,6 +425,7 @@ namespace {
     bool use_bent_lut = false;    // true: the table of bentLutPoints
     bool use_clustered_lut = false;   // true: the table of clusteredLutPoints
     bool use_approx_inverse = false;  // true: approx encoding LUT
+    ui8 pt_val = 32;      // precision of each LUT point
     bool reversible;     // false: the 9/7 wavelet, true: the 5/3 wavelet
     float qstep;         // the quantization step used with the 9/7 wavelet
   };
@@ -453,7 +458,12 @@ namespace {
         d_min = 0;
         d_max = 0xFFFFFFFFu;
         num_points = bentLutNumPoints;
-        points = (void*)bentLutPoints;
+        if (setting.pt_val <= 8)
+          points = (void*)bentLutPoints8;
+        else if (setting.pt_val <= 16)
+          points = (void*)bentLutPoints16;
+        else
+          points = (void*)bentLutPoints;
       }
       else if (setting.use_clustered_lut)
       {  // indexed over the whole range of 32 bit patterns, with a long run
@@ -489,7 +499,7 @@ namespace {
         points = (void*)identityLutPoints;
       }
       nlt.set_nonlinear_transform(param_nlt::ALL_COMPS, 32, true,
-        d_min, d_max, 32, (ui16)num_points, points, setting.type,
+        d_min, d_max, setting.pt_val, (ui16)num_points, points, setting.type,
         setting.use_approx_inverse, 0);
     }
   }
@@ -747,6 +757,93 @@ namespace {
   };
 
   ///////////////////////////////////////////////////////////////////////////
+  // Presents a complete codestream to the parser, but reports a short read
+  // when a read crosses readable_size.  The requested bytes are still copied
+  // and the cursor is advanced over them: this keeps a parser that ignores
+  // the short count deterministic instead of letting it inspect uninitialized
+  // test-process memory.  Any later read or seek is recorded.
+  ///////////////////////////////////////////////////////////////////////////
+  class short_read_infile : public infile_base
+  {
+  public:
+    short_read_infile(const std::vector<ui8>& data, size_t readable_size)
+      : readable_size(readable_size), short_read(false),
+        operations_after_short_read(0)
+    {
+      EXPECT_FALSE(data.empty());
+      EXPECT_LE(readable_size, data.size());
+      file.open(&data[0], data.size());
+    }
+
+    size_t read(void* ptr, size_t size) override
+    {
+      if (short_read)
+        ++operations_after_short_read;
+
+      si64 start = file.tell();
+      size_t bytes_read = file.read(ptr, size);
+      size_t bytes_to_report = 0;
+      if (start >= 0 && (size_t)start < readable_size)
+        bytes_to_report = std::min(size, readable_size - (size_t)start);
+      bytes_to_report = std::min(bytes_to_report, bytes_read);
+      if (bytes_to_report != size)
+        short_read = true;
+
+      return bytes_to_report;
+    }
+
+    int seek(si64 offset, enum infile_base::seek origin) override
+    {
+      if (short_read)
+        ++operations_after_short_read;
+      return file.seek(offset, origin);
+    }
+
+    si64 tell() override { return file.tell(); }
+    bool eof() override { return file.eof(); }
+
+    bool saw_short_read() const { return short_read; }
+    size_t get_operations_after_short_read() const
+    { return operations_after_short_read; }
+
+  private:
+    mem_infile file;
+    size_t readable_size;
+    bool short_read;
+    size_t operations_after_short_read;
+  };
+
+  ///////////////////////////////////////////////////////////////////////////
+  // Reads a codestream into memory, for tests that need to expose only part
+  // of it to the parser.
+  ///////////////////////////////////////////////////////////////////////////
+  bool load_codestream(const std::string& filename, std::vector<ui8>& data)
+  {
+    FILE* f = fopen(filename.c_str(), "rb");
+    if (f == NULL)
+      return false;
+
+    ui8 buffer[4096];
+    size_t num_read;
+    while ((num_read = fread(buffer, 1, sizeof(buffer), f)) != 0)
+      data.insert(data.end(), buffer, buffer + num_read);
+    bool ok = ferror(f) == 0;
+    fclose(f);
+    return ok;
+  }
+
+  ///////////////////////////////////////////////////////////////////////////
+  // Returns the byte offset of an NLT marker, or data.size() if absent.
+  ///////////////////////////////////////////////////////////////////////////
+  size_t find_nlt_marker(const std::vector<ui8>& data)
+  {
+    for (size_t i = 0; i + 1 < data.size(); ++i)
+      if (data[i] == NLT_MARKER_HIGH && data[i + 1] == NLT_MARKER_LOW)
+        return i;
+    return data.size();
+  }
+
+  ///////////////////////////////////////////////////////////////////////////
   // Inserts an NLT marker segment for a LUT style nonlinearity into a
   // codestream, right before its first tile part.  The library refuses to
   // write that combination, so a codestream that carries it has to be put
@@ -905,6 +1002,70 @@ TEST(NltTest, MarkerSegmentRoundTrip)
     EXPECT_EQ((int)bit_depth, 32) << "nonlinearity " << (int)types[i];
     EXPECT_TRUE(is_signed) << "nonlinearity " << (int)types[i];
     EXPECT_TRUE(has_nlt_marker(filename)) << "nonlinearity " << (int)types[i];
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Every short read inside an NLT marker segment must stop parsing immediately.
+// Test both the fixed-size marker and all three widths of LUT point arrays at
+// every possible byte boundary.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, TruncatedMarkerSegmentStopsAtFirstShortRead)
+{
+  test_image img;
+  make_synthetic_image(img, 64, 64);
+
+  nlt_setting settings[4];
+  settings[0].type = param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT;
+  settings[0].use_pfm_lut = false;
+  settings[0].reversible = false;
+  settings[0].qstep = default_qstep();
+
+  const ui8 precisions[3] = { 8, 16, 32 };
+  for (size_t i = 1; i < 4; ++i)
+  {
+    settings[i].type = param_nlt::OJPH_NLT_LUT_STYLE_NLT;
+    settings[i].use_pfm_lut = false;
+    settings[i].use_bent_lut = true;
+    settings[i].use_approx_inverse = true;
+    settings[i].pt_val = precisions[i - 1];
+    settings[i].reversible = false;
+    settings[i].qstep = default_qstep();
+  }
+
+  const char* tags[4] = { "nlt_truncated_fixed", "nlt_truncated_lut8",
+                          "nlt_truncated_lut16", "nlt_truncated_lut32" };
+  for (size_t i = 0; i < 4; ++i)
+  {
+    const std::string filename =
+      std::string(OUT_FILE_DIR) + tags[i] + ".j2c";
+    encode_image(filename, img, settings[i]);
+
+    std::vector<ui8> data;
+    ASSERT_TRUE(load_codestream(filename, data));
+    remove(filename.c_str());
+
+    size_t marker = find_nlt_marker(data);
+    ASSERT_LT(marker + 3, data.size());
+    size_t marker_length = ((size_t)data[marker + 2] << 8) |
+                           (size_t)data[marker + 3];
+    ASSERT_GE(marker_length, (size_t)6);
+    ASSERT_LE(marker + 2 + marker_length, data.size());
+
+    for (size_t available = 0; available < marker_length; ++available)
+    {
+      SCOPED_TRACE(testing::Message() << tags[i]
+        << ", bytes available in marker segment: " << available);
+
+      message_capture messages;
+      short_read_infile file(data, marker + 2 + available);
+      codestream cs;
+      EXPECT_THROW(cs.read_headers(&file), std::runtime_error);
+      EXPECT_TRUE(file.saw_short_read());
+      EXPECT_EQ(file.get_operations_after_short_read(), (size_t)0);
+      EXPECT_EQ(messages.errors.num_messages, 1);
+      EXPECT_EQ(messages.errors.last_code, 0x00030058);
+    }
   }
 }
 

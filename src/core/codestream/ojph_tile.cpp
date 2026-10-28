@@ -192,6 +192,8 @@ namespace ojph {
                               ui32 tile_idx, ui32& offset,
                               ui32 &num_tileparts)
     {
+      constexpr ui8 type0 =
+        param_nlt::nonlinearity::OJPH_NLT_NO_NLT;
       constexpr ui8 type3 =
         param_nlt::nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT;
 
@@ -291,6 +293,7 @@ namespace ojph {
         num_bits[i] = szp->get_bit_depth(i);
         is_signed[i] = szp->is_signed(i);
         nlt_ptr[i] = nlp->get_nlt_rec(i);
+        reversible[i] = codestream->get_coc(i)->is_reversible();
 
         if (nlt_ptr[i])
         {
@@ -303,9 +306,14 @@ namespace ojph {
               "(bit_depth = %d, is_signed = %s) from NLT marker segment, "
               "for component %d", num_bits[i],
               is_signed[i] ? "True" : "False", bd, is ? "True" : "False", i);
+
+          // type 0, and type 3 on unsigned reversible samples, change
+          // nothing; push() and pull() convert both as no nonlinearity
+          if (nlt_type == type0 ||
+              (nlt_type == type3 && !is_signed[i] && reversible[i]))
+            nlt_ptr[i] = NULL;
         }
         cur_line[i] = 0;
-        reversible[i] = codestream->get_coc(i)->is_reversible();
       }
 
       offset += tile_rect.siz.w;

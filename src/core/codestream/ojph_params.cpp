@@ -2182,7 +2182,7 @@ namespace ojph {
       delta = (fd_max - fd_min) / (float)(num_points - 1);
       inv_delta = (float)(num_points - 1) / (fd_max - fd_min);
       multiplier = (float)(1ull << get_bit_depth());
-      float divider = 1 / multiplier;
+      float divider = (float)(1.0 / (double)(1ull << get_bit_depth()));
       if (bytes_per_point == 1) {
         ui8* sp = (ui8*)marker_points;
         float* dp = dec_points;
@@ -2278,6 +2278,8 @@ namespace ojph {
           ft_min, ft_max, delta, inv_delta,
           fd_min, fd_max, num_points, enc_num_points,
           approx_enc_points);
+
+      multiplier = (float)(1.0 / (double)(1ull << get_bit_depth()));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -2318,6 +2320,8 @@ namespace ojph {
       precise_dec_lut[num_points + 1] = precise_dec_lut[num_points - 1];
       delta = (fd_max - fd_min) / (float)(num_points - 1);
       inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
+
+      multiplier = (float)(1.0 / (double)(1ull << get_bit_depth()));
 
       // find index into decoder lookup table
       float td = (ft_max - ft_min) / (float)(enc_num_points - 1);

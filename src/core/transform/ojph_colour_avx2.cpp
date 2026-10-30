@@ -533,7 +533,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
       assert(bit_depth <= 32);
-      __m256 mul = _mm256_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
+      __m256 mul = _mm256_set1_ps(rec->multiplier);
       __m256 ft_min = _mm256_set1_ps(rec->ft_min);
       __m256 ft_max = _mm256_set1_ps(rec->ft_max);
       __m256 delta = _mm256_set1_ps(rec->delta);
@@ -620,7 +620,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
 
       assert(bit_depth <= 32);
-      __m256 mul = _mm256_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
+      __m256 mul = _mm256_set1_ps(rec->multiplier);
       __m256 ft_min = _mm256_set1_ps(rec->ft_min);
       __m256 ft_max = _mm256_set1_ps(rec->ft_max);
       __m256 fd_min = _mm256_set1_ps(rec->fd_min);
@@ -752,7 +752,7 @@ namespace ojph {
 
       assert(bit_depth <= 32);
       assert(rec->precise_max_steps > 1);
-      __m256 mul = _mm256_set1_ps((float)(1.0 / (double)(1ULL << bit_depth)));
+      __m256 mul = _mm256_set1_ps(rec->multiplier);
       __m256 ft_min = _mm256_set1_ps(rec->ft_min);
       __m256 ft_max = _mm256_set1_ps(rec->ft_max);
       __m256 fd_min = _mm256_set1_ps(rec->fd_min);

@@ -266,10 +266,6 @@ namespace ojph {
     }
 
     size_t len = strlen(filename);
-    char ext[5] = { 0 };
-    if (len >= 4)
-      for (int i = 0; i < 4; ++i)
-        ext[i] = (char)tolower((unsigned char)filename[len - 4 + i]);
     if (t[1] == '5' && 
         (len < 4 || filename[len - 4] != '.' ||
          (filename[len - 3] != 'p' && filename[len - 3] != 'P') ||

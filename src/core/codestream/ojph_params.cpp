@@ -2722,12 +2722,14 @@ namespace ojph {
       ui16 buf2_comp;
       ui8  buf1_BDnlt;
       ui8  buf1_Tnlt;
+      bool result = true;
 
-      if (file->read(&buf2_len, sizeof(ui16)) != sizeof(ui16) ||
-          file->read(&buf2_comp, sizeof(ui16)) != sizeof(ui16) ||
-          file->read(&buf1_BDnlt, sizeof(ui8)) != sizeof(ui8) ||
-          file->read(&buf1_Tnlt, sizeof(ui8)) != sizeof(ui8))
-        return false;
+      result &= file->read(&buf2_len, sizeof(ui16)) == sizeof(ui16);
+      result &= file->read(&buf2_comp, sizeof(ui16)) == sizeof(ui16);
+      result &= file->read(&buf1_BDnlt, sizeof(ui8)) == sizeof(ui8);
+      result &= file->read(&buf1_Tnlt, sizeof(ui8)) == sizeof(ui8);
+      if (result == false)
+        OJPH_ERROR(0x000501E1, "Error reading NLT marker, Location 1");
 
       if (buf1_Tnlt != nonlinearity::OJPH_NLT_NO_NLT &&
         buf1_Tnlt != nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT &&
@@ -2770,11 +2772,12 @@ namespace ojph {
         ui32 buf4_d_min, buf4_d_max;
         ui8 buf_pt_val;
 
-        if (file->read(&buf2_num_points, sizeof(ui16)) != sizeof(ui16) ||
-            file->read(&buf4_d_min, sizeof(ui32)) != sizeof(ui32) ||
-            file->read(&buf4_d_max, sizeof(ui32)) != sizeof(ui32) ||
-            file->read(&buf_pt_val, sizeof(ui8)) != sizeof(ui8))
-          return false;
+        result &= file->read(&buf2_num_points, sizeof(ui16)) == sizeof(ui16);
+        result &= file->read(&buf4_d_min, sizeof(ui32)) == sizeof(ui32);
+        result &= file->read(&buf4_d_max, sizeof(ui32)) == sizeof(ui32);
+        result &= file->read(&buf_pt_val, sizeof(ui8)) == sizeof(ui8);
+        if (result == false)
+          OJPH_ERROR(0x000501E2, "Error reading NLT marker, Location 2");
 
         buf2_num_points = swap_bytes_if_le(buf2_num_points);
         buf4_d_min = swap_bytes_if_le(buf4_d_min);
@@ -2812,19 +2815,16 @@ namespace ojph {
         p->rec.assign_pointers_for_decoding();
 
         if (p->rec.bytes_per_point == 1)
-        {
-          if (file->read(p->rec.marker_points, p->rec.num_points) !=
-              p->rec.num_points)
-            return false;
-        }
+          result &=
+            file->read(p->rec.marker_points, p->rec.num_points)
+              == p->rec.num_points;
         else if (p->rec.bytes_per_point == 2)
         {
           ui16 buf2;
           char* dp = (char*)p->rec.marker_points;
           for (ui32 i = 0; i < p->rec.num_points; ++i, dp += 2)
           {
-            if (file->read(&buf2, sizeof(ui16)) != sizeof(ui16))
-              return false;
+            result &= file->read(&buf2, sizeof(ui16)) == sizeof(ui16);
             buf2 = swap_bytes_if_le(buf2);
             memcpy(dp, &buf2, 2); // not to violate strict aliasing
           }
@@ -2835,8 +2835,7 @@ namespace ojph {
           char* dp = (char*)p->rec.marker_points;
           for (ui32 i = 0; i < p->rec.num_points; ++i, dp += 4)
           {
-            if (file->read(&buf4, sizeof(ui32)) != sizeof(ui32))
-              return false;
+            result &= file->read(&buf4, sizeof(ui32)) == sizeof(ui32);
             buf4 = swap_bytes_if_le(buf4);
             memcpy(dp, &buf4, 4); // not to violate strict aliasing
           }
@@ -2844,7 +2843,10 @@ namespace ojph {
         p->rec.prepare_for_decoding();
       }
 
-      return true;
+      if (result == false)
+        OJPH_ERROR(0x000501E3, "Error reading NLT marker, Location 3");
+
+      return result;
     }
 
     //////////////////////////////////////////////////////////////////////////

@@ -266,13 +266,21 @@ namespace ojph {
     }
 
     size_t len = strlen(filename);
-    if (t[1] == '5' && strncmp(filename + len - 4, ".pgm", 4) != 0)
+    if (t[1] == '5' && 
+        (len < 4 || filename[len - 4] != '.' ||
+         (filename[len - 3] != 'p' && filename[len - 3] != 'P') ||
+         (filename[len - 2] != 'g' && filename[len - 2] != 'G') ||
+         (filename[len - 1] != 'm' && filename[len - 1] != 'M')))      
     {
       close();
       OJPH_ERROR(0x03000004, "wrong file extension, a file with "
         "keyword P5 must have a .pgm extension for file %s", filename);
     }
-    if (t[1] == '6' && strncmp(filename + len - 4, ".ppm", 4) != 0)
+    if (t[1] == '6' &&
+        (len < 4 || filename[len - 4] != '.' ||
+         (filename[len - 3] != 'p' && filename[len - 3] != 'P') ||
+         (filename[len - 2] != 'p' && filename[len - 2] != 'P') ||
+         (filename[len - 1] != 'm' && filename[len - 1] != 'M')))
     {
       close();
       OJPH_ERROR(0x03000005, "wrong file extension, a file with keyword P6 "

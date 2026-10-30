@@ -35,7 +35,6 @@
 // Date: 28 August 2019
 //***************************************************************************/
 
-#include <cctype>
 #include <cstdlib>
 #include <cstring>
 
@@ -271,13 +270,21 @@ namespace ojph {
     if (len >= 4)
       for (int i = 0; i < 4; ++i)
         ext[i] = (char)tolower((unsigned char)filename[len - 4 + i]);
-    if (t[1] == '5' && strcmp(ext, ".pgm") != 0)
+    if (t[1] == '5' && 
+        (len < 4 || filename[len - 4] != '.' ||
+         (filename[len - 3] != 'p' && filename[len - 3] != 'P') ||
+         (filename[len - 2] != 'g' && filename[len - 2] != 'G') ||
+         (filename[len - 1] != 'm' && filename[len - 1] != 'M')))      
     {
       close();
       OJPH_ERROR(0x03000004, "wrong file extension, a file with "
         "keyword P5 must have a .pgm extension for file %s", filename);
     }
-    if (t[1] == '6' && strcmp(ext, ".ppm") != 0)
+    if (t[1] == '6' &&
+        (len < 4 || filename[len - 4] != '.' ||
+         (filename[len - 3] != 'p' && filename[len - 3] != 'P') ||
+         (filename[len - 2] != 'p' && filename[len - 2] != 'P') ||
+         (filename[len - 1] != 'm' && filename[len - 1] != 'M')))
     {
       close();
       OJPH_ERROR(0x03000005, "wrong file extension, a file with keyword P6 "

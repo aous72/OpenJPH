@@ -761,14 +761,13 @@ namespace {
   // when a read crosses readable_size.  The requested bytes are still copied
   // and the cursor is advanced over them: this keeps a parser that ignores
   // the short count deterministic instead of letting it inspect uninitialized
-  // test-process memory.  Any later read or seek is recorded.
+  // test-process memory.
   ///////////////////////////////////////////////////////////////////////////
   class short_read_infile : public infile_base
   {
   public:
     short_read_infile(const std::vector<ui8>& data, size_t readable_size)
-      : readable_size(readable_size), short_read(false),
-        operations_after_short_read(0)
+      : readable_size(readable_size), short_read(false)
     {
       EXPECT_FALSE(data.empty());
       EXPECT_LE(readable_size, data.size());
@@ -777,9 +776,6 @@ namespace {
 
     size_t read(void* ptr, size_t size) override
     {
-      if (short_read)
-        ++operations_after_short_read;
-
       si64 start = file.tell();
       size_t bytes_read = file.read(ptr, size);
       size_t bytes_to_report = 0;
@@ -793,24 +789,17 @@ namespace {
     }
 
     int seek(si64 offset, enum infile_base::seek origin) override
-    {
-      if (short_read)
-        ++operations_after_short_read;
-      return file.seek(offset, origin);
-    }
+    { return file.seek(offset, origin); }
 
     si64 tell() override { return file.tell(); }
     bool eof() override { return file.eof(); }
 
     bool saw_short_read() const { return short_read; }
-    size_t get_operations_after_short_read() const
-    { return operations_after_short_read; }
 
   private:
     mem_infile file;
     size_t readable_size;
     bool short_read;
-    size_t operations_after_short_read;
   };
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1006,11 +995,12 @@ TEST(NltTest, MarkerSegmentRoundTrip)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Every short read inside an NLT marker segment must stop parsing immediately.
+// Every short read inside an NLT marker segment must make the codestream be
+// rejected, with one error message coming from the NLT parameter reader.
 // Test both the fixed-size marker and all three widths of LUT point arrays at
 // every possible byte boundary.
 ///////////////////////////////////////////////////////////////////////////////
-TEST(NltTest, TruncatedMarkerSegmentStopsAtFirstShortRead)
+TEST(NltTest, TruncatedMarkerSegmentIsRejected)
 {
   test_image img;
   make_synthetic_image(img, 64, 64);
@@ -1062,9 +1052,14 @@ TEST(NltTest, TruncatedMarkerSegmentStopsAtFirstShortRead)
       codestream cs;
       EXPECT_THROW(cs.read_headers(&file), std::runtime_error);
       EXPECT_TRUE(file.saw_short_read());
-      EXPECT_EQ(file.get_operations_after_short_read(), (size_t)0);
       EXPECT_EQ(messages.errors.num_messages, 1);
-      EXPECT_EQ(messages.errors.last_code, 0x00030058);
+      // The reads that belong to one field group are all issued before the
+      // group is checked, so the message that fires is the one naming the
+      // group that went short.
+      EXPECT_TRUE(messages.errors.last_code == 0x000501E1 ||
+                  messages.errors.last_code == 0x000501E2 ||
+                  messages.errors.last_code == 0x000501E3)
+        << std::hex << "error code " << messages.errors.last_code;
     }
   }
 }

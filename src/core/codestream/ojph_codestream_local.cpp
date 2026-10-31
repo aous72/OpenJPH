@@ -90,6 +90,7 @@ namespace ojph {
       profile = OJPH_PN_UNDEFINED;
       tilepart_div = OJPH_TILEPART_NO_DIVISIONS;
       need_tlm = false;
+      need_plt = false;
 
       cur_comp = 0;
       cur_line = 0;
@@ -1156,11 +1157,17 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void codestream::request_plt_marker(bool needed)
+    {
+      need_plt = needed;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void codestream::flush()
     {
       si32 repeat = (si32)num_tiles.area();
       for (si32 i = 0; i < repeat; ++i)
-        tiles[i].prepare_for_flush();
+        tiles[i].prepare_for_flush(elastic_alloc);
       if (need_tlm)
       { //write tlm
         for (si32 i = 0; i < repeat; ++i)

@@ -60,6 +60,7 @@ namespace ojph {
       precinct() {
         scratch = NULL; bands = NULL; coded = NULL;
         may_use_sop = uses_eph = false;
+        num_bytes = 0;
       }
       ui32 prepare_precinct(int tag_tree_size, ui32* lev_idx,
                             mem_elastic_allocator *elastic);
@@ -74,6 +75,7 @@ namespace ojph {
       subband *bands;  //the subbands
       coded_lists* coded;
       bool may_use_sop, uses_eph;
+      ui32 num_bytes; //packet length, for PLT
     };
 
   }

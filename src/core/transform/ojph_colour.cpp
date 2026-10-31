@@ -366,6 +366,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
 
       assert(bit_depth <= 32);
       float mul = rec->multiplier;
@@ -435,6 +436,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
 
       assert(bit_depth <= 32);
       float mul = rec->multiplier;
@@ -514,6 +516,7 @@ namespace ojph {
              (dst_line->flags & line_buf::LFT_32BIT) &&
              (dst_line->flags & line_buf::LFT_INTEGER) == 0);
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
 
       assert(bit_depth <= 32);
       assert(rec->precise_max_steps > 1);

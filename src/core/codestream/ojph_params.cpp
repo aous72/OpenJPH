@@ -2732,6 +2732,8 @@ namespace ojph {
       result &= file->read(&buf2_comp, sizeof(ui16)) == sizeof(ui16);
       result &= file->read(&buf1_BDnlt, sizeof(ui8)) == sizeof(ui8);
       result &= file->read(&buf1_Tnlt, sizeof(ui8)) == sizeof(ui8);
+      if (result == false)
+        OJPH_ERROR(0x000501E1, "Error reading NLT marker, Location 1");
 
       if (buf1_Tnlt != nonlinearity::OJPH_NLT_NO_NLT &&
         buf1_Tnlt != nonlinearity::OJPH_NLT_BINARY_COMPLEMENT_NLT &&
@@ -2778,6 +2780,8 @@ namespace ojph {
         result &= file->read(&buf4_d_min, sizeof(ui32)) == sizeof(ui32);
         result &= file->read(&buf4_d_max, sizeof(ui32)) == sizeof(ui32);
         result &= file->read(&buf_pt_val, sizeof(ui8)) == sizeof(ui8);
+        if (result == false)
+          OJPH_ERROR(0x000501E2, "Error reading NLT marker, Location 2");
 
         buf2_num_points = swap_bytes_if_le(buf2_num_points);
         buf4_d_min = swap_bytes_if_le(buf4_d_min);
@@ -2842,6 +2846,9 @@ namespace ojph {
         }
         p->rec.prepare_for_decoding();
       }
+
+      if (result == false)
+        OJPH_ERROR(0x000501E3, "Error reading NLT marker, Location 3");
 
       return result;
     }

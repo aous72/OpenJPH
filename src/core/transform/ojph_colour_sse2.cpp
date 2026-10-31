@@ -588,6 +588,7 @@ namespace ojph {
       ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
     {
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
 
       assert((src_line->flags & line_buf::LFT_32BIT) &&
              (src_line->flags & line_buf::LFT_INTEGER) &&
@@ -685,6 +686,8 @@ namespace ojph {
       ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
     {
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
+
       assert((src_line->flags & line_buf::LFT_32BIT) &&
              (src_line->flags & line_buf::LFT_INTEGER) &&
              (dst_line->flags & line_buf::LFT_32BIT) &&
@@ -827,6 +830,8 @@ namespace ojph {
       ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
     {
       ojph_unused(is_signed);
+      ojph_unused(bit_depth);
+
       assert((src_line->flags & line_buf::LFT_32BIT) &&
              (src_line->flags & line_buf::LFT_INTEGER) &&
              (dst_line->flags & line_buf::LFT_32BIT) &&

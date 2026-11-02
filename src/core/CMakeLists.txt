@@ -108,6 +108,24 @@ else()
         set_source_files_properties(transform/ojph_transform_avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
         set_source_files_properties(transform/ojph_transform_avx2.cpp PROPERTIES COMPILE_FLAGS -mavx2)
         set_source_files_properties(transform/ojph_transform_avx512.cpp PROPERTIES COMPILE_FLAGS "-mavx512f -mavx512cd")
+
+        # The files above are compiled with ISA flags (-mavx2, -mavx512f, ...).
+        # Under LTO, GCC merges the static initializers of all translation units
+        # into one constructor that inherits those ISA flags, so merely loading
+        # the library can execute AVX/AVX2/AVX-512 instructions on any CPU.
+        # Keep these files out of LTO so their initializers stay in their own
+        # functions.
+        set_source_files_properties(
+          codestream/ojph_codestream_sse.cpp codestream/ojph_codestream_sse2.cpp
+          codestream/ojph_codestream_avx.cpp codestream/ojph_codestream_avx2.cpp
+          coding/ojph_block_decoder_ssse3.cpp coding/ojph_block_decoder_avx2.cpp
+          coding/ojph_block_encoder_avx2.cpp coding/ojph_block_encoder_avx512.cpp
+          transform/ojph_colour_sse.cpp transform/ojph_colour_sse2.cpp
+          transform/ojph_colour_avx.cpp transform/ojph_colour_avx2.cpp
+          transform/ojph_transform_sse.cpp transform/ojph_transform_sse2.cpp
+          transform/ojph_transform_avx.cpp transform/ojph_transform_avx2.cpp
+          transform/ojph_transform_avx512.cpp
+          PROPERTIES COMPILE_OPTIONS "-fno-lto")
       endif()
     endif()
 

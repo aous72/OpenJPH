@@ -371,7 +371,8 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
                    ojph::ui32& num_comp_downsamps, ojph::point*& comp_downsamp,
                    ojph::ui32& num_bit_depths, ojph::ui32*& bit_depth,
                    ojph::ui32& num_is_signed, ojph::si32*& is_signed,
-                   bool& tlm_marker, bool& tileparts_at_resolutions,
+                   bool& tlm_marker, bool& plt_marker,
+                   bool& tileparts_at_resolutions,
                    bool& tileparts_at_components, char *&com_string)
 {
   ojph::cli_interpreter interpreter;
@@ -388,6 +389,7 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   interpreter.reinterpret_to_bool("-colour_trans", employ_color_transform);
   interpreter.reinterpret("-num_comps", num_comps);
   interpreter.reinterpret("-tlm_marker", tlm_marker);
+  interpreter.reinterpret("-plt_marker", plt_marker);
   interpreter.reinterpret("-com", com_string);
 
   size_interpreter block_interpreter(block_size);
@@ -525,6 +527,7 @@ int main(int argc, char * argv[]) {
   ojph::point downsampling_store[initial_num_comps];
   ojph::point *comp_downsampling = downsampling_store;
   bool tlm_marker = false;
+  bool plt_marker = false;
   bool tileparts_at_resolutions = false;
   bool tileparts_at_components = false;
 
@@ -577,6 +580,8 @@ int main(int argc, char * argv[]) {
     "               indicated by the letter R, and/or component, indicated \n"
     "               by the letter C. For both, use \"-tileparts RC\".\n"
     " -tlm_marker   <true | false> if 'true', a TLM marker is inserted.\n"
+    "               Default value is false.\n"
+    " -plt_marker   <true | false> if 'true', PLT markers are inserted.\n"
     "               Default value is false.\n"
     " -profile      (None) is the profile, the code will check if the \n"
     "               selected options meet the profile.  Currently only \n"
@@ -635,7 +640,7 @@ int main(int argc, char * argv[]) {
                      max_num_comps, num_components,
                      num_comp_downsamps, comp_downsampling,
                      num_bit_depths, bit_depth, num_is_signed, is_signed,
-                     tlm_marker, tileparts_at_resolutions,
+                     tlm_marker, plt_marker, tileparts_at_resolutions,
                      tileparts_at_components, com_string))
   {
     return -1;
@@ -707,6 +712,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         if (employ_color_transform != -1)
           OJPH_WARN(0x01000001,
@@ -766,6 +772,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000011,
@@ -871,6 +878,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000092,
@@ -932,6 +940,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000061,
@@ -1024,6 +1033,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         yuv.open(input_filename);
         base = &yuv;
@@ -1078,6 +1088,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         raw.open(input_filename);
         base = &raw;
@@ -1125,6 +1136,7 @@ int main(int argc, char * argv[]) {
         codestream.set_tilepart_divisions(tileparts_at_resolutions,
           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
+        codestream.request_plt_marker(plt_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000071,

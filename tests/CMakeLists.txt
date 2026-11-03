@@ -98,6 +98,18 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure PLT marker tests (library API tests)
+add_executable(
+  test_plt
+  test_plt.cpp
+)
+
+target_link_libraries(
+  test_plt
+  openjph
+  GTest::gtest_main
+)
+
 # configure the quantization weights tests (library API tests)
 add_executable(
   test_quant_weights
@@ -127,6 +139,7 @@ gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
 gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
+gtest_add_tests(TARGET test_plt)
 gtest_add_tests(TARGET test_quant_weights)
 gtest_add_tests(TARGET test_signed_shift)
 

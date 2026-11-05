@@ -364,8 +364,10 @@ namespace ojph {
             cb_size.w = cbx1 - cbx0;
             blocks[i].recreate(cb_size,
                                coded_cbs + i + cur_cb_row * num_blocks.w);
-            blocks[i].decode();
           }
+          // Decode the whole row at once so the batched (N-way interleaved)
+          // block decoder can overlap independent codeblocks' VLC/MEL chains.
+          codeblock::decode_row(blocks, num_blocks.w);
           ++cur_cb_row;
         }
       }

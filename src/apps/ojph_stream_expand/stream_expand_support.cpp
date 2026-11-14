@@ -122,7 +122,9 @@ rtp_packet* packets_handler::exchange(rtp_packet* p)
   assert(num_packets > 0 && p == in_use);
 
   if (p != NULL) {
-    if (p->num_bytes == 0)
+    // ignore packets that are too short to hold the 12-byte RTP header
+    // and the 8-byte payload header
+    if (p->num_bytes < 20)
       return p;
 
     if (last_seq_num == 0) // initialization

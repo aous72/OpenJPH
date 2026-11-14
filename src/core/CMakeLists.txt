@@ -164,9 +164,9 @@ add_library(openjph ${SOURCES})
 ## emitted by libstdc++ are weak, so --as-needed drops the library; force it.
 find_package(Threads REQUIRED)
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_link_libraries(openjph PUBLIC "-Wl,--no-as-needed" Threads::Threads)
+  target_link_libraries(openjph PRIVATE "-Wl,--no-as-needed" Threads::Threads)
 else()
-  target_link_libraries(openjph PUBLIC Threads::Threads)
+  target_link_libraries(openjph PRIVATE Threads::Threads)
 endif()
 
 ## The option BUILD_SHARED_LIBS

@@ -984,17 +984,36 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    void resolution::write_one_precinct(outfile_base* file)
+    precinct& resolution::next_precinct()
     {
       ui32 idx = cur_precinct_loc.x + cur_precinct_loc.y * num_precincts.w;
       assert(idx < num_precincts.area());
-      precincts[idx].write(file);
 
       if (++cur_precinct_loc.x >= num_precincts.w)
       {
         cur_precinct_loc.x = 0;
         ++cur_precinct_loc.y;
       }
+      return precincts[idx];
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void resolution::write_one_precinct(outfile_base* file)
+    {
+      next_precinct().write(file);
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void resolution::record_precincts(ui32*& lengths) const
+    {
+      for (ui32 i = 0; i < (ui32)num_precincts.area(); ++i)
+        *lengths++ = precincts[i].num_bytes;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void resolution::record_one_precinct(ui32*& lengths)
+    {
+      *lengths++ = next_precinct().num_bytes;
     }
 
     //////////////////////////////////////////////////////////////////////////

@@ -88,12 +88,19 @@ namespace ojph {
       void write_precincts(outfile_base *file);
       bool get_top_left_precinct(point &top_left);
       void write_one_precinct(outfile_base *file);
+      void record_precincts(ui32*& lengths) const;
+      void record_one_precinct(ui32*& lengths);
+      void rewind_precincts() { cur_precinct_loc = point(0, 0); }
+      ui32 get_num_precincts() const { return (ui32)num_precincts.area(); }
       resolution *next_resolution() { return child_res; }
       void parse_all_precincts(ui32& data_left, infile_base *file);
       void parse_one_precinct(ui32& data_left, infile_base *file);
 
       ui32 get_num_bytes() const { return num_bytes; }
       ui32 get_num_bytes(ui32 resolution_num) const;
+
+    private:
+      precinct& next_precinct();
 
     private:
       bool reversible, skipped_res_for_read, skipped_res_for_recon;

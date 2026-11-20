@@ -769,9 +769,9 @@ namespace ojph {
                                  ui32 width, ui32 height, ui32 stride,
                                  bool stripe_causal)
     {
-      // static bool insufficient_precision = false;
-      // static bool modify_code = false;
-      // static bool truncate_spp_mrp = false;
+      static bool insufficient_precision = false;
+      static bool modify_code = false;
+      static bool truncate_spp_mrp = false;
 
       if (num_passes > 1 && lengths2 == 0)
       {
@@ -789,41 +789,41 @@ namespace ojph {
         return false;
       }
 
-      // if (missing_msbs > 30) // p < 0
-      // {
-      //   if (insufficient_precision == false) 
-      //   {
-      //     insufficient_precision = true;
-      //     OJPH_WARN(0x00010003, "32 bits are not enough to decode this "
-      //                           "codeblock. This message will not be "
-      //                           "displayed again.");
-      //   }
-      //   return false;
-      // }       
-      // else if (missing_msbs == 30) // p == 0
-      // { // not enough precision to decode and set the bin center to 1
-      //   if (modify_code == false) {
-      //     modify_code = true;
-      //     OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
-      //                           "pass. The code can be modified to support "
-      //                           "this case. This message will not be "
-      //                           "displayed again.");
-      //   }
-      //    return false;         // 32 bits are not enough to decode this
-      //  }
-      // else if (missing_msbs == 29) // if p is 1, then num_passes must be 1
-      // {
-      //   if (num_passes > 1) {
-      //     num_passes = 1;
-      //     if (truncate_spp_mrp == false) {
-      //       truncate_spp_mrp = true;
-      //       OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
-      //                             "nor MagRef passes; both will be skipped. "
-      //                             "This message will not be displayed "
-      //                             "again.");
-      //     }
-      //   }
-      // }
+      if (missing_msbs > 62) // p < 0
+      {
+        if (insufficient_precision == false)
+        {
+          insufficient_precision = true;
+          OJPH_WARN(0x00010003, "64 bits are not enough to decode this "
+                                "codeblock. This message will not be "
+                                "displayed again.");
+        }
+        return false;
+      }
+      else if (missing_msbs == 62) // p == 0
+      { // not enough precision to decode and set the bin center to 1
+        if (modify_code == false) {
+          modify_code = true;
+          OJPH_WARN(0x00010004, "Not enough precision to decode the cleanup "
+                                "pass. The code can be modified to support "
+                                "this case. This message will not be "
+                                "displayed again.");
+        }
+         return false;         // 64 bits are not enough to decode this
+       }
+      else if (missing_msbs == 61) // if p is 1, then num_passes must be 1
+      {
+        if (num_passes > 1) {
+          num_passes = 1;
+          if (truncate_spp_mrp == false) {
+            truncate_spp_mrp = true;
+            OJPH_WARN(0x00010005, "Not enough precision to decode the SgnProp "
+                                  "nor MagRef passes; both will be skipped. "
+                                  "This message will not be displayed "
+                                  "again.");
+          }
+        }
+      }
       ui32 p = 62 - missing_msbs; // The least significant bitplane for CUP
       // There is a way to handle the case of p == 0, but a different path
       // is required

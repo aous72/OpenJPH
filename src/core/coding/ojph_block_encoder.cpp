@@ -574,8 +574,8 @@ namespace ojph {
       //For a 1024 pixels, we need 512 bytes, the 2 extra,
       // one for the non-existing earlier quad, and one for beyond the
       // the end
-      ui8 e_val[513];
-      ui8 cx_val[513];
+      ui8 e_val[514];
+      ui8 cx_val[514];
       ui8* lep = e_val;     lep[0] = 0;
       ui8* lcxp = cx_val;   lcxp[0] = 0;
 
@@ -1071,8 +1071,8 @@ namespace ojph {
       //For a 1024 pixels, we need 512 bytes, the 2 extra,
       // one for the non-existing earlier quad, and one for beyond the
       // the end
-      ui8 e_val[513];
-      ui8 cx_val[513];
+      ui8 e_val[514];
+      ui8 cx_val[514];
       ui8* lep = e_val;     lep[0] = 0;
       ui8* lcxp = cx_val;   lcxp[0] = 0;
 

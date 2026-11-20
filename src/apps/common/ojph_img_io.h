@@ -130,8 +130,9 @@ namespace ojph {
     mem_fixed_allocator *alloc_p;
     void *temp_buf;
     ui32 width, height, num_comps, max_val, max_val_num_bits;
-    ui32 bytes_per_sample, num_ele_per_line;
-    ui32 temp_buf_byte_size;
+    ui32 bytes_per_sample;
+    size_t num_ele_per_line;
+    size_t temp_buf_byte_size;
 
     ui32 cur_line;
     si64 start_of_data;

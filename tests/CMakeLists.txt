@@ -122,6 +122,18 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the test of irreversible decoding through 64 bit codeblocks
+add_executable(
+  test_irv_precision64
+  test_irv_precision64.cpp
+)
+
+target_link_libraries(
+  test_irv_precision64
+  openjph
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
 gtest_add_tests(TARGET test_mixed_coc)
@@ -129,6 +141,7 @@ gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
 gtest_add_tests(TARGET test_quant_weights)
 gtest_add_tests(TARGET test_signed_shift)
+gtest_add_tests(TARGET test_irv_precision64)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

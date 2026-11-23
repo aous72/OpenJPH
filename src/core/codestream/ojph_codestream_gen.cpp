@@ -172,6 +172,9 @@ namespace ojph {
                               float delta, ui32 count)
     {
       ojph_unused(K_max);
+      // delta is set up for 32-bit codeblock samples; 64-bit samples are
+      // 32 bits higher
+      delta *= 1.0f / 4294967296.0f;
       //convert to sign and magnitude
       float *p = (float*)dp;
       for (ui32 i = count; i > 0; --i)

@@ -255,7 +255,11 @@ namespace ojph {
         assert(precision == BUF64);
         assert((reversible && (line->flags & line_buf::LFT_64BIT))
                || (!reversible && (line->flags & line_buf::LFT_32BIT)));
-        si64 *dp = line->i64 + line_offset;
+        // irreversible lines hold floats even when the codeblock is decoded
+        // into a 64-bit buffer
+        void *dp = reversible
+          ? (void*)(line->i64 + line_offset)
+          : (void*)(line->f32 + line_offset);
         if (!zero_block)
         {
           const ui64 *sp = buf64 + cur_line * stride;
@@ -263,7 +267,8 @@ namespace ojph {
                                                  cb_size.w);
         }
         else
-          this->codeblock_functions.mem_clear(dp, cb_size.w * sizeof(*dp));
+          this->codeblock_functions.mem_clear(dp, cb_size.w *
+            (reversible ? sizeof(si64) : sizeof(float)));
       }
 
       ++cur_line;

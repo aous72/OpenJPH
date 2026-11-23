@@ -297,7 +297,7 @@ namespace ojph {
       close();
       OJPH_ERROR(0x03000006, "error in file format for file %s", filename);
     }
-    num_ele_per_line = num_comps * width;
+    num_ele_per_line = num_comps * (size_t)width;
     bytes_per_sample = max_val > 255 ? 2 : 1;
     max_val_num_bits = 32u - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
@@ -305,11 +305,11 @@ namespace ojph {
     start_of_data = ojph_ftell(fh);
 
     // allocate linebuffer to hold a line of image data
-    if (temp_buf_byte_size < num_comps * width * bytes_per_sample)
+    if (temp_buf_byte_size < num_comps * (size_t)width * bytes_per_sample)
     {
       if (alloc_p == NULL)
       {
-        temp_buf_byte_size = num_comps * width * bytes_per_sample;
+        temp_buf_byte_size = num_comps * (size_t)width * bytes_per_sample;
         void* t = temp_buf;
         if (temp_buf)
           temp_buf = realloc(temp_buf, temp_buf_byte_size);
@@ -323,7 +323,7 @@ namespace ojph {
       else
       {
         assert(temp_buf_byte_size == 0); //cannot reallocate the buffer
-        temp_buf_byte_size = num_comps * width * bytes_per_sample;
+        temp_buf_byte_size = num_comps * (size_t)width * bytes_per_sample;
         alloc_p->pre_alloc_data<ui8>(temp_buf_byte_size, 0);
       }
     }
@@ -1477,7 +1477,7 @@ namespace ojph {
       tw = ojph_max(tw, this->comp_width[i]);
     }
     this->width = tw;
-    buffer_size = tw * (bit_depth > 8 ? 2 : 1);
+    buffer_size = (size_t)tw * (bit_depth > 8 ? 2 : 1);
     buffer = (ui8*)malloc(buffer_size);
   }
 
@@ -1678,7 +1678,7 @@ namespace ojph {
     }
 
     bytes_per_sample = (bit_depth + 7) >> 3;
-    buffer_size = width * bytes_per_sample;
+    buffer_size = (size_t)width * bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
   }
 

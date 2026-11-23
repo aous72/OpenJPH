@@ -309,7 +309,7 @@ namespace ojph {
 
           si32 v = ojph_round(z * mul - half);
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           *dp++ = v;
         }
       }
@@ -384,7 +384,7 @@ namespace ojph {
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -456,7 +456,7 @@ namespace ojph {
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -538,7 +538,7 @@ namespace ojph {
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
 
           t = ojph_max(t, ft_min);
@@ -796,7 +796,7 @@ namespace ojph {
           v = t >= fl_low_lim ? v : s32_low_lim;
           v = t <  fl_up_lim  ? v : s32_up_lim;
           if (NLT_TYPE3)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           *dp++ = v;
         }
       }
@@ -854,7 +854,7 @@ namespace ojph {
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE3)
-            v = (v >= 0) ? v : (si32)(-(ui32)v - bias);
+            v = (v >= 0) ? v : (si32)(0u - (ui32)v - bias);
           *dp++ = (float)v * mul;
         }
       }

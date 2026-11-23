@@ -2793,6 +2793,20 @@ namespace ojph {
         if (buf4_d_min >= buf4_d_max)
           OJPH_ERROR(0x00050146, "In an NLT marker segment, Dmin must smaller "
             "than Dmax; here we have %d and %d", buf4_d_min, buf4_d_max);
+        // Dmin and Dmax are mapped to floats in [0, 1] when decoding, and
+        // adjacent 32-bit values (such as 0xFFFFFFFE and 0xFFFFFFFF) collapse
+        // to the same float.  prepare_for_decoding would then divide by a
+        // zero float range, making inv_delta infinite and every LUT index
+        // NaN, which indexes the decode table out of bounds.  Reject the
+        // segment while the field is still being parsed.
+        {
+          double d = 1.0 / (double)((1ull << 32) - 1);
+          if ((float)((double)buf4_d_min * d) ==
+              (float)((double)buf4_d_max * d))
+            OJPH_ERROR(0x00050149, "In an NLT marker segment, Dmin and Dmax "
+              "are too close to be represented as distinct values; here we "
+              "have %u and %u", buf4_d_min, buf4_d_max);
+        }
         if (buf_pt_val == 0 || buf_pt_val > 32)
           OJPH_ERROR(0x00050147, "In an NLT marker segment, the value of "
             "pt_val must be larger than 0 and smaller or equal to 32; "

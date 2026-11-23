@@ -892,10 +892,10 @@ namespace {
   // write that combination, so a codestream that carries it has to be put
   // together here, the way another encoder may have produced it.
   ///////////////////////////////////////////////////////////////////////////
-  bool insert_lut_nlt_marker(const std::string& filename, ui8 nlt_type)
+  bool insert_lut_nlt_marker(const std::string& filename, ui8 nlt_type,
+                             ui32 d_min = 0, ui32 d_max = 0xFFFFFFFFu)
   {
     const ui16 num_points = 17;
-    const ui32 d_min = 0, d_max = 0xFFFFFFFFu;
     const ui32 length = 17u + 4u * (ui32)num_points;  // as the library does
 
     std::vector<ui8> marker;
@@ -1651,6 +1651,53 @@ TEST(NltTest, LutStyleWithReversibleWaveletIsReportedWhenRead)
     bit_depth, is_signed, type));
   EXPECT_EQ((int)type, (int)param_nlt::OJPH_NLT_LUT_STYLE_NLT);
   cs.close();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Dmin and Dmax are legal as distinct 32-bit integers but are mapped to floats
+// in [0, 1] when the table is prepared for decoding, and two adjacent values
+// such as 0xFFFFFFFE and 0xFFFFFFFF round to the same float.  The float range
+// of the table is then zero, inv_delta is infinite and every table index is
+// NaN, which indexes the decode table out of bounds in the irreversible type 2
+// and type 4 decode paths.  A codestream that carries such a segment, which
+// another encoder may have produced, has to be rejected when its headers are
+// read rather than reach the decoder.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, LutStyleWithDegenerateRangeIsRejected)
+{
+  test_image img;
+  make_synthetic_image(img, 64, 64);
+
+  const ui8 types[2] = { param_nlt::OJPH_NLT_LUT_STYLE_NLT,
+                         param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT };
+  for (size_t i = 0; i < 2; ++i)
+  {
+    // an irreversible codestream without a nonlinearity, into which an NLT
+    // marker segment for a LUT style nonlinearity with a collapsing range is
+    // inserted
+    nlt_setting setting;
+    setting.type = param_nlt::OJPH_NLT_NO_NLT;
+    setting.use_pfm_lut = true;
+    setting.use_approx_inverse = true;
+    setting.reversible = false;
+    setting.qstep = default_qstep();
+
+    const std::string filename = OUT_FILE_DIR "nlt_degenerate.j2c";
+    encode_image(filename, img, setting);
+    ASSERT_TRUE(insert_lut_nlt_marker(filename, types[i],
+      0xFFFFFFFEu, 0xFFFFFFFFu)) << "nonlinearity " << (int)types[i];
+
+    message_capture capture;
+    codestream cs;
+    j2c_infile file;
+    file.open(filename.c_str());
+    EXPECT_THROW(cs.read_headers(&file), std::runtime_error)
+      << "nonlinearity " << (int)types[i];
+    EXPECT_GE(capture.errors.num_messages, 1);
+    EXPECT_EQ(capture.errors.last_code, 0x00050149u)
+      << std::hex << "error code " << capture.errors.last_code;
+    cs.close();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

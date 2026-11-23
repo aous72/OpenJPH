@@ -211,7 +211,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
+      - uses: uraimo/run-on-arch-action@9893a0f995e5148dcc313ba661820f3992cffcc1 #3.3
         with:
           arch: armv7
           distro: ubuntu22.04
@@ -236,7 +236,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
+      - uses: uraimo/run-on-arch-action@9893a0f995e5148dcc313ba661820f3992cffcc1 #3.3
         with:
           arch: s390x
           distro: ubuntu22.04
@@ -264,7 +264,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@fa1f3e7de95534497266c7265950b5188355fbfb #3.2.1
+      - uses: uraimo/run-on-arch-action@9893a0f995e5148dcc313ba661820f3992cffcc1 #3.3
         with:
           arch: ppc64le
           distro: ${{ matrix.dist }}

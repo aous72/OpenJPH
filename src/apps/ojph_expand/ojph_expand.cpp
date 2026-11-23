@@ -257,6 +257,9 @@ int main(int argc, char *argv[]) {
         {
           ojph::point p1 = siz.get_downsampling(i);
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
+          all_same = all_same &&
+            siz.get_recon_width(i) == siz.get_recon_width(0) &&
+            siz.get_recon_height(i) == siz.get_recon_height(0);
         }
         if (!all_same)
           OJPH_ERROR(0x02000004,
@@ -286,6 +289,9 @@ int main(int argc, char *argv[]) {
         for (ojph::ui32 i = 1; i < siz.get_num_components(); ++i) {
           ojph::point p1 = siz.get_downsampling(i);
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
+          all_same = all_same &&
+            siz.get_recon_width(i) == siz.get_recon_width(0) &&
+            siz.get_recon_height(i) == siz.get_recon_height(0);
         }
         if (!all_same)
           OJPH_ERROR(0x0200000D,
@@ -311,6 +317,9 @@ int main(int argc, char *argv[]) {
         {
           ojph::point p1 = siz.get_downsampling(i);
           all_same = all_same && (p1.x == p.x) && (p1.y == p.y);
+          all_same = all_same &&
+            siz.get_recon_width(i) == siz.get_recon_width(0) &&
+            siz.get_recon_height(i) == siz.get_recon_height(0);
         }
         if (!all_same)
           OJPH_ERROR(0x02000005,

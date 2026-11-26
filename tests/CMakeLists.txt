@@ -110,6 +110,18 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# configure the ATK (arbitrary transformation kernel) marker tests
+add_executable(
+  test_atk
+  test_atk.cpp
+)
+
+target_link_libraries(
+  test_atk
+  openjph
+  GTest::gtest_main
+)
+
 # configure the tests of signed samples on paths that double a sample
 add_executable(
   test_signed_shift
@@ -129,6 +141,7 @@ gtest_add_tests(TARGET test_nlt)
 gtest_add_tests(TARGET test_tlm)
 gtest_add_tests(TARGET test_quant_weights)
 gtest_add_tests(TARGET test_signed_shift)
+gtest_add_tests(TARGET test_atk)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD

@@ -3451,6 +3451,11 @@ namespace ojph {
           if (file->read(&d[s].rev.Eatk, 1) != 1)
             OJPH_ERROR(0x000500E9, "error reading ATK-Eatk parameter");
           bytes -= 1;
+          if (d[s].rev.Eatk > 31)
+            OJPH_ERROR(0x000500F4, "ATK-Eatk parameter of lifting step %d is "
+              "%d.  The reversible lifting steps use it to right shift "
+              "samples that can be held in 32 bits, and therefore it must "
+              "not exceed 31.", s, d[s].rev.Eatk);
           if (file->read(&d[s].rev.Batk, 2) != 2)
             OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");
           bytes -= 2;
